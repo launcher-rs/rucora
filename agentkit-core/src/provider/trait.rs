@@ -22,6 +22,8 @@ pub trait LlmProvider: Send + Sync {
         &self,
         _request: ChatRequest,
     ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
-        Err(ProviderError::Message("stream_chat not supported".to_string()))
+        Err(ProviderError::Message(
+            "stream_chat not supported".to_string(),
+        ))
     }
 }

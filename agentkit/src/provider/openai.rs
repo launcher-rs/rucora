@@ -9,15 +9,15 @@ use std::env;
 use agentkit_core::{
     error::ProviderError,
     provider::{
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
         LlmProvider,
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
     },
     tool::types::{ToolCall, ToolDefinition},
 };
 use async_trait::async_trait;
-use futures_util::{stream::BoxStream, StreamExt};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
-use serde_json::{json, Value};
+use futures_util::{StreamExt, stream::BoxStream};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use serde_json::{Value, json};
 
 /// OpenAI Chat Completions Provider。
 ///
@@ -35,7 +35,8 @@ impl OpenAiProvider {
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("OPENAI_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 OPENAI_API_KEY".to_string()))?;
-        let base_url = env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+        let base_url =
+            env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
 
         Ok(Self::new(base_url, api_key))
     }
@@ -201,8 +202,7 @@ impl LlmProvider for OpenAiProvider {
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
                 "OpenAI 请求失败：status={} body={} ",
-                status,
-                data
+                status, data
             )));
         }
 
@@ -212,7 +212,9 @@ impl LlmProvider for OpenAiProvider {
             .and_then(|arr| arr.first())
             .and_then(|c| c.get("message"))
             .cloned()
-            .ok_or_else(|| ProviderError::Message("OpenAI 响应缺少 choices[0].message".to_string()))?;
+            .ok_or_else(|| {
+                ProviderError::Message("OpenAI 响应缺少 choices[0].message".to_string())
+            })?;
 
         let content = message
             .get("content")
@@ -245,10 +247,7 @@ impl LlmProvider for OpenAiProvider {
             .ok_or_else(|| ProviderError::Message("OpenAI 请求缺少 model".to_string()))?;
 
         let client = self.client.clone();
-        let url = format!(
-            "{}/chat/completions",
-            self.base_url.trim_end_matches('/')
-        );
+        let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
 
         let mut body = json!({
             "model": model,

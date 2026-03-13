@@ -1,4 +1,7 @@
-use agentkit_core::provider::{types::{ChatMessage, ChatRequest, Role}, LlmProvider};
+use agentkit_core::provider::{
+    LlmProvider,
+    types::{ChatMessage, ChatRequest, Role},
+};
 use futures_util::StreamExt;
 
 #[tokio::main]
@@ -8,12 +11,12 @@ async fn main() {
     // - 可选环境变量：OLLAMA_BASE_URL
     // - 需要本地已经 `ollama serve` 并存在对应模型
 
-    let provider = agentkit::provider::OllamaProvider::from_env().with_default_model("llama3");
+    let provider = agentkit::provider::OllamaProvider::from_env().with_default_model("qwen2.5:14b");
 
     let req = ChatRequest {
         messages: vec![ChatMessage {
             role: Role::User,
-            content: "你好".to_string(),
+            content: "你好，讲个笑话".to_string(),
             name: None,
         }],
         model: None,

@@ -1,10 +1,7 @@
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 
-use crate::{
-    channel::types::ChannelEvent,
-    error::ChannelError,
-};
+use crate::{channel::types::ChannelEvent, error::ChannelError};
 
 /// Channel（通信渠道）接口。
 ///

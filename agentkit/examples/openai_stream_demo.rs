@@ -1,4 +1,7 @@
-use agentkit_core::provider::{types::{ChatMessage, ChatRequest, Role}, LlmProvider};
+use agentkit_core::provider::{
+    LlmProvider,
+    types::{ChatMessage, ChatRequest, Role},
+};
 use futures_util::StreamExt;
 
 #[tokio::main]

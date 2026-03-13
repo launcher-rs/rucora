@@ -6,8 +6,8 @@
 //! - IM/机器人平台
 //! 在 core 层，我们只定义发送与订阅的接口。
 
-pub mod types;
 pub mod r#trait;
+pub mod types;
 
 /// 重新导出 channel 相关 trait，方便 `agentkit_core::channel::*` 使用。
 pub use r#trait::*;

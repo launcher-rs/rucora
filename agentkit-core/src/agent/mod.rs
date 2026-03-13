@@ -5,8 +5,8 @@
 //! - 调用 Provider/Tool/Memory/Skill
 //! - 输出最终结果或事件流
 
-pub mod types;
 pub mod r#trait;
+pub mod types;
 
 /// 重新导出 agent 相关 trait，方便 `agentkit_core::agent::*` 使用。
 pub use r#trait::*;

@@ -9,13 +9,13 @@ use std::env;
 use agentkit_core::{
     error::ProviderError,
     provider::{
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
         LlmProvider,
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
     },
 };
 use async_trait::async_trait;
-use futures_util::{stream::BoxStream, StreamExt};
-use serde_json::{json, Value};
+use futures_util::{StreamExt, stream::BoxStream};
+use serde_json::{Value, json};
 
 /// Ollama Chat Provider。
 ///
@@ -31,7 +31,8 @@ pub struct OllamaProvider {
 impl OllamaProvider {
     /// 从环境变量创建 Provider。
     pub fn from_env() -> Self {
-        let base_url = env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+        let base_url =
+            env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
         Self::new(base_url)
     }
 

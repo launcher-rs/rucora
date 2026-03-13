@@ -16,7 +16,7 @@ use agentkit_core::{
 };
 use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::sync::Mutex;
 
 /// 一个测试用 provider：

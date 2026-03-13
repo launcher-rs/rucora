@@ -20,13 +20,8 @@ pub mod prelude {
     pub use crate::core::{agent::Agent, provider::LlmProvider, tool::Tool};
     /// core 常用类型与错误。
     pub use crate::core::{
-        agent::types::*,
-        channel::types::*,
-        error::*,
-        memory::types::*,
-        provider::types::*,
-        skill::types::*,
-        tool::types::*,
+        agent::types::*, channel::types::*, error::*, memory::types::*, provider::types::*,
+        skill::types::*, tool::types::*,
     };
     /// runtime 常用实现。
     pub use crate::{SimpleAgent, ToolCallingAgent, ToolRegistry};
@@ -34,7 +29,7 @@ pub mod prelude {
 
 /// Provider（模型提供者）实现与示例。
 pub mod provider;
-/// Tools（工具）实现与示例。
-pub mod tools;
 /// Skills（技能）实现与示例。
 pub mod skills;
+/// Tools（工具）实现与示例。
+pub mod tools;

@@ -4,7 +4,7 @@
 
 use agentkit_core::{error::ToolError, tool::Tool};
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// 一个最简单的 Echo 工具：原样返回输入。
 pub struct EchoTool;

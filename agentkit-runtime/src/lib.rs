@@ -6,10 +6,19 @@
 use std::{collections::HashMap, sync::Arc};
 
 use agentkit_core::{
-    agent::{Agent, types::{AgentInput, AgentOutput}},
+    agent::{
+        Agent,
+        types::{AgentInput, AgentOutput},
+    },
     error::AgentError,
-    provider::{LlmProvider, types::{ChatMessage, ChatRequest, Role}},
-    tool::{Tool, types::{ToolCall, ToolDefinition, ToolResult}},
+    provider::{
+        LlmProvider,
+        types::{ChatMessage, ChatRequest, Role},
+    },
+    tool::{
+        Tool,
+        types::{ToolCall, ToolDefinition, ToolResult},
+    },
 };
 use async_trait::async_trait;
 use serde_json::Value;
@@ -107,7 +116,10 @@ impl<P> ToolCallingAgent<P> {
     /// 执行单个工具调用，并返回 `ToolResult`。
     async fn execute_tool_call(&self, call: &ToolCall) -> Result<ToolResult, AgentError> {
         let tool = self.tools.get(&call.name).ok_or_else(|| {
-            AgentError::Message(format!("未找到工具：{} (tool_call_id={})", call.name, call.id))
+            AgentError::Message(format!(
+                "未找到工具：{} (tool_call_id={})",
+                call.name, call.id
+            ))
         })?;
 
         let output = tool

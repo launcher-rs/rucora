@@ -78,10 +78,7 @@ impl RouterProvider {
 #[async_trait]
 impl LlmProvider for RouterProvider {
     async fn chat(&self, mut request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-        let model = request
-            .model
-            .clone()
-            .unwrap_or_else(|| "".to_string());
+        let model = request.model.clone().unwrap_or_else(|| "".to_string());
         let (provider_name, resolved_model) = self.resolve_model(&model);
 
         let provider = self.select_provider(&provider_name)?;

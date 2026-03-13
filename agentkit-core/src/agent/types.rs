@@ -3,10 +3,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::{
-    provider::types::ChatMessage,
-    tool::types::ToolResult,
-};
+use crate::{provider::types::ChatMessage, tool::types::ToolResult};
 
 /// Agent 输入。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
