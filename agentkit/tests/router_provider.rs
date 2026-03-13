@@ -70,7 +70,10 @@ async fn router_should_route_by_model_prefix_and_strip_prefix() {
         .expect("chat failed");
 
     assert_eq!(resp.message.content, "from:openai");
-    assert_eq!(openai_seen.lock().unwrap().clone(), vec![Some("gpt-4o-mini".to_string())]);
+    assert_eq!(
+        openai_seen.lock().unwrap().clone(),
+        vec![Some("gpt-4o-mini".to_string())]
+    );
 
     // 再来一次走默认 provider
     let resp2 = router
@@ -90,5 +93,8 @@ async fn router_should_route_by_model_prefix_and_strip_prefix() {
         .expect("chat failed");
 
     assert_eq!(resp2.message.content, "from:ollama");
-    assert_eq!(ollama_seen.lock().unwrap().clone(), vec![Some("llama3".to_string())]);
+    assert_eq!(
+        ollama_seen.lock().unwrap().clone(),
+        vec![Some("llama3".to_string())]
+    );
 }

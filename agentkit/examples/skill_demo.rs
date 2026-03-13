@@ -1,25 +1,24 @@
-use agentkit::{SkillRegistry, skills::EchoSkill};
+use agentkit::skills::EchoSkill;
 use agentkit_core::skill::types::SkillContext;
 use serde_json::json;
 
 #[tokio::main]
 async fn main() {
-    let skills = SkillRegistry::new().register(EchoSkill);
+    // 直接创建和使用技能，无需注册表
+    let echo_skill = EchoSkill::new();
 
-    let out = skills
-        .run(
-            "echo",
-            SkillContext {
-                input: json!({
-                    "text": "hello",
-                    "n": 1,
-                }),
-            },
-        )
-        .await;
+    println!("技能名称: {}", echo_skill.name());
+    println!("技能描述: {:?}", echo_skill.description());
 
-    match out {
-        Ok(v) => println!("{}", v.output),
+    let ctx = SkillContext {
+        input: json!({
+            "text": "hello",
+            "n": 1,
+        }),
+    };
+
+    match echo_skill.run(ctx).await {
+        Ok(result) => println!("技能执行结果: {}", result.output),
         Err(e) => eprintln!("调用失败：{}", e),
     }
 }

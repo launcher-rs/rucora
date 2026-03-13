@@ -12,6 +12,7 @@ futures-util = "0.3"
 async-stream = "0.3"
 bytes = "1"
 serde_json = "1"
+tokio = { version = "1", features = ["process", "fs", "time"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
