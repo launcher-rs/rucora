@@ -1,0 +1,216 @@
+//! Ollama Provider 实现。
+//!
+//! 约定：
+//! - Base URL 默认 `http://localhost:11434`，也可通过 `OLLAMA_BASE_URL` 覆盖
+//! - chat endpoint 使用 `/api/chat`
+
+use std::env;
+
+use agentkit_core::{
+    error::ProviderError,
+    provider::{
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
+        LlmProvider,
+    },
+};
+use async_trait::async_trait;
+use futures_util::{stream::BoxStream, StreamExt};
+use serde_json::{json, Value};
+
+/// Ollama Chat Provider。
+///
+/// 说明：
+/// - 目前仅实现 `chat`（非流式）
+/// - tools 暂不做强保证（不同 Ollama 版本对 tools 支持存在差异）
+pub struct OllamaProvider {
+    client: reqwest::Client,
+    base_url: String,
+    default_model: Option<String>,
+}
+
+impl OllamaProvider {
+    /// 从环境变量创建 Provider。
+    pub fn from_env() -> Self {
+        let base_url = env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
+        Self::new(base_url)
+    }
+
+    /// 创建 Provider。
+    pub fn new(base_url: impl Into<String>) -> Self {
+        Self {
+            client: reqwest::Client::new(),
+            base_url: base_url.into(),
+            default_model: None,
+        }
+    }
+
+    /// 设置默认模型。
+    pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
+        self.default_model = Some(model.into());
+        self
+    }
+
+    fn map_role(role: &Role) -> &'static str {
+        match role {
+            Role::System => "system",
+            Role::User => "user",
+            Role::Assistant => "assistant",
+            Role::Tool => "tool",
+        }
+    }
+
+    fn build_messages(messages: &[ChatMessage]) -> Vec<Value> {
+        messages
+            .iter()
+            .map(|m| {
+                let mut obj = json!({
+                    "role": Self::map_role(&m.role),
+                    "content": m.content,
+                });
+                if let Some(name) = &m.name {
+                    if let Some(map) = obj.as_object_mut() {
+                        map.insert("name".to_string(), Value::String(name.clone()));
+                    }
+                }
+                obj
+            })
+            .collect()
+    }
+}
+
+#[async_trait]
+impl LlmProvider for OllamaProvider {
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        let model = request
+            .model
+            .clone()
+            .or_else(|| self.default_model.clone())
+            .ok_or_else(|| ProviderError::Message("Ollama 请求缺少 model".to_string()))?;
+
+        let url = format!("{}/api/chat", self.base_url.trim_end_matches('/'));
+        let body = json!({
+            "model": model,
+            "messages": Self::build_messages(&request.messages),
+            "stream": false
+        });
+
+        let resp = self
+            .client
+            .post(url)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| ProviderError::Message(e.to_string()))?;
+
+        let status = resp.status();
+        let data: Value = resp
+            .json()
+            .await
+            .map_err(|e| ProviderError::Message(e.to_string()))?;
+
+        if !status.is_success() {
+            return Err(ProviderError::Message(format!(
+                "Ollama 请求失败：status={} body={}",
+                status, data
+            )));
+        }
+
+        let content = data
+            .get("message")
+            .and_then(|m| m.get("content"))
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: Role::Assistant,
+                content,
+                name: None,
+            },
+            tool_calls: vec![],
+            usage: None,
+            finish_reason: None,
+        })
+    }
+
+    fn stream_chat(
+        &self,
+        request: ChatRequest,
+    ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
+        let model = request
+            .model
+            .clone()
+            .or_else(|| self.default_model.clone())
+            .ok_or_else(|| ProviderError::Message("Ollama 请求缺少 model".to_string()))?;
+
+        let client = self.client.clone();
+        let url = format!("{}/api/chat", self.base_url.trim_end_matches('/'));
+        let body = json!({
+            "model": model,
+            "messages": Self::build_messages(&request.messages),
+            "stream": true
+        });
+
+        // 说明：Ollama 的流式输出通常是“每行一个 JSON”（NDJSON）。
+        let stream = async_stream::try_stream! {
+            let resp = client
+                .post(url)
+                .json(&body)
+                .send()
+                .await
+                .map_err(|e| ProviderError::Message(e.to_string()))?;
+
+            let status = resp.status();
+            if !status.is_success() {
+                Err(ProviderError::Message(format!(
+                    "Ollama stream 请求失败：status={}",
+                    status
+                )))?;
+            }
+
+            let mut buf = String::new();
+            let mut bytes_stream = resp.bytes_stream();
+
+            while let Some(item) = bytes_stream.next().await {
+                let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
+                let chunk = String::from_utf8_lossy(&bytes);
+                buf.push_str(&chunk);
+
+                while let Some(idx) = buf.find('\n') {
+                    let line = buf[..idx].trim().to_string();
+                    buf = buf[idx + 1..].to_string();
+
+                    if line.is_empty() {
+                        continue;
+                    }
+
+                    let v: Value = serde_json::from_str(&line)
+                        .map_err(|e| ProviderError::Message(format!("NDJSON 解析失败: {} line={}", e, line)))?;
+
+                    let done = v.get("done").and_then(|d| d.as_bool()).unwrap_or(false);
+                    let delta = v
+                        .get("message")
+                        .and_then(|m| m.get("content"))
+                        .and_then(|s| s.as_str())
+                        .map(|s| s.to_string());
+
+                    if delta.is_some() {
+                        yield ChatStreamChunk {
+                            delta,
+                            tool_calls: vec![],
+                            usage: None,
+                            finish_reason: None,
+                        };
+                    }
+
+                    if done {
+                        break;
+                    }
+                }
+            }
+        };
+
+        Ok(Box::pin(stream))
+    }
+}
