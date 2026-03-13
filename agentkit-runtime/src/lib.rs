@@ -15,6 +15,10 @@ use agentkit_core::{
         LlmProvider,
         types::{ChatMessage, ChatRequest, Role},
     },
+    skill::{
+        types::{SkillContext, SkillOutput},
+        Skill,
+    },
     tool::{
         Tool,
         types::{ToolCall, ToolDefinition, ToolResult},
@@ -37,6 +41,14 @@ pub struct SimpleAgent<P> {
 #[derive(Default, Clone)]
 pub struct ToolRegistry {
     tools: HashMap<String, Arc<dyn Tool>>,
+}
+
+/// Skill 注册表。
+///
+/// 用途：把一组 `Skill` 按名称组织起来，便于在编排层按名称调用。
+#[derive(Default, Clone)]
+pub struct SkillRegistry {
+    skills: HashMap<String, Arc<dyn Skill>>,
 }
 
 impl ToolRegistry {
@@ -70,6 +82,40 @@ impl ToolRegistry {
     /// 按名称查找工具。
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
         self.tools.get(name).cloned()
+    }
+}
+
+impl SkillRegistry {
+    /// 创建一个空注册表。
+    pub fn new() -> Self {
+        Self {
+            skills: HashMap::new(),
+        }
+    }
+
+    /// 注册一个技能。
+    ///
+    /// 注意：如果同名技能重复注册，后者会覆盖前者。
+    pub fn register<S: Skill + 'static>(mut self, skill: S) -> Self {
+        self.skills.insert(skill.name().to_string(), Arc::new(skill));
+        self
+    }
+
+    /// 按名称查找技能。
+    pub fn get(&self, name: &str) -> Option<Arc<dyn Skill>> {
+        self.skills.get(name).cloned()
+    }
+
+    /// 按名称执行技能。
+    pub async fn run(&self, name: &str, ctx: SkillContext) -> Result<SkillOutput, AgentError> {
+        let skill = self.skills.get(name).ok_or_else(|| {
+            AgentError::Message(format!("未找到技能：{}", name))
+        })?;
+
+        skill
+            .run(ctx)
+            .await
+            .map_err(|e| AgentError::Message(e.to_string()))
     }
 }
 

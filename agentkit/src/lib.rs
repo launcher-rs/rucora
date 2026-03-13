@@ -10,7 +10,7 @@ pub use agentkit_core as core;
 pub use agentkit_runtime as runtime;
 
 /// 常用 runtime 类型的便捷导出。
-pub use agentkit_runtime::{SimpleAgent, ToolCallingAgent, ToolRegistry};
+pub use agentkit_runtime::{SimpleAgent, SkillRegistry, ToolCallingAgent, ToolRegistry};
 
 /// 常用导入集合（prelude）。
 ///
@@ -24,7 +24,7 @@ pub mod prelude {
         skill::types::*, tool::types::*,
     };
     /// runtime 常用实现。
-    pub use crate::{SimpleAgent, ToolCallingAgent, ToolRegistry};
+    pub use crate::{SimpleAgent, SkillRegistry, ToolCallingAgent, ToolRegistry};
 }
 
 /// Provider（模型提供者）实现与示例。
