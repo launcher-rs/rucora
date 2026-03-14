@@ -14,6 +14,8 @@ pub mod embed;
 pub mod memory;
 /// LLM 提供者抽象（对话/流式对话等）。
 pub mod provider;
+/// 语义检索抽象（向量存储与相似度搜索）。
+pub mod retrieval;
 /// 技能抽象（更高层的可复用能力单元）。
 pub mod skill;
 /// 工具抽象（名称、输入 schema、执行）。

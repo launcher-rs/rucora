@@ -7,10 +7,7 @@
 
 use std::env;
 
-use agentkit_core::{
-    embed::EmbeddingProvider,
-    error::ProviderError,
-};
+use agentkit_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
@@ -43,7 +40,7 @@ impl OpenAiEmbeddingProvider {
         let api_key = api_key.into();
         let model = model.into();
         let base_url = base_url.into();
-        
+
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
         if let Ok(v) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
@@ -87,7 +84,7 @@ impl OpenAiEmbeddingProvider {
 impl EmbeddingProvider for OpenAiEmbeddingProvider {
     async fn embed(&self, text: &str) -> Result<Vec<f32>, ProviderError> {
         let url = format!("{}/embeddings", self.base_url.trim_end_matches('/'));
-        
+
         let body = json!({
             "model": self.model,
             "input": text,
@@ -121,9 +118,7 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
             .and_then(|arr| arr.first())
             .and_then(|item| item.get("embedding"))
             .and_then(|e| e.as_array())
-            .ok_or_else(|| {
-                ProviderError::Message("OpenAI 响应缺少 embedding 数据".to_string())
-            })?
+            .ok_or_else(|| ProviderError::Message("OpenAI 响应缺少 embedding 数据".to_string()))?
             .iter()
             .filter_map(|v| v.as_f64().map(|f| f as f32))
             .collect();
@@ -137,7 +132,7 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
         }
 
         let url = format!("{}/embeddings", self.base_url.trim_end_matches('/'));
-        
+
         let body = json!({
             "model": self.model,
             "input": texts,
@@ -168,9 +163,7 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
         let data_array = data
             .get("data")
             .and_then(|d| d.as_array())
-            .ok_or_else(|| {
-                ProviderError::Message("OpenAI 响应缺少 data 数组".to_string())
-            })?;
+            .ok_or_else(|| ProviderError::Message("OpenAI 响应缺少 data 数组".to_string()))?;
 
         let mut results = Vec::with_capacity(texts.len());
         for item in data_array {

@@ -60,6 +60,9 @@ pub mod provider;
 /// Embedding（向量嵌入）实现与示例。
 pub mod embed;
 
+/// Retrieval（语义检索）实现与示例。
+pub mod retrieval;
+
 /// Skills（技能）实现与示例。
 ///
 /// 本模块包含具体的技能实现，展示如何构建可复用的技能单元。

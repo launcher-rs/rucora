@@ -6,10 +6,7 @@
 
 use std::env;
 
-use agentkit_core::{
-    embed::EmbeddingProvider,
-    error::ProviderError,
-};
+use agentkit_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
@@ -25,7 +22,8 @@ impl OllamaEmbeddingProvider {
     pub fn from_env() -> Self {
         let base_url =
             env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
-        let model = env::var("OLLAMA_EMBED_MODEL").unwrap_or_else(|_| "nomic-embed-text".to_string());
+        let model =
+            env::var("OLLAMA_EMBED_MODEL").unwrap_or_else(|_| "nomic-embed-text".to_string());
         Self::new(base_url, model)
     }
 
@@ -49,7 +47,7 @@ impl OllamaEmbeddingProvider {
 impl EmbeddingProvider for OllamaEmbeddingProvider {
     async fn embed(&self, text: &str) -> Result<Vec<f32>, ProviderError> {
         let url = format!("{}/api/embeddings", self.base_url.trim_end_matches('/'));
-        
+
         let body = json!({
             "model": self.model,
             "prompt": text,
@@ -80,13 +78,12 @@ impl EmbeddingProvider for OllamaEmbeddingProvider {
         let embedding = data
             .get("embedding")
             .and_then(|e| e.as_array())
-            .ok_or_else(|| {
-                ProviderError::Message("Ollama 响应缺少 embedding 数据".to_string())
-            })?
+            .ok_or_else(|| ProviderError::Message("Ollama 响应缺少 embedding 数据".to_string()))?
             .iter()
             .filter_map(|v| {
                 // Ollama 可能返回不同数字类型
-                v.as_f64().map(|f| f as f32)
+                v.as_f64()
+                    .map(|f| f as f32)
                     .or_else(|| v.as_i64().map(|i| i as f32))
             })
             .collect();
