@@ -57,6 +57,9 @@ pub mod prelude {
 /// - 自定义 Provider 示例
 pub mod provider;
 
+/// Embedding（向量嵌入）实现与示例。
+pub mod embed;
+
 /// Skills（技能）实现与示例。
 ///
 /// 本模块包含具体的技能实现，展示如何构建可复用的技能单元。

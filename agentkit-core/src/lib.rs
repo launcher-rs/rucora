@@ -8,6 +8,8 @@
 pub mod agent;
 /// 通信渠道抽象（事件发送与订阅）。
 pub mod channel;
+/// 向量嵌入抽象（文本向量化）。
+pub mod embed;
 /// 记忆抽象（添加与检索）。
 pub mod memory;
 /// LLM 提供者抽象（对话/流式对话等）。
