@@ -91,7 +91,7 @@ impl Tool for HttpRequestTool {
                     "description": "超时时间（秒）"
                 }
             },
-            "required": ["method", "url", "headers", "body"]
+            "required": ["url"]
         })
     }
 
