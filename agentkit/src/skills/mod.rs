@@ -25,13 +25,93 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
+use rhai::{Engine, Scope};
 use serde_json::{Value, json};
+use serde::Deserialize;
 use std::path::Path;
 use std::{collections::HashMap, sync::Arc};
+use std::sync::{OnceLock, RwLock};
 use tokio::fs;
 use tracing::{debug, info};
 
 pub use agentkit_core::skill::Skill;
+
+static GLOBAL_RHAI_REGISTRAR: OnceLock<RwLock<Option<RhaiEngineRegistrar>>> = OnceLock::new();
+
+fn global_rhai_registrar_cell() -> &'static RwLock<Option<RhaiEngineRegistrar>> {
+    GLOBAL_RHAI_REGISTRAR.get_or_init(|| RwLock::new(None))
+}
+
+pub fn set_global_rhai_engine_registrar(registrar: Option<RhaiEngineRegistrar>) {
+    let cell = global_rhai_registrar_cell();
+    let mut w = cell.write().expect("global rhai registrar lock poisoned");
+    *w = registrar;
+}
+
+fn get_global_rhai_engine_registrar() -> Option<RhaiEngineRegistrar> {
+    let cell = global_rhai_registrar_cell();
+    let r = cell.read().expect("global rhai registrar lock poisoned");
+    r.clone()
+}
+
+/// Rhai 引擎的“宿主函数注册器”。
+///
+/// 说明：
+/// - blockcell 的 SKILL.rhai 脚本里通常会调用 `call_tool(...)`、`browse(...)` 等宿主函数。
+/// - 这些函数不是 Rhai 自带的，需要宿主程序在创建 `Engine` 时注册。
+/// - agentkit 在 core/skills 层不强行绑定具体工具集，因此通过该接口把注册权交给上层。
+///
+/// 你可以在应用启动时：
+/// - 实现一个 registrar：向 `Engine` 注册你希望脚本可用的函数
+/// - 再调用 `load_skills_from_dir_with_rhai(...)` 加载脚本 skills
+pub type RhaiEngineRegistrar = Arc<dyn Fn(&mut Engine) + Send + Sync>;
+
+#[derive(Debug, Clone, Default, Deserialize)]
+struct SkillMetaYaml {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    description: Option<String>,
+    #[serde(default)]
+    triggers: Vec<String>,
+    #[serde(default)]
+    capabilities: Vec<String>,
+}
+
+fn format_meta_description(base: Option<String>, meta: &SkillMetaYaml) -> Option<String> {
+    let mut desc = base.or_else(|| meta.description.clone());
+
+    let mut extra: Vec<String> = Vec::new();
+    if !meta.triggers.is_empty() {
+        extra.push(format!("触发词: {}", meta.triggers.join(", ")));
+    }
+    if !meta.capabilities.is_empty() {
+        extra.push(format!("capabilities: {}", meta.capabilities.join(", ")));
+    }
+
+    if !extra.is_empty() {
+        let extra_str = extra.join("\n");
+        desc = Some(match desc {
+            Some(d) if !d.is_empty() => format!("{}\n{}", d, extra_str),
+            _ => extra_str,
+        });
+    }
+
+    desc
+}
+
+/// 从工作区 `skills/` 目录加载 skills（支持 SKILL.md / SKILL.rhai）。
+///
+/// - SKILL.md -> `CommandSkill`
+/// - SKILL.rhai -> `RhaiSkill`
+///
+/// 该版本提供 `rhai_registrar` 参数，用于注册自定义 Rhai 宿主函数。
+pub async fn load_skills_from_dir_with_rhai(
+    dir: impl AsRef<Path>,
+    rhai_registrar: Option<RhaiEngineRegistrar>,
+) -> Result<SkillRegistry, SkillError> {
+    load_skills_from_dir_inner(dir.as_ref(), rhai_registrar).await
+}
 
 /// Skill 注册表：集中管理所有可用 skills。
 ///
@@ -40,6 +120,105 @@ pub use agentkit_core::skill::Skill;
 #[derive(Default, Clone)]
 pub struct SkillRegistry {
     skills: HashMap<String, Arc<dyn Skill>>,
+}
+
+/// 基于 `SKILL.rhai` 的脚本型 skill。
+///
+/// 设计目标：参考 blockcell 的 skills 形态，让每个 skill 用一段 Rhai 脚本来描述“怎么做”。
+///
+/// 约定：脚本运行时会注入 `ctx`：
+/// - `ctx.user_input`：用户原始输入文本
+/// - `ctx.input`：本次 tool call 的 JSON input（serde_json::Value）
+///
+/// 脚本返回值：
+/// - 推荐返回一个 map（例如 `#{ success: true, instruction: "..." }`）
+/// - host 会尽量把返回值转成 JSON Value 作为 tool result 回传
+pub struct RhaiSkill {
+    pub name: String,
+    pub description: Option<String>,
+    pub script_source: String,
+    pub rhai_registrar: Option<RhaiEngineRegistrar>,
+}
+
+impl RhaiSkill {
+    pub fn new(
+        name: String,
+        description: Option<String>,
+        script_source: String,
+        rhai_registrar: Option<RhaiEngineRegistrar>,
+    ) -> Self {
+        Self {
+            name,
+            description,
+            script_source,
+            rhai_registrar,
+        }
+    }
+}
+
+#[async_trait]
+impl Skill for RhaiSkill {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    fn categories(&self) -> &'static [ToolCategory] {
+        &[ToolCategory::Basic]
+    }
+
+    fn input_schema(&self) -> Value {
+        // 这里不强制 schema：不同脚本的入参结构可能不同。
+        // 统一给一个 object，以便 LLM 可以自由传参。
+        json!({
+            "type": "object",
+            "description": "SKILL.rhai 脚本输入（由脚本自行解析 ctx.input / ctx.user_input）"
+        })
+    }
+
+    async fn run_value(&self, input: Value) -> Result<Value, SkillError> {
+        debug!(skill.name = %self.name, skill.kind = "rhai", "rhai_skill.start");
+
+        // 说明：Rhai 引擎本身是同步执行的。
+        // 这里先用最小实现：直接在当前线程运行脚本。
+        // 如果后续脚本变重，可以考虑 spawn_blocking。
+        let mut engine = Engine::new();
+        if let Some(reg) = &self.rhai_registrar {
+            reg(&mut engine);
+        }
+
+        // 注入 ctx
+        // - ctx.user_input：如果外部没有传入，就用空字符串
+        // - ctx.input：本次调用参数
+        let mut ctx_map = rhai::Map::new();
+        let user_input = input
+            .get("user_input")
+            .and_then(|v| v.as_str())
+            .unwrap_or("")
+            .to_string();
+        ctx_map.insert("user_input".into(), user_input.into());
+
+        let dyn_input = rhai::serde::to_dynamic(input.clone())
+            .map_err(|e| SkillError::Message(format!("rhai: input 转 dynamic 失败: {}", e)))?;
+        ctx_map.insert("input".into(), dyn_input);
+
+        let ctx_dynamic: rhai::Dynamic = ctx_map.into();
+
+        let mut scope = Scope::new();
+        scope.push_dynamic("ctx", ctx_dynamic);
+
+        let result = engine
+            .eval_with_scope::<rhai::Dynamic>(&mut scope, &self.script_source)
+            .map_err(|e| SkillError::Message(format!("rhai 脚本执行失败: {}", e)))?;
+
+        // 返回值尽量转成 JSON
+        let out: Value = rhai::serde::from_dynamic(&result)
+            .unwrap_or_else(|_| json!({"success": true, "result": result.to_string()}));
+        Ok(out)
+    }
 }
 
 /// 基于 `SKILL.md` 的通用命令型 skill：执行命令并返回 stdout/stderr。
@@ -173,7 +352,13 @@ impl SkillRegistry {
 ///
 /// 当前实现先支持 `weather` skill；后续可以按 name 扩展更多 skill 的具体执行实现。
 pub async fn load_skills_from_dir(dir: impl AsRef<Path>) -> Result<SkillRegistry, SkillError> {
-    let dir = dir.as_ref();
+    load_skills_from_dir_inner(dir.as_ref(), get_global_rhai_engine_registrar()).await
+}
+
+async fn load_skills_from_dir_inner(
+    dir: &Path,
+    rhai_registrar: Option<RhaiEngineRegistrar>,
+) -> Result<SkillRegistry, SkillError> {
     let mut registry = SkillRegistry::new();
 
     info!(skills.dir = %dir.display(), "skills.load.start");
@@ -199,14 +384,75 @@ pub async fn load_skills_from_dir(dir: impl AsRef<Path>) -> Result<SkillRegistry
 
         debug!(skills.dir_entry = %path.display(), "skills.load.found_dir");
 
+        // 1) 优先加载 SKILL.rhai（blockcell 风格）
+        let skill_rhai = path.join("SKILL.rhai");
+        if fs::metadata(&skill_rhai).await.is_ok() {
+            debug!(skills.skill_rhai = %skill_rhai.display(), "skills.load.read_skill_rhai");
+            let script = fs::read_to_string(&skill_rhai)
+                .await
+                .map_err(|e| SkillError::Message(format!("读取 SKILL.rhai 失败: {}", e)))?;
+
+            // 读取 meta.yaml / SKILL.md 作为“简短描述”来源（供大模型/tool schema 使用）
+            let meta_yaml_path = path.join("meta.yaml");
+            let meta: SkillMetaYaml = if fs::metadata(&meta_yaml_path).await.is_ok() {
+                let meta_str = fs::read_to_string(&meta_yaml_path)
+                    .await
+                    .map_err(|e| SkillError::Message(format!("读取 meta.yaml 失败: {}", e)))?;
+                serde_yaml::from_str(&meta_str).map_err(|e| {
+                    SkillError::Message(format!("解析 meta.yaml 失败: {}", e))
+                })?
+            } else {
+                SkillMetaYaml::default()
+            };
+
+            let skill_md = path.join("SKILL.md");
+            let (name_from_md, desc_from_md) = if fs::metadata(&skill_md).await.is_ok() {
+                let md = fs::read_to_string(&skill_md)
+                    .await
+                    .map_err(|e| SkillError::Message(format!("读取 SKILL.md 失败: {}", e)))?;
+                parse_skill_md_frontmatter(&md)
+            } else {
+                (None, None)
+            };
+
+            // 默认用目录名作为 skill name
+            let default_name = path
+                .file_name()
+                .and_then(|s| s.to_str())
+                .unwrap_or("rhai_skill")
+                .to_string();
+
+            let name = meta
+                .name
+                .clone()
+                .or(name_from_md)
+                .unwrap_or(default_name);
+
+            let description = format_meta_description(
+                desc_from_md.or_else(|| Some("Rhai 脚本技能".to_string())),
+                &meta,
+            );
+
+            info!(skills.name = %name, skills.kind = "rhai", "skills.load.register");
+            registry = registry.register(RhaiSkill::new(
+                name,
+                description,
+                script,
+                rhai_registrar.clone(),
+            ));
+
+            // 一个目录里既有 SKILL.rhai 又有 SKILL.md 时，优先 rhai。
+            continue;
+        }
+
+        // 2) 兼容 SKILL.md（命令模板）
         let skill_md = path.join("SKILL.md");
         if fs::metadata(&skill_md).await.is_err() {
-            debug!(skills.dir_entry = %path.display(), "skills.load.skip_no_skill_md");
+            debug!(skills.dir_entry = %path.display(), "skills.load.skip_no_skill_file");
             continue;
         }
 
         debug!(skills.skill_md = %skill_md.display(), "skills.load.read_skill_md");
-
         let md = fs::read_to_string(&skill_md)
             .await
             .map_err(|e| SkillError::Message(format!("读取 SKILL.md 失败: {}", e)))?;
@@ -229,7 +475,7 @@ pub async fn load_skills_from_dir(dir: impl AsRef<Path>) -> Result<SkillRegistry
 
         if let Some(name) = name {
             if let Some(tpl) = command_template {
-                info!(skills.name = %name, "skills.load.register");
+                info!(skills.name = %name, skills.kind = "command", "skills.load.register");
                 registry = registry.register(CommandSkill::new(name, description, tpl));
             } else {
                 debug!(skills.name = %name, "skills.load.skip_no_command_template");
@@ -238,7 +484,6 @@ pub async fn load_skills_from_dir(dir: impl AsRef<Path>) -> Result<SkillRegistry
     }
 
     info!(skills.count = registry.skills.len(), "skills.load.done");
-
     Ok(registry)
 }
 

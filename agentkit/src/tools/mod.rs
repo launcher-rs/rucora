@@ -58,6 +58,8 @@ pub mod file;
 pub mod http;
 pub mod web;
 // 浏览器工具模块
+pub mod browse;
+// 浏览器工具模块
 pub mod browser;
 // 记忆工具模块
 pub mod memory;
@@ -79,6 +81,7 @@ pub use http::HttpRequestTool;
 pub use web::WebFetchTool;
 
 // 浏览器工具
+pub use browse::BrowseTool;
 pub use browser::BrowserOpenTool;
 
 // 记忆工具
