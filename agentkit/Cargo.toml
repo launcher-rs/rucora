@@ -8,7 +8,6 @@ doctest = false
 
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
-agentkit-runtime = { path = "../agentkit-runtime" }
 async-trait = "0.1"
 reqwest = { version = "0.13", features = ["json", "stream","query", "gzip", "brotli", "deflate", "zstd"] }
 futures-util = "0.3"
@@ -26,3 +25,4 @@ rhai = { version = "1", features = ["serde", "sync"] }
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+agentkit-runtime = { path = "../agentkit-runtime" }

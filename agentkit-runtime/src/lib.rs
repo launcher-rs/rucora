@@ -15,6 +15,7 @@ use agentkit_core::{
         LlmProvider,
         types::{ChatMessage, ChatRequest, Role},
     },
+    runtime::Runtime,
     tool::{
         Tool,
         types::{ToolCall, ToolDefinition, ToolResult},
@@ -65,6 +66,17 @@ impl ToolRegistry {
         self
     }
 
+    /// 注册一个工具（trait object 版本）。
+    ///
+    /// 使用场景：
+    /// - 上层把工具以 `Arc<dyn Tool>` 的形式动态组装（例如把 skills 适配成 tools）。
+    ///
+    /// 注意：如果同名工具重复注册，后者会覆盖前者。
+    pub fn register_arc(mut self, tool: Arc<dyn Tool>) -> Self {
+        self.tools.insert(tool.name().to_string(), tool);
+        self
+    }
+
     /// 获取工具定义列表（用于发给 provider 进行 tool/function 注册）。
     pub fn definitions(&self) -> Vec<ToolDefinition> {
         self.tools
@@ -80,6 +92,21 @@ impl ToolRegistry {
     /// 按名称查找工具。
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
         self.tools.get(name).cloned()
+    }
+}
+
+/// 为默认 runtime 实现 core 层的 `Runtime` 规范。
+///
+/// 这样上层代码就可以依赖 `agentkit_core::runtime::Runtime` 这个抽象，
+/// 默认情况下用 `agentkit-runtime` 提供的实现；同时也允许用户自定义 runtime。
+#[async_trait]
+impl<P> Runtime for SimpleAgent<P>
+where
+    P: LlmProvider,
+{
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
+        // 复用现有 Agent::run 逻辑，避免重复实现。
+        <Self as Agent>::run(self, input).await
     }
 }
 
@@ -336,5 +363,20 @@ where
             "超过最大步数限制（max_steps={}），仍未结束工具调用流程",
             self.max_steps
         )))
+    }
+}
+
+/// 为支持工具调用的默认 Agent 实现 `Runtime` 规范。
+///
+/// 目的：上层依赖 `agentkit_core::runtime::Runtime` 抽象时，
+/// 可以直接替换为用户自定义的 runtime 实现。
+#[async_trait]
+impl<P> Runtime for ToolCallingAgent<P>
+where
+    P: LlmProvider,
+{
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
+        // 复用现有 Agent::run 逻辑，避免重复实现。
+        <Self as Agent>::run(self, input).await
     }
 }

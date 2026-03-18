@@ -2,6 +2,7 @@ use agentkit_core::{
     agent::Agent,
     provider::types::{ChatMessage, Role},
 };
+use agentkit_runtime::SimpleAgent;
 
 #[tokio::main]
 async fn main() {
@@ -15,7 +16,7 @@ async fn main() {
     let provider = agentkit::provider::OpenAiProvider::new("http://127.0.0.1:11434/v1", "ollama")
         .with_default_model("qwen2.5:14b");
 
-    let agent = agentkit::SimpleAgent::new(provider);
+    let agent = SimpleAgent::new(provider);
 
     let out = agent
         .run(agentkit_core::agent::types::AgentInput {

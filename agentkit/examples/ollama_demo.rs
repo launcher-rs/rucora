@@ -2,6 +2,7 @@ use agentkit_core::{
     agent::Agent,
     provider::types::{ChatMessage, Role},
 };
+use agentkit_runtime::SimpleAgent;
 
 #[tokio::main]
 async fn main() {
@@ -11,7 +12,7 @@ async fn main() {
     // - 需要本地已经 `ollama serve` 并存在对应模型
 
     let provider = agentkit::provider::OllamaProvider::from_env().with_default_model("qwen3.5:27b");
-    let agent = agentkit::SimpleAgent::new(provider);
+    let agent = SimpleAgent::new(provider);
 
     let out = agent
         .run(agentkit_core::agent::types::AgentInput {

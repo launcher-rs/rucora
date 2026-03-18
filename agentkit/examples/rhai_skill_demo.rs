@@ -103,8 +103,11 @@ async fn main() {
         .await
         .expect("load skills failed");
 
-    // 将 skills 暴露为 ToolRegistry，然后直接按名称调用（不依赖 LLM provider）。
-    let tools: ToolRegistry = skills.as_tool_registry();
+    // 将 skills 暴露为 tools，然后组装成 ToolRegistry，再按名称调用（不依赖 LLM provider）。
+    let mut tools = ToolRegistry::new();
+    for tool in skills.as_tools() {
+        tools = tools.register_arc(tool);
+    }
 
     let tool = tools.get("ai_news").expect("missing tool: ai_news");
     let out = tool

@@ -324,18 +324,17 @@ impl SkillRegistry {
         self
     }
 
-    /// 将当前注册的 skills 暴露为 `ToolRegistry`，用于 tool-calling。
+    /// 将当前注册的 skills 暴露为 tools 列表，便于上层 runtime 自行组装。
     ///
-    /// 这是“Step2/3：提取 schema → 注入 LLM 上下文”的关键连接点：
-    /// `ToolCallingAgent` 会把 `ToolRegistry.definitions()` 发送给 provider。
-    pub fn as_tool_registry(&self) -> agentkit_runtime::ToolRegistry {
-        let mut reg = agentkit_runtime::ToolRegistry::new();
-
-        for skill in self.skills.values() {
-            reg = reg.register(SkillTool::new(skill.clone()));
-        }
-
-        reg
+    /// 说明：
+    /// - `agentkit-runtime` 是可替换的，因此 `agentkit` 这个聚合 crate 不应强依赖默认 runtime。
+    /// - 这里返回 `Vec<Arc<dyn Tool>>`（core 层 trait 对象），让上层自行决定如何构造 registry。
+    pub fn as_tools(&self) -> Vec<Arc<dyn Tool>> {
+        self.skills
+            .values()
+            .cloned()
+            .map(|skill| Arc::new(SkillTool::new(skill)) as Arc<dyn Tool>)
+            .collect()
     }
 }
 

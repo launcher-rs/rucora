@@ -27,9 +27,11 @@ async fn main() {
         .expect("load skills failed");
 
     // 将 skills 暴露为 tool schema，交给 ToolCallingAgent 让 LLM 决策调用。
-    let tools: ToolRegistry = skills
-        .as_tool_registry()
-        .register(agentkit::tools::CmdExecTool::new());
+    let mut tools = ToolRegistry::new();
+    for tool in skills.as_tools() {
+        tools = tools.register_arc(tool);
+    }
+    let tools: ToolRegistry = tools.register(agentkit::tools::CmdExecTool::new());
 
     let agent = ToolCallingAgent::new(provider, tools)
         .with_system_prompt(

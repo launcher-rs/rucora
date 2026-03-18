@@ -25,11 +25,6 @@
 
 /// 导出 core 抽象层（traits + 共享类型）。
 pub use agentkit_core as core;
-/// 导出 runtime 编排层（agent loop 等实现）。
-pub use agentkit_runtime as runtime;
-
-/// 常用 runtime 类型的便捷导出。
-pub use agentkit_runtime::{SimpleAgent, SkillRegistry, ToolCallingAgent, ToolRegistry};
 
 /// 常用导入集合（prelude）。
 ///
@@ -39,13 +34,13 @@ pub use agentkit_runtime::{SimpleAgent, SkillRegistry, ToolCallingAgent, ToolReg
 pub mod prelude {
     /// core 抽象层常用 trait。
     pub use crate::core::{agent::Agent, provider::LlmProvider, tool::Tool};
+    /// runtime 抽象（用于支持可替换 runtime）。
+    pub use crate::core::runtime::Runtime;
     /// core 常用类型与错误。
     pub use crate::core::{
         agent::types::*, channel::types::*, error::*, memory::types::*, provider::types::*,
         skill::types::*, tool::types::*,
     };
-    /// runtime 常用实现。
-    pub use crate::{SimpleAgent, SkillRegistry, ToolCallingAgent, ToolRegistry};
 }
 
 /// Provider（模型提供者）实现与示例。
