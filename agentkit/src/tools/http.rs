@@ -9,6 +9,7 @@ use agentkit_core::{
 use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::time::Duration;
+use tracing::{info, warn};
 
 /// HTTP 请求工具：发送 HTTP 请求。
 ///
@@ -110,6 +111,16 @@ impl Tool for HttpRequestTool {
 
         let timeout_secs = input.get("timeout").and_then(|v| v.as_u64()).unwrap_or(30);
 
+        info!(
+            tool.name = "http_request",
+            http.method = %method_str,
+            http.url = %url,
+            http.timeout_secs = timeout_secs,
+            "http_request.start"
+        );
+
+        let start = std::time::Instant::now();
+
         // 解析 HTTP 方法
         let method = match method_str.as_str() {
             "GET" => reqwest::Method::GET,
@@ -153,7 +164,16 @@ impl Tool for HttpRequestTool {
         let response = request
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("HTTP 请求失败: {}", e)))?;
+            .map_err(|e| {
+                warn!(
+                    tool.name = "http_request",
+                    http.method = %method_str,
+                    http.url = %url,
+                    error = %e,
+                    "http_request.error"
+                );
+                ToolError::Message(format!("HTTP 请求失败: {}", e))
+            })?;
 
         let status = response.status().as_u16();
 
@@ -162,6 +182,20 @@ impl Tool for HttpRequestTool {
             .text()
             .await
             .map_err(|e| ToolError::Message(format!("读取响应体失败: {}", e)))?;
+
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        let body_len = body.len();
+
+        info!(
+            tool.name = "http_request",
+            http.method = %method_str,
+            http.url = %url,
+            http.status = status,
+            http.success = status >= 200 && status < 300,
+            http.body_len = body_len,
+            http.elapsed_ms = elapsed_ms,
+            "http_request.done"
+        );
 
         Ok(json!({
             "status": status,

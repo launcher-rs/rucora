@@ -3,9 +3,16 @@ use agentkit_core::{
     provider::types::{ChatMessage, Role},
 };
 use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
+        .init();
+
     // 注意：ToolCallingAgent 依赖 provider 在 ChatResponse.tool_calls 字段中返回结构化 tool calls。
     // 当前 OllamaProvider 仅返回 message.content，不解析/填充 tool_calls，
     // 模型可能会把 tool call 以 JSON 文本形式输出，导致流程直接结束。

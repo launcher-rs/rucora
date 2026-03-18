@@ -22,6 +22,7 @@ use agentkit_core::{
 };
 use async_trait::async_trait;
 use serde_json::Value;
+use tracing::{debug, info, warn};
 
 /// 一个最简 Agent：仅调用一次 `LlmProvider::chat`，不包含 tool loop。
 pub struct SimpleAgent<P> {
@@ -131,6 +132,15 @@ impl<P> ToolCallingAgent<P> {
 
     /// 执行单个工具调用，并返回 `ToolResult`。
     async fn execute_tool_call(&self, call: &ToolCall) -> Result<ToolResult, AgentError> {
+        let input_len = call.input.to_string().len();
+        info!(
+            tool.name = %call.name,
+            tool.call_id = %call.id,
+            tool.input_len = input_len,
+            "tool_call.execute.start"
+        );
+
+        let start = std::time::Instant::now();
         let tool = self.tools.get(&call.name).ok_or_else(|| {
             AgentError::Message(format!(
                 "未找到工具：{} (tool_call_id={})",
@@ -142,6 +152,16 @@ impl<P> ToolCallingAgent<P> {
             .call(call.input.clone())
             .await
             .map_err(|e| AgentError::Message(e.to_string()))?;
+
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        let output_len = output.to_string().len();
+        info!(
+            tool.name = %call.name,
+            tool.call_id = %call.id,
+            tool.output_len = output_len,
+            tool.elapsed_ms = elapsed_ms,
+            "tool_call.execute.done"
+        );
 
         Ok(ToolResult {
             tool_call_id: call.id.clone(),
@@ -234,6 +254,7 @@ where
 {
     /// 执行带工具调用的对话循环。
     async fn run(&self, mut input: AgentInput) -> Result<AgentOutput, AgentError> {
+        info!(max_steps = self.max_steps, "agent.run.start");
         if let Some(system_prompt) = &self.system_prompt {
             input.messages.insert(
                 0,
@@ -251,7 +272,13 @@ where
         let mut messages = input.messages;
         let mut tool_results: Vec<ToolResult> = Vec::new();
 
-        for _step in 0..self.max_steps {
+        for step in 0..self.max_steps {
+            debug!(
+                step,
+                messages_len = messages.len(),
+                "agent.step.start"
+            );
+
             let request = ChatRequest {
                 messages: messages.clone(),
                 model: None,
@@ -261,17 +288,29 @@ where
                 metadata: input.metadata.clone(),
             };
 
+            let chat_start = std::time::Instant::now();
+
             let resp = self
                 .provider
                 .chat(request)
                 .await
                 .map_err(|e| AgentError::Message(e.to_string()))?;
 
+            let chat_elapsed_ms = chat_start.elapsed().as_millis() as u64;
+            debug!(
+                step,
+                chat_elapsed_ms,
+                assistant_content_len = resp.message.content.len(),
+                tool_calls_len = resp.tool_calls.len(),
+                "agent.step.provider_chat.done"
+            );
+
             // 追加 assistant 回复到对话历史。
             messages.push(resp.message.clone());
 
             // 如果没有工具调用，则直接返回最终消息。
             if resp.tool_calls.is_empty() {
+                info!(step, tool_results_len = tool_results.len(), "agent.run.done");
                 return Ok(AgentOutput {
                     message: resp.message,
                     tool_results,
@@ -288,6 +327,7 @@ where
             }
         }
 
+        warn!(max_steps = self.max_steps, tool_results_len = tool_results.len(), "agent.run.max_steps_exceeded");
         Err(AgentError::Message(format!(
             "超过最大步数限制（max_steps={}），仍未结束工具调用流程",
             self.max_steps
