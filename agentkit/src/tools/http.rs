@@ -161,19 +161,16 @@ impl Tool for HttpRequestTool {
         }
 
         // 发送请求
-        let response = request
-            .send()
-            .await
-            .map_err(|e| {
-                warn!(
-                    tool.name = "http_request",
-                    http.method = %method_str,
-                    http.url = %url,
-                    error = %e,
-                    "http_request.error"
-                );
-                ToolError::Message(format!("HTTP 请求失败: {}", e))
-            })?;
+        let response = request.send().await.map_err(|e| {
+            warn!(
+                tool.name = "http_request",
+                http.method = %method_str,
+                http.url = %url,
+                error = %e,
+                "http_request.error"
+            );
+            ToolError::Message(format!("HTTP 请求失败: {}", e))
+        })?;
 
         let status = response.status().as_u16();
 

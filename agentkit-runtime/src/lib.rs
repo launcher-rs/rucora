@@ -273,11 +273,7 @@ where
         let mut tool_results: Vec<ToolResult> = Vec::new();
 
         for step in 0..self.max_steps {
-            debug!(
-                step,
-                messages_len = messages.len(),
-                "agent.step.start"
-            );
+            debug!(step, messages_len = messages.len(), "agent.step.start");
 
             let request = ChatRequest {
                 messages: messages.clone(),
@@ -310,7 +306,11 @@ where
 
             // 如果没有工具调用，则直接返回最终消息。
             if resp.tool_calls.is_empty() {
-                info!(step, tool_results_len = tool_results.len(), "agent.run.done");
+                info!(
+                    step,
+                    tool_results_len = tool_results.len(),
+                    "agent.run.done"
+                );
                 return Ok(AgentOutput {
                     message: resp.message,
                     tool_results,
@@ -327,7 +327,11 @@ where
             }
         }
 
-        warn!(max_steps = self.max_steps, tool_results_len = tool_results.len(), "agent.run.max_steps_exceeded");
+        warn!(
+            max_steps = self.max_steps,
+            tool_results_len = tool_results.len(),
+            "agent.run.max_steps_exceeded"
+        );
         Err(AgentError::Message(format!(
             "超过最大步数限制（max_steps={}），仍未结束工具调用流程",
             self.max_steps

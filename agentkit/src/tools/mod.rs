@@ -49,6 +49,7 @@
 // 基础工具模块
 pub mod echo;
 // 系统工具模块
+pub mod cmd_exec;
 pub mod git;
 pub mod shell;
 // 文件工具模块
@@ -66,6 +67,7 @@ pub mod memory;
 pub use echo::EchoTool;
 
 // 系统工具
+pub use cmd_exec::CmdExecTool;
 pub use git::GitTool;
 pub use shell::ShellTool;
 

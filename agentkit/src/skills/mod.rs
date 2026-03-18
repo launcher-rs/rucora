@@ -20,155 +20,462 @@ use agentkit_core::{
     error::SkillError,
     skill::types::{SkillContext, SkillOutput},
 };
+use agentkit_core::{
+    error::ToolError,
+    tool::{Tool, ToolCategory},
+};
+use async_trait::async_trait;
 use serde_json::{Value, json};
+use std::path::Path;
+use std::{collections::HashMap, sync::Arc};
+use tokio::fs;
+use tracing::{debug, info};
 
-/// 一个最简单的示例 Skill：把输入原样返回。
+pub use agentkit_core::skill::Skill;
+
+/// Skill 注册表：集中管理所有可用 skills。
 ///
-/// 这个技能展示了如何实现一个基本的技能：
-/// - 定义技能的基本信息（名称、描述）
-/// - 实现异步执行方法
-/// - 处理输入和输出数据
-///
-/// 适用场景：
-/// - 作为技能实现的参考模板
-/// - 测试和调试环境中的占位技能
-/// - 数据传递和验证
-pub struct EchoSkill {
-    /// 技能名称
-    pub name: String,
-    /// 技能描述
-    pub description: Option<String>,
+/// 在运行前（启动阶段）注册所有 skills，然后在运行时把它们转换成 `ToolRegistry`
+/// 交给 `ToolCallingAgent`。
+#[derive(Default, Clone)]
+pub struct SkillRegistry {
+    skills: HashMap<String, Arc<dyn Skill>>,
 }
 
-impl EchoSkill {
-    /// 创建一个新的 EchoSkill 实例。
-    ///
-    /// 返回的实例具有默认的名称和描述。
-    ///
-    /// # 示例
-    /// ```
-    /// let skill = EchoSkill::new();
-    /// assert_eq!(skill.name(), "echo");
-    /// ```
+/// 基于 `SKILL.md` 的通用命令型 skill：执行命令并返回 stdout/stderr。
+///
+/// 这里不为每个 skill 写一个专用 struct（例如 WeatherSkill），而是让 SKILL.md 驱动执行流程。
+pub struct CommandSkill {
+    pub name: String,
+    pub description: Option<String>,
+    pub command_template: String,
+}
+
+impl CommandSkill {
+    pub fn new(name: String, description: Option<String>, command_template: String) -> Self {
+        Self {
+            name,
+            description,
+            command_template,
+        }
+    }
+
+    fn render_command(&self, input: &Value) -> Result<String, SkillError> {
+        let location = input
+            .get("location")
+            .and_then(|v| v.as_str())
+            .unwrap_or("London");
+
+        let mode = input
+            .get("mode")
+            .and_then(|v| v.as_str())
+            .unwrap_or("today");
+
+        let location_q = location.trim().replace(' ', "+");
+
+        // 支持 weather 这类常见模式：mode=full 时用 ?T，否则用 format=3。
+        // 若模板未包含这些占位符，则只替换 {location}。
+        let mut cmd = self.command_template.clone();
+        cmd = cmd.replace("{location}", &location_q);
+        cmd = cmd.replace("{mode}", mode);
+        Ok(cmd)
+    }
+}
+
+#[async_trait]
+impl Skill for CommandSkill {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
+    }
+
+    fn categories(&self) -> &'static [ToolCategory] {
+        &[ToolCategory::System]
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "location": {"type": "string", "description": "地点/城市名，例如：北京 / Beijing / New York"},
+                "mode": {"type": "string", "description": "可选：today(今天)/full(完整)"}
+            }
+        })
+    }
+
+    async fn run_value(&self, input: Value) -> Result<Value, SkillError> {
+        debug!(skill.name = %self.name, skill.template = %self.command_template, "command_skill.start");
+
+        let cmd = self.render_command(&input)?;
+        info!(skill.name = %self.name, cmd.command = %cmd, "command_skill.exec");
+
+        // Skill 内部通过 tool 来执行命令（符合“skills 执行时调用工具执行命令”的约束）。
+        let tool = crate::tools::CmdExecTool::new();
+        let out = tool
+            .call(json!({"command": cmd}))
+            .await
+            .map_err(|e| SkillError::Message(format!("cmd_exec tool 执行失败: {}", e)))?;
+
+        Ok(json!({
+            "skill": self.name,
+            "tool": "cmd_exec",
+            "result": out
+        }))
+    }
+}
+
+impl SkillRegistry {
+    /// 创建空注册表。
     pub fn new() -> Self {
         Self {
-            name: "echo".to_string(),
-            description: Some("原样返回输入参数".to_string()),
+            skills: HashMap::new(),
         }
     }
 
-    /// 创建具有自定义名称的 EchoSkill。
+    /// 注册一个 skill。
     ///
-    /// # 参数
-    /// - `name` - 技能的名称
+    /// - key 为 `skill.name()`
+    /// - 同名注册会覆盖
+    pub fn register<S: Skill + 'static>(mut self, skill: S) -> Self {
+        self.skills
+            .insert(skill.name().to_string(), Arc::new(skill));
+        self
+    }
+
+    /// 将当前注册的 skills 暴露为 `ToolRegistry`，用于 tool-calling。
     ///
-    /// # 示例
-    /// ```
-    /// let skill = EchoSkill::with_name("custom_echo");
-    /// assert_eq!(skill.name(), "custom_echo");
-    /// ```
-    pub fn with_name(name: impl Into<String>) -> Self {
+    /// 这是“Step2/3：提取 schema → 注入 LLM 上下文”的关键连接点：
+    /// `ToolCallingAgent` 会把 `ToolRegistry.definitions()` 发送给 provider。
+    pub fn as_tool_registry(&self) -> agentkit_runtime::ToolRegistry {
+        let mut reg = agentkit_runtime::ToolRegistry::new();
+
+        for skill in self.skills.values() {
+            reg = reg.register(SkillTool::new(skill.clone()));
+        }
+
+        reg
+    }
+}
+
+/// 从工作区 `skills/` 目录加载 skills。
+///
+/// 约定：每个 skill 是一个子目录，包含 `SKILL.md`，其开头为 YAML frontmatter：
+///
+/// ```text
+/// ---
+/// name: weather
+/// description: ...
+/// ---
+/// ```
+///
+/// 当前实现先支持 `weather` skill；后续可以按 name 扩展更多 skill 的具体执行实现。
+pub async fn load_skills_from_dir(dir: impl AsRef<Path>) -> Result<SkillRegistry, SkillError> {
+    let dir = dir.as_ref();
+    let mut registry = SkillRegistry::new();
+
+    info!(skills.dir = %dir.display(), "skills.load.start");
+
+    let mut rd = fs::read_dir(dir)
+        .await
+        .map_err(|e| SkillError::Message(format!("读取 skills 目录失败: {}", e)))?;
+
+    while let Some(entry) = rd
+        .next_entry()
+        .await
+        .map_err(|e| SkillError::Message(format!("遍历 skills 目录失败: {}", e)))?
+    {
+        let path = entry.path();
+        let ty = entry
+            .file_type()
+            .await
+            .map_err(|e| SkillError::Message(format!("读取目录项类型失败: {}", e)))?;
+
+        if !ty.is_dir() {
+            continue;
+        }
+
+        debug!(skills.dir_entry = %path.display(), "skills.load.found_dir");
+
+        let skill_md = path.join("SKILL.md");
+        if fs::metadata(&skill_md).await.is_err() {
+            debug!(skills.dir_entry = %path.display(), "skills.load.skip_no_skill_md");
+            continue;
+        }
+
+        debug!(skills.skill_md = %skill_md.display(), "skills.load.read_skill_md");
+
+        let md = fs::read_to_string(&skill_md)
+            .await
+            .map_err(|e| SkillError::Message(format!("读取 SKILL.md 失败: {}", e)))?;
+
+        let (name, description) = parse_skill_md_frontmatter(&md);
+        let command_template = extract_primary_command_template(&md);
+
+        debug!(
+            skills.skill_md = %skill_md.display(),
+            skills.name = name.as_deref().unwrap_or(""),
+            skills.description = description.as_deref().unwrap_or(""),
+            "skills.load.frontmatter"
+        );
+
+        debug!(
+            skills.skill_md = %skill_md.display(),
+            skills.command_template = command_template.as_deref().unwrap_or(""),
+            "skills.load.command_template"
+        );
+
+        if let Some(name) = name {
+            if let Some(tpl) = command_template {
+                info!(skills.name = %name, "skills.load.register");
+                registry = registry.register(CommandSkill::new(name, description, tpl));
+            } else {
+                debug!(skills.name = %name, "skills.load.skip_no_command_template");
+            }
+        }
+    }
+
+    info!(skills.count = registry.skills.len(), "skills.load.done");
+
+    Ok(registry)
+}
+
+fn parse_skill_md_frontmatter(md: &str) -> (Option<String>, Option<String>) {
+    // 超轻量解析：只读取第一段 --- ... ---
+    let mut lines = md.lines();
+    if lines.next().map(|l| l.trim()) != Some("---") {
+        return (None, None);
+    }
+
+    let mut name: Option<String> = None;
+    let mut description: Option<String> = None;
+
+    for line in lines {
+        let t = line.trim();
+        if t == "---" {
+            break;
+        }
+        if let Some((k, v)) = t.split_once(':') {
+            let key = k.trim();
+            let val = v.trim().trim_matches('"').to_string();
+            match key {
+                "name" => name = Some(val),
+                "description" => description = Some(val),
+                _ => {}
+            }
+        }
+    }
+
+    (name, description)
+}
+
+fn extract_primary_command_template(md: &str) -> Option<String> {
+    // 约定：从第一个 ```bash 代码块中提取第一条以 curl 开头的命令。
+    // weather 的 SKILL.md 示例为：curl -s "wttr.in/London?format=3"
+    let mut in_bash = false;
+
+    for line in md.lines() {
+        let t = line.trim();
+
+        if t.starts_with("```bash") {
+            in_bash = true;
+            continue;
+        }
+
+        if in_bash && t.starts_with("```") {
+            break;
+        }
+
+        if !in_bash {
+            continue;
+        }
+
+        if t.starts_with("curl") {
+            // 把示例中的 London 替换为 {location}。
+            // 目前先覆盖 weather skill 的常见写法，后续可以做更通用的模板化。
+            let mut cmd = t.to_string();
+            cmd = cmd.replace("wttr.in/London?format=3", "wttr.in/{location}?format=3");
+            cmd = cmd.replace("wttr.in/London?T", "wttr.in/{location}?T");
+            cmd = cmd.replace("wttr.in/London", "wttr.in/{location}");
+            return Some(cmd);
+        }
+    }
+
+    None
+}
+
+/// Skill 到 Tool 的通用适配器。
+///
+/// 作用：让 skill 能以 tool 的形式被 `ToolCallingAgent` 调度。
+/// - tool.name() == skill.name()
+/// - tool.input_schema() == skill.input_schema()
+/// - tool.call(args) 会转调 skill.run_value(args)
+pub struct SkillTool {
+    skill: Arc<dyn Skill>,
+}
+
+impl SkillTool {
+    /// 创建 skill->tool 适配器。
+    pub fn new(skill: Arc<dyn Skill>) -> Self {
+        Self { skill }
+    }
+}
+
+#[async_trait]
+impl Tool for SkillTool {
+    fn name(&self) -> &str {
+        self.skill.name()
+    }
+
+    fn description(&self) -> Option<&str> {
+        self.skill.description()
+    }
+
+    fn categories(&self) -> &'static [ToolCategory] {
+        self.skill.categories()
+    }
+
+    fn input_schema(&self) -> Value {
+        self.skill.input_schema()
+    }
+
+    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+        let skill_name = self.skill.name();
+        let input_str = input.to_string();
+        let input_len = input_str.len();
+        let input_snippet: String = input_str.chars().take(500).collect();
+
+        debug!(
+            skill.name = %skill_name,
+            skill.input_len = input_len,
+            skill.input_snippet = %input_snippet,
+            "skill_tool.call.start"
+        );
+
+        let start = std::time::Instant::now();
+        let out = self
+            .skill
+            .run_value(input)
+            .await
+            .map_err(|e| ToolError::Message(e.to_string()))?;
+
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        let out_str = out.to_string();
+        let out_len = out_str.len();
+        let out_snippet: String = out_str.chars().take(500).collect();
+
+        debug!(
+            skill.name = %skill_name,
+            skill.output_len = out_len,
+            skill.output_snippet = %out_snippet,
+            skill.elapsed_ms = elapsed_ms,
+            "skill_tool.call.done"
+        );
+
+        Ok(out)
+    }
+}
+
+pub struct FileReadSkill {
+    pub name: String,
+    pub description: Option<String>,
+    pub default_max_bytes: usize,
+}
+
+impl FileReadSkill {
+    /// 创建一个读取本地文件的 skill。
+    ///
+    /// 默认：
+    /// - name: `file_read_skill`（直接作为 tool name 暴露给 LLM）
+    /// - default_max_bytes: 200_000（用于截断输出，避免一次读太大）
+    pub fn new() -> Self {
         Self {
-            name: name.into(),
-            description: Some("原样返回输入参数".to_string()),
+            name: "file_read_skill".to_string(),
+            description: Some("读取本地文件内容".to_string()),
+            default_max_bytes: 200_000,
         }
     }
 
-    /// 创建具有自定义名称和描述的 EchoSkill。
-    ///
-    /// # 参数
-    /// - `name` - 技能的名称
-    /// - `description` - 技能的描述
-    ///
-    /// # 示例
-    /// ```
-    /// let skill = EchoSkill::with_name_and_desc("custom", "自定义描述");
-    /// assert_eq!(skill.name(), "custom");
-    /// assert_eq!(skill.description(), Some("自定义描述"));
-    /// ```
-    pub fn with_name_and_desc(name: impl Into<String>, description: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            description: Some(description.into()),
-        }
-    }
-
-    /// 获取技能名称。
     pub fn name(&self) -> &str {
         &self.name
     }
 
-    /// 获取技能描述。
     pub fn description(&self) -> Option<&str> {
         self.description.as_deref()
     }
 
-    /// 执行技能。
-    ///
-    /// 将输入的 JSON 数据原样返回，包装在 SkillOutput 中。
-    ///
-    /// # 参数
-    /// - `ctx` - 技能执行上下文，包含输入数据
-    ///
-    /// # 返回值
-    /// - `Ok(SkillOutput)` - 包含原样输入数据的输出
-    /// - `Err(SkillError)` - 执行过程中发生的错误
-    ///
-    /// # 示例
-    /// ```no_run
-    /// let skill = EchoSkill::new();
-    /// let ctx = SkillContext { input: json!("hello") };
-    /// let result = skill.run(ctx).await?;
-    /// assert_eq!(result.output, json!({"input": "hello"}));
-    /// ```
     pub async fn run(&self, ctx: SkillContext) -> Result<SkillOutput, SkillError> {
-        let input: Value = ctx.input;
+        // 输入参数：
+        // - path: 必填，本地文件路径
+        // - max_bytes: 可选，最多读取字符数（用于截断）
+        let path = ctx
+            .input
+            .get("path")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| SkillError::Message("缺少必需的 'path' 字段".to_string()))?
+            .to_string();
+
+        let max_bytes = ctx
+            .input
+            .get("max_bytes")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as usize)
+            .unwrap_or(self.default_max_bytes);
+
+        let content = fs::read_to_string(&path)
+            .await
+            .map_err(|e| SkillError::Message(format!("读取文件失败: {}", e)))?;
+
+        let truncated = content.len() > max_bytes;
+        let out_content = if truncated {
+            content.chars().take(max_bytes).collect::<String>()
+        } else {
+            content
+        };
 
         Ok(SkillOutput {
             output: json!({
-                "input": input,
+                "path": path,
+                "content": out_content,
+                "truncated": truncated,
+                "max_bytes": max_bytes,
             }),
         })
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde_json::json;
-
-    #[tokio::test]
-    async fn test_echo_skill_basic() {
-        let skill = EchoSkill::new();
-        assert_eq!(skill.name(), "echo");
-        assert_eq!(skill.description(), Some("原样返回输入参数"));
+#[async_trait]
+impl Skill for FileReadSkill {
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    #[tokio::test]
-    async fn test_echo_skill_with_custom_name() {
-        let skill = EchoSkill::with_name("custom_echo");
-        assert_eq!(skill.name(), "custom_echo");
+    fn description(&self) -> Option<&str> {
+        self.description.as_deref()
     }
 
-    #[tokio::test]
-    async fn test_echo_skill_execution() {
-        let skill = EchoSkill::new();
-        let ctx = SkillContext {
-            input: json!({
-                "message": "hello world",
-                "number": 42
-            }),
-        };
+    fn categories(&self) -> &'static [ToolCategory] {
+        &[ToolCategory::File]
+    }
 
-        let result = skill.run(ctx).await.unwrap();
-        assert_eq!(
-            result.output,
-            json!({
-                "input": {
-                    "message": "hello world",
-                    "number": 42
-                }
-            })
-        );
+    fn input_schema(&self) -> Value {
+        json!({
+            "type": "object",
+            "properties": {
+                "path": {"type": "string", "description": "本地文件路径"},
+                "max_bytes": {"type": "integer", "description": "可选，最多读取字符数（用于截断）"}
+            },
+            "required": ["path"]
+        })
+    }
+
+    async fn run_value(&self, input: Value) -> Result<Value, SkillError> {
+        let out = self.run(SkillContext { input }).await?;
+        Ok(out.output)
     }
 }
+
+#[cfg(test)]
+mod tests {}

@@ -33,7 +33,11 @@ async fn http_request_tool_should_fetch_rustcc_article() {
         .and_then(|v| v.as_str())
         .expect("missing body");
 
-    assert!(status >= 200 && status < 400, "unexpected status: {}", status);
+    assert!(
+        status >= 200 && status < 400,
+        "unexpected status: {}",
+        status
+    );
     assert!(success || (status >= 300 && status < 400));
     assert!(!body.is_empty(), "body should not be empty");
     assert!(
