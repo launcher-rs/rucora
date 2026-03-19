@@ -19,6 +19,7 @@ use async_trait::async_trait;
 use futures_util::StreamExt;
 use futures_util::stream::BoxStream;
 use serde_json::{Value, json};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 /// 一个测试用 provider：
@@ -26,6 +27,98 @@ use std::sync::{Arc, Mutex};
 /// - 第二次 chat 返回最终消息
 struct TestProvider {
     step: Mutex<u32>,
+}
+
+struct TwoToolCallsProvider;
+
+#[async_trait]
+impl LlmProvider for TwoToolCallsProvider {
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        // 第一次：返回两个 tool_calls；第二次：看到 tool 消息后结束。
+        let has_tool_msg = request.messages.iter().any(|m| m.role == Role::Tool);
+        if !has_tool_msg {
+            return Ok(ChatResponse {
+                message: ChatMessage {
+                    role: Role::Assistant,
+                    content: "need tools".to_string(),
+                    name: None,
+                },
+                tool_calls: vec![
+                    ToolCall {
+                        id: "call-1".to_string(),
+                        name: "slow".to_string(),
+                        input: json!({"id": 1}),
+                    },
+                    ToolCall {
+                        id: "call-2".to_string(),
+                        name: "slow".to_string(),
+                        input: json!({"id": 2}),
+                    },
+                ],
+                usage: None,
+                finish_reason: None,
+            });
+        }
+
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: Role::Assistant,
+                content: "done".to_string(),
+                name: None,
+            },
+            tool_calls: vec![],
+            usage: None,
+            finish_reason: None,
+        })
+    }
+}
+
+/// 一个用于测试并发的慢工具：
+/// - 每个调用都会先把 `in_flight` +1，并更新 `max_in_flight`
+/// - 然后等待直到所有调用都开始（started == total），再继续返回
+struct SlowTool {
+    total: usize,
+    started: Arc<AtomicUsize>,
+    in_flight: Arc<AtomicUsize>,
+    max_in_flight: Arc<AtomicUsize>,
+}
+
+#[async_trait]
+impl Tool for SlowTool {
+    fn name(&self) -> &str {
+        "slow"
+    }
+
+    fn input_schema(&self) -> Value {
+        json!({"type": "object"})
+    }
+
+    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+        let now = self.in_flight.fetch_add(1, Ordering::SeqCst) + 1;
+
+        // CAS 方式更新最大并发。
+        loop {
+            let cur = self.max_in_flight.load(Ordering::SeqCst);
+            if now <= cur {
+                break;
+            }
+            if self
+                .max_in_flight
+                .compare_exchange(cur, now, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                break;
+            }
+        }
+
+        self.started.fetch_add(1, Ordering::SeqCst);
+        while self.started.load(Ordering::SeqCst) < self.total {
+            tokio::task::yield_now().await;
+        }
+
+        self.in_flight.fetch_sub(1, Ordering::SeqCst);
+        Ok(input)
+    }
 }
 
 struct FlakyProvider {
@@ -340,4 +433,43 @@ async fn tool_calling_agent_should_execute_tool_and_finish() {
         output,
         &json!({"ok": true, "output": {"text": "hello"}, "truncated": false, "max_bytes": 65536})
     );
+}
+
+#[tokio::test]
+async fn tool_calling_agent_should_execute_tools_concurrently_and_keep_order() {
+    let provider = TwoToolCallsProvider;
+
+    let started = Arc::new(AtomicUsize::new(0));
+    let in_flight = Arc::new(AtomicUsize::new(0));
+    let max_in_flight = Arc::new(AtomicUsize::new(0));
+
+    let tool = SlowTool {
+        total: 2,
+        started: started.clone(),
+        in_flight: in_flight.clone(),
+        max_in_flight: max_in_flight.clone(),
+    };
+
+    let tools = ToolRegistry::new().register(tool);
+    let agent = ToolCallingAgent::new(provider, tools)
+        .with_max_steps(4)
+        .with_max_tool_concurrency(2);
+
+    let output = agent
+        .run(AgentInput {
+            messages: vec![ChatMessage {
+                role: Role::User,
+                content: "go".to_string(),
+                name: None,
+            }],
+            metadata: None,
+        })
+        .await
+        .expect("agent should finish");
+
+    assert_eq!(output.message.content, "done");
+    assert_eq!(output.tool_results.len(), 2);
+    assert!(max_in_flight.load(Ordering::SeqCst) >= 2);
+    assert_eq!(output.tool_results[0].tool_call_id, "call-1");
+    assert_eq!(output.tool_results[1].tool_call_id, "call-2");
 }

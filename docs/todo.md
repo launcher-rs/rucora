@@ -43,7 +43,7 @@
   - **落点**：`agentkit-runtime`（抽象 loop trait + 默认实现）
   - **验收**：新增 `AgentLoop` trait；现有 `ToolCallingAgent` 迁移为某个 loop 实现。
 
-- [ ] **Tool 调用并发策略（runtime）**
+- [x] **Tool 调用并发策略（runtime）**
   - **目标**：支持并行工具调用、最大并发限制、队列与超时。
   - **落点**：`agentkit-runtime`
   - **验收**：模型一次请求多个 tool_calls 时可并发执行；结果顺序可控。

@@ -3,7 +3,9 @@
 //! 该 crate 的职责是提供“编排层”的实现（如何调用 provider、如何循环、如何调用工具等）。
 //! 目前仅提供一个最小的 `SimpleAgent`，用于演示如何基于 `agentkit-core` 的 trait 进行组装。
 
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use agentkit_core::{
     agent::{
@@ -23,9 +25,10 @@ use agentkit_core::{
     },
 };
 use async_trait::async_trait;
+use futures_util::stream;
 use futures_util::{StreamExt, stream::BoxStream};
 use serde_json::{Value, json};
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::fmt::Debug;
 use tokio::time::{Duration, sleep, timeout};
 use tracing::{debug, info, warn};
 
@@ -250,11 +253,13 @@ where
             }
 
             // 执行工具调用，并将结果追加回 messages。
-            for call in resp.tool_calls.iter() {
-                let result = agent.execute_tool_call(call).await?;
+            let results = agent.execute_tool_calls(&resp.tool_calls).await?;
+            for (idx, result) in results.into_iter().enumerate() {
+                let call = &resp.tool_calls[idx];
                 tool_results.push(result.clone());
 
-                let tool_msg = ToolCallingAgent::<P>::tool_result_to_message(&result, &call.name);
+                let tool_msg =
+                    ToolCallingAgent::<P>::tool_result_to_message(&result, call.name.as_str());
                 messages.push(tool_msg);
             }
         }
@@ -778,6 +783,14 @@ pub struct ToolCallingAgent<P> {
     /// 最大循环步数，避免模型陷入无限调用。
     max_steps: usize,
 
+    /// 工具调用并发策略。
+    ///
+    /// 说明：
+    /// - 模型一次响应可能包含多个 `tool_calls`。
+    /// - 默认顺序执行（max_concurrency=1）。
+    /// - 当 max_concurrency > 1 时，会并行执行多个工具调用，并保持结果顺序可控。
+    max_tool_concurrency: usize,
+
     /// AgentLoop：定义“如何驱动对话/工具调用”的可替换策略。
     loop_impl: Arc<dyn AgentLoop<P>>,
 }
@@ -969,6 +982,7 @@ where
             policy: Arc::new(DefaultToolPolicy::new()),
             audit: Arc::new(NoopAuditSink),
             max_steps: 8,
+            max_tool_concurrency: 1,
             loop_impl,
         }
     }
@@ -992,6 +1006,17 @@ where
     /// 设置最大循环步数。
     pub fn with_max_steps(mut self, max_steps: usize) -> Self {
         self.max_steps = max_steps;
+        self
+    }
+
+    /// 设置工具调用的最大并发数。
+    ///
+    /// 约定：
+    /// - `max_concurrency=1` 表示顺序执行（默认）。
+    /// - `max_concurrency>1` 表示并行执行多个工具调用。
+    /// - 结果仍会按模型返回的 `tool_calls` 顺序回灌到 messages（顺序可控）。
+    pub fn with_max_tool_concurrency(mut self, max_concurrency: usize) -> Self {
+        self.max_tool_concurrency = max_concurrency.max(1);
         self
     }
 
@@ -1023,6 +1048,48 @@ where
     /// 执行单个工具调用，并返回 `ToolResult`。
     async fn execute_tool_call(&self, call: &ToolCall) -> Result<ToolResult, AgentError> {
         execute_tool_call_with_policy_and_audit(&self.tools, &self.policy, &self.audit, call).await
+    }
+
+    async fn execute_tool_calls(&self, calls: &[ToolCall]) -> Result<Vec<ToolResult>, AgentError> {
+        if calls.is_empty() {
+            return Ok(vec![]);
+        }
+
+        let max = self.max_tool_concurrency.max(1);
+        if max == 1 || calls.len() == 1 {
+            let mut out: Vec<ToolResult> = Vec::with_capacity(calls.len());
+            for call in calls {
+                out.push(self.execute_tool_call(call).await?);
+            }
+            return Ok(out);
+        }
+
+        // 并发执行，但保持返回顺序与 calls 一致。
+        let tools = self.tools.clone();
+        let policy = self.policy.clone();
+        let audit = self.audit.clone();
+
+        let results: Vec<Result<(usize, ToolResult), AgentError>> =
+            stream::iter(calls.iter().cloned().enumerate().map(|(idx, call)| {
+                let tools = tools.clone();
+                let policy = policy.clone();
+                let audit = audit.clone();
+                async move {
+                    let r = execute_tool_call_with_policy_and_audit(&tools, &policy, &audit, &call)
+                        .await?;
+                    Ok((idx, r))
+                }
+            }))
+            .buffer_unordered(max)
+            .collect()
+            .await;
+
+        let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
+        for r in results {
+            ok.push(r?);
+        }
+        ok.sort_by_key(|(idx, _)| *idx);
+        Ok(ok.into_iter().map(|(_, v)| v).collect())
     }
 }
 
@@ -1062,6 +1129,9 @@ pub struct StreamingToolCallingAgent {
     policy: Arc<dyn ToolPolicy>,
     audit: Arc<dyn AuditSink>,
     max_steps: usize,
+
+    /// 工具调用并发策略。
+    max_tool_concurrency: usize,
 }
 
 impl StreamingToolCallingAgent {
@@ -1073,6 +1143,7 @@ impl StreamingToolCallingAgent {
             policy: Arc::new(DefaultToolPolicy::new()),
             audit: Arc::new(NoopAuditSink),
             max_steps: 8,
+            max_tool_concurrency: 1,
         }
     }
 
@@ -1106,6 +1177,7 @@ impl StreamingToolCallingAgent {
         let audit = self.audit.clone();
         let system_prompt = self.system_prompt.clone();
         let max_steps = self.max_steps;
+        let max_tool_concurrency = self.max_tool_concurrency;
 
         let stream = async_stream::try_stream! {
             if let Some(system_prompt) = &system_prompt {
@@ -1167,12 +1239,39 @@ impl StreamingToolCallingAgent {
                     break;
                 }
 
-                for call in tool_calls.iter() {
-                    yield ChannelEvent::ToolCall(call.clone());
+                // 并发执行工具调用，然后按 tool_calls 顺序回灌（顺序可控）。
+                let max = max_tool_concurrency.max(1);
+                let results: Vec<Result<(usize, ToolResult), AgentError>> = stream::iter(
+                    tool_calls
+                        .iter()
+                        .cloned()
+                        .enumerate()
+                        .map(|(idx, call)| {
+                            let tools = tools.clone();
+                            let policy = policy.clone();
+                            let audit = audit.clone();
+                            async move {
+                                let r = execute_tool_call_with_policy_and_audit(
+                                    &tools, &policy, &audit, &call,
+                                )
+                                .await?;
+                                Ok((idx, r))
+                            }
+                        }),
+                )
+                .buffer_unordered(max)
+                .collect()
+                .await;
 
-                    let result =
-                        execute_tool_call_with_policy_and_audit(&tools, &policy, &audit, call)
-                            .await?;
+                let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
+                for r in results {
+                    ok.push(r?);
+                }
+                ok.sort_by_key(|(idx, _)| *idx);
+
+                for (idx, result) in ok.into_iter() {
+                    let call = &tool_calls[idx];
+                    yield ChannelEvent::ToolCall(call.clone());
                     yield ChannelEvent::ToolResult(result.clone());
                     let tool_msg = ToolCallingAgent::<Arc<dyn LlmProvider>>::tool_result_to_message(
                         &result,
