@@ -10,7 +10,7 @@ use agentkit_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
     },
 };
 use async_trait::async_trait;
@@ -90,11 +90,26 @@ impl LlmProvider for OllamaProvider {
             .ok_or_else(|| ProviderError::Message("Ollama 请求缺少 model".to_string()))?;
 
         let url = format!("{}/api/chat", self.base_url.trim_end_matches('/'));
-        let body = json!({
+        let mut body = json!({
             "model": model,
             "messages": Self::build_messages(&request.messages),
             "stream": false
         });
+
+        if let Some(fmt) = request.response_format.as_ref() {
+            match fmt {
+                ResponseFormat::JsonObject => {
+                    if let Some(map) = body.as_object_mut() {
+                        map.insert("format".to_string(), json!("json"));
+                    }
+                }
+                ResponseFormat::JsonSchema { .. } => {
+                    return Err(ProviderError::Message(
+                        "Ollama provider 暂不支持 JsonSchema 结构化输出".to_string(),
+                    ));
+                }
+            }
+        }
 
         let preview = |s: &str, max: usize| {
             if s.len() <= max {
@@ -185,11 +200,26 @@ impl LlmProvider for OllamaProvider {
 
         let client = self.client.clone();
         let url = format!("{}/api/chat", self.base_url.trim_end_matches('/'));
-        let body = json!({
+        let mut body = json!({
             "model": model,
             "messages": Self::build_messages(&request.messages),
             "stream": true
         });
+
+        if let Some(fmt) = request.response_format.as_ref() {
+            match fmt {
+                ResponseFormat::JsonObject => {
+                    if let Some(map) = body.as_object_mut() {
+                        map.insert("format".to_string(), json!("json"));
+                    }
+                }
+                ResponseFormat::JsonSchema { .. } => {
+                    return Err(ProviderError::Message(
+                        "Ollama provider 暂不支持 JsonSchema 结构化输出".to_string(),
+                    ));
+                }
+            }
+        }
 
         let preview = |s: &str, max: usize| {
             if s.len() <= max {

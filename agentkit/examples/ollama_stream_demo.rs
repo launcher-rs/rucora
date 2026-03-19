@@ -23,6 +23,7 @@ async fn main() {
         tools: None,
         temperature: None,
         max_tokens: None,
+        response_format: None,
         metadata: None,
     };
 

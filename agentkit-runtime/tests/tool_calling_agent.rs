@@ -77,6 +77,7 @@ async fn resilient_provider_should_retry_chat() {
             tools: None,
             temperature: None,
             max_tokens: None,
+            response_format: None,
             metadata: None,
         })
         .await
@@ -130,6 +131,7 @@ async fn resilient_provider_stream_should_be_cancellable() {
             tools: None,
             temperature: None,
             max_tokens: None,
+            response_format: None,
             metadata: None,
         })
         .expect("stream should start");

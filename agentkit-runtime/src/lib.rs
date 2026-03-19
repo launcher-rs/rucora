@@ -927,6 +927,7 @@ impl StreamingToolCallingAgent {
                     tools: Some(tool_defs.clone()),
                     temperature: None,
                     max_tokens: None,
+                    response_format: None,
                     metadata: input.metadata.clone(),
                 };
 
@@ -1028,6 +1029,7 @@ where
             tools: None,
             temperature: None,
             max_tokens: None,
+            response_format: None,
             metadata: input.metadata,
         };
 
@@ -1100,6 +1102,7 @@ where
                 tools: Some(tool_defs.clone()),
                 temperature: None,
                 max_tokens: None,
+                response_format: None,
                 metadata: input.metadata.clone(),
             };
 

@@ -5,6 +5,30 @@ use serde_json::Value;
 
 use crate::tool::types::{ToolCall, ToolDefinition};
 
+/// 结构化输出请求。
+///
+/// 不同 provider 对结构化输出的支持程度不同：
+/// - JSON Object：要求输出为合法 JSON
+/// - JSON Schema：要求输出满足给定 schema（如果 provider 支持）
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
+pub enum ResponseFormat {
+    /// 要求模型输出为合法 JSON 对象。
+    JsonObject,
+    /// 要求模型输出满足 JSON Schema。
+    ///
+    /// `schema` 为 JSON Schema（建议为 object schema）。
+    JsonSchema {
+        /// schema 名称（部分 provider 需要）。
+        name: String,
+        /// JSON Schema 内容。
+        schema: Value,
+        /// 是否严格模式（如果 provider 支持）。
+        #[serde(default, skip_serializing_if = "Option::is_none")]
+        strict: Option<bool>,
+    },
+}
+
 /// 对话消息角色。
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub enum Role {
@@ -112,6 +136,12 @@ pub struct ChatRequest {
     /// 最大输出 token（可选）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_tokens: Option<u32>,
+
+    /// 结构化输出控制（可选）。
+    ///
+    /// 如果设置，provider 可以尝试让模型输出严格的 JSON 或满足 schema。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<ResponseFormat>,
     /// 透传元数据（便于实现层做 tracing/路由/调试）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
@@ -126,6 +156,7 @@ impl ChatRequest {
             tools: None,
             temperature: None,
             max_tokens: None,
+            response_format: None,
             metadata: None,
         }
     }
@@ -156,6 +187,12 @@ impl ChatRequest {
     /// 设置 max_tokens。
     pub fn with_max_tokens(mut self, max_tokens: u32) -> Self {
         self.max_tokens = Some(max_tokens);
+        self
+    }
+
+    /// 设置结构化输出格式。
+    pub fn with_response_format(mut self, response_format: ResponseFormat) -> Self {
+        self.response_format = Some(response_format);
         self
     }
 

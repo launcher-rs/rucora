@@ -10,7 +10,7 @@ use agentkit_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role},
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
     },
     tool::types::{ToolCall, ToolDefinition},
 };
@@ -94,6 +94,35 @@ impl OpenAiProvider {
                 obj
             })
             .collect()
+    }
+
+    fn build_response_format(fmt: &ResponseFormat) -> Value {
+        match fmt {
+            ResponseFormat::JsonObject => json!({"type": "json_object"}),
+            ResponseFormat::JsonSchema {
+                name,
+                schema,
+                strict,
+            } => {
+                let mut obj = json!({
+                    "type": "json_schema",
+                    "json_schema": {
+                        "name": name,
+                        "schema": schema,
+                    }
+                });
+                if let Some(strict) = strict {
+                    if let Some(root) = obj.as_object_mut() {
+                        if let Some(js) =
+                            root.get_mut("json_schema").and_then(|v| v.as_object_mut())
+                        {
+                            js.insert("strict".to_string(), json!(strict));
+                        }
+                    }
+                }
+                obj
+            }
+        }
     }
 
     fn build_tools(tools: &[ToolDefinition]) -> Vec<Value> {
@@ -208,6 +237,14 @@ impl LlmProvider for OpenAiProvider {
         if let Some(max_tokens) = request.max_tokens {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(max_tokens));
+            }
+        }
+        if let Some(fmt) = request.response_format.as_ref() {
+            if let Some(map) = body.as_object_mut() {
+                map.insert(
+                    "response_format".to_string(),
+                    Self::build_response_format(fmt),
+                );
             }
         }
 
@@ -350,6 +387,15 @@ impl LlmProvider for OpenAiProvider {
         if let Some(max_tokens) = request.max_tokens {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(max_tokens));
+            }
+        }
+
+        if let Some(fmt) = request.response_format.as_ref() {
+            if let Some(map) = body.as_object_mut() {
+                map.insert(
+                    "response_format".to_string(),
+                    Self::build_response_format(fmt),
+                );
             }
         }
 

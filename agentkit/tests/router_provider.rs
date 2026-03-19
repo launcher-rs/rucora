@@ -64,6 +64,7 @@ async fn router_should_route_by_model_prefix_and_strip_prefix() {
             tools: None,
             temperature: None,
             max_tokens: None,
+            response_format: None,
             metadata: None,
         })
         .await
@@ -87,6 +88,7 @@ async fn router_should_route_by_model_prefix_and_strip_prefix() {
             tools: None,
             temperature: None,
             max_tokens: None,
+            response_format: None,
             metadata: None,
         })
         .await

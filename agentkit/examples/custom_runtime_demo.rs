@@ -172,6 +172,7 @@ where
                 tools: Some(tool_defs.clone()),
                 temperature: None,
                 max_tokens: None,
+                response_format: None,
                 metadata: input.metadata.clone(),
             };
 

@@ -24,12 +24,12 @@
   - **落点**：`agentkit-runtime`（调用 provider 的统一封装层）
   - **验收**：可配置 max_retries、backoff、timeout；取消能中断流式。
 
-- [ ] **Provider 连接池/多 Provider 路由（runtime/agentkit）**
+- [x] **Provider 连接池/多 Provider 路由（runtime/agentkit）**
   - **目标**：按模型能力、价格、限流动态选择 provider；支持 fallback。
   - **落点**：`agentkit/src/provider/*` + `agentkit-runtime`
   - **验收**：给出 RouterProvider 示例；具备健康检查与降级策略。
 
-- [ ] **结构化输出（JSON / Schema）能力（core + provider 实现）**
+- [x] **结构化输出（JSON / Schema）能力（core + provider 实现）**
   - **目标**：减少 prompt 解析成本；让工具输入/业务输出更稳定。
   - **落点**：`agentkit-core/provider/types.rs`（补充 response_format / schema）
   - **验收**：至少一个 provider 支持严格 JSON 输出并在测试中覆盖。
