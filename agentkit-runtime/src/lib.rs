@@ -111,6 +111,166 @@ impl ToolPolicy for AllowAllToolPolicy {
     }
 }
 
+/// AgentLoop：描述“Agent 的对话驱动逻辑（loop）”。
+///
+/// 设计目标：
+/// - 把“loop 算法”从 `ToolCallingAgent` 的承载结构中解耦出来。
+/// - 在不改动 provider/tools/policy/audit 等通用能力的前提下，替换不同的 loop（Simple / ToolCalling / ReAct / Plan-and-Execute）。
+///
+/// 当前实现：
+/// - `ToolCallingLoop`：等价于此前 `ToolCallingAgent` 内置的 tool-calling loop。
+#[async_trait]
+pub trait AgentLoop<P>: Send + Sync {
+    /// 执行对话 loop。
+    ///
+    /// 约定：
+    /// - `agent` 提供 provider、tools、policy、audit 等上下文与通用工具函数。
+    /// - `input` 是用户输入（messages + metadata）。
+    async fn run(
+        &self,
+        agent: &ToolCallingAgent<P>,
+        input: AgentInput,
+    ) -> Result<AgentOutput, AgentError>;
+}
+
+/// 默认的 tool-calling loop。
+///
+/// 行为与此前 `ToolCallingAgent` 的 `Agent::run` 等价：
+/// - 调用 provider.chat
+/// - 若返回 tool_calls，则执行工具并把结果回灌 messages
+/// - 直到 tool_calls 为空或达到 max_steps
+pub struct ToolCallingLoop;
+
+#[async_trait]
+impl<P> AgentLoop<P> for ToolCallingLoop
+where
+    P: LlmProvider,
+{
+    async fn run(
+        &self,
+        agent: &ToolCallingAgent<P>,
+        mut input: AgentInput,
+    ) -> Result<AgentOutput, AgentError> {
+        info!(max_steps = agent.max_steps, "agent.run.start");
+        if let Some(system_prompt) = &agent.system_prompt {
+            input.messages.insert(
+                0,
+                ChatMessage {
+                    role: Role::System,
+                    content: system_prompt.clone(),
+                    name: None,
+                },
+            );
+        }
+
+        // tool 定义会提供给 provider，用于 function-calling/tool-calling 注册。
+        let tool_defs = agent.tools.definitions();
+
+        let mut messages = input.messages;
+        let mut tool_results: Vec<ToolResult> = Vec::new();
+
+        for step in 0..agent.max_steps {
+            debug!(step, messages_len = messages.len(), "agent.step.start");
+
+            let preview = |s: &str| {
+                const MAX: usize = 800;
+                if s.len() <= MAX {
+                    s.to_string()
+                } else {
+                    format!("{}...<truncated:{}>", &s[..MAX], s.len())
+                }
+            };
+
+            let last_user_preview = messages
+                .iter()
+                .rev()
+                .find(|m| m.role == Role::User)
+                .map(|m| preview(&m.content));
+
+            debug!(
+                step,
+                tools_len = tool_defs.len(),
+                last_user = last_user_preview.as_deref().unwrap_or(""),
+                "agent.step.provider_chat.start"
+            );
+
+            let request = ChatRequest {
+                messages: messages.clone(),
+                model: None,
+                tools: Some(tool_defs.clone()),
+                temperature: None,
+                max_tokens: None,
+                response_format: None,
+                metadata: input.metadata.clone(),
+            };
+
+            let chat_start = std::time::Instant::now();
+
+            let resp = agent
+                .provider
+                .chat(request)
+                .await
+                .map_err(|e| AgentError::Message(e.to_string()))?;
+
+            let chat_elapsed_ms = chat_start.elapsed().as_millis() as u64;
+            debug!(
+                step,
+                chat_elapsed_ms,
+                assistant_content_len = resp.message.content.len(),
+                tool_calls_len = resp.tool_calls.len(),
+                "agent.step.provider_chat.done"
+            );
+
+            if !resp.tool_calls.is_empty() {
+                let calls_preview: Vec<String> = resp
+                    .tool_calls
+                    .iter()
+                    .map(|c| {
+                        let input = preview(&c.input.to_string());
+                        format!("{}(id={}, input={})", c.name, c.id, input)
+                    })
+                    .collect();
+                debug!(step, tool_calls = ?calls_preview, "agent.step.tool_calls");
+            }
+
+            // 追加 assistant 回复到对话历史。
+            messages.push(resp.message.clone());
+
+            // 如果没有工具调用，则直接返回最终消息。
+            if resp.tool_calls.is_empty() {
+                info!(
+                    step,
+                    tool_results_len = tool_results.len(),
+                    "agent.run.done"
+                );
+                return Ok(AgentOutput {
+                    message: resp.message,
+                    tool_results,
+                });
+            }
+
+            // 执行工具调用，并将结果追加回 messages。
+            for call in resp.tool_calls.iter() {
+                let result = agent.execute_tool_call(call).await?;
+                tool_results.push(result.clone());
+
+                let tool_msg = ToolCallingAgent::<P>::tool_result_to_message(&result, &call.name);
+                messages.push(tool_msg);
+            }
+        }
+
+        warn!(
+            max_steps = agent.max_steps,
+            tool_results_len = tool_results.len(),
+            "agent.run.max_steps_exceeded"
+        );
+        Err(AgentError::Message(format!(
+            "超过最大步数限制（max_steps={}），仍未结束工具调用流程",
+            agent.max_steps
+        )))
+    }
+}
+
 #[derive(Debug, Clone)]
 /// 审计事件。
 ///
@@ -617,11 +777,191 @@ pub struct ToolCallingAgent<P> {
     audit: Arc<dyn AuditSink>,
     /// 最大循环步数，避免模型陷入无限调用。
     max_steps: usize,
+
+    /// AgentLoop：定义“如何驱动对话/工具调用”的可替换策略。
+    loop_impl: Arc<dyn AgentLoop<P>>,
 }
 
-impl<P> ToolCallingAgent<P> {
+async fn execute_tool_call_with_policy_and_audit(
+    tools: &ToolRegistry,
+    policy: &Arc<dyn ToolPolicy>,
+    audit: &Arc<dyn AuditSink>,
+    call: &ToolCall,
+) -> Result<ToolResult, AgentError> {
+    let input_len = call.input.to_string().len();
+    let input_preview = {
+        const MAX: usize = 800;
+        let s = call.input.to_string();
+        if s.len() <= MAX {
+            s
+        } else {
+            format!("{}...<truncated:{}>", &s[..MAX], s.len())
+        }
+    };
+    audit.record(AuditEvent::ToolCallStart {
+        tool_name: call.name.clone(),
+        tool_call_id: call.id.clone(),
+        input_len,
+    });
+    info!(
+        tool.name = %call.name,
+        tool.call_id = %call.id,
+        tool.input_len = input_len,
+        "tool_call.execute.start"
+    );
+    debug!(
+        tool.name = %call.name,
+        tool.call_id = %call.id,
+        tool.input = %input_preview,
+        "tool_call.execute.input"
+    );
+
+    let ctx = ToolCallContext {
+        tool_call: call.clone(),
+    };
+
+    if let Err(e) = policy.check(&ctx).await {
+        match &e {
+            ToolError::PolicyDenied { rule_id, reason } => {
+                audit.record(AuditEvent::ToolCallDenied {
+                    tool_name: call.name.clone(),
+                    tool_call_id: call.id.clone(),
+                    rule_id: rule_id.clone(),
+                    reason: reason.clone(),
+                });
+                let out = apply_output_limit(
+                    json!({
+                        "ok": false,
+                        "error": {
+                            "kind": "policy_denied",
+                            "rule_id": rule_id,
+                            "reason": reason
+                        }
+                    }),
+                    DEFAULT_TOOL_OUTPUT_MAX_BYTES,
+                );
+                debug!(
+                    tool.name = %call.name,
+                    tool.call_id = %call.id,
+                    policy.rule_id = %rule_id,
+                    "tool_call.execute.denied"
+                );
+                return Ok(ToolResult {
+                    tool_call_id: call.id.clone(),
+                    output: out,
+                });
+            }
+            _ => {
+                audit.record(AuditEvent::ToolCallError {
+                    tool_name: call.name.clone(),
+                    tool_call_id: call.id.clone(),
+                    message: e.to_string(),
+                });
+                let out = apply_output_limit(
+                    json!({
+                        "ok": false,
+                        "error": {
+                            "kind": "policy_error",
+                            "message": e.to_string()
+                        }
+                    }),
+                    DEFAULT_TOOL_OUTPUT_MAX_BYTES,
+                );
+                debug!(
+                    tool.name = %call.name,
+                    tool.call_id = %call.id,
+                    error = %e.to_string(),
+                    "tool_call.execute.policy_error"
+                );
+                return Ok(ToolResult {
+                    tool_call_id: call.id.clone(),
+                    output: out,
+                });
+            }
+        }
+    }
+
+    let start = std::time::Instant::now();
+    let tool = tools.get(&call.name).ok_or_else(|| {
+        AgentError::Message(format!(
+            "未找到工具：{} (tool_call_id={})",
+            call.name, call.id
+        ))
+    })?;
+
+    let tool_output = match tool.call(call.input.clone()).await {
+        Ok(v) => json!({"ok": true, "output": v}),
+        Err(ToolError::PolicyDenied { rule_id, reason }) => {
+            audit.record(AuditEvent::ToolCallDenied {
+                tool_name: call.name.clone(),
+                tool_call_id: call.id.clone(),
+                rule_id: rule_id.clone(),
+                reason: reason.clone(),
+            });
+            json!({
+                "ok": false,
+                "error": {"kind": "policy_denied", "rule_id": rule_id, "reason": reason}
+            })
+        }
+        Err(e) => {
+            audit.record(AuditEvent::ToolCallError {
+                tool_name: call.name.clone(),
+                tool_call_id: call.id.clone(),
+                message: e.to_string(),
+            });
+            json!({
+                "ok": false,
+                "error": {"kind": "tool_error", "message": e.to_string()}
+            })
+        }
+    };
+
+    let tool_output = apply_output_limit(tool_output, DEFAULT_TOOL_OUTPUT_MAX_BYTES);
+    let output_preview = {
+        const MAX: usize = 1200;
+        let s = tool_output.to_string();
+        if s.len() <= MAX {
+            s
+        } else {
+            format!("{}...<truncated:{}>", &s[..MAX], s.len())
+        }
+    };
+
+    let elapsed_ms = start.elapsed().as_millis() as u64;
+    let output_len = tool_output.to_string().len();
+    audit.record(AuditEvent::ToolCallDone {
+        tool_name: call.name.clone(),
+        tool_call_id: call.id.clone(),
+        output_len,
+        elapsed_ms,
+    });
+    info!(
+        tool.name = %call.name,
+        tool.call_id = %call.id,
+        tool.output_len = output_len,
+        tool.elapsed_ms = elapsed_ms,
+        "tool_call.execute.done"
+    );
+    debug!(
+        tool.name = %call.name,
+        tool.call_id = %call.id,
+        tool.output = %output_preview,
+        "tool_call.execute.output"
+    );
+
+    Ok(ToolResult {
+        tool_call_id: call.id.clone(),
+        output: tool_output,
+    })
+}
+
+impl<P> ToolCallingAgent<P>
+where
+    P: LlmProvider,
+{
     /// 创建一个支持工具调用的 Agent。
     pub fn new(provider: P, tools: ToolRegistry) -> Self {
+        let loop_impl: Arc<dyn AgentLoop<P>> = Arc::new(ToolCallingLoop);
         Self {
             provider,
             system_prompt: None,
@@ -629,6 +969,7 @@ impl<P> ToolCallingAgent<P> {
             policy: Arc::new(DefaultToolPolicy::new()),
             audit: Arc::new(NoopAuditSink),
             max_steps: 8,
+            loop_impl,
         }
     }
 
@@ -654,175 +995,38 @@ impl<P> ToolCallingAgent<P> {
         self
     }
 
-    /// 执行单个工具调用，并返回 `ToolResult`。
-    async fn execute_tool_call(&self, call: &ToolCall) -> Result<ToolResult, AgentError> {
-        let input_len = call.input.to_string().len();
-        let input_preview = {
-            const MAX: usize = 800;
-            let s = call.input.to_string();
-            if s.len() <= MAX {
-                s
-            } else {
-                format!("{}...<truncated:{}>", &s[..MAX], s.len())
-            }
-        };
-        self.audit.record(AuditEvent::ToolCallStart {
-            tool_name: call.name.clone(),
-            tool_call_id: call.id.clone(),
-            input_len,
-        });
-        info!(
-            tool.name = %call.name,
-            tool.call_id = %call.id,
-            tool.input_len = input_len,
-            "tool_call.execute.start"
-        );
-        debug!(
-            tool.name = %call.name,
-            tool.call_id = %call.id,
-            tool.input = %input_preview,
-            "tool_call.execute.input"
-        );
-
-        let ctx = ToolCallContext {
-            tool_call: call.clone(),
-        };
-
-        if let Err(e) = self.policy.check(&ctx).await {
-            match &e {
-                ToolError::PolicyDenied { rule_id, reason } => {
-                    self.audit.record(AuditEvent::ToolCallDenied {
-                        tool_name: call.name.clone(),
-                        tool_call_id: call.id.clone(),
-                        rule_id: rule_id.clone(),
-                        reason: reason.clone(),
-                    });
-                    let out = apply_output_limit(
-                        json!({
-                            "ok": false,
-                            "error": {
-                                "kind": "policy_denied",
-                                "rule_id": rule_id,
-                                "reason": reason
-                            }
-                        }),
-                        DEFAULT_TOOL_OUTPUT_MAX_BYTES,
-                    );
-                    debug!(
-                        tool.name = %call.name,
-                        tool.call_id = %call.id,
-                        policy.rule_id = %rule_id,
-                        "tool_call.execute.denied"
-                    );
-                    return Ok(ToolResult {
-                        tool_call_id: call.id.clone(),
-                        output: out,
-                    });
-                }
-                _ => {
-                    self.audit.record(AuditEvent::ToolCallError {
-                        tool_name: call.name.clone(),
-                        tool_call_id: call.id.clone(),
-                        message: e.to_string(),
-                    });
-                    let out = apply_output_limit(
-                        json!({
-                            "ok": false,
-                            "error": {
-                                "kind": "policy_error",
-                                "message": e.to_string()
-                            }
-                        }),
-                        DEFAULT_TOOL_OUTPUT_MAX_BYTES,
-                    );
-                    debug!(
-                        tool.name = %call.name,
-                        tool.call_id = %call.id,
-                        error = %e.to_string(),
-                        "tool_call.execute.policy_error"
-                    );
-                    return Ok(ToolResult {
-                        tool_call_id: call.id.clone(),
-                        output: out,
-                    });
-                }
-            }
-        }
-
-        let start = std::time::Instant::now();
-        let tool = self.tools.get(&call.name).ok_or_else(|| {
-            AgentError::Message(format!(
-                "未找到工具：{} (tool_call_id={})",
-                call.name, call.id
-            ))
-        })?;
-
-        let tool_output = match tool.call(call.input.clone()).await {
-            Ok(v) => json!({"ok": true, "output": v}),
-            Err(ToolError::PolicyDenied { rule_id, reason }) => {
-                self.audit.record(AuditEvent::ToolCallDenied {
-                    tool_name: call.name.clone(),
-                    tool_call_id: call.id.clone(),
-                    rule_id: rule_id.clone(),
-                    reason: reason.clone(),
-                });
-                json!({
-                    "ok": false,
-                    "error": {"kind": "policy_denied", "rule_id": rule_id, "reason": reason}
-                })
-            }
-            Err(e) => {
-                self.audit.record(AuditEvent::ToolCallError {
-                    tool_name: call.name.clone(),
-                    tool_call_id: call.id.clone(),
-                    message: e.to_string(),
-                });
-                json!({
-                    "ok": false,
-                    "error": {"kind": "tool_error", "message": e.to_string()}
-                })
-            }
-        };
-
-        let tool_output = apply_output_limit(tool_output, DEFAULT_TOOL_OUTPUT_MAX_BYTES);
-        let output_preview = {
-            const MAX: usize = 1200;
-            let s = tool_output.to_string();
-            if s.len() <= MAX {
-                s
-            } else {
-                format!("{}...<truncated:{}>", &s[..MAX], s.len())
-            }
-        };
-
-        let elapsed_ms = start.elapsed().as_millis() as u64;
-        let output_len = tool_output.to_string().len();
-        self.audit.record(AuditEvent::ToolCallDone {
-            tool_name: call.name.clone(),
-            tool_call_id: call.id.clone(),
-            output_len,
-            elapsed_ms,
-        });
-        info!(
-            tool.name = %call.name,
-            tool.call_id = %call.id,
-            tool.output_len = output_len,
-            tool.elapsed_ms = elapsed_ms,
-            "tool_call.execute.done"
-        );
-        debug!(
-            tool.name = %call.name,
-            tool.call_id = %call.id,
-            tool.output = %output_preview,
-            "tool_call.execute.output"
-        );
-
-        Ok(ToolResult {
-            tool_call_id: call.id.clone(),
-            output: tool_output,
-        })
+    /// 获取底层 provider 的引用。
+    ///
+    /// 用途：
+    /// - 在自定义 `AgentLoop` 中直接调用 `provider.chat/stream_chat`。
+    ///
+    /// 注意：
+    /// - `ToolCallingAgent` 仍然负责持有 tools/policy/audit 等通用能力；
+    /// - loop 负责“如何驱动对话流程”。
+    pub fn provider(&self) -> &P {
+        &self.provider
     }
 
+    /// 替换默认的 AgentLoop，实现“可插拔 loop”。
+    ///
+    /// 说明：
+    /// - 默认情况下使用 `ToolCallingLoop`（即当前内置的 tool-calling loop）。
+    /// - 通过该方法你可以注入自定义 loop（例如 ReAct、Plan-and-Execute 等）。
+    pub fn with_loop<L>(mut self, loop_impl: L) -> Self
+    where
+        L: AgentLoop<P> + 'static,
+    {
+        self.loop_impl = Arc::new(loop_impl);
+        self
+    }
+
+    /// 执行单个工具调用，并返回 `ToolResult`。
+    async fn execute_tool_call(&self, call: &ToolCall) -> Result<ToolResult, AgentError> {
+        execute_tool_call_with_policy_and_audit(&self.tools, &self.policy, &self.audit, call).await
+    }
+}
+
+impl<P> ToolCallingAgent<P> {
     /// 将工具结果转换为“工具消息”追加回对话历史。
     fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {
         let payload = Value::Object(
@@ -966,15 +1170,9 @@ impl StreamingToolCallingAgent {
                 for call in tool_calls.iter() {
                     yield ChannelEvent::ToolCall(call.clone());
 
-                    let exec_agent = ToolCallingAgent::<Arc<dyn LlmProvider>> {
-                        provider: provider.clone(),
-                        system_prompt: None,
-                        tools: tools.clone(),
-                        policy: policy.clone(),
-                        audit: audit.clone(),
-                        max_steps,
-                    };
-                    let result = exec_agent.execute_tool_call(call).await?;
+                    let result =
+                        execute_tool_call_with_policy_and_audit(&tools, &policy, &audit, call)
+                            .await?;
                     yield ChannelEvent::ToolResult(result.clone());
                     let tool_msg = ToolCallingAgent::<Arc<dyn LlmProvider>>::tool_result_to_message(
                         &result,
@@ -1052,124 +1250,8 @@ where
     P: LlmProvider,
 {
     /// 执行带工具调用的对话循环。
-    async fn run(&self, mut input: AgentInput) -> Result<AgentOutput, AgentError> {
-        info!(max_steps = self.max_steps, "agent.run.start");
-        if let Some(system_prompt) = &self.system_prompt {
-            input.messages.insert(
-                0,
-                ChatMessage {
-                    role: Role::System,
-                    content: system_prompt.clone(),
-                    name: None,
-                },
-            );
-        }
-
-        // tool 定义会提供给 provider，用于 function-calling/tool-calling 注册。
-        let tool_defs = self.tools.definitions();
-
-        let mut messages = input.messages;
-        let mut tool_results: Vec<ToolResult> = Vec::new();
-
-        for step in 0..self.max_steps {
-            debug!(step, messages_len = messages.len(), "agent.step.start");
-
-            let preview = |s: &str| {
-                const MAX: usize = 800;
-                if s.len() <= MAX {
-                    s.to_string()
-                } else {
-                    format!("{}...<truncated:{}>", &s[..MAX], s.len())
-                }
-            };
-
-            let last_user_preview = messages
-                .iter()
-                .rev()
-                .find(|m| m.role == Role::User)
-                .map(|m| preview(&m.content));
-
-            debug!(
-                step,
-                tools_len = tool_defs.len(),
-                last_user = last_user_preview.as_deref().unwrap_or(""),
-                "agent.step.provider_chat.start"
-            );
-
-            let request = ChatRequest {
-                messages: messages.clone(),
-                model: None,
-                tools: Some(tool_defs.clone()),
-                temperature: None,
-                max_tokens: None,
-                response_format: None,
-                metadata: input.metadata.clone(),
-            };
-
-            let chat_start = std::time::Instant::now();
-
-            let resp = self
-                .provider
-                .chat(request)
-                .await
-                .map_err(|e| AgentError::Message(e.to_string()))?;
-
-            let chat_elapsed_ms = chat_start.elapsed().as_millis() as u64;
-            debug!(
-                step,
-                chat_elapsed_ms,
-                assistant_content_len = resp.message.content.len(),
-                tool_calls_len = resp.tool_calls.len(),
-                "agent.step.provider_chat.done"
-            );
-
-            if !resp.tool_calls.is_empty() {
-                let calls_preview: Vec<String> = resp
-                    .tool_calls
-                    .iter()
-                    .map(|c| {
-                        let input = preview(&c.input.to_string());
-                        format!("{}(id={}, input={})", c.name, c.id, input)
-                    })
-                    .collect();
-                debug!(step, tool_calls = ?calls_preview, "agent.step.tool_calls");
-            }
-
-            // 追加 assistant 回复到对话历史。
-            messages.push(resp.message.clone());
-
-            // 如果没有工具调用，则直接返回最终消息。
-            if resp.tool_calls.is_empty() {
-                info!(
-                    step,
-                    tool_results_len = tool_results.len(),
-                    "agent.run.done"
-                );
-                return Ok(AgentOutput {
-                    message: resp.message,
-                    tool_results,
-                });
-            }
-
-            // 执行工具调用，并将结果追加回 messages。
-            for call in resp.tool_calls.iter() {
-                let result = self.execute_tool_call(call).await?;
-                tool_results.push(result.clone());
-
-                let tool_msg = Self::tool_result_to_message(&result, &call.name);
-                messages.push(tool_msg);
-            }
-        }
-
-        warn!(
-            max_steps = self.max_steps,
-            tool_results_len = tool_results.len(),
-            "agent.run.max_steps_exceeded"
-        );
-        Err(AgentError::Message(format!(
-            "超过最大步数限制（max_steps={}），仍未结束工具调用流程",
-            self.max_steps
-        )))
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
+        self.loop_impl.run(self, input).await
     }
 }
 

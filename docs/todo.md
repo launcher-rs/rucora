@@ -38,7 +38,7 @@
 
 ## 2. Tool Calling / Agent Loop 能力
 
-- [ ] **可插拔 AgentLoop（runtime）**
+- [x] **可插拔 AgentLoop（runtime）**
   - **目标**：Simple / ToolCalling / ReAct / Plan-and-Execute 等 loop 可替换。
   - **落点**：`agentkit-runtime`（抽象 loop trait + 默认实现）
   - **验收**：新增 `AgentLoop` trait；现有 `ToolCallingAgent` 迁移为某个 loop 实现。
