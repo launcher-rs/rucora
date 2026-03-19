@@ -11,6 +11,7 @@ use agentkit_core::{
 use async_trait::async_trait;
 use serde_json::json;
 use std::{collections::HashMap, sync::Arc};
+use tracing_subscriber::EnvFilter;
 
 /// 自定义 runtime：最小的 llm + tool loop 实现（不依赖 agentkit-runtime）。
 ///
@@ -63,7 +64,10 @@ impl<P> LlmToolRuntime<P> {
         call: &agentkit_core::tool::types::ToolCall,
     ) -> Result<agentkit_core::tool::types::ToolResult, AgentError> {
         let tool = self.tools.get(&call.name).ok_or_else(|| {
-            AgentError::Message(format!("未找到工具: {} (tool_call_id={})", call.name, call.id))
+            AgentError::Message(format!(
+                "未找到工具: {} (tool_call_id={})",
+                call.name, call.id
+            ))
         })?;
 
         let out = tool
@@ -148,11 +152,14 @@ where
     async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         let mut messages = input.messages;
         if let Some(system_prompt) = &self.system_prompt {
-            messages.insert(0, ChatMessage {
-                role: Role::System,
-                content: system_prompt.clone(),
-                name: None,
-            });
+            messages.insert(
+                0,
+                ChatMessage {
+                    role: Role::System,
+                    content: system_prompt.clone(),
+                    name: None,
+                },
+            );
         }
 
         let tool_defs = self.tools.definitions();
@@ -206,6 +213,12 @@ where
 
 #[tokio::main]
 async fn main() {
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("debug")),
+        )
+        .init();
+
     // 说明：该示例演示“自定义 runtime 自己实现 llm+tool loop”，并且不依赖 agentkit-runtime。
     // 运行前准备：
     // - 启动 ollama（并启用 OpenAI-compatible /v1 接口）
@@ -228,7 +241,9 @@ async fn main() {
 
     let out = runtime
         .run(AgentInput {
-            messages: vec![ChatMessage::user("请调用 echo 工具，把文本原样返回：hello runtime")],
+            messages: vec![ChatMessage::user(
+                "请调用 echo 工具，把文本原样返回：hello runtime",
+            )],
             metadata: None,
         })
         .await;

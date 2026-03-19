@@ -32,10 +32,10 @@ pub use agentkit_core as core;
 ///
 /// 这个模块重新导出了最常用的类型和 trait，避免用户手动导入多个模块。
 pub mod prelude {
-    /// core 抽象层常用 trait。
-    pub use crate::core::{agent::Agent, provider::LlmProvider, tool::Tool};
     /// runtime 抽象（用于支持可替换 runtime）。
     pub use crate::core::runtime::Runtime;
+    /// core 抽象层常用 trait。
+    pub use crate::core::{agent::Agent, provider::LlmProvider, tool::Tool};
     /// core 常用类型与错误。
     pub use crate::core::{
         agent::types::*, channel::types::*, error::*, memory::types::*, provider::types::*,

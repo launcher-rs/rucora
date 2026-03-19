@@ -26,11 +26,11 @@ use agentkit_core::{
 };
 use async_trait::async_trait;
 use rhai::{Engine, Scope};
-use serde_json::{Value, json};
 use serde::Deserialize;
+use serde_json::{Value, json};
 use std::path::Path;
-use std::{collections::HashMap, sync::Arc};
 use std::sync::{OnceLock, RwLock};
+use std::{collections::HashMap, sync::Arc};
 use tokio::fs;
 use tracing::{debug, info};
 
@@ -397,9 +397,8 @@ async fn load_skills_from_dir_inner(
                 let meta_str = fs::read_to_string(&meta_yaml_path)
                     .await
                     .map_err(|e| SkillError::Message(format!("读取 meta.yaml 失败: {}", e)))?;
-                serde_yaml::from_str(&meta_str).map_err(|e| {
-                    SkillError::Message(format!("解析 meta.yaml 失败: {}", e))
-                })?
+                serde_yaml::from_str(&meta_str)
+                    .map_err(|e| SkillError::Message(format!("解析 meta.yaml 失败: {}", e)))?
             } else {
                 SkillMetaYaml::default()
             };
@@ -421,11 +420,7 @@ async fn load_skills_from_dir_inner(
                 .unwrap_or("rhai_skill")
                 .to_string();
 
-            let name = meta
-                .name
-                .clone()
-                .or(name_from_md)
-                .unwrap_or(default_name);
+            let name = meta.name.clone().or(name_from_md).unwrap_or(default_name);
 
             let description = format_meta_description(
                 desc_from_md.or_else(|| Some("Rhai 脚本技能".to_string())),

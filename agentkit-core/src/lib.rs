@@ -16,10 +16,10 @@ pub mod memory;
 pub mod provider;
 /// 语义检索抽象（向量存储与相似度搜索）。
 pub mod retrieval;
-/// 技能抽象（更高层的可复用能力单元）。
-pub mod skill;
 /// runtime 抽象（运行时编排规范，可由 agentkit-runtime 或用户自定义实现）。
 pub mod runtime;
+/// 技能抽象（更高层的可复用能力单元）。
+pub mod skill;
 /// 工具抽象（名称、输入 schema、执行）。
 pub mod tool;
 

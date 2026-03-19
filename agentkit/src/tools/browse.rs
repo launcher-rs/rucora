@@ -3,6 +3,8 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
+use dom_smoothie::{Config, Readability, TextMode};
+use html2text::from_read;
 use serde_json::{Value, json};
 use std::{
     collections::HashMap,
@@ -11,8 +13,6 @@ use std::{
 };
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
-use dom_smoothie::{Config, Readability, TextMode};
-use html2text::from_read;
 
 const DEFAULT_MAX_CONTENT_CHARS: usize = 15_000;
 
@@ -39,8 +39,8 @@ impl BrowseTool {
             ..Default::default()
         };
 
-        let mut readability =
-            Readability::new(content, None, Some(cfg)).map_err(|e| ToolError::Message(e.to_string()))?;
+        let mut readability = Readability::new(content, None, Some(cfg))
+            .map_err(|e| ToolError::Message(e.to_string()))?;
         let article = readability
             .parse()
             .map_err(|e| ToolError::Message(e.to_string()))?;
@@ -135,10 +135,9 @@ impl Tool for BrowseTool {
 
         match action {
             "navigate" => {
-                let url = input
-                    .get("url")
-                    .and_then(|v| v.as_str())
-                    .ok_or_else(|| ToolError::Message("navigate 缺少必需的 'url' 字段".to_string()))?;
+                let url = input.get("url").and_then(|v| v.as_str()).ok_or_else(|| {
+                    ToolError::Message("navigate 缺少必需的 'url' 字段".to_string())
+                })?;
 
                 let timeout_ms = input
                     .get("timeout")
@@ -165,9 +164,10 @@ impl Tool for BrowseTool {
                     }
                 };
 
-                let mut sessions = self.sessions.lock().map_err(|_| {
-                    ToolError::Message("browse session lock poisoned".to_string())
-                })?;
+                let mut sessions = self
+                    .sessions
+                    .lock()
+                    .map_err(|_| ToolError::Message("browse session lock poisoned".to_string()))?;
                 let ent = sessions.entry(session.clone()).or_default();
                 ent.url = Some(url.to_string());
                 ent.content = Some(extracted);
@@ -192,9 +192,10 @@ impl Tool for BrowseTool {
                     .map(|v| v as usize)
                     .unwrap_or(DEFAULT_MAX_CONTENT_CHARS);
 
-                let sessions = self.sessions.lock().map_err(|_| {
-                    ToolError::Message("browse session lock poisoned".to_string())
-                })?;
+                let sessions = self
+                    .sessions
+                    .lock()
+                    .map_err(|_| ToolError::Message("browse session lock poisoned".to_string()))?;
                 let ent = sessions.get(&session);
                 let content = ent.and_then(|s| s.content.clone()).unwrap_or_default();
                 let raw_html = ent.and_then(|s| s.raw_html.clone()).unwrap_or_default();
@@ -233,16 +234,14 @@ impl Tool for BrowseTool {
                 }))
             }
             "session_close" => {
-                let mut sessions = self.sessions.lock().map_err(|_| {
-                    ToolError::Message("browse session lock poisoned".to_string())
-                })?;
+                let mut sessions = self
+                    .sessions
+                    .lock()
+                    .map_err(|_| ToolError::Message("browse session lock poisoned".to_string()))?;
                 sessions.remove(&session);
                 Ok(json!({"success": true}))
             }
-            other => Err(ToolError::Message(format!(
-                "未知 action: {}",
-                other
-            ))),
+            other => Err(ToolError::Message(format!("未知 action: {}", other))),
         }
     }
 }

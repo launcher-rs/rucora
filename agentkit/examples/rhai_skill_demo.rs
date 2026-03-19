@@ -1,7 +1,4 @@
-use agentkit_core::provider::{
-    LlmProvider,
-    types::{ChatRequest},
-};
+use agentkit_core::provider::{LlmProvider, types::ChatRequest};
 use agentkit_runtime::ToolRegistry;
 use rhai::{Dynamic, Engine};
 use serde_json::{Value, json};
@@ -11,9 +8,9 @@ use tracing_subscriber::EnvFilter;
 #[tokio::main]
 async fn main() {
     tracing_subscriber::fmt()
-        .with_env_filter(EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-            EnvFilter::new("info")
-        }))
+        .with_env_filter(
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
+        )
         .init();
 
     // 本示例：执行 skills/ai_news/SKILL.rhai。
@@ -52,16 +49,13 @@ async fn main() {
         engine.register_fn("is_map", |x: Dynamic| -> bool { x.is_map() });
 
         // arr_join(arr, delim): string
-        engine.register_fn(
-            "arr_join",
-            |arr: rhai::Array, delim: &str| -> String {
-                let mut parts: Vec<String> = Vec::with_capacity(arr.len());
-                for v in arr {
-                    parts.push(v.to_string());
-                }
-                parts.join(delim)
-            },
-        );
+        engine.register_fn("arr_join", |arr: rhai::Array, delim: &str| -> String {
+            let mut parts: Vec<String> = Vec::with_capacity(arr.len());
+            for v in arr {
+                parts.push(v.to_string());
+            }
+            parts.join(delim)
+        });
 
         // call_tool(tool_name: &str, args: any) -> any
         // args 通常为 map。
@@ -128,8 +122,10 @@ async fn main() {
                     // OpenAI-compatible provider（例如 Ollama /v1）
                     let base_url = std::env::var("OPENAI_BASE_URL")
                         .unwrap_or_else(|_| "http://127.0.0.1:11434/v1".to_string());
-                    let api_key = std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
-                    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "qwen2.5:14b".to_string());
+                    let api_key =
+                        std::env::var("OPENAI_API_KEY").unwrap_or_else(|_| "ollama".to_string());
+                    let model =
+                        std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "qwen2.5:14b".to_string());
 
                     let provider = agentkit::provider::OpenAiProvider::new(base_url, api_key)
                         .with_default_model(model);
