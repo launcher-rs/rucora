@@ -1,3 +1,9 @@
+//! 文件持久化 Memory 实现。
+//!
+//! 该实现把 `MemoryItem` 以 JSON 数组形式存储到磁盘文件：
+//! - `add`：读入 -> upsert -> 写回（使用进程内互斥锁避免并发写冲突）
+//! - `query`：读入 -> 简单子串匹配过滤
+//!
 use std::{
     path::{Path, PathBuf},
     sync::Arc,
@@ -10,12 +16,16 @@ use agentkit_core::{
 use async_trait::async_trait;
 use tokio::sync::Mutex;
 
+/// 基于 JSON 文件的记忆存储。
+///
+/// 适合本地、小规模场景；不适合高并发/大数据量（每次操作都需要读写整个文件）。
 pub struct FileMemory {
     path: PathBuf,
     lock: Arc<Mutex<()>>,
 }
 
 impl FileMemory {
+    /// 创建一个文件记忆，`path` 指向存储文件位置。
     pub fn new(path: impl AsRef<Path>) -> Self {
         Self {
             path: path.as_ref().to_path_buf(),
@@ -23,6 +33,7 @@ impl FileMemory {
         }
     }
 
+    /// 从文件读取并解析全部记忆条目。
     async fn load_items(&self) -> Result<Vec<MemoryItem>, MemoryError> {
         let bytes = match tokio::fs::read(&self.path).await {
             Ok(b) => b,
@@ -43,6 +54,7 @@ impl FileMemory {
             .map_err(|e| MemoryError::Message(format!("failed to parse memory file: {}", e)))
     }
 
+    /// 将全部记忆条目序列化并写回文件。
     async fn save_items(&self, items: &[MemoryItem]) -> Result<(), MemoryError> {
         if let Some(parent) = self.path.parent() {
             tokio::fs::create_dir_all(parent)

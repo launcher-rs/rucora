@@ -15,22 +15,34 @@ use rmcp::{
 use serde_json::{Value, json};
 use tracing::{debug, trace};
 
+/// MCP 客户端封装。
+///
+/// 该类型对 `rmcp` 的 `RunningService` 做了一层薄封装：
+/// - 提供列出远端工具（`list_tools`）
+/// - 提供按名称调用工具（`call_tool`）
+///
+/// 主要目的是让上层不用直接和 `rmcp::service` 的细节打交道。
 #[derive(Clone)]
 pub struct McpClient {
     client: Arc<RunningService<RoleClient, InitializeRequestParams>>,
 }
 
 impl McpClient {
+    /// 使用已初始化的 `rmcp` client service 构造一个 `McpClient`。
     pub fn new(client: RunningService<RoleClient, InitializeRequestParams>) -> Self {
         Self {
             client: Arc::new(client),
         }
     }
 
+    /// 获取底层 `rmcp` 的 peer 句柄，用于发起 RPC。
     fn peer(&self) -> &Peer<RoleClient> {
         self.client.peer()
     }
 
+    /// 列出对端暴露的全部工具定义。
+    ///
+    /// 返回的是 `rmcp` 的 `Tool` 描述（包含 name/description/schema 等）。
     pub async fn list_tools(&self) -> Result<Vec<RmcpTool>, String> {
         let start = std::time::Instant::now();
         let tools = self
@@ -50,6 +62,13 @@ impl McpClient {
         Ok(tools)
     }
 
+    /// 调用对端的指定工具。
+    ///
+    /// - `name`：工具名称
+    /// - `input`：工具输入（将被转换为 MCP 的 `arguments`）
+    ///
+    /// 返回值是 MCP 的原始 `CallToolResult`，调用方可以选择读取 structured_content
+    /// 或拼接文本内容。
     pub async fn call_tool(&self, name: &str, input: Value) -> Result<CallToolResult, String> {
         let input_preview = {
             const MAX: usize = 800;
@@ -113,12 +132,16 @@ impl McpClient {
     }
 }
 
+/// 将远端 MCP 工具包装为 `agentkit-core` 的 `Tool`。
+///
+/// 用于把外部工具以统一的 `Tool` 方式接入 agentkit 的 agent/tooling 体系。
 pub struct McpTool {
     client: McpClient,
     spec: RmcpTool,
 }
 
 impl McpTool {
+    /// 使用 `McpClient` 与远端工具定义构造 `McpTool`。
     pub fn new(client: McpClient, spec: RmcpTool) -> Self {
         Self { client, spec }
     }

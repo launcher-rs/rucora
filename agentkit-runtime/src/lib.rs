@@ -29,6 +29,11 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use tokio::time::{Duration, sleep, timeout};
 use tracing::{debug, info, warn};
 
+/// 将 UTF-8 字符串按“字节数”安全截断。
+///
+/// - `max_bytes` 是字节上限（不是字符数）。
+/// - 截断点会回退到 UTF-8 字符边界，避免产生非法字符串。
+/// - 截断后会追加一段提示文本，便于下游识别输出被裁剪。
 fn truncate_utf8_to_bytes(s: &str, max_bytes: usize) -> String {
     if s.len() <= max_bytes {
         return s.to_string();
@@ -42,6 +47,17 @@ fn truncate_utf8_to_bytes(s: &str, max_bytes: usize) -> String {
     out
 }
 
+/// 对工具输出/结构化结果应用大小限制。
+///
+/// 该函数用于避免工具返回内容过大导致：
+/// - 消息体膨胀、占用过多 token
+/// - 日志/传输层异常
+///
+/// 行为：
+/// - 若序列化后的 JSON 字符串超过 `max_bytes`，会把 payload 转为截断后的字符串
+/// - 最终保证返回值是 JSON Object，并附带：
+///   - `truncated`: 是否发生截断
+///   - `max_bytes`: 本次使用的上限
 fn apply_output_limit(payload: Value, max_bytes: usize) -> Value {
     // Always attach the protocol fields.
     let serialized = payload.to_string();
@@ -66,16 +82,26 @@ fn apply_output_limit(payload: Value, max_bytes: usize) -> Value {
 }
 
 #[derive(Debug, Clone)]
+/// 单次工具调用的上下文信息。
+///
+/// 主要用于把 `ToolCall` 传递给策略（policy）做安全检查。
 pub struct ToolCallContext {
     pub tool_call: ToolCall,
 }
 
 #[async_trait]
+/// 工具调用策略（Policy）。
+///
+/// 用于在执行工具前进行 allow/deny 检查。
+///
+/// 返回 `Ok(())` 表示允许执行；返回 `Err(ToolError::PolicyDenied{..})`
+/// 表示拒绝并携带规则与原因。
 pub trait ToolPolicy: Send + Sync {
     async fn check(&self, ctx: &ToolCallContext) -> Result<(), ToolError>;
 }
 
 #[derive(Debug, Default, Clone)]
+/// 允许所有工具调用的策略（不做任何拦截）。
 pub struct AllowAllToolPolicy;
 
 #[async_trait]
@@ -86,6 +112,9 @@ impl ToolPolicy for AllowAllToolPolicy {
 }
 
 #[derive(Debug, Clone)]
+/// 审计事件。
+///
+/// 用于记录工具调用在执行过程中的关键节点（开始/拒绝/错误/完成）。
 pub enum AuditEvent {
     ToolCallStart {
         tool_name: String,
@@ -111,11 +140,15 @@ pub enum AuditEvent {
     },
 }
 
+/// 审计事件接收器。
+///
+/// 你可以实现该 trait，把审计事件写入日志、指标系统或数据库。
 pub trait AuditSink: Send + Sync {
     fn record(&self, event: AuditEvent);
 }
 
 #[derive(Debug, Default, Clone)]
+/// 空实现审计接收器（丢弃所有事件）。
 pub struct NoopAuditSink;
 
 impl AuditSink for NoopAuditSink {
@@ -123,6 +156,9 @@ impl AuditSink for NoopAuditSink {
 }
 
 #[derive(Debug, Clone)]
+/// Provider 调用重试配置。
+///
+/// 用于 `ResilientProvider`：在 provider.chat 失败时按指数退避进行重试。
 pub struct RetryConfig {
     pub max_retries: usize,
     pub base_delay_ms: u64,
@@ -142,6 +178,10 @@ impl Default for RetryConfig {
 }
 
 #[derive(Clone, Debug)]
+/// 可取消的句柄。
+///
+/// 目前主要用于 `ResilientProvider::stream_chat_cancellable`：
+/// 外部可在需要时中断流式输出。
 pub struct CancelHandle {
     cancelled: Arc<AtomicBool>,
 }
@@ -157,6 +197,11 @@ impl CancelHandle {
 }
 
 #[derive(Clone)]
+/// 一个带重试/超时/可取消能力的 Provider 包装器。
+///
+/// - 对 `chat()` 提供重试 + 可选超时
+/// - 对 `stream_chat()` 保持透传（避免流式重试导致语义重复）
+/// - 额外提供 `stream_chat_cancellable()` 以支持外部取消
 pub struct ResilientProvider {
     inner: Arc<dyn LlmProvider>,
     cfg: RetryConfig,
@@ -272,6 +317,11 @@ impl LlmProvider for ResilientProvider {
 }
 
 #[derive(Debug, Clone, Default)]
+/// 命令执行类工具的 allow/deny 配置。
+///
+/// 该配置用于 `DefaultToolPolicy`：
+/// - `allowed_commands` 非空时，仅允许列表内命令
+/// - `denied_commands` 用于显式禁止（优先级更高）
 pub struct CommandPolicyConfig {
     pub allowed_commands: Vec<String>,
     pub denied_commands: Vec<String>,
@@ -294,6 +344,13 @@ impl CommandPolicyConfig {
 }
 
 #[derive(Debug, Clone)]
+/// 默认工具策略。
+///
+/// 目前主要针对两类“命令执行”工具：
+/// - `shell`：包含命令与参数
+/// - `cmd_exec`：直接执行命令
+///
+/// 默认会拦截危险命令，并阻止常见 shell 操作符（防止链式/重定向）。
 pub struct DefaultToolPolicy {
     shell: CommandPolicyConfig,
     cmd_exec: CommandPolicyConfig,

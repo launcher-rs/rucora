@@ -1,3 +1,12 @@
+//! `cmd_exec` 工具实现。
+//!
+//! 该工具用于执行**受限**的命令行指令。
+//!
+//! 设计目标：
+//! - 允许 Agent 在可控范围内调用外部命令（当前默认仅允许 `curl`）
+//! - 通过白名单 + 禁止 shell 操作符来降低注入与破坏性风险
+//! - 对输出进行截断，避免返回内容过大
+//!
 use agentkit_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
@@ -10,17 +19,30 @@ use tracing::{debug, info, warn};
 
 use super::shell::{MAX_OUTPUT_BYTES, SHELL_TIMEOUT_SECS, execute_shell_command, truncate_output};
 
+/// 受限命令执行工具。
+///
+/// 当前实现默认仅允许执行 `curl`（包含 `curl.exe`），并禁止常见 shell 操作符。
 pub struct CmdExecTool {
+    /// 允许的命令前缀白名单。
+    ///
+    /// 只要输入命令行以任一前缀开头（或 `"{prefix} "` 开头），即视为允许。
     pub allowed_prefixes: &'static [&'static str],
 }
 
 impl CmdExecTool {
+    /// 创建一个默认的 `CmdExecTool`。
+    ///
+    /// 默认白名单为：`curl` / `curl.exe`。
     pub fn new() -> Self {
         Self {
             allowed_prefixes: &["curl", "curl.exe"],
         }
     }
 
+    /// 校验命令行是否符合安全约束。
+    ///
+    /// - 必须以白名单前缀开头
+    /// - 禁止管道/重定向/链式/多行等 shell 操作符
     fn validate_command(&self, cmd: &str) -> Result<(), ToolError> {
         let t = cmd.trim();
         let prefix_ok = self
@@ -53,18 +75,25 @@ impl Default for CmdExecTool {
 
 #[async_trait]
 impl Tool for CmdExecTool {
+    /// 工具名称（用于让模型在 tool_call 中引用）。
     fn name(&self) -> &str {
         "cmd_exec"
     }
 
+    /// 工具描述（会作为 tool/function 定义提供给模型）。
     fn description(&self) -> Option<&str> {
         Some("执行受限的命令行（当前仅允许 curl）")
     }
 
+    /// 工具分类。
     fn categories(&self) -> &'static [ToolCategory] {
         &[ToolCategory::System]
     }
 
+    /// 输入 schema（JSON Schema）。
+    ///
+    /// - `command`：要执行的一整行命令
+    /// - `timeout`：可选超时时间（秒）
     fn input_schema(&self) -> Value {
         json!({
             "type": "object",
@@ -76,6 +105,12 @@ impl Tool for CmdExecTool {
         })
     }
 
+    /// 执行工具。
+    ///
+    /// 行为：
+    /// - 先进行 `validate_command` 安全校验
+    /// - 通过 `execute_shell_command` 执行命令，并应用超时
+    /// - 返回 stdout/stderr/exit_code 等字段，并对输出做截断
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
         let command = input
             .get("command")

@@ -1,3 +1,8 @@
+//! 进程内 Memory 实现。
+//!
+//! 该实现将 `MemoryItem` 保存在 `Vec` 中，并用 `RwLock` 进行并发保护。
+//! 适合：测试、示例、小规模临时记忆场景。
+//!
 use std::sync::Arc;
 
 use agentkit_core::{
@@ -8,11 +13,16 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 #[derive(Default)]
+/// 基于内存的记忆存储。
+///
+/// - `add`：按 `id` upsert
+/// - `query`：在 id/content/metadata 中做简单子串匹配（不做向量检索）
 pub struct InMemoryMemory {
     items: Arc<RwLock<Vec<MemoryItem>>>,
 }
 
 impl InMemoryMemory {
+    /// 创建一个空的内存记忆。
     pub fn new() -> Self {
         Self {
             items: Arc::new(RwLock::new(Vec::new())),
