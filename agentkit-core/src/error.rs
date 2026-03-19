@@ -16,6 +16,9 @@ pub enum ToolError {
     /// 通用错误信息。
     #[error("tool error: {0}")]
     Message(String),
+
+    #[error("tool policy denied (rule_id={rule_id}): {reason}")]
+    PolicyDenied { rule_id: String, reason: String },
 }
 
 /// Skill 错误。

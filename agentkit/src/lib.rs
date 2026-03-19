@@ -58,6 +58,15 @@ pub mod embed;
 /// Retrieval（语义检索）实现与示例。
 pub mod retrieval;
 
+/// Memory（记忆）实现与示例。
+pub mod memory;
+
+#[cfg(feature = "mcp")]
+pub use agentkit_mcp as mcp;
+
+#[cfg(feature = "a2a")]
+pub use agentkit_a2a as a2a;
+
 /// Skills（技能）实现与示例。
 ///
 /// 本模块包含具体的技能实现，展示如何构建可复用的技能单元。

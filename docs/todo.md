@@ -14,12 +14,12 @@
 
 ## 1. Provider 能力补全
 
-- [ ] **统一 Streaming 接口（core）**
+- [x] **统一 Streaming 接口（core）**
   - **目标**：让 runtime/agent loop 能以同一套方式消费流式 token、tool_calls、事件。
   - **落点**：`agentkit-core/src/provider/*`
   - **验收**：至少 1 个 provider 实现能流式输出；runtime 能边流式边执行 tool loop。
 
-- [ ] **Provider 的重试/退避/超时/取消（runtime）**
+- [x] **Provider 的重试/退避/超时/取消（runtime）**
   - **目标**：生产可用的健壮性（网络抖动、速率限制、长响应）。
   - **落点**：`agentkit-runtime`（调用 provider 的统一封装层）
   - **验收**：可配置 max_retries、backoff、timeout；取消能中断流式。
@@ -48,12 +48,12 @@
   - **落点**：`agentkit-runtime`
   - **验收**：模型一次请求多个 tool_calls 时可并发执行；结果顺序可控。
 
-- [ ] **工具安全策略（policy）与审计（runtime + tools）**
+- [x] **工具安全策略（policy）与审计（runtime + tools）**
   - **目标**：默认安全；支持 allowlist/denylist（路径、域名、命令、Git 操作等）。
   - **落点**：`agentkit-runtime`（policy hook）+ `agentkit/src/tools/*`
   - **验收**：拒绝策略有明确错误；记录审计事件（谁调用了什么，参数摘要）。
 
-- [ ] **Cmd/Shell 工具危险命令拦截 + 白名单/黑名单（tools + runtime）**
+- [x] **Cmd/Shell 工具危险命令拦截 + 白名单/黑名单（tools + runtime）**
   - **目标**：避免 `cmd_exec`/`shell` 被提示注入利用；默认阻止破坏性命令（rm/del/format/registry 等）并允许显式放行。
   - **落点**：`agentkit/src/tools/cmd_exec.rs`、`agentkit/src/tools/shell.rs` + `agentkit-runtime` policy
   - **验收**：
@@ -61,7 +61,7 @@
     - 支持按“命令名/子命令/参数模式/工作目录”配置 allowlist/denylist
     - 被拦截时返回结构化错误（包含命中规则 id 与原因）并记录审计事件
 
-- [ ] **工具输出限制与截断标准化（core/runtime）**
+- [x] **工具输出限制与截断标准化（core/runtime）**
   - **目标**：避免巨大输出拖垮上下文；统一截断字段与提示。
   - **落点**：`agentkit-core/tool/types.rs` 或 runtime wrapper
   - **验收**：所有内置 tools 都遵循统一的 `truncated` / `max_bytes` 协议。
@@ -70,7 +70,7 @@
 
 ## 3. Memory / Retrieval / RAG
 
-- [ ] **内置 Memory 实现（agentkit）**
+- [x] **内置 Memory 实现（agentkit）**
   - **目标**：提供最小可用的短期/长期记忆实现（InMemory、File/SQLite）。
   - **落点**：`agentkit/src/*`（新增 memory 实现模块）
   - **验收**：在 examples 中演示：写入记忆、检索、在对话中引用。
@@ -170,7 +170,7 @@
   - **落点**：新增 `agentkit-server`（axum 等）
   - **验收**：SSE 输出 token/tool events；支持取消请求。
 
-- [ ] **MCP（Model Context Protocol）客户端/服务端适配（可选 crate）**
+- [x] **MCP（Model Context Protocol）客户端/服务端适配（可选 crate）**
   - **目标**：接入外部 MCP 工具与资源，把 agentkit 作为“工具宿主/工具消费者”。
   - **落点**：新增 `agentkit-mcp`（或 `agentkit-integrations`）
   - **验收**：
@@ -178,7 +178,7 @@
     - 支持 stdio 与 http(s) 传输（至少一种）
     - 具备权限策略对接（域名/路径/命令/资源访问）
 
-- [ ] **A2A（Agent-to-Agent）通信与协作（可选 crate / runtime 扩展）**
+- [x] **A2A（Agent-to-Agent）通信与协作（可选 crate / runtime 扩展）**
   - **目标**：多 agent 协作（delegation、handoff、共享记忆/工具）成为一等能力。
   - **落点**：`agentkit-core/src/channel/*` + `agentkit-runtime`（多 agent orchestrator）
   - **验收**：

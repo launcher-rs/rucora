@@ -14,16 +14,172 @@ use agentkit_core::{
     tool::Tool,
     tool::types::{ToolCall, ToolResult},
 };
-use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{ResilientProvider, RetryConfig, ToolCallingAgent, ToolRegistry};
 use async_trait::async_trait;
+use futures_util::stream::BoxStream;
+use futures_util::StreamExt;
 use serde_json::{Value, json};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 /// 一个测试用 provider：
 /// - 第一次 chat 返回 tool_calls
 /// - 第二次 chat 返回最终消息
 struct TestProvider {
     step: Mutex<u32>,
+}
+
+struct FlakyProvider {
+    attempts: Mutex<u32>,
+}
+
+#[async_trait]
+impl LlmProvider for FlakyProvider {
+    async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        let mut a = self.attempts.lock().unwrap();
+        *a += 1;
+        if *a < 3 {
+            return Err(ProviderError::Message("transient".to_string()));
+        }
+        Ok(ChatResponse {
+            message: ChatMessage {
+                role: Role::Assistant,
+                content: "ok".to_string(),
+                name: None,
+            },
+            tool_calls: vec![],
+            usage: None,
+            finish_reason: None,
+        })
+    }
+}
+
+#[tokio::test]
+async fn resilient_provider_should_retry_chat() {
+    let inner = Arc::new(FlakyProvider {
+        attempts: Mutex::new(0),
+    });
+
+    let rp = ResilientProvider::new(inner).with_config(RetryConfig {
+        max_retries: 5,
+        base_delay_ms: 1,
+        max_delay_ms: 2,
+        timeout_ms: None,
+    });
+
+    let resp = rp
+        .chat(ChatRequest {
+            messages: vec![ChatMessage {
+                role: Role::User,
+                content: "hi".to_string(),
+                name: None,
+            }],
+            model: None,
+            tools: None,
+            temperature: None,
+            max_tokens: None,
+            metadata: None,
+        })
+        .await
+        .expect("chat should succeed after retries");
+
+    assert_eq!(resp.message.content, "ok");
+}
+
+struct InfiniteStreamProvider;
+
+#[async_trait]
+impl LlmProvider for InfiniteStreamProvider {
+    async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        Err(ProviderError::Message("not used".to_string()))
+    }
+
+    fn stream_chat(
+        &self,
+        _request: ChatRequest,
+    ) -> Result<BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, ProviderError>>, ProviderError> {
+        let s = async_stream::try_stream! {
+            loop {
+                yield agentkit_core::provider::types::ChatStreamChunk {
+                    delta: Some("x".to_string()),
+                    tool_calls: vec![],
+                    usage: None,
+                    finish_reason: None,
+                };
+            }
+        };
+        Ok(Box::pin(s))
+    }
+}
+
+#[tokio::test]
+async fn resilient_provider_stream_should_be_cancellable() {
+    let inner = Arc::new(InfiniteStreamProvider);
+    let rp = ResilientProvider::new(inner);
+
+    let (handle, mut stream) = rp
+        .stream_chat_cancellable(ChatRequest {
+            messages: vec![ChatMessage {
+                role: Role::User,
+                content: "hi".to_string(),
+                name: None,
+            }],
+            model: None,
+            tools: None,
+            temperature: None,
+            max_tokens: None,
+            metadata: None,
+        })
+        .expect("stream should start");
+
+    // 先读到一个 chunk
+    let first = stream.next().await.expect("should have first item");
+    assert!(first.is_ok());
+
+    handle.cancel();
+    // 取消后，下一次 poll 应该尽快结束（None）
+    let next = stream.next().await;
+    assert!(next.is_none());
+}
+
+#[tokio::test]
+async fn tool_calling_agent_should_deny_dangerous_shell_by_default() {
+    let provider = DangerousShellProvider {
+        step: Mutex::new(0),
+    };
+
+    // 不需要真实 shell 工具：被 policy 拦截在 tool 查找之前。
+    let tools = ToolRegistry::new();
+    let agent = ToolCallingAgent::new(provider, tools).with_max_steps(4);
+
+    let output = agent
+        .run(AgentInput {
+            messages: vec![ChatMessage {
+                role: Role::User,
+                content: "please".to_string(),
+                name: None,
+            }],
+            metadata: None,
+        })
+        .await
+        .expect("agent should finish");
+
+    assert_eq!(output.message.content, "done");
+    assert_eq!(output.tool_results.len(), 1);
+    let tr = &output.tool_results[0];
+    assert_eq!(tr.tool_call_id, "call-1");
+    assert_eq!(
+        tr.output,
+        json!({
+            "ok": false,
+            "error": {
+                "kind": "policy_denied",
+                "rule_id": "default.dangerous_command",
+                "reason": "dangerous command 'rm' is blocked by default"
+            },
+            "truncated": false,
+            "max_bytes": 65536
+        })
+    );
 }
 
 #[async_trait]
@@ -97,6 +253,53 @@ impl Tool for EchoTool {
     }
 }
 
+/// provider：第一次请求执行 shell（危险命令），第二次结束。
+struct DangerousShellProvider {
+    step: Mutex<u32>,
+}
+
+#[async_trait]
+impl LlmProvider for DangerousShellProvider {
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        let mut step = self.step.lock().unwrap();
+        *step += 1;
+
+        match *step {
+            1 => Ok(ChatResponse {
+                message: ChatMessage {
+                    role: Role::Assistant,
+                    content: "run dangerous shell".to_string(),
+                    name: None,
+                },
+                tool_calls: vec![ToolCall {
+                    id: "call-1".to_string(),
+                    name: "shell".to_string(),
+                    input: json!({"command": "rm", "args": ["-rf", "/"], "timeout": 1}),
+                }],
+                usage: None,
+                finish_reason: None,
+            }),
+            2 => {
+                let has_tool_msg = request.messages.iter().any(|m| m.role == Role::Tool);
+                if !has_tool_msg {
+                    return Err(ProviderError::Message("missing tool message".to_string()));
+                }
+                Ok(ChatResponse {
+                    message: ChatMessage {
+                        role: Role::Assistant,
+                        content: "done".to_string(),
+                        name: None,
+                    },
+                    tool_calls: vec![],
+                    usage: None,
+                    finish_reason: None,
+                })
+            }
+            _ => Err(ProviderError::Message("unexpected".to_string())),
+        }
+    }
+}
+
 #[tokio::test]
 async fn tool_calling_agent_should_execute_tool_and_finish() {
     let provider = TestProvider {
@@ -128,5 +331,8 @@ async fn tool_calling_agent_should_execute_tool_and_finish() {
         output,
     } = &output.tool_results[0];
     assert_eq!(tool_call_id, "call-1");
-    assert_eq!(output, &json!({"text": "hello"}));
+    assert_eq!(
+        output,
+        &json!({"ok": true, "output": {"text": "hello"}, "truncated": false, "max_bytes": 65536})
+    );
 }

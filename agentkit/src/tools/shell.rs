@@ -85,7 +85,7 @@ impl Tool for ShellTool {
                     "description": "超时时间（秒）"
                 }
             },
-            "required": ["command", "args"]
+            "required": ["command"]
         })
     }
 
@@ -96,6 +96,28 @@ impl Tool for ShellTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::Message("缺少必需的 'command' 字段".to_string()))?;
 
+        let args: Vec<String> = input
+            .get("args")
+            .and_then(|v| v.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|x| x.as_str())
+                    .map(|s| s.to_string())
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
+        // 进一步拦截明显的 shell 注入符号（即使 runtime policy 未开启）。
+        let forbidden = ["|", "&&", ";", ">", "<", "`", "$(", "\n", "\r"];
+        if forbidden.iter().any(|x| command.contains(x))
+            || args.iter().any(|a| forbidden.iter().any(|x| a.contains(x)))
+        {
+            return Err(ToolError::PolicyDenied {
+                rule_id: "default.shell_operators".to_string(),
+                reason: "command contains forbidden shell operators".to_string(),
+            });
+        }
+
         let timeout_secs = input
             .get("timeout")
             .and_then(|v| v.as_u64())
@@ -104,7 +126,7 @@ impl Tool for ShellTool {
         // 执行命令并设置超时
         let result = timeout(
             Duration::from_secs(timeout_secs),
-            execute_shell_command(command),
+            execute_shell_command(command, &args),
         )
         .await;
 
@@ -130,16 +152,12 @@ impl Tool for ShellTool {
 }
 
 /// 执行 shell 命令（内部函数）
-pub async fn execute_shell_command(command: &str) -> Result<std::process::Output, std::io::Error> {
-    #[cfg(target_os = "windows")]
-    let mut cmd = std::process::Command::new("cmd");
-    #[cfg(target_os = "windows")]
-    cmd.args(["/C", command]);
-
-    #[cfg(not(target_os = "windows"))]
-    let mut cmd = std::process::Command::new("sh");
-    #[cfg(not(target_os = "windows"))]
-    cmd.args(["-c", command]);
+pub async fn execute_shell_command(
+    command: &str,
+    args: &[String],
+) -> Result<std::process::Output, std::io::Error> {
+    let mut cmd = std::process::Command::new(command);
+    cmd.args(args);
 
     // 只保留安全的环境变量，防止敏感信息泄露
     cmd.env_clear();

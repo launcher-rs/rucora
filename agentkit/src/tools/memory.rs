@@ -4,10 +4,14 @@
 
 use agentkit_core::{
     error::ToolError,
+    memory::{Memory, MemoryItem, MemoryQuery},
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
 use serde_json::{Value, json};
+use std::sync::Arc;
+
+use crate::memory::InMemoryMemory;
 
 /// 记忆存储工具：存储信息到长期记忆。
 ///
@@ -23,18 +27,17 @@ use serde_json::{Value, json};
 /// }
 /// ```
 pub struct MemoryStoreTool {
-    /// 内存存储（使用简单的内存 HashMap）
-    storage: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
+    memory: Arc<dyn Memory>,
 }
 
 impl MemoryStoreTool {
     /// 创建一个新的 MemoryStoreTool 实例。
     pub fn new() -> Self {
-        Self {
-            storage: std::sync::Arc::new(
-                tokio::sync::RwLock::new(std::collections::HashMap::new()),
-            ),
-        }
+        Self::from_memory(Arc::new(InMemoryMemory::new()))
+    }
+
+    pub fn from_memory(memory: Arc<dyn Memory>) -> Self {
+        Self { memory }
     }
 }
 
@@ -102,10 +105,16 @@ impl Tool for MemoryStoreTool {
             .and_then(|v| v.as_str())
             .unwrap_or("core");
 
-        // 存储到内存
+        // 存储
         let full_key = format!("{}:{}", category, key);
-        let mut storage = self.storage.write().await;
-        storage.insert(full_key.clone(), content.to_string());
+        self.memory
+            .add(MemoryItem {
+                id: full_key,
+                content: content.to_string(),
+                metadata: None,
+            })
+            .await
+            .map_err(|e| ToolError::Message(e.to_string()))?;
 
         Ok(json!({
             "success": true,
@@ -128,25 +137,24 @@ impl Tool for MemoryStoreTool {
 /// }
 /// ```
 pub struct MemoryRecallTool {
-    /// 内存存储（与 MemoryStoreTool 共享）
-    storage: std::sync::Arc<tokio::sync::RwLock<std::collections::HashMap<String, String>>>,
+    memory: Arc<dyn Memory>,
 }
 
 impl MemoryRecallTool {
     /// 创建一个新的 MemoryRecallTool 实例。
     pub fn new() -> Self {
-        Self {
-            storage: std::sync::Arc::new(
-                tokio::sync::RwLock::new(std::collections::HashMap::new()),
-            ),
-        }
+        Self::from_memory(Arc::new(InMemoryMemory::new()))
     }
 
     /// 从现有 MemoryStoreTool 创建实例以共享存储。
     pub fn from_store(store: &MemoryStoreTool) -> Self {
         Self {
-            storage: store.storage.clone(),
+            memory: store.memory.clone(),
         }
+    }
+
+    pub fn from_memory(memory: Arc<dyn Memory>) -> Self {
+        Self { memory }
     }
 }
 
@@ -203,23 +211,31 @@ impl Tool for MemoryRecallTool {
             .and_then(|v| v.as_str())
             .unwrap_or("core");
 
-        // 从内存检索
+        // 检索
         let full_key = format!("{}:{}", category, key);
-        let storage = self.storage.read().await;
+        let mut results = self
+            .memory
+            .query(MemoryQuery {
+                text: full_key,
+                limit: 1,
+            })
+            .await
+            .map_err(|e| ToolError::Message(e.to_string()))?;
 
-        match storage.get(&full_key) {
-            Some(content) => Ok(json!({
+        if let Some(item) = results.pop() {
+            Ok(json!({
                 "found": true,
                 "key": key,
                 "category": category,
-                "content": content
-            })),
-            None => Ok(json!({
+                "content": item.content
+            }))
+        } else {
+            Ok(json!({
                 "found": false,
                 "key": key,
                 "category": category,
                 "content": null
-            })),
+            }))
         }
     }
 }

@@ -16,6 +16,7 @@ use agentkit_core::{
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use serde_json::{Value, json};
+use tracing::{debug, trace};
 
 /// Ollama Chat Provider。
 ///
@@ -95,6 +96,33 @@ impl LlmProvider for OllamaProvider {
             "stream": false
         });
 
+        let preview = |s: &str, max: usize| {
+            if s.len() <= max {
+                s.to_string()
+            } else {
+                format!("{}...<truncated:{}>", &s[..max], s.len())
+            }
+        };
+
+        let last_user_preview = request
+            .messages
+            .iter()
+            .rev()
+            .find(|m| m.role == Role::User)
+            .map(|m| preview(&m.content, 600));
+
+        debug!(
+            provider = "ollama",
+            url = %url,
+            model = %body.get("model").and_then(|v| v.as_str()).unwrap_or(""),
+            messages_len = request.messages.len(),
+            last_user = last_user_preview.as_deref().unwrap_or(""),
+            "provider.chat.start"
+        );
+        trace!(provider = "ollama", body = %preview(&body.to_string(), 1200), "provider.chat.request_body");
+
+        let start = std::time::Instant::now();
+
         let resp = self
             .client
             .post(url)
@@ -109,6 +137,10 @@ impl LlmProvider for OllamaProvider {
             .await
             .map_err(|e| ProviderError::Message(e.to_string()))?;
 
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        debug!(provider = "ollama", status = %status, elapsed_ms, "provider.chat.http.done");
+        trace!(provider = "ollama", status = %status, body = %preview(&data.to_string(), 1200), "provider.chat.response_body");
+
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
                 "Ollama 请求失败：status={} body={}",
@@ -122,6 +154,8 @@ impl LlmProvider for OllamaProvider {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
+
+        debug!(provider = "ollama", assistant_content_len = content.len(), "provider.chat.parsed");
 
         Ok(ChatResponse {
             message: ChatMessage {
@@ -153,8 +187,26 @@ impl LlmProvider for OllamaProvider {
             "stream": true
         });
 
+        let preview = |s: &str, max: usize| {
+            if s.len() <= max {
+                s.to_string()
+            } else {
+                format!("{}...<truncated:{}>", &s[..max], s.len())
+            }
+        };
+
+        debug!(
+            provider = "ollama",
+            url = %url,
+            model = %body.get("model").and_then(|v| v.as_str()).unwrap_or(""),
+            messages_len = request.messages.len(),
+            "provider.stream_chat.start"
+        );
+        trace!(provider = "ollama", body = %preview(&body.to_string(), 1200), "provider.stream_chat.request_body");
+
         // 说明：Ollama 的流式输出通常是“每行一个 JSON”（NDJSON）。
         let stream = async_stream::try_stream! {
+            let start = std::time::Instant::now();
             let resp = client
                 .post(url)
                 .json(&body)
@@ -169,6 +221,13 @@ impl LlmProvider for OllamaProvider {
                     status
                 )))?;
             }
+
+            debug!(
+                provider = "ollama",
+                status = %status,
+                elapsed_ms = start.elapsed().as_millis() as u64,
+                "provider.stream_chat.http.started"
+            );
 
             let mut buf = String::new();
             let mut bytes_stream = resp.bytes_stream();

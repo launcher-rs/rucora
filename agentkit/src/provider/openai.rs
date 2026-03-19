@@ -18,6 +18,7 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
+use tracing::{debug, trace};
 
 /// OpenAI Chat Completions Provider。
 ///
@@ -164,6 +165,31 @@ impl LlmProvider for OpenAiProvider {
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
 
+        let preview = |s: &str, max: usize| {
+            if s.len() <= max {
+                s.to_string()
+            } else {
+                format!("{}...<truncated:{}>", &s[..max], s.len())
+            }
+        };
+
+        let last_user_preview = request
+            .messages
+            .iter()
+            .rev()
+            .find(|m| m.role == Role::User)
+            .map(|m| preview(&m.content, 600));
+
+        debug!(
+            provider = "openai",
+            url = %url,
+            model = %model,
+            messages_len = request.messages.len(),
+            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            last_user = last_user_preview.as_deref().unwrap_or(""),
+            "provider.chat.start"
+        );
+
         let mut body = json!({
             "model": model,
             "messages": messages,
@@ -185,6 +211,15 @@ impl LlmProvider for OpenAiProvider {
             }
         }
 
+        trace!(
+            provider = "openai",
+            model = %model,
+            body = %preview(&body.to_string(), 1200),
+            "provider.chat.request_body"
+        );
+
+        let start = std::time::Instant::now();
+
         let resp = self
             .client
             .post(url)
@@ -198,6 +233,20 @@ impl LlmProvider for OpenAiProvider {
             .json()
             .await
             .map_err(|e| ProviderError::Message(e.to_string()))?;
+
+        let elapsed_ms = start.elapsed().as_millis() as u64;
+        debug!(
+            provider = "openai",
+            status = %status,
+            elapsed_ms,
+            "provider.chat.http.done"
+        );
+        trace!(
+            provider = "openai",
+            status = %status,
+            body = %preview(&data.to_string(), 1200),
+            "provider.chat.response_body"
+        );
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
@@ -224,6 +273,22 @@ impl LlmProvider for OpenAiProvider {
 
         let tool_calls = Self::parse_tool_calls(&message);
 
+        if !tool_calls.is_empty() {
+            let names: Vec<&str> = tool_calls.iter().map(|c| c.name.as_str()).collect();
+            debug!(
+                provider = "openai",
+                tool_calls_len = tool_calls.len(),
+                tool_call_names = ?names,
+                "provider.chat.tool_calls"
+            );
+        }
+
+        debug!(
+            provider = "openai",
+            assistant_content_len = content.len(),
+            "provider.chat.parsed"
+        );
+
         Ok(ChatResponse {
             message: ChatMessage {
                 role: Role::Assistant,
@@ -249,6 +314,23 @@ impl LlmProvider for OpenAiProvider {
         let client = self.client.clone();
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
 
+        let preview = |s: &str, max: usize| {
+            if s.len() <= max {
+                s.to_string()
+            } else {
+                format!("{}...<truncated:{}>", &s[..max], s.len())
+            }
+        };
+
+        debug!(
+            provider = "openai",
+            url = %url,
+            model = %model,
+            messages_len = request.messages.len(),
+            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            "provider.stream_chat.start"
+        );
+
         let mut body = json!({
             "model": model,
             "messages": Self::build_messages(&request.messages),
@@ -271,9 +353,17 @@ impl LlmProvider for OpenAiProvider {
             }
         }
 
+        trace!(
+            provider = "openai",
+            model = %model,
+            body = %preview(&body.to_string(), 1200),
+            "provider.stream_chat.request_body"
+        );
+
         // 说明：OpenAI 的流式输出是 SSE（data: ... \n\n）。
         // 这里实现一个尽量健壮的解析器：把 bytes 累积成字符串，按 "\n\n" 切分事件。
         let stream = async_stream::try_stream! {
+            let start = std::time::Instant::now();
             let resp = client
                 .post(url)
                 .json(&body)
@@ -288,6 +378,13 @@ impl LlmProvider for OpenAiProvider {
                     status
                 )))?;
             }
+
+            debug!(
+                provider = "openai",
+                status = %status,
+                elapsed_ms = start.elapsed().as_millis() as u64,
+                "provider.stream_chat.http.started"
+            );
 
             let mut buf = String::new();
             let mut bytes_stream = resp.bytes_stream();

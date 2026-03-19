@@ -10,7 +10,8 @@ use agentkit_core::{
         Agent,
         types::{AgentInput, AgentOutput},
     },
-    error::AgentError,
+    channel::types::ChannelEvent,
+    error::{AgentError, ToolError},
     provider::{
         LlmProvider,
         types::{ChatMessage, ChatRequest, Role},
@@ -18,12 +19,412 @@ use agentkit_core::{
     runtime::Runtime,
     tool::{
         Tool,
-        types::{ToolCall, ToolDefinition, ToolResult},
+        types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolDefinition, ToolResult},
     },
 };
 use async_trait::async_trait;
-use serde_json::Value;
+use futures_util::{StreamExt, stream::BoxStream};
+use serde_json::{Value, json};
+use tokio::time::{Duration, sleep, timeout};
+use std::sync::atomic::{AtomicBool, Ordering};
 use tracing::{debug, info, warn};
+
+fn truncate_utf8_to_bytes(s: &str, max_bytes: usize) -> String {
+    if s.len() <= max_bytes {
+        return s.to_string();
+    }
+    let mut end = max_bytes;
+    while end > 0 && !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    let mut out = s[..end].to_string();
+    out.push_str("\n... [output truncated]");
+    out
+}
+
+fn apply_output_limit(payload: Value, max_bytes: usize) -> Value {
+    // Always attach the protocol fields.
+    let serialized = payload.to_string();
+    let truncated = serialized.len() > max_bytes;
+    let limited_payload = if truncated {
+        Value::String(truncate_utf8_to_bytes(&serialized, max_bytes))
+    } else {
+        payload
+    };
+
+    // Ensure we return a JSON object.
+    let mut obj = match limited_payload {
+        Value::Object(map) => Value::Object(map),
+        other => json!({"value": other}),
+    };
+
+    if let Some(map) = obj.as_object_mut() {
+        map.insert("truncated".to_string(), Value::Bool(truncated));
+        map.insert("max_bytes".to_string(), json!(max_bytes));
+    }
+    obj
+}
+
+#[derive(Debug, Clone)]
+pub struct ToolCallContext {
+    pub tool_call: ToolCall,
+}
+
+#[async_trait]
+pub trait ToolPolicy: Send + Sync {
+    async fn check(&self, ctx: &ToolCallContext) -> Result<(), ToolError>;
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct AllowAllToolPolicy;
+
+#[async_trait]
+impl ToolPolicy for AllowAllToolPolicy {
+    async fn check(&self, _ctx: &ToolCallContext) -> Result<(), ToolError> {
+        Ok(())
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum AuditEvent {
+    ToolCallStart {
+        tool_name: String,
+        tool_call_id: String,
+        input_len: usize,
+    },
+    ToolCallDenied {
+        tool_name: String,
+        tool_call_id: String,
+        rule_id: String,
+        reason: String,
+    },
+    ToolCallError {
+        tool_name: String,
+        tool_call_id: String,
+        message: String,
+    },
+    ToolCallDone {
+        tool_name: String,
+        tool_call_id: String,
+        output_len: usize,
+        elapsed_ms: u64,
+    },
+}
+
+pub trait AuditSink: Send + Sync {
+    fn record(&self, event: AuditEvent);
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct NoopAuditSink;
+
+impl AuditSink for NoopAuditSink {
+    fn record(&self, _event: AuditEvent) {}
+}
+
+#[derive(Debug, Clone)]
+pub struct RetryConfig {
+    pub max_retries: usize,
+    pub base_delay_ms: u64,
+    pub max_delay_ms: u64,
+    pub timeout_ms: Option<u64>,
+}
+
+impl Default for RetryConfig {
+    fn default() -> Self {
+        Self {
+            max_retries: 2,
+            base_delay_ms: 200,
+            max_delay_ms: 2_000,
+            timeout_ms: None,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct CancelHandle {
+    cancelled: Arc<AtomicBool>,
+}
+
+impl CancelHandle {
+    pub fn cancel(&self) {
+        self.cancelled.store(true, Ordering::SeqCst);
+    }
+
+    pub fn is_cancelled(&self) -> bool {
+        self.cancelled.load(Ordering::SeqCst)
+    }
+}
+
+#[derive(Clone)]
+pub struct ResilientProvider {
+    inner: Arc<dyn LlmProvider>,
+    cfg: RetryConfig,
+}
+
+impl ResilientProvider {
+    pub fn new(inner: Arc<dyn LlmProvider>) -> Self {
+        Self {
+            inner,
+            cfg: RetryConfig::default(),
+        }
+    }
+
+    pub fn with_config(mut self, cfg: RetryConfig) -> Self {
+        self.cfg = cfg;
+        self
+    }
+
+    fn backoff_delay_ms(&self, attempt: usize) -> u64 {
+        let pow = 1u64
+            .checked_shl(attempt.min(16) as u32)
+            .unwrap_or(u64::MAX);
+        let delay = self.cfg.base_delay_ms.saturating_mul(pow);
+        delay.min(self.cfg.max_delay_ms)
+    }
+
+    pub fn stream_chat_cancellable(
+        &self,
+        request: ChatRequest,
+    ) -> Result<(
+        CancelHandle,
+        BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, agentkit_core::error::ProviderError>>,
+    ),
+        agentkit_core::error::ProviderError,
+    > {
+        let cancelled = Arc::new(AtomicBool::new(false));
+        let handle = CancelHandle {
+            cancelled: cancelled.clone(),
+        };
+
+        let inner_stream = self.inner.stream_chat(request)?;
+        let stream = async_stream::try_stream! {
+            futures_util::pin_mut!(inner_stream);
+            while let Some(item) = inner_stream.next().await {
+                if cancelled.load(Ordering::SeqCst) {
+                    break;
+                }
+                yield item?;
+            }
+        };
+
+        Ok((handle, Box::pin(stream)))
+    }
+}
+
+#[async_trait]
+impl LlmProvider for ResilientProvider {
+    async fn chat(
+        &self,
+        request: ChatRequest,
+    ) -> Result<agentkit_core::provider::types::ChatResponse, agentkit_core::error::ProviderError> {
+        let mut attempt = 0usize;
+        loop {
+            let fut = self.inner.chat(request.clone());
+            let result = if let Some(ms) = self.cfg.timeout_ms {
+                timeout(Duration::from_millis(ms), fut)
+                    .await
+                    .map_err(|_| {
+                        agentkit_core::error::ProviderError::Message(format!(
+                            "provider chat timeout after {}ms",
+                            ms
+                        ))
+                    })?
+            } else {
+                fut.await
+            };
+
+            match result {
+                Ok(v) => return Ok(v),
+                Err(e) => {
+                    if attempt >= self.cfg.max_retries {
+                        return Err(e);
+                    }
+                    let delay = self.backoff_delay_ms(attempt);
+                    warn!(attempt, delay_ms = delay, error = %e, "provider.chat.retry");
+                    sleep(Duration::from_millis(delay)).await;
+                    attempt += 1;
+                }
+            }
+        }
+    }
+
+    fn stream_chat(
+        &self,
+        request: ChatRequest,
+    ) -> Result<
+        BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, agentkit_core::error::ProviderError>>,
+        agentkit_core::error::ProviderError,
+    > {
+        // 流式重试很容易导致语义重复；这里先只提供 timeout/取消的外部能力。
+        self.inner.stream_chat(request)
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct CommandPolicyConfig {
+    pub allowed_commands: Vec<String>,
+    pub denied_commands: Vec<String>,
+}
+
+impl CommandPolicyConfig {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn allow_command(mut self, cmd: impl Into<String>) -> Self {
+        self.allowed_commands.push(cmd.into());
+        self
+    }
+
+    pub fn deny_command(mut self, cmd: impl Into<String>) -> Self {
+        self.denied_commands.push(cmd.into());
+        self
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct DefaultToolPolicy {
+    shell: CommandPolicyConfig,
+    cmd_exec: CommandPolicyConfig,
+}
+
+impl DefaultToolPolicy {
+    pub fn new() -> Self {
+        Self {
+            shell: CommandPolicyConfig::new(),
+            cmd_exec: CommandPolicyConfig::new().allow_command("curl"),
+        }
+    }
+
+    pub fn with_shell_config(mut self, cfg: CommandPolicyConfig) -> Self {
+        self.shell = cfg;
+        self
+    }
+
+    pub fn with_cmd_exec_config(mut self, cfg: CommandPolicyConfig) -> Self {
+        self.cmd_exec = cfg;
+        self
+    }
+
+    fn extract_command_line(tool_name: &str, input: &Value) -> Option<String> {
+        match tool_name {
+            "shell" => {
+                let command = input.get("command")?.as_str()?.trim().to_string();
+                let args = input
+                    .get("args")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|x| x.as_str())
+                            .map(|s| s.to_string())
+                            .collect::<Vec<_>>()
+                    })
+                    .unwrap_or_default();
+
+                if args.is_empty() {
+                    Some(command)
+                } else {
+                    Some(format!("{} {}", command, args.join(" ")))
+                }
+            }
+            "cmd_exec" => Some(input.get("command")?.as_str()?.trim().to_string()),
+            _ => None,
+        }
+    }
+
+    fn first_token(command_line: &str) -> Option<String> {
+        let t = command_line.trim();
+        if t.is_empty() {
+            return None;
+        }
+        let mut token = t
+            .split_whitespace()
+            .next()?
+            .trim_matches('"')
+            .trim_matches('\'');
+        if token.ends_with(".exe") {
+            token = token.trim_end_matches(".exe");
+        }
+        Some(token.to_ascii_lowercase())
+    }
+
+    fn is_dangerous_command(cmd: &str) -> bool {
+        matches!(
+            cmd,
+            "rm" | "del" | "erase" | "rmdir" | "rd" | "format" | "mkfs" | "dd" | "shutdown"
+                | "reboot" | "poweroff" | "reg" | "diskpart" | "bcdedit" | "sc" | "net"
+        )
+    }
+
+    fn contains_shell_operators(command_line: &str) -> bool {
+        let forbidden = ["|", "&&", ";", ">", "<", "`", "$(", "\n", "\r"];
+        forbidden.iter().any(|x| command_line.contains(x))
+    }
+
+    fn check_command(cfg: &CommandPolicyConfig, command_line: &str) -> Result<(), ToolError> {
+        if Self::contains_shell_operators(command_line) {
+            return Err(ToolError::PolicyDenied {
+                rule_id: "default.shell_operators".to_string(),
+                reason: "command contains forbidden shell operators".to_string(),
+            });
+        }
+
+        let cmd = Self::first_token(command_line).ok_or_else(|| ToolError::PolicyDenied {
+            rule_id: "default.empty_command".to_string(),
+            reason: "empty command".to_string(),
+        })?;
+
+        if cfg
+            .denied_commands
+            .iter()
+            .any(|x| x.eq_ignore_ascii_case(&cmd))
+        {
+            return Err(ToolError::PolicyDenied {
+                rule_id: "config.denied_command".to_string(),
+                reason: format!("command '{}' is denied", cmd),
+            });
+        }
+
+        if Self::is_dangerous_command(&cmd) {
+            return Err(ToolError::PolicyDenied {
+                rule_id: "default.dangerous_command".to_string(),
+                reason: format!("dangerous command '{}' is blocked by default", cmd),
+            });
+        }
+
+        if !cfg.allowed_commands.is_empty()
+            && !cfg
+                .allowed_commands
+                .iter()
+                .any(|x| x.eq_ignore_ascii_case(&cmd))
+        {
+            return Err(ToolError::PolicyDenied {
+                rule_id: "config.not_allowed".to_string(),
+                reason: format!("command '{}' is not in allowlist", cmd),
+            });
+        }
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl ToolPolicy for DefaultToolPolicy {
+    async fn check(&self, ctx: &ToolCallContext) -> Result<(), ToolError> {
+        let name = ctx.tool_call.name.as_str();
+        let input = &ctx.tool_call.input;
+        let Some(command_line) = Self::extract_command_line(name, input) else {
+            return Ok(());
+        };
+
+        match name {
+            "shell" => Self::check_command(&self.shell, &command_line),
+            "cmd_exec" => Self::check_command(&self.cmd_exec, &command_line),
+            _ => Ok(()),
+        }
+    }
+}
 
 /// 一个最简 Agent：仅调用一次 `LlmProvider::chat`，不包含 tool loop。
 pub struct SimpleAgent<P> {
@@ -130,6 +531,10 @@ pub struct ToolCallingAgent<P> {
     system_prompt: Option<String>,
     /// 可用工具注册表。
     tools: ToolRegistry,
+    /// 工具安全策略（allow/deny）。
+    policy: Arc<dyn ToolPolicy>,
+    /// 审计记录器。
+    audit: Arc<dyn AuditSink>,
     /// 最大循环步数，避免模型陷入无限调用。
     max_steps: usize,
 }
@@ -141,6 +546,8 @@ impl<P> ToolCallingAgent<P> {
             provider,
             system_prompt: None,
             tools,
+            policy: Arc::new(DefaultToolPolicy::new()),
+            audit: Arc::new(NoopAuditSink),
             max_steps: 8,
         }
     }
@@ -148,6 +555,16 @@ impl<P> ToolCallingAgent<P> {
     /// 设置系统提示词（会在运行时插入到 messages 开头）。
     pub fn with_system_prompt(mut self, system_prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(system_prompt.into());
+        self
+    }
+
+    pub fn with_policy(mut self, policy: Arc<dyn ToolPolicy>) -> Self {
+        self.policy = policy;
+        self
+    }
+
+    pub fn with_audit(mut self, audit: Arc<dyn AuditSink>) -> Self {
+        self.audit = audit;
         self
     }
 
@@ -160,12 +577,97 @@ impl<P> ToolCallingAgent<P> {
     /// 执行单个工具调用，并返回 `ToolResult`。
     async fn execute_tool_call(&self, call: &ToolCall) -> Result<ToolResult, AgentError> {
         let input_len = call.input.to_string().len();
+        let input_preview = {
+            const MAX: usize = 800;
+            let s = call.input.to_string();
+            if s.len() <= MAX {
+                s
+            } else {
+                format!("{}...<truncated:{}>", &s[..MAX], s.len())
+            }
+        };
+        self.audit.record(AuditEvent::ToolCallStart {
+            tool_name: call.name.clone(),
+            tool_call_id: call.id.clone(),
+            input_len,
+        });
         info!(
             tool.name = %call.name,
             tool.call_id = %call.id,
             tool.input_len = input_len,
             "tool_call.execute.start"
         );
+        debug!(
+            tool.name = %call.name,
+            tool.call_id = %call.id,
+            tool.input = %input_preview,
+            "tool_call.execute.input"
+        );
+
+        let ctx = ToolCallContext {
+            tool_call: call.clone(),
+        };
+
+        if let Err(e) = self.policy.check(&ctx).await {
+            match &e {
+                ToolError::PolicyDenied { rule_id, reason } => {
+                    self.audit.record(AuditEvent::ToolCallDenied {
+                        tool_name: call.name.clone(),
+                        tool_call_id: call.id.clone(),
+                        rule_id: rule_id.clone(),
+                        reason: reason.clone(),
+                    });
+                    let out = apply_output_limit(
+                        json!({
+                            "ok": false,
+                            "error": {
+                                "kind": "policy_denied",
+                                "rule_id": rule_id,
+                                "reason": reason
+                            }
+                        }),
+                        DEFAULT_TOOL_OUTPUT_MAX_BYTES,
+                    );
+                    debug!(
+                        tool.name = %call.name,
+                        tool.call_id = %call.id,
+                        policy.rule_id = %rule_id,
+                        "tool_call.execute.denied"
+                    );
+                    return Ok(ToolResult {
+                        tool_call_id: call.id.clone(),
+                        output: out,
+                    });
+                }
+                _ => {
+                    self.audit.record(AuditEvent::ToolCallError {
+                        tool_name: call.name.clone(),
+                        tool_call_id: call.id.clone(),
+                        message: e.to_string(),
+                    });
+                    let out = apply_output_limit(
+                        json!({
+                            "ok": false,
+                            "error": {
+                                "kind": "policy_error",
+                                "message": e.to_string()
+                            }
+                        }),
+                        DEFAULT_TOOL_OUTPUT_MAX_BYTES,
+                    );
+                    debug!(
+                        tool.name = %call.name,
+                        tool.call_id = %call.id,
+                        error = %e.to_string(),
+                        "tool_call.execute.policy_error"
+                    );
+                    return Ok(ToolResult {
+                        tool_call_id: call.id.clone(),
+                        output: out,
+                    });
+                }
+            }
+        }
 
         let start = std::time::Instant::now();
         let tool = self.tools.get(&call.name).ok_or_else(|| {
@@ -175,13 +677,52 @@ impl<P> ToolCallingAgent<P> {
             ))
         })?;
 
-        let output = tool
-            .call(call.input.clone())
-            .await
-            .map_err(|e| AgentError::Message(e.to_string()))?;
+        let tool_output = match tool.call(call.input.clone()).await {
+            Ok(v) => json!({"ok": true, "output": v}),
+            Err(ToolError::PolicyDenied { rule_id, reason }) => {
+                self.audit.record(AuditEvent::ToolCallDenied {
+                    tool_name: call.name.clone(),
+                    tool_call_id: call.id.clone(),
+                    rule_id: rule_id.clone(),
+                    reason: reason.clone(),
+                });
+                json!({
+                    "ok": false,
+                    "error": {"kind": "policy_denied", "rule_id": rule_id, "reason": reason}
+                })
+            }
+            Err(e) => {
+                self.audit.record(AuditEvent::ToolCallError {
+                    tool_name: call.name.clone(),
+                    tool_call_id: call.id.clone(),
+                    message: e.to_string(),
+                });
+                json!({
+                    "ok": false,
+                    "error": {"kind": "tool_error", "message": e.to_string()}
+                })
+            }
+        };
+
+        let tool_output = apply_output_limit(tool_output, DEFAULT_TOOL_OUTPUT_MAX_BYTES);
+        let output_preview = {
+            const MAX: usize = 1200;
+            let s = tool_output.to_string();
+            if s.len() <= MAX {
+                s
+            } else {
+                format!("{}...<truncated:{}>", &s[..MAX], s.len())
+            }
+        };
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
-        let output_len = output.to_string().len();
+        let output_len = tool_output.to_string().len();
+        self.audit.record(AuditEvent::ToolCallDone {
+            tool_name: call.name.clone(),
+            tool_call_id: call.id.clone(),
+            output_len,
+            elapsed_ms,
+        });
         info!(
             tool.name = %call.name,
             tool.call_id = %call.id,
@@ -189,10 +730,16 @@ impl<P> ToolCallingAgent<P> {
             tool.elapsed_ms = elapsed_ms,
             "tool_call.execute.done"
         );
+        debug!(
+            tool.name = %call.name,
+            tool.call_id = %call.id,
+            tool.output = %output_preview,
+            "tool_call.execute.output"
+        );
 
         Ok(ToolResult {
             tool_call_id: call.id.clone(),
-            output,
+            output: tool_output,
         })
     }
 
@@ -215,6 +762,149 @@ impl<P> ToolCallingAgent<P> {
             content: payload.to_string(),
             name: Some(tool_name.to_string()),
         }
+    }
+}
+
+/// 支持流式输出的 ToolCalling Agent。
+///
+/// 说明：
+/// - 使用 core 层现有的 `LlmProvider::stream_chat()` 与 `ChatStreamChunk`。
+/// - 当前实现把 token/delta 以 `ChannelEvent::Raw({type: token, delta})` 发出。
+/// - 完整 assistant message 在每个 step 流结束后以 `ChannelEvent::Message` 发出。
+pub struct StreamingToolCallingAgent {
+    provider: Arc<dyn LlmProvider>,
+    system_prompt: Option<String>,
+    tools: ToolRegistry,
+    policy: Arc<dyn ToolPolicy>,
+    audit: Arc<dyn AuditSink>,
+    max_steps: usize,
+}
+
+impl StreamingToolCallingAgent {
+    pub fn new(provider: Arc<dyn LlmProvider>, tools: ToolRegistry) -> Self {
+        Self {
+            provider,
+            system_prompt: None,
+            tools,
+            policy: Arc::new(DefaultToolPolicy::new()),
+            audit: Arc::new(NoopAuditSink),
+            max_steps: 8,
+        }
+    }
+
+    pub fn with_system_prompt(mut self, system_prompt: impl Into<String>) -> Self {
+        self.system_prompt = Some(system_prompt.into());
+        self
+    }
+
+    pub fn with_policy(mut self, policy: Arc<dyn ToolPolicy>) -> Self {
+        self.policy = policy;
+        self
+    }
+
+    pub fn with_audit(mut self, audit: Arc<dyn AuditSink>) -> Self {
+        self.audit = audit;
+        self
+    }
+
+    pub fn with_max_steps(mut self, max_steps: usize) -> Self {
+        self.max_steps = max_steps;
+        self
+    }
+
+    pub fn run_stream(
+        &self,
+        mut input: AgentInput,
+    ) -> BoxStream<'static, Result<ChannelEvent, AgentError>> {
+        let provider = self.provider.clone();
+        let tools = self.tools.clone();
+        let policy = self.policy.clone();
+        let audit = self.audit.clone();
+        let system_prompt = self.system_prompt.clone();
+        let max_steps = self.max_steps;
+
+        let stream = async_stream::try_stream! {
+            if let Some(system_prompt) = &system_prompt {
+                input.messages.insert(
+                    0,
+                    ChatMessage {
+                        role: Role::System,
+                        content: system_prompt.clone(),
+                        name: None,
+                    },
+                );
+            }
+
+            let tool_defs = tools.definitions();
+            let mut messages = input.messages;
+
+            for step in 0..max_steps {
+                debug!(step, messages_len = messages.len(), "stream_agent.step.start");
+
+                let request = ChatRequest {
+                    messages: messages.clone(),
+                    model: None,
+                    tools: Some(tool_defs.clone()),
+                    temperature: None,
+                    max_tokens: None,
+                    metadata: input.metadata.clone(),
+                };
+
+                let mut assistant_text = String::new();
+                let mut tool_calls: Vec<ToolCall> = Vec::new();
+
+                let mut s = provider
+                    .stream_chat(request)
+                    .map_err(|e| AgentError::Message(e.to_string()))?;
+
+                while let Some(item) = s.next().await {
+                    let chunk = item.map_err(|e| AgentError::Message(e.to_string()))?;
+
+                    if let Some(delta) = chunk.delta {
+                        assistant_text.push_str(&delta);
+                        yield ChannelEvent::Raw(json!({"type": "token", "delta": delta}));
+                    }
+
+                    if !chunk.tool_calls.is_empty() {
+                        tool_calls.extend(chunk.tool_calls);
+                    }
+                }
+
+                let assistant_msg = ChatMessage {
+                    role: Role::Assistant,
+                    content: assistant_text,
+                    name: None,
+                };
+                messages.push(assistant_msg.clone());
+                yield ChannelEvent::Message(assistant_msg);
+
+                if tool_calls.is_empty() {
+                    break;
+                }
+
+                for call in tool_calls.iter() {
+                    yield ChannelEvent::ToolCall(call.clone());
+
+                    let exec_agent = ToolCallingAgent::<Arc<dyn LlmProvider>> {
+                        provider: provider.clone(),
+                        system_prompt: None,
+                        tools: tools.clone(),
+                        policy: policy.clone(),
+                        audit: audit.clone(),
+                        max_steps,
+                    };
+                    let result = exec_agent.execute_tool_call(call).await?;
+                    yield ChannelEvent::ToolResult(result.clone());
+                    let tool_msg = ToolCallingAgent::<Arc<dyn LlmProvider>>::tool_result_to_message(
+                        &result,
+                        &call.name,
+                    );
+                    messages.push(tool_msg);
+                }
+            }
+        };
+
+        Box::pin(stream)
     }
 }
 
@@ -302,6 +992,28 @@ where
         for step in 0..self.max_steps {
             debug!(step, messages_len = messages.len(), "agent.step.start");
 
+            let preview = |s: &str| {
+                const MAX: usize = 800;
+                if s.len() <= MAX {
+                    s.to_string()
+                } else {
+                    format!("{}...<truncated:{}>", &s[..MAX], s.len())
+                }
+            };
+
+            let last_user_preview = messages
+                .iter()
+                .rev()
+                .find(|m| m.role == Role::User)
+                .map(|m| preview(&m.content));
+
+            debug!(
+                step,
+                tools_len = tool_defs.len(),
+                last_user = last_user_preview.as_deref().unwrap_or(""),
+                "agent.step.provider_chat.start"
+            );
+
             let request = ChatRequest {
                 messages: messages.clone(),
                 model: None,
@@ -327,6 +1039,18 @@ where
                 tool_calls_len = resp.tool_calls.len(),
                 "agent.step.provider_chat.done"
             );
+
+            if !resp.tool_calls.is_empty() {
+                let calls_preview: Vec<String> = resp
+                    .tool_calls
+                    .iter()
+                    .map(|c| {
+                        let input = preview(&c.input.to_string());
+                        format!("{}(id={}, input={})", c.name, c.id, input)
+                    })
+                    .collect();
+                debug!(step, tool_calls = ?calls_preview, "agent.step.tool_calls");
+            }
 
             // 追加 assistant 回复到对话历史。
             messages.push(resp.message.clone());

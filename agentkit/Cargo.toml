@@ -6,8 +6,15 @@ edition = "2024"
 [lib]
 doctest = false
 
+[features]
+default = []
+mcp = ["dep:agentkit-mcp"]
+a2a = ["dep:agentkit-a2a"]
+
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
+agentkit-mcp = { path = "../agentkit-mcp", optional = true }
+agentkit-a2a = { path = "../agentkit-a2a", optional = true }
 async-trait = "0.1"
 reqwest = { version = "0.13", features = ["json", "stream","query", "gzip", "brotli", "deflate", "zstd"] }
 futures-util = "0.3"
@@ -18,7 +25,7 @@ serde_json = "1"
 serde_yaml = "0.9"
 dom_smoothie = "0.16"
 html2text = "0.12"
-tokio = { version = "1", features = ["process", "fs", "time"] }
+tokio = { version = "1", features = ["process", "fs", "time", "sync"] }
 tracing = "0.1"
 rhai = { version = "1", features = ["serde", "sync"] }
 

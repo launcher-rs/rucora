@@ -3,6 +3,9 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// 默认的 tool 输出最大字节数（用于 runtime 统一截断与标记）。
+pub const DEFAULT_TOOL_OUTPUT_MAX_BYTES: usize = 64 * 1024;
+
 /// 工具定义（用于注册到 provider 的 function-calling / tool-calling 机制）。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ToolDefinition {
