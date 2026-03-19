@@ -6,7 +6,10 @@ use agentkit_core::{
 };
 use async_trait::async_trait;
 use rmcp::{
-    model::{CallToolRequestParams, CallToolResult, InitializeRequestParams, JsonObject, RawContent, Tool as RmcpTool},
+    model::{
+        CallToolRequestParams, CallToolResult, InitializeRequestParams, JsonObject, RawContent,
+        Tool as RmcpTool,
+    },
     service::{Peer, RoleClient, RunningService},
 };
 use serde_json::{Value, json};
@@ -65,12 +68,18 @@ impl McpClient {
         };
 
         let params = match arguments {
-            Some(args) => CallToolRequestParams::new(Cow::Owned(name.to_string())).with_arguments(args),
+            Some(args) => {
+                CallToolRequestParams::new(Cow::Owned(name.to_string())).with_arguments(args)
+            }
             None => CallToolRequestParams::new(Cow::Owned(name.to_string())),
         };
 
         let start = std::time::Instant::now();
-        let result = self.peer().call_tool(params).await.map_err(|e| e.to_string())?;
+        let result = self
+            .peer()
+            .call_tool(params)
+            .await
+            .map_err(|e| e.to_string())?;
 
         let structured_len = result
             .structured_content

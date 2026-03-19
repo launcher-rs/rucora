@@ -31,7 +31,7 @@ impl FileMemory {
                 return Err(MemoryError::Message(format!(
                     "failed to read memory file: {}",
                     err
-                )))
+                )));
             }
         };
 
@@ -78,7 +78,11 @@ impl Memory for FileMemory {
         let _g = self.lock.lock().await;
         let items = self.load_items().await?;
 
-        let limit = if query.limit == 0 { usize::MAX } else { query.limit };
+        let limit = if query.limit == 0 {
+            usize::MAX
+        } else {
+            query.limit
+        };
         let needle = query.text.to_lowercase();
 
         if needle.is_empty() {

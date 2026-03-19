@@ -1,6 +1,6 @@
+use agentkit::core::memory::Memory;
 use agentkit::memory::{FileMemory, InMemoryMemory};
 use agentkit::prelude::*;
-use agentkit::core::memory::Memory;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {

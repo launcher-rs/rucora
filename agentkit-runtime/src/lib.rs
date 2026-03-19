@@ -25,8 +25,8 @@ use agentkit_core::{
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use serde_json::{Value, json};
-use tokio::time::{Duration, sleep, timeout};
 use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::time::{Duration, sleep, timeout};
 use tracing::{debug, info, warn};
 
 fn truncate_utf8_to_bytes(s: &str, max_bytes: usize) -> String {
@@ -176,9 +176,7 @@ impl ResilientProvider {
     }
 
     fn backoff_delay_ms(&self, attempt: usize) -> u64 {
-        let pow = 1u64
-            .checked_shl(attempt.min(16) as u32)
-            .unwrap_or(u64::MAX);
+        let pow = 1u64.checked_shl(attempt.min(16) as u32).unwrap_or(u64::MAX);
         let delay = self.cfg.base_delay_ms.saturating_mul(pow);
         delay.min(self.cfg.max_delay_ms)
     }
@@ -186,10 +184,17 @@ impl ResilientProvider {
     pub fn stream_chat_cancellable(
         &self,
         request: ChatRequest,
-    ) -> Result<(
-        CancelHandle,
-        BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, agentkit_core::error::ProviderError>>,
-    ),
+    ) -> Result<
+        (
+            CancelHandle,
+            BoxStream<
+                'static,
+                Result<
+                    agentkit_core::provider::types::ChatStreamChunk,
+                    agentkit_core::error::ProviderError,
+                >,
+            >,
+        ),
         agentkit_core::error::ProviderError,
     > {
         let cancelled = Arc::new(AtomicBool::new(false));
@@ -217,19 +222,18 @@ impl LlmProvider for ResilientProvider {
     async fn chat(
         &self,
         request: ChatRequest,
-    ) -> Result<agentkit_core::provider::types::ChatResponse, agentkit_core::error::ProviderError> {
+    ) -> Result<agentkit_core::provider::types::ChatResponse, agentkit_core::error::ProviderError>
+    {
         let mut attempt = 0usize;
         loop {
             let fut = self.inner.chat(request.clone());
             let result = if let Some(ms) = self.cfg.timeout_ms {
-                timeout(Duration::from_millis(ms), fut)
-                    .await
-                    .map_err(|_| {
-                        agentkit_core::error::ProviderError::Message(format!(
-                            "provider chat timeout after {}ms",
-                            ms
-                        ))
-                    })?
+                timeout(Duration::from_millis(ms), fut).await.map_err(|_| {
+                    agentkit_core::error::ProviderError::Message(format!(
+                        "provider chat timeout after {}ms",
+                        ms
+                    ))
+                })?
             } else {
                 fut.await
             };
@@ -253,7 +257,13 @@ impl LlmProvider for ResilientProvider {
         &self,
         request: ChatRequest,
     ) -> Result<
-        BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, agentkit_core::error::ProviderError>>,
+        BoxStream<
+            'static,
+            Result<
+                agentkit_core::provider::types::ChatStreamChunk,
+                agentkit_core::error::ProviderError,
+            >,
+        >,
         agentkit_core::error::ProviderError,
     > {
         // 流式重试很容易导致语义重复；这里先只提供 timeout/取消的外部能力。
@@ -352,8 +362,21 @@ impl DefaultToolPolicy {
     fn is_dangerous_command(cmd: &str) -> bool {
         matches!(
             cmd,
-            "rm" | "del" | "erase" | "rmdir" | "rd" | "format" | "mkfs" | "dd" | "shutdown"
-                | "reboot" | "poweroff" | "reg" | "diskpart" | "bcdedit" | "sc" | "net"
+            "rm" | "del"
+                | "erase"
+                | "rmdir"
+                | "rd"
+                | "format"
+                | "mkfs"
+                | "dd"
+                | "shutdown"
+                | "reboot"
+                | "poweroff"
+                | "reg"
+                | "diskpart"
+                | "bcdedit"
+                | "sc"
+                | "net"
         )
     }
 

@@ -16,8 +16,8 @@ use agentkit_core::{
 };
 use agentkit_runtime::{ResilientProvider, RetryConfig, ToolCallingAgent, ToolRegistry};
 use async_trait::async_trait;
-use futures_util::stream::BoxStream;
 use futures_util::StreamExt;
+use futures_util::stream::BoxStream;
 use serde_json::{Value, json};
 use std::sync::{Arc, Mutex};
 
@@ -96,7 +96,10 @@ impl LlmProvider for InfiniteStreamProvider {
     fn stream_chat(
         &self,
         _request: ChatRequest,
-    ) -> Result<BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, ProviderError>>, ProviderError> {
+    ) -> Result<
+        BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, ProviderError>>,
+        ProviderError,
+    > {
         let s = async_stream::try_stream! {
             loop {
                 yield agentkit_core::provider::types::ChatStreamChunk {

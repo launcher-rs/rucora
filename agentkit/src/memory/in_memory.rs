@@ -34,7 +34,11 @@ impl Memory for InMemoryMemory {
 
     async fn query(&self, query: MemoryQuery) -> Result<Vec<MemoryItem>, MemoryError> {
         let items = self.items.read().await;
-        let limit = if query.limit == 0 { usize::MAX } else { query.limit };
+        let limit = if query.limit == 0 {
+            usize::MAX
+        } else {
+            query.limit
+        };
 
         let needle = query.text.to_lowercase();
         if needle.is_empty() {

@@ -1,43 +1,30 @@
 #[cfg(not(feature = "a2a"))]
 fn main() {
-    eprintln!("This example requires feature 'a2a'. Try: cargo run -p agentkit --example a2a_demo --features a2a");
+    eprintln!(
+        "This example requires feature 'a2a'. Try: cargo run -p agentkit --example a2a_demo --features a2a"
+    );
 }
 
 #[cfg(feature = "a2a")]
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use agentkit::a2a::{
-        protocol::{A2aMessage, A2aTask, AgentId, TaskId},
-        transport::{A2aTransport, InProcessA2aTransport},
+        client::Client,
+        types::{Message, MessageSendParams, Part, SendMessageResult},
     };
-    use serde_json::json;
 
-    let t = InProcessA2aTransport::new();
+    let base_url =
+        std::env::var("A2A_BASE_URL").unwrap_or_else(|_| "http://127.0.0.1:8080".to_string());
+    let client = Client::from_url(&base_url)?;
 
-    let mut worker_rx = t.register(AgentId("worker".to_string())).await?;
-
-    t.send(
-        &AgentId("worker".to_string()),
-        A2aMessage::Task(A2aTask {
-            id: TaskId("t1".to_string()),
-            from: AgentId("leader".to_string()),
-            to: AgentId("worker".to_string()),
-            payload: json!({"task":"say_hi"}),
-        }),
-    )
-    .await?;
-
-    if let Some(msg) = worker_rx.recv().await {
-        match msg {
-            A2aMessage::Task(task) => {
-                println!("worker received task: {} from {}", task.id.0, task.from.0);
-                println!("payload: {}", task.payload);
-            }
-            other => {
-                println!("worker received other message: {other:?}");
-            }
+    let msg = Message::user(vec![Part::text("Hello from agentkit!")]);
+    let result = client.send_message(&MessageSendParams::new(msg)).await?;
+    match result {
+        SendMessageResult::Task(task) => {
+            let reply = task.status.message.as_ref().and_then(|m| m.text_content());
+            println!("[{:?}] {}", task.status.state, reply.unwrap_or_default());
         }
+        SendMessageResult::Message(msg) => println!("{}", msg.text_content().unwrap_or_default()),
     }
-
     Ok(())
 }

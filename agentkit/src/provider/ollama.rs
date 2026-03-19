@@ -155,7 +155,11 @@ impl LlmProvider for OllamaProvider {
             .unwrap_or("")
             .to_string();
 
-        debug!(provider = "ollama", assistant_content_len = content.len(), "provider.chat.parsed");
+        debug!(
+            provider = "ollama",
+            assistant_content_len = content.len(),
+            "provider.chat.parsed"
+        );
 
         Ok(ChatResponse {
             message: ChatMessage {

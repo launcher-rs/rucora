@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use agentkit::{memory::InMemoryMemory, tools::{MemoryRecallTool, MemoryStoreTool}};
+use agentkit::{
+    memory::InMemoryMemory,
+    tools::{MemoryRecallTool, MemoryStoreTool},
+};
 use agentkit_core::tool::Tool;
 use serde_json::json;
 

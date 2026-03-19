@@ -4,9 +4,12 @@ use agentkit_core::tool::Tool;
 use agentkit_mcp::tool::{McpClient, McpTool};
 use rmcp::{
     handler::server::ServerHandler,
-    model::{CallToolRequestParams, CallToolResult, ClientCapabilities, ClientInfo, Implementation, ListToolsResult, ServerInfo, Tool as RmcpTool},
-    service::serve_server,
+    model::{
+        CallToolRequestParams, CallToolResult, ClientCapabilities, ClientInfo, Implementation,
+        ListToolsResult, ServerInfo, Tool as RmcpTool,
+    },
     service::ServiceExt,
+    service::serve_server,
 };
 use serde_json::json;
 
@@ -22,7 +25,8 @@ impl ServerHandler for TestServer {
         &self,
         _request: Option<rmcp::model::PaginatedRequestParams>,
         _context: rmcp::service::RequestContext<rmcp::service::RoleServer>,
-    ) -> impl std::future::Future<Output = Result<ListToolsResult, rmcp::ErrorData>> + Send + '_ {
+    ) -> impl std::future::Future<Output = Result<ListToolsResult, rmcp::ErrorData>> + Send + '_
+    {
         async move {
             let schema: rmcp::model::JsonObject =
                 serde_json::from_value(json!({"type":"object"})).unwrap();
@@ -43,10 +47,13 @@ impl ServerHandler for TestServer {
         &self,
         request: CallToolRequestParams,
         _context: rmcp::service::RequestContext<rmcp::service::RoleServer>,
-    ) -> impl std::future::Future<Output = Result<CallToolResult, rmcp::ErrorData>> + Send + '_ {
+    ) -> impl std::future::Future<Output = Result<CallToolResult, rmcp::ErrorData>> + Send + '_
+    {
         async move {
             if request.name.as_ref() != "echo" {
-                return Ok(CallToolResult::structured_error(json!({"message":"unknown tool"})));
+                return Ok(CallToolResult::structured_error(
+                    json!({"message":"unknown tool"}),
+                ));
             }
 
             let args = request

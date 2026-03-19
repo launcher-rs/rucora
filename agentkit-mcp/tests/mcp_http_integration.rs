@@ -1,13 +1,12 @@
 use std::collections::HashMap;
 
-use reqwest::header::{HeaderValue, AUTHORIZATION};
 use agentkit_mcp::tool::McpClient;
+use reqwest::header::{AUTHORIZATION, HeaderValue};
 use rmcp::{
     ServiceExt,
     model::{ClientCapabilities, ClientInfo, Implementation},
     transport::{
-        StreamableHttpClientTransport,
-        streamable_http_client::StreamableHttpClientTransportConfig,
+        StreamableHttpClientTransport, streamable_http_client::StreamableHttpClientTransportConfig,
     },
 };
 
