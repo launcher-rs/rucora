@@ -6,8 +6,8 @@
 /// 轨迹持久化与回放（trace/replay）。
 pub mod trace;
 
-mod policy;
 mod default_runtime;
+mod policy;
 mod tool_execution;
 mod tool_registry;
 mod utils;
@@ -20,8 +20,8 @@ pub use agentkit_core::{
     runtime::{NoopRuntimeObserver, Runtime, RuntimeObserver},
     tool::Tool,
 };
+pub use default_runtime::DefaultRuntime;
 pub use policy::{
     AllowAllToolPolicy, CommandPolicyConfig, DefaultToolPolicy, ToolCallContext, ToolPolicy,
 };
-pub use default_runtime::DefaultRuntime;
 pub use tool_registry::{SkillRegistry, ToolRegistry};

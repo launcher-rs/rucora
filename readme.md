@@ -4,8 +4,21 @@ Agentkit 是一个 Rust 生态的模块化 Agent SDK：
 
 - `agentkit-core`：只包含抽象（trait/类型/错误/事件），便于第三方实现与长期兼容。
 - `agentkit`：常用实现的聚合入口（provider/tools/skills/retrieval/config 等）。
-- `agentkit-runtime`：默认运行时（tool-calling loop、streaming、policy/audit、trace）。
+- `agentkit-runtime`：默认运行时（tool-calling loop、流式事件、policy、trace）。
 - 可选扩展：`agentkit-cli`、`agentkit-server`、`agentkit-mcp`、`agentkit-a2a`。
+
+## 为什么使用 Runtime 而不是 Agent
+
+很多框架（例如 LangChain、rig-core）使用 “Agent” 来指代一个带有 prompt/tools/memory/loop 的高层对象。
+在本项目中，我们选择把“执行流程/编排策略”的最小稳定接口定义为 `Runtime`：
+
+- **避免概念重复**：`Agent::run` 与 `Runtime::run` 在签名上完全等价，保留两者会造成调用方困惑。
+- **更适合可插拔编排**：不同 loop（tool-calling、planner/executor、router、budget 等）本质上是不同的运行时策略。
+  用 `Runtime` 作为唯一执行抽象，便于组合、装饰与替换。
+- **core 更轻、更稳定**：`agentkit-core` 只保留最小执行入口 `Runtime` 与统一事件模型 `ChannelEvent`，避免在 core 层绑定具体“智能体”语义。
+
+如果你想在业务层使用 “Agent” 这个概念，推荐在上层（例如 `agentkit` crate）用 struct/builder 封装配置，
+内部持有一个 `Runtime` 实现即可。
 
 ## 文档
 

@@ -24,8 +24,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         runtime::Runtime,
     };
     use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-    use std::sync::Arc;
     use reqwest::header::{AUTHORIZATION, HeaderValue};
+    use std::sync::Arc;
     use tracing_subscriber::EnvFilter;
 
     tracing_subscriber::fmt()

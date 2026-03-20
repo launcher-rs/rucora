@@ -14,7 +14,11 @@
 - `tool`：`Tool`、ToolCall/ToolResult/ToolDefinition
 - `retrieval`：`VectorStore`、向量查询/搜索结果类型
 - `channel`：`ChannelEvent`（统一事件模型）
+- `runtime`：`Runtime`（唯一执行入口）+ `RuntimeObserver`（统一观测协议）
 - `error`：统一错误类型 + `DiagnosticError`
+
+说明：core 不再定义 `Agent` trait。
+`AgentInput/AgentOutput` 仍保留在 `agent::types` 中，作为 runtime 的稳定输入/输出类型。
 
 ## 测试
 

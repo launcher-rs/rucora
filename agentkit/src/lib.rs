@@ -34,13 +34,13 @@ pub use agentkit_core as core;
 pub mod prelude {
     /// runtime 抽象（用于支持可替换 runtime）。
     pub use crate::core::runtime::Runtime;
-    /// core 抽象层常用 trait。
-    pub use crate::core::{agent::Agent, provider::LlmProvider, tool::Tool};
     /// core 常用类型与错误。
     pub use crate::core::{
         agent::types::*, channel::types::*, error::*, memory::types::*, provider::types::*,
         skill::types::*, tool::types::*,
     };
+    /// core 抽象层常用 trait。
+    pub use crate::core::{provider::LlmProvider, tool::Tool};
 }
 
 /// Provider（模型提供者）实现与示例。

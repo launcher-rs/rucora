@@ -75,7 +75,10 @@ impl ResilientProvider {
             CancelHandle,
             BoxStream<
                 'static,
-                Result<agentkit_core::provider::types::ChatStreamChunk, agentkit_core::error::ProviderError>,
+                Result<
+                    agentkit_core::provider::types::ChatStreamChunk,
+                    agentkit_core::error::ProviderError,
+                >,
             >,
         ),
         agentkit_core::error::ProviderError,
@@ -105,7 +108,8 @@ impl LlmProvider for ResilientProvider {
     async fn chat(
         &self,
         request: ChatRequest,
-    ) -> Result<agentkit_core::provider::types::ChatResponse, agentkit_core::error::ProviderError> {
+    ) -> Result<agentkit_core::provider::types::ChatResponse, agentkit_core::error::ProviderError>
+    {
         let mut attempt = 0usize;
         loop {
             let fut = self.inner.chat(request.clone());
@@ -141,7 +145,10 @@ impl LlmProvider for ResilientProvider {
     ) -> Result<
         BoxStream<
             'static,
-            Result<agentkit_core::provider::types::ChatStreamChunk, agentkit_core::error::ProviderError>,
+            Result<
+                agentkit_core::provider::types::ChatStreamChunk,
+                agentkit_core::error::ProviderError,
+            >,
         >,
         agentkit_core::error::ProviderError,
     > {

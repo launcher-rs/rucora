@@ -5,8 +5,8 @@ use agentkit_core::{
     runtime::Runtime,
 };
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use tracing_subscriber::EnvFilter;
 use std::sync::Arc;
+use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
 async fn main() {

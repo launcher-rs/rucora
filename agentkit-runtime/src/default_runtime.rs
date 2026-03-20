@@ -107,8 +107,10 @@ impl DefaultRuntime {
                 let policy = policy.clone();
                 let observer = observer.clone();
                 async move {
-                    let r = execute_tool_call_with_policy_and_observer(&tools, &policy, &observer, &call)
-                        .await?;
+                    let r = execute_tool_call_with_policy_and_observer(
+                        &tools, &policy, &observer, &call,
+                    )
+                    .await?;
                     Ok((idx, r))
                 }
             }))
@@ -124,7 +126,10 @@ impl DefaultRuntime {
         Ok(ok.into_iter().map(|(_, v)| v).collect())
     }
 
-    pub fn run_stream(&self, mut input: AgentInput) -> BoxStream<'static, Result<ChannelEvent, AgentError>> {
+    pub fn run_stream(
+        &self,
+        mut input: AgentInput,
+    ) -> BoxStream<'static, Result<ChannelEvent, AgentError>> {
         let provider = self.provider.clone();
         let tools = self.tools.clone();
         let policy = self.policy.clone();
@@ -361,7 +366,11 @@ impl Runtime for DefaultRuntime {
                     message: "step.end(no_tool_calls)".to_string(),
                     data: Some(json!({"step": step})),
                 }));
-                info!(step, tool_results_len = tool_results.len(), "runtime.run.done");
+                info!(
+                    step,
+                    tool_results_len = tool_results.len(),
+                    "runtime.run.done"
+                );
                 return Ok(AgentOutput {
                     message: resp.message,
                     tool_results,

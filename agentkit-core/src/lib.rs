@@ -1,7 +1,7 @@
 //! agentkit 的核心抽象层（仅包含 trait + 共享类型）。
 //!
 //! 设计目标：
-//! - 为 LLM Provider、Tool、Skill、Agent、Memory、Channel 提供稳定的抽象接口
+//! - 为 LLM Provider、Tool、Skill、Memory、Channel、Runtime 提供稳定的抽象接口
 //! - 避免把具体实现（例如 OpenAI/Anthropic/本地模型、具体工具实现、具体运行时编排）耦合进来
 
 /// Agent 核心抽象（运行入口）。

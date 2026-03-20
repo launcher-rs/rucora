@@ -110,8 +110,8 @@ async fn main() {
                     eprintln!("trace saved: {} (events={})", path, events.len());
                 }
             } else {
-                let agent = DefaultRuntime::new(Arc::new(provider), tools)
-                    .with_max_steps(max_steps);
+                let agent =
+                    DefaultRuntime::new(Arc::new(provider), tools).with_max_steps(max_steps);
 
                 let out = agent.run(input).await;
                 match out {
