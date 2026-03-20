@@ -30,7 +30,7 @@ async fn main() {
         //         )
         .with_max_steps(6);
 
-    let url = "https://rustcc.cn/article?id=a122f1ed-44bd-4e72-9dd5-ca901331370b";
+    let url = "https://feeds.bbci.co.uk/news/world/rss.xml";
 
     let prompt = format!(
         "总结一下该网页内容：{}\n\
