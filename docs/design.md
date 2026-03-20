@@ -18,7 +18,7 @@
   - 负责：常用实现（providers/tools/skills/retrieval/memory/embed/config）。
   - 作为“开箱即用”的聚合 crate。
 - **`agentkit-runtime`**
-  - 负责：默认 Agent 实现（ToolCallingAgent / StreamingToolCallingAgent）、工具注册表、policy/audit、trace。
+  - 负责：默认 Runtime 实现（DefaultRuntime）、工具注册表、policy/audit、trace。
 - **`agentkit-cli`（可选）**
   - 负责：命令行快速试用（加载 config + skills，运行一次 agent）。
 - **`agentkit-server`（可选）**
@@ -51,7 +51,7 @@
 
 ## 默认运行时数据流（runtime）
 
-### ToolCallingAgent（非流式）
+### DefaultRuntime（非流式）
 
 1. 组装 `tool_defs = tools.definitions()`
 2. `provider.chat()` 得到 assistant message 与 `tool_calls`
@@ -61,7 +61,7 @@
    - 生成 `ToolResult` 并回灌到 messages
 4. 循环直到无 tool_calls 或达到 `max_steps`
 
-### StreamingToolCallingAgent（流式）
+### DefaultRuntime::run_stream（流式）
 
 - `provider.stream_chat()` 持续产出 chunk
 - 每个 token delta 转成 `ChannelEvent::TokenDelta`

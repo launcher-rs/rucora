@@ -4,14 +4,10 @@ use std::sync::Arc;
 use agentkit_core::tool::Tool;
 use agentkit_core::tool::types::ToolDefinition;
 
+/// Tool 注册表：集中管理所有可用 tools。
 #[derive(Default, Clone)]
 pub struct ToolRegistry {
     tools: HashMap<String, Arc<dyn Tool>>,
-}
-
-#[derive(Default, Clone)]
-pub struct SkillRegistry {
-    // 暂时留空，后续可以根据需要重新设计
 }
 
 impl ToolRegistry {
@@ -44,11 +40,5 @@ impl ToolRegistry {
 
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
         self.tools.get(name).cloned()
-    }
-}
-
-impl SkillRegistry {
-    pub fn new() -> Self {
-        Self {}
     }
 }

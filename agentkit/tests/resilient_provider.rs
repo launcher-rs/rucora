@@ -18,7 +18,8 @@ impl LlmProvider for FlakyProvider {
         let mut a = self.attempts.lock().unwrap();
         *a += 1;
         if *a < 3 {
-            return Err(ProviderError::Message("transient".to_string()));
+            // 使用明确的网络错误消息以便重试
+            return Err(ProviderError::Message("network connection reset".to_string()));
         }
         Ok(ChatResponse {
             message: ChatMessage {
@@ -44,6 +45,7 @@ async fn resilient_provider_should_retry_chat() {
         base_delay_ms: 1,
         max_delay_ms: 2,
         timeout_ms: None,
+        retry_non_retriable_once: false,
     });
 
     let resp = rp

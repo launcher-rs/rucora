@@ -1,7 +1,7 @@
 //! agentkit 的最小运行时（runtime）示例。
 //!
-//! 该 crate 的职责是提供“编排层”的实现（如何调用 provider、如何循环、如何调用工具等）。
-//! 目前仅提供一个最小的 `SimpleAgent`，用于演示如何基于 `agentkit-core` 的 trait 进行组装。
+//! 该 crate 的职责是提供"编排层"的实现（如何调用 provider、如何循环、如何调用工具等）。
+//! 目前提供一个默认的 `DefaultRuntime`，用于演示如何基于 `agentkit-core` 的 trait 进行组装。
 
 /// 轨迹持久化与回放（trace/replay）。
 pub mod trace;
@@ -24,4 +24,4 @@ pub use default_runtime::DefaultRuntime;
 pub use policy::{
     AllowAllToolPolicy, CommandPolicyConfig, DefaultToolPolicy, ToolCallContext, ToolPolicy,
 };
-pub use tool_registry::{SkillRegistry, ToolRegistry};
+pub use tool_registry::ToolRegistry;

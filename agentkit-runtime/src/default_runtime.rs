@@ -8,7 +8,7 @@ use tracing::{debug, info, warn};
 
 use agentkit_core::agent::types::{AgentInput, AgentOutput};
 use agentkit_core::channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent};
-use agentkit_core::error::AgentError;
+use agentkit_core::error::{AgentError, DiagnosticError};
 use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
 use agentkit_core::runtime::{NoopRuntimeObserver, Runtime, RuntimeObserver};
@@ -176,22 +176,19 @@ impl DefaultRuntime {
                 let mut assistant_text = String::new();
                 let mut tool_calls: Vec<ToolCall> = Vec::new();
 
-                let s = provider
-                    .stream_chat(request)
-                    .map_err(|e| AgentError::Message(e.to_string()));
-
-                let mut s = match s {
+                let mut s = match provider.stream_chat(request) {
                     Ok(v) => v,
                     Err(e) => {
+                        let diag = e.diagnostic();
+                        let err = AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message));
                         let ev = ChannelEvent::Error(ErrorEvent {
                             kind: "provider".to_string(),
-                            message: e.to_string(),
+                            message: err.to_string(),
                             data: Some(json!({"step": step})),
                         });
                         observer.on_event(ev.clone());
                         yield ev;
-                        Err(e)?;
-                        unreachable!();
+                        break;
                     }
                 };
 
@@ -199,7 +196,8 @@ impl DefaultRuntime {
                     let chunk = match item {
                         Ok(v) => v,
                         Err(e) => {
-                            let err = AgentError::Message(e.to_string());
+                            let diag = e.diagnostic();
+                            let err = AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message));
                             let ev = ChannelEvent::Error(ErrorEvent {
                                 kind: "provider".to_string(),
                                 message: err.to_string(),
@@ -207,8 +205,7 @@ impl DefaultRuntime {
                             });
                             observer.on_event(ev.clone());
                             yield ev;
-                            Err(err)?;
-                            unreachable!();
+                            break;
                         }
                     };
 
@@ -280,8 +277,7 @@ impl DefaultRuntime {
                             });
                             observer.on_event(ev.clone());
                             yield ev;
-                            Err(e)?;
-                            unreachable!();
+                            break;
                         }
                     }
                 }
@@ -356,7 +352,10 @@ impl Runtime for DefaultRuntime {
                 .provider
                 .chat(request)
                 .await
-                .map_err(|e| AgentError::Message(e.to_string()))?;
+                .map_err(|e| {
+                    let diag = e.diagnostic();
+                    AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message))
+                })?;
 
             messages.push(resp.message.clone());
             self.emit(ChannelEvent::Message(resp.message.clone()));

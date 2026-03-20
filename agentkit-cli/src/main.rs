@@ -39,7 +39,7 @@ enum Commands {
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
@@ -56,13 +56,34 @@ async fn main() {
             trace_path,
             stream,
         } => {
-            let profile = AgentkitConfig::load().await.expect("load config failed");
-            let provider = AgentkitConfig::build_provider(&profile).expect("build provider failed");
+            // 加载配置（失败时返回错误）
+            let profile = match AgentkitConfig::load().await {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("错误：加载配置失败 - {}", e);
+                    std::process::exit(1);
+                }
+            };
 
-            let skills = agentkit::skills::load_skills_from_dir(&skill_dir)
-                .await
-                .expect("load skills failed");
+            // 构建 provider（失败时返回错误）
+            let provider = match AgentkitConfig::build_provider(&profile) {
+                Ok(p) => p,
+                Err(e) => {
+                    eprintln!("错误：构建 provider 失败 - {}", e);
+                    std::process::exit(1);
+                }
+            };
 
+            // 加载 skills
+            let skills = match agentkit::skills::load_skills_from_dir(&skill_dir).await {
+                Ok(s) => s,
+                Err(e) => {
+                    eprintln!("错误：加载 skills 失败 - {}", e);
+                    std::process::exit(1);
+                }
+            };
+
+            // 构建工具注册表
             let mut tools = ToolRegistry::new();
             for tool in skills.as_tools() {
                 tools = tools.register_arc(tool);
@@ -96,7 +117,7 @@ async fn main() {
                             events.push(ev);
                         }
                         Err(e) => {
-                            eprintln!("agent error: {}", e);
+                            eprintln!("agent 错误：{}", e);
                             break;
                         }
                     }
@@ -104,21 +125,26 @@ async fn main() {
                 println!();
 
                 if let Some(path) = trace_path {
-                    write_trace_jsonl(&path, &events)
-                        .await
-                        .expect("write trace failed");
-                    eprintln!("trace saved: {} (events={})", path, events.len());
+                    if let Err(e) = write_trace_jsonl(&path, &events).await {
+                        eprintln!("警告：写入 trace 失败 - {}", e);
+                    } else {
+                        eprintln!("trace 已保存：{} (events={})", path, events.len());
+                    }
                 }
             } else {
                 let agent =
                     DefaultRuntime::new(Arc::new(provider), tools).with_max_steps(max_steps);
 
-                let out = agent.run(input).await;
-                match out {
+                match agent.run(input).await {
                     Ok(out) => println!("{}", out.message.content),
-                    Err(e) => eprintln!("agent error: {}", e),
+                    Err(e) => {
+                        eprintln!("agent 错误：{}", e);
+                        std::process::exit(1);
+                    }
                 }
             }
         }
     }
+
+    Ok(())
 }

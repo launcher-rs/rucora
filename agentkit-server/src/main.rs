@@ -60,7 +60,7 @@ async fn chat_stream(
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt()
         .with_env_filter(
             EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
@@ -70,13 +70,34 @@ async fn main() {
     let skill_dir = std::env::var("AGENTKIT_SKILL_DIR").unwrap_or_else(|_| "skills".to_string());
     let skill_dir = PathBuf::from(skill_dir);
 
-    let profile = AgentkitConfig::load().await.expect("load config failed");
-    let provider = AgentkitConfig::build_provider(&profile).expect("build provider failed");
+    // 加载配置（失败时返回错误）
+    let profile = match AgentkitConfig::load().await {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("错误：加载配置失败 - {}", e);
+            std::process::exit(1);
+        }
+    };
 
-    let skills = agentkit::skills::load_skills_from_dir(&skill_dir)
-        .await
-        .expect("load skills failed");
+    // 构建 provider（失败时返回错误）
+    let provider = match AgentkitConfig::build_provider(&profile) {
+        Ok(p) => p,
+        Err(e) => {
+            eprintln!("错误：构建 provider 失败 - {}", e);
+            std::process::exit(1);
+        }
+    };
 
+    // 加载 skills
+    let skills = match agentkit::skills::load_skills_from_dir(&skill_dir).await {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("错误：加载 skills 失败 - {}", e);
+            std::process::exit(1);
+        }
+    };
+
+    // 构建工具注册表
     let mut tools = ToolRegistry::new();
     for tool in skills.as_tools() {
         tools = tools.register_arc(tool);
@@ -100,14 +121,31 @@ async fn main() {
         .layer(cors)
         .with_state(state);
 
-    let addr: SocketAddr = std::env::var("AGENTKIT_SERVER_ADDR")
-        .unwrap_or_else(|_| "127.0.0.1:8080".to_string())
-        .parse()
-        .expect("invalid AGENTKIT_SERVER_ADDR");
+    let addr_str = std::env::var("AGENTKIT_SERVER_ADDR")
+        .unwrap_or_else(|_| "127.0.0.1:8080".to_string());
 
-    let listener = tokio::net::TcpListener::bind(addr)
-        .await
-        .expect("bind failed");
+    let addr: SocketAddr = match addr_str.parse() {
+        Ok(a) => a,
+        Err(e) => {
+            eprintln!("错误：无效的 AGENTKIT_SERVER_ADDR '{}' - {}", addr_str, e);
+            std::process::exit(1);
+        }
+    };
 
-    axum::serve(listener, app).await.expect("serve failed");
+    let listener = match tokio::net::TcpListener::bind(addr).await {
+        Ok(l) => l,
+        Err(e) => {
+            eprintln!("错误：绑定地址失败 {:?} - {}", addr, e);
+            std::process::exit(1);
+        }
+    };
+
+    eprintln!("AgentKit Server 运行在 http://{}", addr);
+
+    if let Err(e) = axum::serve(listener, app).await {
+        eprintln!("错误：服务器运行失败 - {}", e);
+        std::process::exit(1);
+    }
+
+    Ok(())
 }

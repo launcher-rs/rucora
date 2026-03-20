@@ -17,15 +17,12 @@ pub(crate) async fn execute_tool_call_with_policy_and_observer(
     observer: &Arc<dyn RuntimeObserver>,
     call: &ToolCall,
 ) -> Result<ToolResult, AgentError> {
-    let input_len = call.input.to_string().len();
-    let input_preview = {
-        const MAX: usize = 800;
-        let s = call.input.to_string();
-        if s.len() <= MAX {
-            s
-        } else {
-            format!("{}...<truncated:{}>", &s[..MAX], s.len())
-        }
+    let input_str = call.input.to_string();
+    let input_len = input_str.len();
+    let input_preview = if input_len <= 800 {
+        input_str.clone()
+    } else {
+        format!("{}...<truncated:{}>", &input_str[..800], input_len)
     };
 
     observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
