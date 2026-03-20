@@ -1,15 +1,43 @@
 use agentkit_core::{
-    agent::Agent,
-    agent::types::AgentInput,
-    error::ProviderError,
+    agent::types::{AgentInput, AgentOutput},
+    error::{AgentError, ProviderError},
     provider::LlmProvider,
     provider::types::{ChatMessage, ChatRequest, ChatResponse, Role},
+    runtime::Runtime,
 };
-use agentkit_runtime::{AgentLoop, ToolCallingAgent, ToolRegistry};
 use async_trait::async_trait;
 use std::sync::Mutex;
 
-/// 一个最小可运行的示例：演示 `agentkit-runtime` 的“可插拔 AgentLoop”。
+/// 一个最小可运行的示例：演示“自定义 Runtime”。
+///
+/// ## “可插拔 AgentLoop”是什么意思？（通俗解释）
+///
+/// 你可以把 `Runtime` 想象成一台“执行引擎”，它把很多通用能力都打包好了，比如：
+/// - 维护对话消息（messages）的输入输出
+/// - 统一对接 LLM（provider）
+/// - 注册/管理工具（tools）以及工具调用结果（tool_results）
+/// - 做一些通用的策略/审计/Trace 等（取决于你在 runtime 里启用的组件）
+///
+/// 但“这台机器怎么转起来”，也就是：
+/// - 每一步该发什么 prompt/请求给 LLM
+/// - LLM 返回后要不要继续下一步
+/// - 遇到 tool call 要不要执行工具、怎么执行、执行完如何把结果塞回下一轮
+/// - 失败时如何重试、最大步数如何控制、何时终止
+///
+/// 这些**执行流程**由 `Runtime::run()` 决定。
+///
+/// ## 为什么要这样设计？
+///
+/// 不同应用场景需要不同的“循环策略”，例如：
+/// - 只想问一次就结束（Single-shot），不需要工具、也不需要多轮推理
+/// - 标准 tool-calling：LLM 先决定要不要调用工具，调用后再把结果喂回去继续
+/// - ReAct / Plan-and-Execute：先规划再执行，可能有多阶段、多轮
+/// - 严格的安全/成本控制：限制步数、限制工具、限制 token、超时就中止
+///
+/// 如果把这些都写死在一个地方，代码会越来越难维护；而可插拔 loop 让你可以：
+/// - 为不同产品/不同实验快速切换执行策略
+/// - 用最小的 loop 复现问题、做单元测试、做基准测试
+/// - 在不改动 agent 其他部分的情况下，独立演进“执行流程”
 ///
 /// 运行方式：
 /// - `cargo run -p agentkit --example agent_loop_demo`
@@ -23,11 +51,9 @@ async fn main() {
         calls: Mutex::new(0),
     };
 
-    // ToolCallingAgent 仍然是主入口（带 tools/policy/audit 等通用能力）。
-    // 但其内部的 loop 可以被替换。
-    let agent = ToolCallingAgent::new(provider, ToolRegistry::new()).with_loop(SingleShotLoop);
+    let rt = SingleShotRuntime { provider };
 
-    let out = agent
+    let out = rt
         .run(AgentInput {
             messages: vec![ChatMessage {
                 role: Role::User,
@@ -37,7 +63,7 @@ async fn main() {
             metadata: None,
         })
         .await
-        .expect("agent.run 失败");
+        .expect("runtime.run 失败");
 
     println!("assistant: {}", out.message.content);
 }
@@ -68,23 +94,16 @@ impl LlmProvider for TestProvider {
     }
 }
 
-/// 一个自定义的 loop：只调用一次 provider.chat 并直接返回。
-///
-/// 该 loop 的目的不是提供完整功能，而是示范：
-/// - `ToolCallingAgent` 的执行流程由 `AgentLoop` 决定
-/// - 你可以按需实现不同的 loop（Simple / ToolCalling / ReAct 等）
-pub struct SingleShotLoop;
+pub struct SingleShotRuntime<P> {
+    provider: P,
+}
 
 #[async_trait]
-impl<P> AgentLoop<P> for SingleShotLoop
+impl<P> Runtime for SingleShotRuntime<P>
 where
     P: LlmProvider,
 {
-    async fn run(
-        &self,
-        agent: &ToolCallingAgent<P>,
-        input: AgentInput,
-    ) -> Result<agentkit_core::agent::types::AgentOutput, agentkit_core::error::AgentError> {
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         let req = ChatRequest {
             messages: input.messages,
             model: None,
@@ -95,13 +114,13 @@ where
             metadata: input.metadata,
         };
 
-        let resp = agent
-            .provider()
+        let resp = self
+            .provider
             .chat(req)
             .await
-            .map_err(|e| agentkit_core::error::AgentError::Message(e.to_string()))?;
+            .map_err(|e| AgentError::Message(e.to_string()))?;
 
-        Ok(agentkit_core::agent::types::AgentOutput {
+        Ok(AgentOutput {
             message: resp.message,
             tool_results: vec![],
         })

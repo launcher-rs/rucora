@@ -1,8 +1,10 @@
+use agentkit::skills::SkillRegistry;
 use agentkit_core::{
-    agent::Agent,
+    agent::types::AgentInput,
     provider::types::{ChatMessage, Role},
+    runtime::Runtime,
 };
-use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use tracing_subscriber::EnvFilter;
 
 #[tokio::main]
@@ -33,13 +35,11 @@ async fn main() {
     }
     let tools: ToolRegistry = tools.register(agentkit::tools::CmdExecTool::new());
 
-    let agent = ToolCallingAgent::new(provider, tools)
+    let agent = DefaultRuntime::new(std::sync::Arc::new(provider), tools)
         .with_system_prompt(
-            "你是一个严谨的助手。你可以调用 skills/ 目录中加载的技能（例如 weather）。\n\
-weather skill 会通过 cmd_exec 执行 SKILL.md 里给出的 curl 命令来获取真实天气信息。\n\
-当用户询问天气（例如：北京今天怎么样）时，请优先调用 weather 获取真实结果后再回答。\n\
-如果结果中包含 success=false（例如命令执行失败），请用中文说明失败原因（引用 error/stderr），并建议用户稍后重试。\n\
-无论如何都请使用中文回答。",
+            "你是一个严谨的助手。你可以调用外部工具读取本地文件内容。\n\
+读取完成后请总结主要信息并给出文件路径。\n\
+回答请使用中文。",
         )
         .with_max_steps(6);
 

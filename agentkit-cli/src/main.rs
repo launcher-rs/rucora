@@ -2,11 +2,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use agentkit::config::AgentkitConfig;
-use agentkit_core::agent::Agent;
 use agentkit_core::agent::types::AgentInput;
 use agentkit_core::provider::types::{ChatMessage, Role};
+use agentkit_core::runtime::Runtime;
 use agentkit_runtime::trace::write_trace_jsonl;
-use agentkit_runtime::{ChannelEvent, StreamingToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{ChannelEvent, DefaultRuntime, ToolRegistry};
 use clap::{Parser, Subcommand};
 use futures_util::StreamExt;
 use tracing_subscriber::EnvFilter;
@@ -73,14 +73,15 @@ async fn main() {
             let input = AgentInput {
                 messages: vec![ChatMessage {
                     role: Role::User,
-                    content: prompt,
+                    content: prompt.clone(),
                     name: None,
                 }],
                 metadata: None,
             };
 
             if stream {
-                let agent = StreamingToolCallingAgent::new(Arc::new(provider), tools)
+                let agent = DefaultRuntime::new(Arc::new(provider), tools)
+                    .with_system_prompt(prompt)
                     .with_max_steps(max_steps);
 
                 let mut events: Vec<ChannelEvent> = Vec::new();
@@ -109,7 +110,7 @@ async fn main() {
                     eprintln!("trace saved: {} (events={})", path, events.len());
                 }
             } else {
-                let agent = agentkit_runtime::ToolCallingAgent::new(provider, tools)
+                let agent = DefaultRuntime::new(Arc::new(provider), tools)
                     .with_max_steps(max_steps);
 
                 let out = agent.run(input).await;

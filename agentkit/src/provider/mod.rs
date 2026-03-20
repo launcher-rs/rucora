@@ -8,9 +8,11 @@
 
 pub mod ollama;
 pub mod openai;
+pub mod resilient;
 pub mod router;
 
 /// 重新导出常用 provider 实现。
 pub use ollama::OllamaProvider;
 pub use openai::OpenAiProvider;
+pub use resilient::{CancelHandle, ResilientProvider, RetryConfig};
 pub use router::RouterProvider;

@@ -1,8 +1,10 @@
 use agentkit::config::AgentkitConfig;
+use agentkit_core::agent::types::AgentInput;
 use agentkit_core::provider::types::{ChatMessage, Role};
+use agentkit_runtime::{ChannelEvent, DefaultRuntime, ToolRegistry};
 use agentkit_runtime::trace::write_trace_jsonl;
-use agentkit_runtime::{ChannelEvent, StreamingToolCallingAgent, ToolRegistry};
 use futures_util::StreamExt;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -20,10 +22,10 @@ async fn main() {
     let provider = AgentkitConfig::build_provider(&profile).expect("build provider failed");
 
     let tools = ToolRegistry::new();
-    let agent =
-        StreamingToolCallingAgent::new(std::sync::Arc::new(provider), tools).with_max_steps(2);
+    let agent = DefaultRuntime::new(Arc::new(provider), tools)
+        .with_max_steps(2);
 
-    let input = agentkit_core::agent::types::AgentInput {
+    let input = AgentInput {
         messages: vec![ChatMessage {
             role: Role::User,
             content: "用一句话介绍 Rust".to_string(),

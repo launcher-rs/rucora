@@ -6,18 +6,16 @@
 //! - 在下一轮 provider 返回最终 assistant 消息时结束
 
 use agentkit_core::{
-    agent::Agent,
     agent::types::AgentInput,
     error::{ProviderError, ToolError},
     provider::LlmProvider,
     provider::types::{ChatMessage, ChatRequest, ChatResponse, Role},
+    runtime::Runtime,
     tool::Tool,
     tool::types::{ToolCall, ToolResult},
 };
-use agentkit_runtime::{ResilientProvider, RetryConfig, ToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use async_trait::async_trait;
-use futures_util::StreamExt;
-use futures_util::stream::BoxStream;
 use serde_json::{Value, json};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
@@ -121,124 +119,6 @@ impl Tool for SlowTool {
     }
 }
 
-struct FlakyProvider {
-    attempts: Mutex<u32>,
-}
-
-#[async_trait]
-impl LlmProvider for FlakyProvider {
-    async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-        let mut a = self.attempts.lock().unwrap();
-        *a += 1;
-        if *a < 3 {
-            return Err(ProviderError::Message("transient".to_string()));
-        }
-        Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: "ok".to_string(),
-                name: None,
-            },
-            tool_calls: vec![],
-            usage: None,
-            finish_reason: None,
-        })
-    }
-}
-
-#[tokio::test]
-async fn resilient_provider_should_retry_chat() {
-    let inner = Arc::new(FlakyProvider {
-        attempts: Mutex::new(0),
-    });
-
-    let rp = ResilientProvider::new(inner).with_config(RetryConfig {
-        max_retries: 5,
-        base_delay_ms: 1,
-        max_delay_ms: 2,
-        timeout_ms: None,
-    });
-
-    let resp = rp
-        .chat(ChatRequest {
-            messages: vec![ChatMessage {
-                role: Role::User,
-                content: "hi".to_string(),
-                name: None,
-            }],
-            model: None,
-            tools: None,
-            temperature: None,
-            max_tokens: None,
-            response_format: None,
-            metadata: None,
-        })
-        .await
-        .expect("chat should succeed after retries");
-
-    assert_eq!(resp.message.content, "ok");
-}
-
-struct InfiniteStreamProvider;
-
-#[async_trait]
-impl LlmProvider for InfiniteStreamProvider {
-    async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-        Err(ProviderError::Message("not used".to_string()))
-    }
-
-    fn stream_chat(
-        &self,
-        _request: ChatRequest,
-    ) -> Result<
-        BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, ProviderError>>,
-        ProviderError,
-    > {
-        let s = async_stream::try_stream! {
-            loop {
-                yield agentkit_core::provider::types::ChatStreamChunk {
-                    delta: Some("x".to_string()),
-                    tool_calls: vec![],
-                    usage: None,
-                    finish_reason: None,
-                };
-            }
-        };
-        Ok(Box::pin(s))
-    }
-}
-
-#[tokio::test]
-async fn resilient_provider_stream_should_be_cancellable() {
-    let inner = Arc::new(InfiniteStreamProvider);
-    let rp = ResilientProvider::new(inner);
-
-    let (handle, mut stream) = rp
-        .stream_chat_cancellable(ChatRequest {
-            messages: vec![ChatMessage {
-                role: Role::User,
-                content: "hi".to_string(),
-                name: None,
-            }],
-            model: None,
-            tools: None,
-            temperature: None,
-            max_tokens: None,
-            response_format: None,
-            metadata: None,
-        })
-        .expect("stream should start");
-
-    // 先读到一个 chunk
-    let first = stream.next().await.expect("should have first item");
-    assert!(first.is_ok());
-
-    handle.cancel();
-    // 取消后，下一次 poll 应该尽快结束（None）
-    let next = stream.next().await;
-    assert!(next.is_none());
-}
-
 #[tokio::test]
 async fn tool_calling_agent_should_deny_dangerous_shell_by_default() {
     let provider = DangerousShellProvider {
@@ -247,7 +127,7 @@ async fn tool_calling_agent_should_deny_dangerous_shell_by_default() {
 
     // 不需要真实 shell 工具：被 policy 拦截在 tool 查找之前。
     let tools = ToolRegistry::new();
-    let agent = ToolCallingAgent::new(provider, tools).with_max_steps(4);
+    let agent = DefaultRuntime::new(Arc::new(provider), tools).with_max_steps(4);
 
     let output = agent
         .run(AgentInput {
@@ -405,7 +285,7 @@ async fn tool_calling_agent_should_execute_tool_and_finish() {
     };
 
     let tools = ToolRegistry::new().register(EchoTool);
-    let agent = ToolCallingAgent::new(provider, tools).with_max_steps(4);
+    let agent = DefaultRuntime::new(Arc::new(provider), tools).with_max_steps(4);
 
     let output = agent
         .run(AgentInput {
@@ -451,7 +331,7 @@ async fn tool_calling_agent_should_execute_tools_concurrently_and_keep_order() {
     };
 
     let tools = ToolRegistry::new().register(tool);
-    let agent = ToolCallingAgent::new(provider, tools)
+    let agent = DefaultRuntime::new(Arc::new(provider), tools)
         .with_max_steps(4)
         .with_max_tool_concurrency(2);
 

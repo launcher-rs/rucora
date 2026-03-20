@@ -1,9 +1,12 @@
+use agentkit::tools::HttpRequestTool;
 use agentkit_core::{
-    agent::Agent,
+    agent::types::AgentInput,
     provider::types::{ChatMessage, Role},
+    runtime::Runtime,
 };
-use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use tracing_subscriber::EnvFilter;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -22,12 +25,11 @@ async fn main() {
 
     let tools = ToolRegistry::new().register(agentkit::tools::HttpRequestTool::new());
 
-    let agent = ToolCallingAgent::new(provider, tools)
-        //         .with_system_prompt(
-        //             "你是一个严谨的阅读助手。你可以使用提供的工具来获取信息（例如用 http_request 获取网页 HTML）。\n\
-        // 如果用户的问题需要依赖外部网页内容，请先调用合适的工具获取内容后再回答。\n\
-        // 如果没有获取到网页内容，请不要编造，可以说明无法访问并建议使用工具/重试。",
-        //         )
+    let agent = DefaultRuntime::new(Arc::new(provider), tools)
+        .with_system_prompt(
+            "你是一个严谨的总结助手。你可以调用外部工具获取网页内容，然后给出简洁但准确的总结。\n\
+输出请使用中文。",
+        )
         .with_max_steps(6);
 
     let url = "https://feeds.bbci.co.uk/news/world/rss.xml";

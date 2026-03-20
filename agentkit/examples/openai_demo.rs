@@ -1,8 +1,11 @@
+use agentkit::provider::OpenAiProvider;
 use agentkit_core::{
-    agent::Agent,
+    agent::types::AgentInput,
     provider::types::{ChatMessage, Role},
+    runtime::Runtime,
 };
-use agentkit_runtime::SimpleAgent;
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -16,10 +19,12 @@ async fn main() {
     let provider = agentkit::provider::OpenAiProvider::new("http://127.0.0.1:11434/v1", "ollama")
         .with_default_model("qwen2.5:14b");
 
-    let agent = SimpleAgent::new(provider);
+    let agent = DefaultRuntime::new(Arc::new(provider), ToolRegistry::new())
+        .with_system_prompt("你是一个有帮助的助手。")
+        .with_max_steps(8);
 
     let out = agent
-        .run(agentkit_core::agent::types::AgentInput {
+        .run(AgentInput {
             messages: vec![ChatMessage {
                 role: Role::User,
                 content: "用一句话介绍 Rust".to_string(),

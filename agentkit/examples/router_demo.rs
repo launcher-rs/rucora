@@ -1,8 +1,10 @@
 use agentkit_core::{
-    agent::Agent,
+    agent::types::AgentInput,
     provider::types::{ChatMessage, Role},
+    runtime::Runtime,
 };
-use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
@@ -28,10 +30,16 @@ async fn main() {
     }
 
     let tools = ToolRegistry::new();
-    let agent = ToolCallingAgent::new(router, tools).with_max_steps(4);
+    let agent = DefaultRuntime::new(Arc::new(router), tools)
+        .with_system_prompt(
+            "你是一个严谨的助手。你可以调用外部工具获取真实信息。\n\
+当用户询问今天几号、日期、农历等信息时，请调用日期工具获取真实结果后再回答。\n\
+回答请使用中文。",
+        )
+        .with_max_steps(6);
 
     let out = agent
-        .run(agentkit_core::agent::types::AgentInput {
+        .run(AgentInput {
             messages: vec![ChatMessage {
                 role: Role::User,
                 content: "用一句话介绍 Rust".to_string(),

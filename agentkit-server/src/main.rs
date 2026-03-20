@@ -5,7 +5,7 @@ use std::sync::Arc;
 use agentkit::config::AgentkitConfig;
 use agentkit_core::agent::types::AgentInput;
 use agentkit_core::provider::types::ChatMessage;
-use agentkit_runtime::{ChannelEvent, StreamingToolCallingAgent, ToolRegistry};
+use agentkit_runtime::{ChannelEvent, DefaultRuntime, ToolRegistry};
 use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::{get, post};
@@ -18,7 +18,7 @@ use tracing_subscriber::EnvFilter;
 
 #[derive(Clone)]
 struct AppState {
-    agent: Arc<StreamingToolCallingAgent>,
+    agent: Arc<DefaultRuntime>,
 }
 
 #[derive(Deserialize)]
@@ -43,7 +43,7 @@ async fn chat_stream(
     let s = state.agent.run_stream(input).map(|item| match item {
         Ok(ev) => {
             let data = serde_json::to_string(&ev).unwrap_or_else(|_| "{}".to_string());
-            Ok(Event::default().event("event").data(data))
+            Ok::<Event, axum::Error>(Event::default().event("event").data(data))
         }
         Err(e) => {
             let err = ChannelEvent::Error(agentkit_runtime::ErrorEvent {
@@ -52,7 +52,7 @@ async fn chat_stream(
                 data: None,
             });
             let data = serde_json::to_string(&err).unwrap_or_else(|_| "{}".to_string());
-            Ok(Event::default().event("error").data(data))
+            Ok::<Event, axum::Error>(Event::default().event("error").data(data))
         }
     });
 
@@ -83,7 +83,7 @@ async fn main() {
     }
     tools = tools.register(agentkit::tools::CmdExecTool::new());
 
-    let agent = StreamingToolCallingAgent::new(Arc::new(provider), tools);
+    let agent = DefaultRuntime::new(Arc::new(provider), tools);
 
     let state = AppState {
         agent: Arc::new(agent),

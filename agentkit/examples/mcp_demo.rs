@@ -20,10 +20,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         },
     };
     use agentkit_core::{
-        agent::Agent,
         provider::types::{ChatMessage, Role},
+        runtime::Runtime,
     };
-    use agentkit_runtime::{ToolCallingAgent, ToolRegistry};
+    use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+    use std::sync::Arc;
     use reqwest::header::{AUTHORIZATION, HeaderValue};
     use tracing_subscriber::EnvFilter;
 
@@ -67,7 +68,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = agentkit::provider::OpenAiProvider::new("http://127.0.0.1:11434/v1", "ollama")
         .with_default_model("qwen3.5:27b");
 
-    let agent = ToolCallingAgent::new(provider, tools)
+    let agent = DefaultRuntime::new(Arc::new(provider), tools)
         .with_system_prompt(
             "你是一个严谨的助手。你可以调用外部工具获取真实信息。\n\
 当用户询问今天几号、日期、农历等信息时，请优先调用 MCP 的日期工具获取真实结果后再回答。\n\
