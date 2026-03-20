@@ -12,12 +12,14 @@
 //! let embedding = provider.embed("Hello world").await.unwrap();
 //! ```
 
+pub mod cache;
 pub mod ollama;
 pub mod openai;
 
 /// 重新导出 core 的 EmbeddingProvider trait。
 pub use agentkit_core::embed::EmbeddingProvider;
 
+pub use cache::CachedEmbeddingProvider;
 /// 重新导出具体实现。
 pub use ollama::OllamaEmbeddingProvider;
 pub use openai::OpenAiEmbeddingProvider;

@@ -75,17 +75,17 @@
   - **落点**：`agentkit/src/*`（新增 memory 实现模块）
   - **验收**：在 examples 中演示：写入记忆、检索、在对话中引用。
 
-- [ ] **向量库适配器（agentkit）**
+- [x] **向量库适配器（agentkit）**
   - **目标**：让 `VectorStore` 有落地实现（如 sqlite + cosine、或接入外部向量库）。
   - **落点**：`agentkit/src/retrieval/*`
   - **验收**：至少提供 1 个本地实现 + 1 个远程实现（可选）。
 
-- [ ] **Embedding Provider 抽象与实现（core + agentkit）**
+- [x] **Embedding Provider 抽象与实现（core + agentkit）**
   - **目标**：RAG 需要稳定的 embedding 接口与缓存。
   - **落点**：`agentkit-core/src/embed/*` + `agentkit/src/embed/*`
   - **验收**：embedding 支持批量、缓存、维度校验。
 
-- [ ] **RAG 管线（chunking / indexing / retrieval / cite）（agentkit）**
+- [x] **RAG 管线（chunking / indexing / retrieval / cite）（agentkit）**
   - **目标**：提供“从文档到可检索知识”的标准流程与引用格式。
   - **落点**：`agentkit/src/retrieval/*` + `agentkit/src/tools/*`
   - **验收**：给出完整示例：导入文件 -> 建库 -> 问答 -> 返回引用片段。

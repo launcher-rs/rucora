@@ -58,6 +58,9 @@ pub mod embed;
 /// Retrieval（语义检索）实现与示例。
 pub mod retrieval;
 
+/// RAG（chunking / indexing / retrieval / cite）最小管线。
+pub mod rag;
+
 /// Memory（记忆）实现与示例。
 pub mod memory;
 
