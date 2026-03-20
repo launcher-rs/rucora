@@ -2,8 +2,10 @@
 resolver = "3"
 members = [
     "agentkit",
+    "agentkit-cli",
     "agentkit-core",
     "agentkit-runtime",
+    "agentkit-server",
     "agentkit-mcp",
     "agentkit-a2a"
 ]

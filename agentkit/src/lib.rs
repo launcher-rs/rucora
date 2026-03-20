@@ -64,6 +64,9 @@ pub mod rag;
 /// Memory（记忆）实现与示例。
 pub mod memory;
 
+/// 统一配置系统（env + file + profile）。
+pub mod config;
+
 #[cfg(feature = "mcp")]
 pub use agentkit_mcp as mcp;
 

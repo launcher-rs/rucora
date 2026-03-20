@@ -34,6 +34,8 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::fs;
 use tracing::{debug, info};
 
+pub mod testkit;
+
 pub use agentkit_core::skill::Skill;
 
 static GLOBAL_RHAI_REGISTRAR: OnceLock<RwLock<Option<RhaiEngineRegistrar>>> = OnceLock::new();
@@ -66,6 +68,100 @@ fn get_global_rhai_engine_registrar() -> Option<RhaiEngineRegistrar> {
 /// - 再调用 `load_skills_from_dir_with_rhai(...)` 加载脚本 skills
 pub type RhaiEngineRegistrar = Arc<dyn Fn(&mut Engine) + Send + Sync>;
 
+/// Rhai 脚本通过 `call_tool("xxx", args)` 调用宿主工具时所使用的回调。
+///
+/// 约定：该 invoker 为“同步调用”。
+/// - Rhai 引擎本身是同步执行的（不支持直接 await）。
+/// - 因此默认实现不会在这里做异步阻塞等待，以避免在 `current_thread` runtime 下产生 panic。
+/// - 若上层需要在 Rhai 中调用 async tool，可自行提供一个封装 invoker（例如在多线程 runtime 中
+///   `block_in_place + Handle::block_on`），或采用其它消息队列/事件机制。
+pub type RhaiToolInvoker = Arc<dyn Fn(&str, Value) -> Result<Value, String> + Send + Sync>;
+
+/// Rhai skill 的“宿主标准库”注册器。
+///
+/// 目标：让 blockcell 风格的 SKILL.rhai 不需要每个项目都手写 registrar。
+///
+/// 当前提供：
+/// - `call_tool(name, args)`：调用宿主工具
+/// - `is_error(x)` / `is_map(x)`：便捷判断
+/// - `arr_join(arr, delim)`：数组拼接
+/// - `log_info/log_debug`：日志输出
+/// - `json_parse/json_stringify`：JSON 解析/序列化
+pub fn rhai_stdlib_registrar(invoker: RhaiToolInvoker) -> RhaiEngineRegistrar {
+    Arc::new(move |engine: &mut Engine| {
+        let invoker = invoker.clone();
+
+        engine.register_fn("is_error", |x: rhai::Dynamic| -> bool {
+            if x.is::<bool>() {
+                return !x.cast::<bool>();
+            }
+            if x.is_map() {
+                let m = x.clone().cast::<rhai::Map>();
+                if let Some(v) = m.get("success") {
+                    if v.is::<bool>() && !v.clone().cast::<bool>() {
+                        return true;
+                    }
+                }
+                if m.contains_key("error") {
+                    return true;
+                }
+            }
+            false
+        });
+
+        engine.register_fn("is_map", |x: rhai::Dynamic| -> bool { x.is_map() });
+
+        engine.register_fn("arr_join", |arr: rhai::Array, delim: &str| -> String {
+            let mut parts: Vec<String> = Vec::with_capacity(arr.len());
+            for v in arr {
+                parts.push(v.to_string());
+            }
+            parts.join(delim)
+        });
+
+        engine.register_fn("log_info", |msg: &str| {
+            info!(rhai.log = %msg, "rhai.log_info");
+        });
+
+        engine.register_fn("log_debug", |msg: &str| {
+            debug!(rhai.log = %msg, "rhai.log_debug");
+        });
+
+        engine.register_fn("json_stringify", |x: rhai::Dynamic| -> String {
+            let v: Value =
+                rhai::serde::from_dynamic(&x).unwrap_or_else(|_| json!({"_raw": x.to_string()}));
+            v.to_string()
+        });
+
+        engine.register_fn("json_parse", |s: &str| -> rhai::Dynamic {
+            match serde_json::from_str::<Value>(s) {
+                Ok(v) => rhai::serde::to_dynamic(v).unwrap_or_else(|_| rhai::Dynamic::from(())),
+                Err(_) => rhai::Dynamic::from(()),
+            }
+        });
+
+        engine.register_fn(
+            "call_tool",
+            move |tool_name: &str, args: rhai::Dynamic| -> rhai::Dynamic {
+                let input: Value = rhai::serde::from_dynamic(&args)
+                    .unwrap_or_else(|_| json!({"_raw": args.to_string()}));
+
+                // 说明：这里的 invoker 约定为同步调用。
+                // 若上层希望在 Rhai 中调用 async tool，可自行提供一个封装后的 invoker。
+                let output: Result<Value, String> = (invoker)(tool_name, input);
+
+                match output {
+                    Ok(v) => {
+                        rhai::serde::to_dynamic(v).unwrap_or_else(|_| rhai::Dynamic::from(false))
+                    }
+                    Err(e) => rhai::serde::to_dynamic(json!({"success": false, "error": e}))
+                        .unwrap_or_else(|_| rhai::Dynamic::from(false)),
+                }
+            },
+        );
+    })
+}
+
 #[derive(Debug, Clone, Default, Deserialize)]
 struct SkillMetaYaml {
     #[serde(default)]
@@ -73,9 +169,94 @@ struct SkillMetaYaml {
     #[serde(default)]
     description: Option<String>,
     #[serde(default)]
+    version: Option<String>,
+    #[serde(default)]
     triggers: Vec<String>,
     #[serde(default)]
     capabilities: Vec<String>,
+
+    #[serde(default)]
+    requires: Option<SkillRequires>,
+
+    #[serde(default)]
+    permissions: Vec<String>,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+struct SkillRequires {
+    #[serde(default)]
+    bins: Vec<String>,
+    #[serde(default)]
+    env: Vec<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct SkillManifest {
+    /// 技能名称（建议唯一）。
+    pub name: String,
+    /// 描述（可选）。
+    pub description: Option<String>,
+    /// 版本（建议语义化版本）。
+    pub version: String,
+    /// 触发词（可选，用于路由/检索）。
+    pub triggers: Vec<String>,
+    /// 能力声明（可选，用于提示/权限/依赖判断）。
+    pub capabilities: Vec<String>,
+    /// 外部二进制依赖（例如 curl）。
+    pub requires_bins: Vec<String>,
+    /// 运行所需环境变量（用于提醒/校验）。
+    pub requires_env: Vec<String>,
+    /// 权限声明（为后续 policy/审计预留）。
+    pub permissions: Vec<String>,
+}
+
+fn validate_manifest(manifest: &SkillManifest, location: &Path) -> Result<(), SkillError> {
+    // 说明：这里先做最小校验，确保技能至少具备可识别的 name/version。
+    // 后续如果引入更严格的依赖/权限模型，可在此扩展。
+    if manifest.name.trim().is_empty() {
+        return Err(SkillError::Message(format!(
+            "skill manifest 校验失败：name 为空（dir={}）",
+            location.display()
+        )));
+    }
+    if manifest.version.trim().is_empty() {
+        return Err(SkillError::Message(format!(
+            "skill manifest 校验失败：version 为空（skill={} dir={}）",
+            manifest.name,
+            location.display()
+        )));
+    }
+    Ok(())
+}
+
+fn meta_yaml_to_manifest(
+    default_name: String,
+    desc_from_md: Option<String>,
+    meta: SkillMetaYaml,
+) -> SkillManifest {
+    let name = meta.name.clone().unwrap_or(default_name);
+    let version = meta.version.clone().unwrap_or_else(|| "0.1.0".to_string());
+    let description = format_meta_description(desc_from_md, &meta);
+    let requires_bins = meta
+        .requires
+        .as_ref()
+        .map(|r| r.bins.clone())
+        .unwrap_or_default();
+    let requires_env = meta
+        .requires
+        .as_ref()
+        .map(|r| r.env.clone())
+        .unwrap_or_default();
+    SkillManifest {
+        name,
+        description,
+        version,
+        triggers: meta.triggers,
+        capabilities: meta.capabilities,
+        requires_bins,
+        requires_env,
+        permissions: meta.permissions,
+    }
 }
 
 fn format_meta_description(base: Option<String>, meta: &SkillMetaYaml) -> Option<String> {
@@ -420,12 +601,15 @@ async fn load_skills_from_dir_inner(
                 .unwrap_or("rhai_skill")
                 .to_string();
 
-            let name = meta.name.clone().or(name_from_md).unwrap_or(default_name);
-
-            let description = format_meta_description(
+            let manifest = meta_yaml_to_manifest(
+                name_from_md.unwrap_or(default_name),
                 desc_from_md.or_else(|| Some("Rhai 脚本技能".to_string())),
-                &meta,
+                meta,
             );
+            validate_manifest(&manifest, &path)?;
+
+            let name = manifest.name.clone();
+            let description = manifest.description.clone();
 
             info!(skills.name = %name, skills.kind = "rhai", "skills.load.register");
             registry = registry.register(RhaiSkill::new(
@@ -470,6 +654,17 @@ async fn load_skills_from_dir_inner(
         if let Some(name) = name {
             if let Some(tpl) = command_template {
                 info!(skills.name = %name, skills.kind = "command", "skills.load.register");
+                let manifest = SkillManifest {
+                    name: name.clone(),
+                    description: description.clone(),
+                    version: "0.1.0".to_string(),
+                    triggers: Vec::new(),
+                    capabilities: Vec::new(),
+                    requires_bins: Vec::new(),
+                    requires_env: Vec::new(),
+                    permissions: Vec::new(),
+                };
+                validate_manifest(&manifest, &path)?;
                 registry = registry.register(CommandSkill::new(name, description, tpl));
             } else {
                 debug!(skills.name = %name, "skills.load.skip_no_command_template");

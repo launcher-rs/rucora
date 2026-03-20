@@ -7,12 +7,15 @@ use std::collections::HashMap;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
-use agentkit_core::{
+/// 轨迹持久化与回放（trace/replay）。
+pub mod trace;
+
+pub use agentkit_core::{
     agent::{
         Agent,
         types::{AgentInput, AgentOutput},
     },
-    channel::types::ChannelEvent,
+    channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent},
     error::{AgentError, ToolError},
     provider::{
         LlmProvider,
@@ -1120,7 +1123,7 @@ impl<P> ToolCallingAgent<P> {
 ///
 /// 说明：
 /// - 使用 core 层现有的 `LlmProvider::stream_chat()` 与 `ChatStreamChunk`。
-/// - 当前实现把 token/delta 以 `ChannelEvent::Raw({type: token, delta})` 发出。
+/// - token/delta 使用 core 的强类型事件 `ChannelEvent::TokenDelta` 发出。
 /// - 完整 assistant message 在每个 step 流结束后以 `ChannelEvent::Message` 发出。
 pub struct StreamingToolCallingAgent {
     provider: Arc<dyn LlmProvider>,
@@ -1196,6 +1199,11 @@ impl StreamingToolCallingAgent {
 
             for step in 0..max_steps {
                 debug!(step, messages_len = messages.len(), "stream_agent.step.start");
+                // 统一事件模型：debug 事件（用于 UI/trace 展示 runtime 内部状态）。
+                yield ChannelEvent::Debug(DebugEvent {
+                    message: format!("step.start"),
+                    data: Some(json!({"step": step, "messages_len": messages.len()})),
+                });
 
                 let request = ChatRequest {
                     messages: messages.clone(),
@@ -1210,16 +1218,44 @@ impl StreamingToolCallingAgent {
                 let mut assistant_text = String::new();
                 let mut tool_calls: Vec<ToolCall> = Vec::new();
 
-                let mut s = provider
+                let s = provider
                     .stream_chat(request)
-                    .map_err(|e| AgentError::Message(e.to_string()))?;
+                    .map_err(|e| AgentError::Message(e.to_string()));
+
+                let mut s = match s {
+                    Ok(v) => v,
+                    Err(e) => {
+                        // 统一事件模型：错误事件（provider）。
+                        yield ChannelEvent::Error(ErrorEvent {
+                            kind: "provider".to_string(),
+                            message: e.to_string(),
+                            data: Some(json!({"step": step})),
+                        });
+                        Err(e)?;
+                        unreachable!();
+                    }
+                };
 
                 while let Some(item) = s.next().await {
-                    let chunk = item.map_err(|e| AgentError::Message(e.to_string()))?;
+                    let chunk = match item {
+                        Ok(v) => v,
+                        Err(e) => {
+                            let err = AgentError::Message(e.to_string());
+                            // 统一事件模型：错误事件（provider stream）。
+                            yield ChannelEvent::Error(ErrorEvent {
+                                kind: "provider".to_string(),
+                                message: err.to_string(),
+                                data: Some(json!({"step": step})),
+                            });
+                            Err(err)?;
+                            unreachable!();
+                        }
+                    };
 
                     if let Some(delta) = chunk.delta {
                         assistant_text.push_str(&delta);
-                        yield ChannelEvent::Raw(json!({"type": "token", "delta": delta}));
+                        // 统一事件模型：token 流式输出。
+                        yield ChannelEvent::TokenDelta(TokenDeltaEvent { delta });
                     }
 
                     if !chunk.tool_calls.is_empty() {
@@ -1236,6 +1272,10 @@ impl StreamingToolCallingAgent {
                 yield ChannelEvent::Message(assistant_msg);
 
                 if tool_calls.is_empty() {
+                    yield ChannelEvent::Debug(DebugEvent {
+                        message: "step.end(no_tool_calls)".to_string(),
+                        data: Some(json!({"step": step})),
+                    });
                     break;
                 }
 
@@ -1265,7 +1305,19 @@ impl StreamingToolCallingAgent {
 
                 let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
                 for r in results {
-                    ok.push(r?);
+                    match r {
+                        Ok(v) => ok.push(v),
+                        Err(e) => {
+                            // 统一事件模型：错误事件（tool 执行）。
+                            yield ChannelEvent::Error(ErrorEvent {
+                                kind: "tool".to_string(),
+                                message: e.to_string(),
+                                data: Some(json!({"step": step})),
+                            });
+                            Err(e)?;
+                            unreachable!();
+                        }
+                    }
                 }
                 ok.sort_by_key(|(idx, _)| *idx);
 
@@ -1279,6 +1331,11 @@ impl StreamingToolCallingAgent {
                     );
                     messages.push(tool_msg);
                 }
+
+                yield ChannelEvent::Debug(DebugEvent {
+                    message: "step.end".to_string(),
+                    data: Some(json!({"step": step, "tool_calls": tool_calls.len()})),
+                });
             }
         };
 

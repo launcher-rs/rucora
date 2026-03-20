@@ -94,17 +94,17 @@
 
 ## 4. Skills 生态（脚本化/打包/分发）
 
-- [ ] **Skill 打包规范与版本管理（skills + runtime）**
+- [x] **Skill 打包规范与版本管理（skills + runtime）**
   - **目标**：skills 不只是本地目录；需要可发布/可升级/可复现。
   - **落点**：`skills/` 约定 + `agentkit/src/skills/*` loader
   - **验收**：定义 skill manifest（name/version/deps/capabilities）；loader 校验并报错清晰。
 
-- [ ] **Rhai skill 的宿主 API 标准库（agentkit）**
+- [x] **Rhai skill 的宿主 API 标准库（agentkit）**
   - **目标**：脚本 skill 需要稳定的内置函数集（call_tool、http、fs、log、json 等）。
   - **落点**：`agentkit/src/skills/*`（注册器默认实现）
   - **验收**：不写自定义 registrar 也能跑通示例 skills。
 
-- [ ] **技能测试框架（agentkit）**
+- [x] **技能测试框架（agentkit）**
   - **目标**：对 skill 输出做断言（输入 -> 输出），并支持 mock 工具。
   - **落点**：`agentkit/tests` + `agentkit/src/skills/*`
   - **验收**：至少 2 个 skill 有稳定单测；可在 CI 中运行。
@@ -113,12 +113,12 @@
 
 ## 5. Channels / 事件系统
 
-- [ ] **统一事件模型（token / tool / skill / memory / debug）（core + runtime）**
+- [x] **统一事件模型（token / tool / skill / memory / debug）（core + runtime）**
   - **目标**：GUI/CLI 可订阅事件；支持流式可视化与审计。
   - **落点**：`agentkit-core/src/channel/*` + runtime 发射事件
   - **验收**：tool 执行、provider token、错误都能以事件形式输出。
 
-- [ ] **回放（replay）与轨迹持久化（runtime）**
+- [x] **回放（replay）与轨迹持久化（runtime）**
   - **目标**：调试/评估/对比运行结果；支持最小可复现。
   - **落点**：`agentkit-runtime`
   - **验收**：一次 run 能导出 trace JSON；可从 JSON 回放关键步骤。
@@ -127,17 +127,17 @@
 
 ## 6. 配置与可用性（DX）
 
-- [ ] **统一配置系统（env + file + profile）（agentkit）**
+- [x] **统一配置系统（env + file + profile）（agentkit）**
   - **目标**：用户少写 glue code；不同环境可切换（dev/prod）。
   - **落点**：`agentkit/src/*`（config 模块）
   - **验收**：示例支持从 `AGENTKIT_*` 和 yaml/toml 读取 provider、tools、policies。
 
-- [ ] **错误类型分层与可诊断性（core）**
+- [x] **错误类型分层与可诊断性（core）**
   - **目标**：用户能区分 provider/tool/runtime 错误并做策略处理。
   - **落点**：`agentkit-core/src/error.rs`
   - **验收**：错误携带 kind、source、可选的 retriable 标记。
 
-- [ ] **示例与 cookbook 补全（examples + docs）**
+- [x] **示例与 cookbook 补全（examples + docs）**
   - **目标**：让“怎么用”比“有哪些 trait”更直观。
   - **落点**：`agentkit/examples` + `docs/`
   - **验收**：至少覆盖：tool calling、skills loader、RAG、policy、streaming。
@@ -146,12 +146,12 @@
 
 ## 7. 测试、基准与兼容性
 
-- [ ] **契约测试（core traits 的行为约束）（core + runtime）**
+- [x] **契约测试（core traits 的行为约束）（core + runtime）**
   - **目标**：第三方实现不会悄悄破坏 runtime 预期。
   - **落点**：`agentkit-core/tests` 或 `agentkit-runtime/tests`
   - **验收**：提供一组 trait contract tests（Tool/Provider/VectorStore）。
 
-- [ ] **基准（bench）与性能护栏（workspace）**
+- [x] **基准（bench）与性能护栏（workspace）**
   - **目标**：tool loop、JSON 序列化、检索等关键路径可量化。
   - **落点**：criterion benches
   - **验收**：至少 3 个基准；CI 可选跑。
@@ -160,12 +160,12 @@
 
 ## 8. 可选：CLI / Server / 集成
 
-- [ ] **官方 CLI（可选 crate）**
+- [x] **官方 CLI（可选 crate）**
   - **目标**：快速试用、运行 skills、执行 agent loop、导出 trace。
   - **落点**：新增 `agentkit-cli`（独立 crate）
   - **验收**：`agentkit run --skill-dir skills/ --provider ...` 可跑通。
 
-- [ ] **HTTP Server 模式（可选 crate）**
+- [x] **HTTP Server 模式（可选 crate）**
   - **目标**：把 agent 暴露为服务（SSE/WS streaming），方便接 UI。
   - **落点**：新增 `agentkit-server`（axum 等）
   - **验收**：SSE 输出 token/tool events；支持取消请求。
