@@ -7,5 +7,7 @@ members = [
     "agentkit-runtime",
     "agentkit-server",
     "agentkit-mcp",
-    "agentkit-a2a"
+    "agentkit-a2a",
+    "examples/agentkit-examples-complete",
+    "examples/agentkit-examples-deep-dive"
 ]

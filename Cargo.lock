@@ -77,6 +77,39 @@ dependencies = [
 ]
 
 [[package]]
+name = "agentkit-examples-complete"
+version = "0.1.0"
+dependencies = [
+ "agentkit",
+ "agentkit-core",
+ "agentkit-runtime",
+ "anyhow",
+ "async-trait",
+ "futures-util",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "agentkit-examples-deep-dive"
+version = "0.1.0"
+dependencies = [
+ "agentkit",
+ "agentkit-core",
+ "agentkit-runtime",
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "futures-util",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "agentkit-mcp"
 version = "0.1.0"
 dependencies = [
