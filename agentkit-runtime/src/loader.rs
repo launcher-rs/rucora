@@ -453,9 +453,9 @@ impl ToolLoader {
         // 使用 agentkit 的 skills 加载器
         #[cfg(feature = "skills")]
         {
-            use agentkit::skills::load_skills_from_dir;
+            use agentkit_skills::registry::{load_skills_from_dir, SkillRegistry};
 
-            let skill_registry = load_skills_from_dir(dir).await?;
+            let skill_registry: SkillRegistry = load_skills_from_dir(dir).await?;
             let skill_tools = skill_registry.as_tools();
             let count = skill_tools.len();
 

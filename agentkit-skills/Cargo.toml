@@ -1,0 +1,32 @@
+[package]
+name = "agentkit-skills"
+version = "0.1.0"
+edition = "2021"
+description = "Skills system for agentkit - supports Rhai scripting and command-based skills"
+license = "MIT"
+repository = "https://github.com/agentkit-rs/agentkit"
+
+[lib]
+doctest = false
+
+[features]
+default = []
+# 完整功能（包含 Rhai 脚本支持）
+full = ["rhai-skills"]
+# Rhai 脚本技能支持
+rhai-skills = ["dep:rhai"]
+
+[dependencies]
+agentkit-core = { path = "../agentkit-core" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+toml = "0.8"
+tokio = { version = "1", features = ["fs", "process", "sync"] }
+tracing = "0.1"
+rhai = { version = "1", features = ["serde", "sync"], optional = true }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }

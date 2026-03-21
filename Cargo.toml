@@ -8,6 +8,7 @@ members = [
     "agentkit-server",
     "agentkit-mcp",
     "agentkit-a2a",
+    "agentkit-skills",
     "examples/agentkit-examples-complete",
     "examples/agentkit-examples-deep-dive"
 ]

@@ -6,7 +6,7 @@ edition = "2021"
 [features]
 default = ["builtin-tools", "skills"]
 builtin-tools = ["dep:agentkit"]
-skills = ["dep:agentkit"]
+skills = ["dep:agentkit", "dep:agentkit-skills"]
 mcp = ["dep:agentkit-mcp"]
 a2a = ["dep:agentkit-a2a"]
 full = ["builtin-tools", "skills", "mcp", "a2a"]
@@ -14,6 +14,7 @@ full = ["builtin-tools", "skills", "mcp", "a2a"]
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
 agentkit = { path = "../agentkit", optional = true }
+agentkit-skills = { path = "../agentkit-skills", optional = true, default-features = true }
 agentkit-mcp = { path = "../agentkit-mcp", optional = true }
 agentkit-a2a = { path = "../agentkit-a2a", optional = true }
 async-trait = "0.1"

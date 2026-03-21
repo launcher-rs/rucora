@@ -377,15 +377,29 @@ pub use agentkit_mcp as mcp;
 #[cfg(feature = "a2a")]
 pub use agentkit_a2a as a2a;
 
-/// Skills（技能）实现与示例
+/// Skills（技能）实现与示例（可选）
+///
+/// 需要启用 `skills` feature。
 ///
 /// 本模块包含具体的技能实现：
 ///
-/// - [`skills::EchoSkill`]: 回显技能（示例）
-/// - [`skills::RhaiSkill`]: Rhai 脚本技能
+/// - [`skills::RhaiSkill`]: Rhai 脚本技能（需要 `rhai-skills` feature）
 /// - [`skills::CommandSkill`]: 命令模板技能
+/// - [`skills::FileReadSkill`]: 文件读取技能
 /// - [`skills::load_skills_from_dir`]: 从目录加载 skills
-pub mod skills;
+#[cfg(feature = "skills")]
+pub use agentkit_skills as skills;
+
+/// Skills 重新导出（无论 feature 如何都可用）
+///
+/// 如果启用了 `skills` feature，则使用 agentkit_skills；
+/// 否则提供一个空的占位模块，避免编译错误。
+#[cfg(not(feature = "skills"))]
+pub mod skills {
+    //! Skills 模块（未启用 skills feature）
+    //!
+    //! 请启用 `skills` feature 来使用技能系统。
+}
 
 /// Tools（工具）实现与示例
 ///
