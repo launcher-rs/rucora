@@ -355,7 +355,6 @@ impl Middleware for MetricsMiddleware {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use agentkit_core::provider::types::{ChatMessage, Role};
 
     #[tokio::test]
     async fn test_middleware_chain() {
@@ -365,26 +364,12 @@ mod tests {
 
         assert_eq!(chain.len(), 2);
 
-        let mut input = AgentInput {
-            messages: vec![ChatMessage {
-                role: Role::User,
-                content: "test".to_string(),
-                name: None,
-            }],
-            metadata: None,
-        };
+        let mut input = AgentInput::new("test");
 
         // 测试请求处理
         assert!(chain.process_request(&mut input).await.is_ok());
 
-        let mut output = AgentOutput {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: "response".to_string(),
-                name: None,
-            },
-            tool_results: vec![],
-        };
+        let mut output = AgentOutput::new(serde_json::json!({"content": "response"}));
 
         // 测试响应处理
         assert!(chain.process_response(&mut output).await.is_ok());
@@ -398,22 +383,12 @@ mod tests {
         assert_eq!(metrics.get_request_count(), 0);
         assert_eq!(metrics.get_response_count(), 0);
 
-        let mut input = AgentInput {
-            messages: vec![],
-            metadata: None,
-        };
+        let mut input = AgentInput::new("test");
 
         chain.process_request(&mut input).await.unwrap();
         assert_eq!(metrics.get_request_count(), 1);
 
-        let mut output = AgentOutput {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: "test".to_string(),
-                name: None,
-            },
-            tool_results: vec![],
-        };
+        let mut output = AgentOutput::new(serde_json::json!({"content": "test"}));
 
         chain.process_response(&mut output).await.unwrap();
         assert_eq!(metrics.get_response_count(), 1);
