@@ -124,7 +124,8 @@ struct AppState {
 struct ChatStreamRequest {
     /// 消息列表
     messages: Vec<ChatMessage>,
-    /// 元数据（可选）
+    /// 元数据（可选，保留以兼容）
+    #[allow(dead_code)]
     metadata: Option<serde_json::Value>,
 }
 
@@ -154,10 +155,12 @@ async fn chat_stream(
     State(state): State<AppState>,
     Json(req): Json<ChatStreamRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, axum::Error>>> {
-    let input = AgentInput {
-        messages: req.messages,
-        metadata: req.metadata,
-    };
+    // 将消息转换为文本输入
+    let text = req.messages
+        .last()
+        .map(|m| m.content.clone())
+        .unwrap_or_default();
+    let input = AgentInput::new(text);
 
     let s = state.agent.run_stream(input).map(|item| match item {
         Ok(ev) => {

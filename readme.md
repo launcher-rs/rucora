@@ -15,8 +15,9 @@ AgentKit 是一个高性能、类型安全的 LLM 应用开发框架，提供完
 - 🔒 **类型安全** - 编译时错误检查，运行时更可靠
 - 💰 **成本监控** - 内置 Token 计数和成本管理
 - 🧰 **丰富工具** - 12+ 内置工具，轻松扩展
-- 🔌 **灵活集成** - 支持 OpenAI、Ollama 等主流服务
+- 🔌 **灵活集成** - 支持 10+ LLM Provider（OpenAI、Anthropic、Gemini 等）
 - 📊 **可观测性** - 完整的日志、指标、追踪支持
+- 🧠 **Agent 架构** - 思考与执行分离，支持自定义 Agent
 
 ## 🚀 快速开始
 
@@ -36,25 +37,25 @@ cargo add agentkit agentkit-runtime tokio serde_json anyhow
 ```rust
 use agentkit::provider::OpenAiProvider;
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::types::AgentInput;
+use agentkit_core::agent::AgentInput;
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 1. 创建 Provider
     let provider = OpenAiProvider::from_env()?;
-    
+
     // 2. 创建运行时
     let runtime = DefaultRuntime::new(
-        Arc::new(provider), 
+        Arc::new(provider),
         ToolRegistry::new()
     ).with_system_prompt("你是有用的助手");
-    
+
     // 3. 运行对话
-    let input = AgentInput::from("用一句话介绍 Rust");
+    let input = AgentInput::new("用一句话介绍 Rust");
     let output = runtime.run(input).await?;
-    
-    println!("{}", output.message.content);
+
+    println!("{}", output.value);
     Ok(())
 }
 ```
@@ -65,6 +66,62 @@ async fn main() -> anyhow::Result<()> {
 export OPENAI_API_KEY=sk-your-key
 cargo run
 ```
+
+## 🔌 支持的 Provider
+
+AgentKit 支持 10+ 种主流 LLM Provider：
+
+| Provider | 说明 | 环境变量 |
+|----------|------|----------|
+| **OpenAI** | GPT-4、GPT-3.5 | `OPENAI_API_KEY` |
+| **Anthropic** | Claude 3.5/3 | `ANTHROPIC_API_KEY` |
+| **Google Gemini** | Gemini 1.5 Pro/Flash | `GOOGLE_API_KEY` |
+| **Azure OpenAI** | 企业级 GPT 部署 | `AZURE_OPENAI_API_KEY` |
+| **OpenRouter** | 70+ 模型聚合 | `OPENROUTER_API_KEY` |
+| **DeepSeek** | DeepSeek-V3/R1 | `DEEPSEEK_API_KEY` |
+| **Moonshot** | 月之暗面 Kimi | `MOONSHOT_API_KEY` |
+| **Ollama** | 本地模型 | `OLLAMA_BASE_URL` |
+
+```rust
+// 使用不同的 Provider
+use agentkit::provider::*;
+
+// OpenAI
+let provider = OpenAiProvider::from_env()?;
+
+// Anthropic Claude
+let provider = AnthropicProvider::from_env()?
+    .with_default_model("claude-3-5-sonnet-20241022");
+
+// Google Gemini
+let provider = GeminiProvider::from_env()?
+    .with_default_model("gemini-1.5-pro");
+
+// OpenRouter（支持多种模型）
+let provider = OpenRouterProvider::from_env()?
+    .with_default_model("anthropic/claude-3-5-sonnet");
+```
+
+## 🧠 Agent 架构
+
+AgentKit 采用**思考与执行分离**的架构：
+
+- **Agent（智能体）**: 负责思考、决策、规划（大脑）
+- **Runtime（运行时）**: 负责执行、调用、编排（身体）
+
+```rust
+// Agent 独立运行（简单对话）
+let agent = DefaultAgent::builder()
+    .provider(provider)
+    .build();
+let output = agent.run("你好").await?;
+
+// Agent + Runtime（支持工具调用）
+let runtime = DefaultRuntime::new(provider, tools);
+let output = runtime.run_with_agent(&agent, "帮我查询天气").await?;
+```
+
+详细说明请查看 [Agent 和 Runtime 关系](docs/agent_runtime_relationship.md)
 
 ## 📚 文档
 

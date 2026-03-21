@@ -157,7 +157,7 @@ use futures_util::{stream::BoxStream, StreamExt};
 use serde_json::json;
 use tracing::{debug, info, warn};
 
-use agentkit_core::agent::types::{AgentInput, AgentOutput};
+use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, ToolCallRecord};
 use agentkit_core::channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent};
 use agentkit_core::error::{AgentError, DiagnosticError};
 use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
@@ -400,30 +400,23 @@ impl DefaultRuntime {
     /// 流式执行
     pub fn run_stream(
         &self,
-        mut input: AgentInput,
+        input: AgentInput,
     ) -> BoxStream<'static, Result<ChannelEvent, AgentError>> {
+        // 简化实现：先将文本输入转换为消息
+        let mut messages = vec![ChatMessage::user(input.text)];
+        if let Some(ref prompt) = self.system_prompt {
+            messages.insert(0, ChatMessage::system(prompt.clone()));
+        }
+
         let provider = self.provider.clone();
         let tools = self.tools.clone();
         let policy = self.policy.clone();
         let observer = self.observer.clone();
-        let system_prompt = self.system_prompt.clone();
         let max_steps = self.config.max_steps;
         let max_tool_concurrency = self.config.max_tool_concurrency;
 
         let stream = async_stream::try_stream! {
-            if let Some(system_prompt) = &system_prompt {
-                input.messages.insert(
-                    0,
-                    ChatMessage {
-                        role: Role::System,
-                        content: system_prompt.clone(),
-                        name: None,
-                    },
-                );
-            }
-
             let tool_defs = tools.definitions();
-            let mut messages = input.messages;
 
             info!(
                 tool_count = tool_defs.len(),
@@ -435,13 +428,6 @@ impl DefaultRuntime {
             for step in 0..max_steps {
                 debug!(step, messages_len = messages.len(), "stream_runtime.step.start");
 
-                let ev = ChannelEvent::Debug(DebugEvent {
-                    message: "step.start".to_string(),
-                    data: Some(json!({"step": step, "messages_len": messages.len()})),
-                });
-                observer.on_event(ev.clone());
-                yield ev;
-
                 let request = ChatRequest {
                     messages: messages.clone(),
                     model: None,
@@ -449,7 +435,7 @@ impl DefaultRuntime {
                     temperature: None,
                     max_tokens: None,
                     response_format: None,
-                    metadata: input.metadata.clone(),
+                    metadata: None,
                 };
 
                 let mut assistant_text = String::new();
@@ -596,38 +582,149 @@ impl DefaultRuntime {
 
         Box::pin(stream)
     }
+
+    /// 使用 Agent 运行运行时。
+    ///
+    /// 这是 Runtime 的高级用法，允许传入自定义的 Agent 实现。
+    /// Runtime 负责执行 Agent 的决策（调用 LLM、执行工具）。
+    ///
+    /// # 参数
+    ///
+    /// * `agent` - Agent 实例
+    /// * `input` - Agent 输入
+    ///
+    /// # 返回
+    ///
+    /// 返回 `AgentOutput` 包含执行结果
+    pub async fn run_with_agent<A>(
+        &self,
+        agent: &A,
+        input: impl Into<AgentInput>,
+    ) -> Result<AgentOutput, AgentError>
+    where
+        A: Agent + ?Sized,
+    {
+        let input = input.into();
+        let mut context = AgentContext::new(input.clone(), self.config.max_steps);
+
+        // 添加系统提示词
+        if let Some(ref prompt) = self.system_prompt {
+            context.add_message(ChatMessage::system(prompt.clone()));
+        }
+
+        info!(
+            agent.name = agent.name(),
+            max_steps = self.config.max_steps,
+            tool_count = self.tools.enabled_len(),
+            "runtime.run_with_agent.start"
+        );
+
+        let mut tool_call_history = Vec::new();
+
+        // 运行循环：思考 → 执行 → 观察
+        loop {
+            // 1. Agent 思考
+            let decision = agent.think(&context).await;
+            debug!(decision = ?decision, "agent.think");
+
+            match decision {
+                AgentDecision::Chat { request } => {
+                    // 2. 调用 LLM
+                    let response = self.provider.chat(request).await.map_err(|e| {
+                        let diag = e.diagnostic();
+                        AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message))
+                    })?;
+                    context.add_message(response.message.clone());
+
+                    // 检查是否有工具调用
+                    if !response.tool_calls.is_empty() {
+                        // 执行工具调用
+                        let tool_results = self
+                            .execute_tool_calls(&response.tool_calls)
+                            .await?;
+
+                        // 添加工具结果到上下文
+                        for (call, result) in response.tool_calls.iter().zip(tool_results.iter()) {
+                            context.add_tool_result(call.name.clone(), result.output.clone());
+                            tool_call_history.push(ToolCallRecord {
+                                name: call.name.clone(),
+                                input: call.input.clone(),
+                                result: result.output.clone(),
+                            });
+                        }
+                    } else {
+                        // 无工具调用，返回结果
+                        return Ok(AgentOutput::with_history(
+                            json!({"content": response.message.content}),
+                            context.messages,
+                            tool_call_history,
+                        ));
+                    }
+                }
+                AgentDecision::ToolCall { name, input } => {
+                    // 直接调用工具
+                    let result = self.tools.call_tool(&name, input.clone()).await
+                        .map_err(|e| AgentError::Message(format!("tool error: {}", e)))?;
+                    context.add_tool_result(name.clone(), result.clone());
+                    tool_call_history.push(ToolCallRecord {
+                        name,
+                        input,
+                        result: result.clone(),
+                    });
+                }
+                AgentDecision::Return(value) => {
+                    // 直接返回
+                    return Ok(AgentOutput::with_history(
+                        value,
+                        context.messages,
+                        tool_call_history,
+                    ));
+                }
+                AgentDecision::ThinkAgain => {
+                    context.step += 1;
+                    if context.step >= context.max_steps {
+                        return Err(AgentError::Message("达到最大步骤数限制".to_string()));
+                    }
+                    continue;
+                }
+                AgentDecision::Stop => {
+                    return Ok(AgentOutput::with_history(
+                        json!({}),
+                        context.messages,
+                        tool_call_history,
+                    ));
+                }
+            }
+
+            // 检查步数
+            context.step += 1;
+            if context.step >= context.max_steps {
+                return Err(AgentError::Message("达到最大步骤数限制".to_string()));
+            }
+        }
+    }
 }
 
 #[async_trait]
 impl Runtime for DefaultRuntime {
-    async fn run(&self, mut input: AgentInput) -> Result<AgentOutput, AgentError> {
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         info!(
             max_steps = self.config.max_steps,
             tool_count = self.tools.enabled_len(),
             "runtime.run.start"
         );
 
-        if let Some(system_prompt) = &self.system_prompt {
-            input.messages.insert(
-                0,
-                ChatMessage {
-                    role: Role::System,
-                    content: system_prompt.clone(),
-                    name: None,
-                },
-            );
+        // 将文本输入转换为消息
+        let mut messages = vec![ChatMessage::user(input.text)];
+        if let Some(ref prompt) = self.system_prompt {
+            messages.insert(0, ChatMessage::system(prompt.clone()));
         }
 
         let tool_defs = self.tools.definitions();
-        let mut messages = input.messages;
         let mut tool_results: Vec<ToolResult> = Vec::new();
 
         for step in 0..self.config.max_steps {
             debug!(step, messages_len = messages.len(), "runtime.step.start");
-            self.emit(ChannelEvent::Debug(DebugEvent {
-                message: "step.start".to_string(),
-                data: Some(json!({"step": step, "messages_len": messages.len()})),
-            }));
 
             let request = ChatRequest {
                 messages: messages.clone(),
@@ -636,7 +733,7 @@ impl Runtime for DefaultRuntime {
                 temperature: None,
                 max_tokens: None,
                 response_format: None,
-                metadata: input.metadata.clone(),
+                metadata: None,
             };
 
             let resp = self.provider.chat(request).await.map_err(|e| {
@@ -645,29 +742,19 @@ impl Runtime for DefaultRuntime {
             })?;
 
             messages.push(resp.message.clone());
-            self.emit(ChannelEvent::Message(resp.message.clone()));
 
             if resp.tool_calls.is_empty() {
-                self.emit(ChannelEvent::Debug(DebugEvent {
-                    message: "step.end(no_tool_calls)".to_string(),
-                    data: Some(json!({"step": step})),
-                }));
                 info!(
                     step,
                     tool_results_len = tool_results.len(),
                     "runtime.run.done"
                 );
-                return Ok(AgentOutput {
-                    message: resp.message,
-                    tool_results,
-                });
+                return Ok(AgentOutput::with_history(
+                    json!({"content": resp.message.content}),
+                    messages,
+                    Vec::new(),
+                ));
             }
-
-            info!(
-                step,
-                tool_call_count = resp.tool_calls.len(),
-                "runtime.executing_tools"
-            );
 
             let results = self.execute_tool_calls(&resp.tool_calls).await?;
             for (idx, result) in results.into_iter().enumerate() {

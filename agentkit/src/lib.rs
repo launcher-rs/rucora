@@ -262,9 +262,23 @@ pub mod prelude {
     pub use crate::core::runtime::Runtime;
 
     /// Core 常用类型与错误
+    /// 
+    /// 注意：为避免命名冲突，部分类型需要显式导入
     pub use crate::core::{
-        agent::types::*, channel::types::*, error::*, memory::types::*, provider::types::*,
-        skill::types::*, tool::types::*,
+        // Agent 类型
+        agent::types::{Agent, AgentContext, AgentDecision, AgentError as CoreAgentError, AgentInput, AgentInputBuilder, AgentOutput, DefaultAgent, DefaultAgentBuilder},
+        // Channel 类型
+        channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent},
+        // 错误类型
+        error::*,
+        // Memory 类型
+        memory::types::*,
+        // Provider 类型
+        provider::types::*,
+        // Skill 类型
+        skill::types::*,
+        // Tool 类型
+        tool::types::{ToolCall, ToolDefinition, ToolResult, ToolRegistry},
     };
 
     /// Core 抽象层常用 trait

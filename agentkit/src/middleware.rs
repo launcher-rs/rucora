@@ -176,8 +176,7 @@ impl Middleware for LoggingMiddleware {
     async fn on_request(&self, input: &mut AgentInput) -> Result<(), AgentError> {
         if self.log_request {
             tracing::info!(
-                messages_len = input.messages.len(),
-                has_metadata = input.metadata.is_some(),
+                input_len = input.text.len(),
                 "middleware.logging.request"
             );
         }
@@ -187,8 +186,9 @@ impl Middleware for LoggingMiddleware {
     async fn on_response(&self, output: &mut AgentOutput) -> Result<(), AgentError> {
         if self.log_response {
             tracing::info!(
-                content_len = output.message.content.len(),
-                tool_results_len = output.tool_results.len(),
+                output_value = %output.value,
+                messages_len = output.messages.len(),
+                tool_calls_len = output.tool_calls.len(),
                 "middleware.logging.response"
             );
         }
@@ -276,7 +276,7 @@ impl Middleware for CacheMiddleware {
     async fn on_request(&self, input: &mut AgentInput) -> Result<(), AgentError> {
         if self.enabled {
             tracing::debug!(
-                messages_len = input.messages.len(),
+                input_len = input.text.len(),
                 "middleware.cache.request"
             );
         }
@@ -286,7 +286,7 @@ impl Middleware for CacheMiddleware {
     async fn on_response(&self, output: &mut AgentOutput) -> Result<(), AgentError> {
         if self.enabled {
             tracing::debug!(
-                content_len = output.message.content.len(),
+                output_value_len = %output.value,
                 "middleware.cache.response"
             );
         }

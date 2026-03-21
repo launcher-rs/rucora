@@ -258,6 +258,35 @@ pub struct ToolResult {
     pub output: Value,
 }
 
+use crate::error::ToolError;
+use crate::Tool;
+use async_trait::async_trait;
+use std::sync::Arc;
+
+/// ToolRegistry trait - 工具注册表接口。
+///
+/// 用于管理和调用多个工具。Agent 和 Runtime 通过此接口调用工具。
+#[async_trait]
+pub trait ToolRegistry: Send + Sync {
+    /// 获取指定名称的工具。
+    fn get_tool(&self, name: &str) -> Option<Arc<dyn Tool>>;
+
+    /// 列出所有可用的工具。
+    fn list_tools(&self) -> Vec<Arc<dyn Tool>>;
+
+    /// 调用指定工具。
+    ///
+    /// # 参数
+    ///
+    /// * `name` - 工具名称
+    /// * `input` - 工具输入参数
+    ///
+    /// # 返回
+    ///
+    /// 返回工具执行结果
+    async fn call(&self, name: &str, input: Value) -> Result<Value, ToolError>;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

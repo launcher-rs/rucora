@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use agentkit::config::AgentkitConfig;
 use agentkit_core::agent::types::AgentInput;
-use agentkit_core::provider::types::{ChatMessage, Role};
 use agentkit_core::runtime::Runtime;
 use agentkit_runtime::trace::write_trace_jsonl;
 use agentkit_runtime::{ChannelEvent, DefaultRuntime, ToolRegistry};
@@ -91,14 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             tools = tools.register(agentkit::tools::CmdExecTool::new());
 
             let prompt = prompt.unwrap_or_else(|| "用一句话介绍 Rust".to_string());
-            let input = AgentInput {
-                messages: vec![ChatMessage {
-                    role: Role::User,
-                    content: prompt.clone(),
-                    name: None,
-                }],
-                metadata: None,
-            };
+            let input = AgentInput::new(prompt.clone());
 
             if stream {
                 let agent = DefaultRuntime::new(Arc::new(provider), tools)
@@ -136,7 +128,14 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
                     DefaultRuntime::new(Arc::new(provider), tools).with_max_steps(max_steps);
 
                 match agent.run(input).await {
-                    Ok(out) => println!("{}", out.message.content),
+                    Ok(out) => {
+                        // 从 output.value 中提取 content
+                        if let Some(content) = out.value.get("content").and_then(|v| v.as_str()) {
+                            println!("{}", content);
+                        } else {
+                            println!("{}", out.value);
+                        }
+                    }
                     Err(e) => {
                         eprintln!("agent 错误：{}", e);
                         std::process::exit(1);

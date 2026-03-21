@@ -4,10 +4,11 @@
 
 use agentkit_core::agent::types::{AgentInput, AgentOutput};
 use agentkit_core::error::AgentError;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use agentkit_core::provider::types::{ChatMessage, ChatRequest};
 use agentkit_core::provider::LlmProvider;
 use agentkit_core::runtime::Runtime;
 use async_trait::async_trait;
+use serde_json::json;
 use std::sync::Arc;
 use tracing::info;
 
@@ -37,30 +38,24 @@ impl<P: LlmProvider> SimpleRuntime<P> {
 
 #[async_trait]
 impl<P: LlmProvider + Send + Sync> Runtime for SimpleRuntime<P> {
-    async fn run(&self, mut input: AgentInput) -> Result<AgentOutput, AgentError> {
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         info!("SimpleRuntime: 开始执行");
 
-        // 添加系统提示词
+        // 将文本输入转换为消息
+        let mut messages = vec![ChatMessage::user(input.text)];
         if let Some(prompt) = &self.system_prompt {
-            input.messages.insert(
-                0,
-                ChatMessage {
-                    role: Role::System,
-                    content: prompt.clone(),
-                    name: None,
-                },
-            );
+            messages.insert(0, ChatMessage::system(prompt.clone()));
         }
 
         // 调用 Provider
         let request = ChatRequest {
-            messages: input.messages,
+            messages,
             model: None,
             tools: None, // 简单 Runtime 不支持工具
             temperature: None,
             max_tokens: None,
             response_format: None,
-            metadata: input.metadata,
+            metadata: None,
         };
 
         info!("SimpleRuntime: 调用 Provider");
@@ -72,10 +67,11 @@ impl<P: LlmProvider + Send + Sync> Runtime for SimpleRuntime<P> {
 
         info!("SimpleRuntime: 执行完成");
 
-        Ok(AgentOutput {
-            message: response.message,
-            tool_results: vec![],
-        })
+        Ok(AgentOutput::with_history(
+            json!({"content": response.message.content}),
+            vec![response.message],
+            Vec::new(),
+        ))
     }
 }
 
@@ -97,7 +93,7 @@ impl<R: Runtime> LoggingRuntime<R> {
 impl<R: Runtime + Send + Sync> Runtime for LoggingRuntime<R> {
     async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         info!("LoggingRuntime: 开始执行");
-        info!("  - 消息数：{}", input.messages.len());
+        info!("  - 输入文本：{}", input.text);
 
         let start = std::time::Instant::now();
 
@@ -107,9 +103,9 @@ impl<R: Runtime + Send + Sync> Runtime for LoggingRuntime<R> {
         match &result {
             Ok(output) => {
                 info!(
-                    "LoggingRuntime: 执行成功，耗时：{:?}，回复长度：{}",
+                    "LoggingRuntime: 执行成功，耗时：{:?}，回复：{}",
                     elapsed,
-                    output.message.content.len()
+                    output.value
                 );
             }
             Err(e) => {
@@ -180,30 +176,16 @@ pub async fn run() -> anyhow::Result<()> {
     info!("✓ Simple Runtime 创建成功");
 
     // 测试 Simple Runtime
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "你好".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
+    let input = AgentInput::new("你好");
 
     let output = runtime.run(input).await?;
-    info!("✓ Simple Runtime 回复：{}", output.message.content);
+    info!("✓ Simple Runtime 回复：{}", output.value);
 
     // 测试 Logging Runtime 装饰器
     info!("\n--- Logging Runtime ---");
     let logging_runtime = LoggingRuntime::new(SimpleRuntime::new(provider.clone()));
 
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "测试日志".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
+    let input = AgentInput::new("测试日志");
 
     let _ = logging_runtime.run(input).await;
 
@@ -211,14 +193,7 @@ pub async fn run() -> anyhow::Result<()> {
     info!("\n--- Retry Runtime ---");
     let retry_runtime = RetryRuntime::new(SimpleRuntime::new(provider), 3);
 
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "测试重试".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
+    let input = AgentInput::new("测试重试");
 
     let _ = retry_runtime.run(input).await;
 

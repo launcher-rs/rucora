@@ -56,6 +56,35 @@
 //! }
 //! ```
 //!
+//! ## ToolRegistry trait
+//!
+//! [`ToolRegistry`] trait 是工具注册表的接口，用于管理和调用多个工具：
+//!
+//! ```rust,no_run
+//! use agentkit_core::tool::{Tool, ToolRegistry, ToolCategory};
+//! use agentkit_core::error::ToolError;
+//! use async_trait::async_trait;
+//! use serde_json::{Value, json};
+//! use std::sync::Arc;
+//!
+//! struct MyRegistry;
+//!
+//! #[async_trait]
+//! impl ToolRegistry for MyRegistry {
+//!     fn get_tool(&self, name: &str) -> Option<Arc<dyn Tool>> {
+//!         None // 实现工具查找逻辑
+//!     }
+//!
+//!     fn list_tools(&self) -> Vec<Arc<dyn Tool>> {
+//!         vec![] // 实现工具列表逻辑
+//!     }
+//!
+//!     async fn call(&self, name: &str, input: Value) -> Result<Value, ToolError> {
+//!         Err(ToolError::NotFound(name.to_string()))
+//!     }
+//! }
+//! ```
+//!
 //! ## ToolCategory
 //!
 //! 工具分类枚举，用于对工具进行分类管理：

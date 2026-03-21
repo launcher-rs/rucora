@@ -377,18 +377,11 @@ async fn demo_runtime() -> anyhow::Result<()> {
     info!("✓ Runtime 创建成功");
 
     // 测试非流式执行
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "你好".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
+    let input = AgentInput::new("你好");
 
     match runtime.run(input.clone()).await {
         Ok(output) => {
-            info!("✓ 非流式回复：{}", output.message.content);
+            info!("✓ 非流式回复：{}", output.value);
         }
         Err(e) => {
             info!("⚠ 非流式执行失败：{}", e);
@@ -443,14 +436,7 @@ async fn demo_complete_agent() -> anyhow::Result<()> {
             info!("✓ 完整 Agent 运行时创建成功");
 
             // 测试对话
-            let input = AgentInput {
-                messages: vec![ChatMessage {
-                    role: Role::User,
-                    content: "你好，请记住我的名字是李四".to_string(),
-                    name: None,
-                }],
-                metadata: None,
-            };
+            let input = AgentInput::new("你好，请记住我的名字是李四");
 
             info!("\n--- 对话开始 ---");
             let mut stream = runtime.run_stream(input);
