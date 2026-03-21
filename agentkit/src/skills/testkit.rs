@@ -3,10 +3,10 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 
 use agentkit_core::error::SkillError;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use tokio::fs;
 
-use super::{RhaiToolInvoker, load_skills_from_dir_with_rhai, rhai_stdlib_registrar};
+use super::{load_skills_from_dir_with_rhai, rhai_stdlib_registrar, RhaiToolInvoker};
 
 /// 测试用工具处理函数：接收 JSON 入参，返回 JSON 输出或错误字符串。
 pub type ToolHandler = Arc<dyn Fn(Value) -> Result<Value, String> + Send + Sync>;

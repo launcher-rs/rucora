@@ -7,26 +7,52 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 /// 允许的 Git 命令白名单
 const ALLOWED_COMMANDS: &[&str] = &[
-    "status", "log", "diff", "show", "branch", "remote", "config", "rev-parse",
-    "add", "commit", "checkout", "stash", "reset", "revert", "merge", "rebase",
-    "pull", "push", "fetch", "clone", "init", "describe", "tag",
+    "status",
+    "log",
+    "diff",
+    "show",
+    "branch",
+    "remote",
+    "config",
+    "rev-parse",
+    "add",
+    "commit",
+    "checkout",
+    "stash",
+    "reset",
+    "revert",
+    "merge",
+    "rebase",
+    "pull",
+    "push",
+    "fetch",
+    "clone",
+    "init",
+    "describe",
+    "tag",
 ];
 
 /// 写入命令列表
 const WRITE_COMMANDS: &[&str] = &[
-    "add", "commit", "checkout", "stash", "reset", "revert", "merge", "rebase",
-    "pull", "push", "fetch", "clone", "init",
+    "add", "commit", "checkout", "stash", "reset", "revert", "merge", "rebase", "pull", "push",
+    "fetch", "clone", "init",
 ];
 
 /// 禁止的危险参数
 const FORBIDDEN_ARGS: &[&str] = &[
-    "--exec", "--upload-pack", "--receive-pack", "--pager", "--editor",
-    "--no-verify", "--no-gpg-sign", "-c",
+    "--exec",
+    "--upload-pack",
+    "--receive-pack",
+    "--pager",
+    "--editor",
+    "--no-verify",
+    "--no-gpg-sign",
+    "-c",
 ];
 
 /// Git 工具：执行 Git 操作。
@@ -121,9 +147,9 @@ impl GitTool {
 
         // 如果配置了允许的根目录，检查路径是否在其中
         if let Some(allowed_roots) = &self.allowed_roots {
-            let is_allowed = allowed_roots.iter().any(|root| {
-                canonical_path.starts_with(root)
-            });
+            let is_allowed = allowed_roots
+                .iter()
+                .any(|root| canonical_path.starts_with(root));
             if !is_allowed {
                 return Err(ToolError::Message(format!(
                     "Git 仓库路径不在允许的范围内（允许的根目录：{:?}）",
@@ -135,8 +161,15 @@ impl GitTool {
         // 禁止访问系统敏感路径
         let path_str = canonical_path.to_string_lossy().to_lowercase();
         let forbidden_prefixes = [
-            "/etc/", "/proc/", "/sys/", "/dev/", "/boot/", "/bin/", "/sbin/",
-            "c:\\windows\\", "c:\\program files",
+            "/etc/",
+            "/proc/",
+            "/sys/",
+            "/dev/",
+            "/boot/",
+            "/bin/",
+            "/sbin/",
+            "c:\\windows\\",
+            "c:\\program files",
         ];
         for prefix in &forbidden_prefixes {
             if path_str.starts_with(prefix) {
@@ -168,9 +201,15 @@ impl GitTool {
             }
 
             // 检查命令注入特征
-            if arg.contains("$(") || arg.contains('`') || arg.contains('|')
-                || arg.contains(';') || arg.contains("&&") || arg.contains("||")
-                || arg.contains('>') || arg.contains('<') || arg.contains('\n')
+            if arg.contains("$(")
+                || arg.contains('`')
+                || arg.contains('|')
+                || arg.contains(';')
+                || arg.contains("&&")
+                || arg.contains("||")
+                || arg.contains('>')
+                || arg.contains('<')
+                || arg.contains('\n')
                 || arg.contains('\r')
             {
                 return Err(ToolError::Message(format!(
@@ -182,11 +221,12 @@ impl GitTool {
             // 检查路径遍历
             if arg.contains("..\\") || arg.contains("../") {
                 // 允许 git diff HEAD~2..HEAD 这样的用法，但不允许路径遍历
-                if arg.starts_with("..") || arg.ends_with("..") || arg.contains("/../") || arg.contains("\\..\\") {
-                    return Err(ToolError::Message(format!(
-                        "参数包含路径遍历：{}",
-                        arg
-                    )));
+                if arg.starts_with("..")
+                    || arg.ends_with("..")
+                    || arg.contains("/../")
+                    || arg.contains("\\..\\")
+                {
+                    return Err(ToolError::Message(format!("参数包含路径遍历：{}", arg)));
                 }
             }
 
@@ -281,7 +321,10 @@ impl Tool for GitTool {
             .env_clear()
             .env("PATH", std::env::var("PATH").unwrap_or_default())
             .env("HOME", std::env::var("HOME").unwrap_or_default())
-            .env("USERPROFILE", std::env::var("USERPROFILE").unwrap_or_default())
+            .env(
+                "USERPROFILE",
+                std::env::var("USERPROFILE").unwrap_or_default(),
+            )
             .output()
             .await
             .map_err(|e| ToolError::Message(format!("Git 命令执行失败：{}", e)))?;

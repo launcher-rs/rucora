@@ -9,13 +9,13 @@ use std::env;
 use agentkit_core::{
     error::ProviderError,
     provider::{
-        LlmProvider,
         types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
+        LlmProvider,
     },
 };
 use async_trait::async_trait;
-use futures_util::{StreamExt, stream::BoxStream};
-use serde_json::{Value, json};
+use futures_util::{stream::BoxStream, StreamExt};
+use serde_json::{json, Value};
 use tracing::{debug, trace};
 
 /// Ollama Chat Provider。

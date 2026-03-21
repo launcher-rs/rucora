@@ -5,7 +5,7 @@ use agentkit_core::{
 use async_trait::async_trait;
 use dom_smoothie::{Config, Readability, TextMode};
 use html2text::from_read;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},

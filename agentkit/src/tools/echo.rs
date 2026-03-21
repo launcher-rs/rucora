@@ -7,7 +7,7 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 /// Echo 工具：原样返回输入。
 ///

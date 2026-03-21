@@ -12,12 +12,12 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::{debug, info, warn};
 
-use super::shell::{MAX_OUTPUT_BYTES, SHELL_TIMEOUT_SECS, execute_shell_command, truncate_output};
+use super::shell::{execute_shell_command, truncate_output, MAX_OUTPUT_BYTES, SHELL_TIMEOUT_SECS};
 
 /// 受限命令执行工具。
 ///

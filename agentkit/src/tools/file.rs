@@ -7,19 +7,29 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::path::{Path, PathBuf};
 
 /// 允许的文件扩展名白名单
 const ALLOWED_EXTENSIONS: &[&str] = &[
-    "txt", "md", "rst", "rs", "py", "js", "ts", "jsx", "tsx", "json", "yaml", "yml", "toml",
-    "cfg", "ini", "sh", "bash", "zsh", "html", "css", "scss", "less", "xml", "csv",
+    "txt", "md", "rst", "rs", "py", "js", "ts", "jsx", "tsx", "json", "yaml", "yml", "toml", "cfg",
+    "ini", "sh", "bash", "zsh", "html", "css", "scss", "less", "xml", "csv",
 ];
 
 /// 禁止访问的路径前缀
 const FORBIDDEN_PATH_PREFIXES: &[&str] = &[
-    "/etc/", "/proc/", "/sys/", "/dev/", "/boot/", "/bin/", "/sbin/", "/usr/bin/", "/usr/sbin/",
-    "C:\\Windows\\", "C:\\Program Files\\", "C:\\Program Files (x86)\\",
+    "/etc/",
+    "/proc/",
+    "/sys/",
+    "/dev/",
+    "/boot/",
+    "/bin/",
+    "/sbin/",
+    "/usr/bin/",
+    "/usr/sbin/",
+    "C:\\Windows\\",
+    "C:\\Program Files\\",
+    "C:\\Program Files (x86)\\",
 ];
 
 /// 文件读取工具：读取文件内容。
@@ -96,9 +106,9 @@ impl FileReadTool {
         // 如果配置了允许的目录，检查路径是否在其中
         if let Some(allowed_dirs) = &self.allowed_dirs {
             let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            let is_allowed = allowed_dirs.iter().any(|dir| {
-                canonical_path.starts_with(dir)
-            });
+            let is_allowed = allowed_dirs
+                .iter()
+                .any(|dir| canonical_path.starts_with(dir));
             if !is_allowed {
                 return Err(ToolError::Message(format!(
                     "文件路径不在允许的工作目录内（允许的目录：{:?}）",
@@ -260,10 +270,12 @@ impl FileWriteTool {
         // 如果配置了允许的目录，检查路径是否在其中
         if let Some(allowed_dirs) = &self.allowed_dirs {
             let parent = path.parent().unwrap_or(path);
-            let canonical_path = parent.canonicalize().unwrap_or_else(|_| parent.to_path_buf());
-            let is_allowed = allowed_dirs.iter().any(|dir| {
-                canonical_path.starts_with(dir) || dir.starts_with(&canonical_path)
-            });
+            let canonical_path = parent
+                .canonicalize()
+                .unwrap_or_else(|_| parent.to_path_buf());
+            let is_allowed = allowed_dirs
+                .iter()
+                .any(|dir| canonical_path.starts_with(dir) || dir.starts_with(&canonical_path));
             if !is_allowed {
                 return Err(ToolError::Message(format!(
                     "文件路径不在允许的工作目录内（允许的目录：{:?}）",
@@ -432,9 +444,9 @@ impl FileEditTool {
         // 如果配置了允许的目录，检查路径是否在其中
         if let Some(allowed_dirs) = &self.allowed_dirs {
             let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            let is_allowed = allowed_dirs.iter().any(|dir| {
-                canonical_path.starts_with(dir)
-            });
+            let is_allowed = allowed_dirs
+                .iter()
+                .any(|dir| canonical_path.starts_with(dir));
             if !is_allowed {
                 return Err(ToolError::Message(format!(
                     "文件路径不在允许的工作目录内（允许的目录：{:?}）",

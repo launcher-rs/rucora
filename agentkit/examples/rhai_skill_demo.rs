@@ -1,7 +1,7 @@
-use agentkit_core::provider::{LlmProvider, types::ChatRequest};
+use agentkit_core::provider::{types::ChatRequest, LlmProvider};
 use agentkit_runtime::ToolRegistry;
 use rhai::{Dynamic, Engine};
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 

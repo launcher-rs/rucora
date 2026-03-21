@@ -1,5 +1,5 @@
 use agentkit_core::tool::types::ToolCall;
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use serde_json::json;
 
 use agentkit_runtime::{DefaultToolPolicy, ToolCallContext, ToolPolicy};

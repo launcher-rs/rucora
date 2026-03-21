@@ -1,8 +1,8 @@
 use agentkit::embed::CachedEmbeddingProvider;
 use agentkit_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::Arc;
 
 struct CountingEmbeddingProvider {
     calls: Arc<AtomicUsize>,

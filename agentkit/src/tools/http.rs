@@ -7,7 +7,7 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::time::Duration;
 use tracing::{info, warn};
 
@@ -88,8 +88,8 @@ impl HttpRequestTool {
     /// 检查 URL 是否安全
     fn validate_url(&self, url: &str) -> Result<(), ToolError> {
         // 解析 URL
-        let parsed = url::Url::parse(url)
-            .map_err(|e| ToolError::Message(format!("无效的 URL: {}", e)))?;
+        let parsed =
+            url::Url::parse(url).map_err(|e| ToolError::Message(format!("无效的 URL: {}", e)))?;
 
         // 检查协议
         let scheme = parsed.scheme().to_lowercase();
@@ -101,9 +101,9 @@ impl HttpRequestTool {
         }
 
         // 获取主机名
-        let host = parsed.host_str().ok_or_else(|| {
-            ToolError::Message("URL 缺少主机名".to_string())
-        })?;
+        let host = parsed
+            .host_str()
+            .ok_or_else(|| ToolError::Message("URL 缺少主机名".to_string()))?;
 
         let host_lower = host.to_lowercase();
 
@@ -111,19 +111,16 @@ impl HttpRequestTool {
         if let Some(blocked) = &self.blocked_domains {
             for domain in blocked {
                 if host_lower.ends_with(domain) || host_lower == *domain {
-                    return Err(ToolError::Message(format!(
-                        "域名 {} 在黑名单中",
-                        host
-                    )));
+                    return Err(ToolError::Message(format!("域名 {} 在黑名单中", host)));
                 }
             }
         }
 
         // 检查是否在白名单中（如果配置了白名单）
         if let Some(allowed) = &self.allowed_domains {
-            let is_allowed = allowed.iter().any(|domain| {
-                host_lower.ends_with(domain) || host_lower == *domain
-            });
+            let is_allowed = allowed
+                .iter()
+                .any(|domain| host_lower.ends_with(domain) || host_lower == *domain);
             if !is_allowed {
                 return Err(ToolError::Message(format!(
                     "域名 {} 不在白名单中（允许的域名：{:?}）",
@@ -135,19 +132,13 @@ impl HttpRequestTool {
         // 检查是否为内网 IP（简单的字符串前缀检查）
         for ip_prefix in FORBIDDEN_IP_RANGES {
             if host_lower.starts_with(ip_prefix) {
-                return Err(ToolError::Message(format!(
-                    "禁止访问内网资源：{}",
-                    host
-                )));
+                return Err(ToolError::Message(format!("禁止访问内网资源：{}", host)));
             }
         }
 
         // 检查 localhost
         if host_lower == "localhost" || host_lower.ends_with(".local") {
-            return Err(ToolError::Message(format!(
-                "禁止访问本地资源：{}",
-                host
-            )));
+            return Err(ToolError::Message(format!("禁止访问本地资源：{}", host)));
         }
 
         Ok(())
@@ -263,7 +254,9 @@ impl Tool for HttpRequestTool {
         // 构建 HTTP 客户端
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
-            .redirect(reqwest::redirect::Policy::limited(self.max_redirects as usize))
+            .redirect(reqwest::redirect::Policy::limited(
+                self.max_redirects as usize,
+            ))
             .user_agent("Mozilla/5.0 (compatible; AgentKit/0.1)")
             .build()
             .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败：{}", e)))?;

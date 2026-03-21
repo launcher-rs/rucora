@@ -11,20 +11,20 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     use std::{collections::HashMap, sync::Arc};
 
     use agentkit::mcp::{
-        ServiceExt,
         protocol::{ClientCapabilities, ClientInfo, Implementation},
         tool::{McpClient, McpTool},
         transport::{
-            StreamableHttpClientTransport,
             streamable_http_client::StreamableHttpClientTransportConfig,
+            StreamableHttpClientTransport,
         },
+        ServiceExt,
     };
     use agentkit_core::{
         provider::types::{ChatMessage, Role},
         runtime::Runtime,
     };
     use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-    use reqwest::header::{AUTHORIZATION, HeaderValue};
+    use reqwest::header::{HeaderValue, AUTHORIZATION};
     use std::sync::Arc;
     use tracing_subscriber::EnvFilter;
 

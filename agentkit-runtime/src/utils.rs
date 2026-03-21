@@ -1,4 +1,4 @@
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 fn truncate_utf8_to_bytes(s: &str, max_bytes: usize) -> String {
     if s.len() <= max_bytes {

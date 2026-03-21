@@ -9,8 +9,8 @@ use std::env;
 
 use agentkit_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
-use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
-use serde_json::{Value, json};
+use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
+use serde_json::{json, Value};
 
 /// OpenAI Embedding Provider。
 pub struct OpenAiEmbeddingProvider {

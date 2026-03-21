@@ -1,12 +1,12 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use agentkit_core::error::ProviderError;
-use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::ChatRequest;
+use agentkit_core::provider::LlmProvider;
 use async_trait::async_trait;
-use futures_util::{StreamExt, stream::BoxStream};
-use tokio::time::{Duration, sleep, timeout};
+use futures_util::{stream::BoxStream, StreamExt};
+use tokio::time::{sleep, timeout, Duration};
 use tracing::warn;
 
 /// 错误类型分类
@@ -45,21 +45,28 @@ impl ErrorCategory {
         let lower = msg.to_lowercase();
 
         // 认证错误
-        if lower.contains("auth") || lower.contains("unauthorized") || lower.contains("401")
-            || lower.contains("api key") || lower.contains("permission")
+        if lower.contains("auth")
+            || lower.contains("unauthorized")
+            || lower.contains("401")
+            || lower.contains("api key")
+            || lower.contains("permission")
         {
             return ErrorCategory::Auth;
         }
 
         // 无效请求
-        if lower.contains("invalid") || lower.contains("bad request") || lower.contains("400")
-            || lower.contains("not found") || lower.contains("404")
+        if lower.contains("invalid")
+            || lower.contains("bad request")
+            || lower.contains("400")
+            || lower.contains("not found")
+            || lower.contains("404")
         {
             return ErrorCategory::InvalidRequest;
         }
 
         // 限流
-        if lower.contains("rate limit") || lower.contains("too many requests")
+        if lower.contains("rate limit")
+            || lower.contains("too many requests")
             || lower.contains("429")
         {
             return ErrorCategory::RateLimit;
@@ -71,15 +78,20 @@ impl ErrorCategory {
         }
 
         // 网络错误
-        if lower.contains("network") || lower.contains("connection")
-            || lower.contains("dns") || lower.contains("socket")
-            || lower.contains("reset") || lower.contains("unreachable")
+        if lower.contains("network")
+            || lower.contains("connection")
+            || lower.contains("dns")
+            || lower.contains("socket")
+            || lower.contains("reset")
+            || lower.contains("unreachable")
         {
             return ErrorCategory::Network;
         }
 
         // 服务不可用
-        if lower.contains("unavailable") || lower.contains("503") || lower.contains("502")
+        if lower.contains("unavailable")
+            || lower.contains("503")
+            || lower.contains("502")
             || lower.contains("504")
         {
             return ErrorCategory::Unavailable;

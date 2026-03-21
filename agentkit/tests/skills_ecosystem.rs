@@ -1,8 +1,8 @@
 use agentkit::skills::testkit::{
-    MockToolInvoker, load_skills_with_mock_tools, unique_temp_dir, write_skill_rhai,
+    load_skills_with_mock_tools, unique_temp_dir, write_skill_rhai, MockToolInvoker,
 };
 use agentkit_runtime::ToolRegistry;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 
 #[tokio::test]
 async fn skills_rhai_should_run_with_stdlib_call_tool() {
@@ -45,11 +45,10 @@ let res = call_tool("cmd_exec", #{ command: "echo hi" });
         .await
         .expect("tool call");
 
-    assert!(
-        out.get("success")
-            .and_then(|v| v.as_bool())
-            .unwrap_or(false)
-    );
+    assert!(out
+        .get("success")
+        .and_then(|v| v.as_bool())
+        .unwrap_or(false));
     assert_eq!(out["res"]["ok"], json!(true));
 }
 

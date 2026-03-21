@@ -2,11 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use agentkit::provider::{ResilientProvider, RetryConfig};
 use agentkit_core::error::ProviderError;
-use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
+use agentkit_core::provider::LlmProvider;
 use async_trait::async_trait;
-use futures_util::StreamExt;
 use futures_util::stream::BoxStream;
+use futures_util::StreamExt;
 
 struct FlakyProvider {
     attempts: Mutex<u32>,
@@ -19,7 +19,9 @@ impl LlmProvider for FlakyProvider {
         *a += 1;
         if *a < 3 {
             // 使用明确的网络错误消息以便重试
-            return Err(ProviderError::Message("network connection reset".to_string()));
+            return Err(ProviderError::Message(
+                "network connection reset".to_string(),
+            ));
         }
         Ok(ChatResponse {
             message: ChatMessage {

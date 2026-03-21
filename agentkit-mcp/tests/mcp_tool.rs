@@ -8,8 +8,8 @@ use rmcp::{
         CallToolRequestParams, CallToolResult, ClientCapabilities, ClientInfo, Implementation,
         ListToolsResult, ServerInfo, Tool as RmcpTool,
     },
-    service::ServiceExt,
     service::serve_server,
+    service::ServiceExt,
 };
 use serde_json::json;
 

@@ -1,39 +1,259 @@
+//! 默认运行时实现模块
+//!
+//! # 概述
+//!
+//! `DefaultRuntime` 是 Agentkit 的默认运行时实现，提供完整的工具调用循环（Tool-Calling Loop）。
+//! 它负责与 LLM Provider 交互、执行工具调用、管理对话历史等。
+//!
+//! # 主要特性
+//!
+//! - **Tool-Calling Loop**: 自动执行工具调用直到任务完成
+//! - **流式支持**: 支持流式输出 token 和工具调用事件
+//! - **策略管理**: 支持工具调用策略（允许/拒绝）
+//! - **观测支持**: 统一的事件观测协议
+//! - **多来源工具**: 支持内置、Skills、MCP、A2A 等多种工具来源
+//! - **并发控制**: 支持工具并发执行和限制
+//!
+//! # 使用示例
+//!
+//! ## 基本使用
+//!
+//! ```rust,no_run
+//! use std::sync::Arc;
+//! use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+//! use agentkit_core::provider::LlmProvider;
+//! use agentkit_core::agent::types::AgentInput;
+//!
+//! # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
+//! // 创建工具注册表
+//! let tools = ToolRegistry::new();
+//!
+//! // 创建运行时
+//! let runtime = DefaultRuntime::new(provider, tools)
+//!     .with_system_prompt("你是一个有用的助手")
+//!     .with_max_steps(10);
+//!
+//! // 执行对话
+//! let input = AgentInput {
+//!     messages: vec![],
+//!     metadata: None,
+//! };
+//! let output = runtime.run(input).await?;
+//! println!("回复：{}", output.message.content);
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## 流式执行
+//!
+//! ```rust,no_run
+//! use std::sync::Arc;
+//! use futures_util::StreamExt;
+//! use agentkit_runtime::{DefaultRuntime, ToolRegistry, ChannelEvent};
+//! use agentkit_core::provider::LlmProvider;
+//! use agentkit_core::agent::types::AgentInput;
+//!
+//! # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
+//! let runtime = DefaultRuntime::new(provider, ToolRegistry::new());
+//! let input = AgentInput { messages: vec![], metadata: None };
+//!
+//! // 流式执行
+//! let mut stream = runtime.run_stream(input);
+//! while let Some(event) = stream.next().await {
+//!     match event {
+//!         Ok(ChannelEvent::TokenDelta(delta)) => {
+//!             print!("{}", delta.delta);  // 打印 token
+//!         }
+//!         Ok(ChannelEvent::ToolCall(call)) => {
+//!             println!("\n调用工具：{}", call.name);
+//!         }
+//!         Ok(ChannelEvent::ToolResult(result)) => {
+//!             println!("工具结果：{}", result.output);
+//!         }
+//!         _ => {}
+//!     }
+//! }
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## 使用构建器
+//!
+//! ```rust,no_run
+//! use std::sync::Arc;
+//! use agentkit_runtime::{DefaultRuntimeBuilder, RuntimeConfig, ToolRegistry};
+//! use agentkit_core::provider::LlmProvider;
+//!
+//! # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
+//! let runtime = DefaultRuntimeBuilder::new()
+//!     .provider(provider)
+//!     .tools(ToolRegistry::new())
+//!     .system_prompt("你是一个有用的助手")
+//!     .max_steps(10)
+//!     .max_tool_concurrency(3)
+//!     .build()?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # 架构说明
+//!
+//! ## 执行流程
+//!
+//! ```text
+//! 1. 接收用户输入
+//!    │
+//!    ▼
+//! 2. 添加系统提示词（如果有）
+//!    │
+//!    ▼
+//! 3. 调用 LLM Provider（带工具定义）
+//!    │
+//!    ▼
+//! 4. 检查是否有工具调用
+//!    │
+//!    ├─ 无工具调用 ──► 返回结果，结束
+//!    │
+//!    ▼
+//! 5. 有工具调用
+//!    │
+//!    ▼
+//! 6. 执行策略检查（Policy Check）
+//!    │
+//!    ▼
+//! 7. 执行工具（支持并发）
+//!    │
+//!    ▼
+//! 8. 将工具结果添加到对话历史
+//!    │
+//!    ▼
+//! 9. 回到步骤 3，继续循环
+//!    │
+//!    ▼
+//! 10. 达到最大步数 ──► 返回错误
+//! ```
+//!
+//! # 配置说明
+//!
+//! ## RuntimeConfig
+//!
+//! - `max_steps`: 最大执行步数（默认 8），防止无限循环
+//! - `max_tool_concurrency`: 工具并发执行数（默认 1）
+//! - `enable_tool_logging`: 是否启用工具执行日志
+//! - `debug_mode`: 是否启用详细调试模式
+//!
+//! ## 工具策略
+//!
+//! 通过 `ToolPolicy` trait 实现工具调用的 allow/deny 检查。
+//! 内置策略：
+//! - `DefaultToolPolicy`: 默认策略，拦截危险命令
+//! - `AllowAllToolPolicy`: 允许所有工具调用
+
 use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures_util::stream;
-use futures_util::{StreamExt, stream::BoxStream};
+use futures_util::{stream::BoxStream, StreamExt};
 use serde_json::json;
 use tracing::{debug, info, warn};
 
 use agentkit_core::agent::types::{AgentInput, AgentOutput};
 use agentkit_core::channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent};
 use agentkit_core::error::{AgentError, DiagnosticError};
-use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use agentkit_core::provider::LlmProvider;
 use agentkit_core::runtime::{NoopRuntimeObserver, Runtime, RuntimeObserver};
 use agentkit_core::tool::types::{ToolCall, ToolResult};
 
 use crate::policy::{DefaultToolPolicy, ToolPolicy};
 use crate::tool_execution::{execute_tool_call_with_policy_and_observer, tool_result_to_message};
-use crate::tool_registry::ToolRegistry;
+use crate::tool_registry::{ToolRegistry, ToolSource};
 
-/// 默认的最完整 runtime：
-/// - 支持 tool-calling loop（非流式 run）
-/// - 支持流式输出（run_stream，输出 ChannelEvent）
-/// - 支持 tool policy
-/// - 支持统一观测协议 RuntimeObserver
+/// 运行时配置
+///
+/// 用于控制 `DefaultRuntime` 的行为。
+///
+/// # 字段说明
+///
+/// - `max_steps`: 最大执行步数，防止无限循环（默认 8）
+/// - `max_tool_concurrency`: 工具并发执行数（默认 1）
+/// - `enable_tool_logging`: 是否启用工具执行日志
+/// - `debug_mode`: 是否启用详细调试模式
+///
+/// # 示例
+///
+/// ```rust
+/// use agentkit_runtime::RuntimeConfig;
+///
+/// let config = RuntimeConfig {
+///     max_steps: 10,
+///     max_tool_concurrency: 3,
+///     enable_tool_logging: true,
+///     debug_mode: false,
+/// };
+/// ```
+#[derive(Debug, Clone)]
+pub struct RuntimeConfig {
+    /// 最大执行步数
+    pub max_steps: usize,
+    /// 工具并发执行数
+    pub max_tool_concurrency: usize,
+    /// 是否启用工具执行日志
+    pub enable_tool_logging: bool,
+    /// 是否启用详细调试模式
+    pub debug_mode: bool,
+}
+
+impl Default for RuntimeConfig {
+    fn default() -> Self {
+        Self {
+            max_steps: 8,
+            max_tool_concurrency: 1,
+            enable_tool_logging: true,
+            debug_mode: false,
+        }
+    }
+}
+
+/// 默认的运行时实现
+///
+/// 提供完整的 tool-calling loop，支持：
+/// - 非流式执行（`run`）
+/// - 流式执行（`run_stream`）
+/// - 工具策略（`ToolPolicy`）
+/// - 统一观测（`RuntimeObserver`）
+/// - 多种工具来源（内置、Skill、MCP、A2A）
+///
+/// # 示例
+///
+/// ```rust,no_run
+/// use std::sync::Arc;
+/// use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+/// use agentkit_core::provider::LlmProvider;
+///
+/// # async fn example(provider: Arc<dyn LlmProvider>) {
+/// let tools = ToolRegistry::new();
+/// let runtime = DefaultRuntime::new(provider, tools)
+///     .with_system_prompt("你是一个有用的助手");
+/// # }
+/// ```
 pub struct DefaultRuntime {
+    /// LLM Provider
     provider: Arc<dyn LlmProvider>,
+    /// 系统提示词
     system_prompt: Option<String>,
+    /// 工具注册表
     tools: ToolRegistry,
+    /// 工具策略
     policy: Arc<dyn ToolPolicy>,
+    /// 观测器
     observer: Arc<dyn RuntimeObserver>,
-    max_steps: usize,
-    max_tool_concurrency: usize,
+    /// 运行时配置
+    config: RuntimeConfig,
 }
 
 impl DefaultRuntime {
+    /// 创建新的运行时
     pub fn new(provider: Arc<dyn LlmProvider>, tools: ToolRegistry) -> Self {
         Self {
             provider,
@@ -41,34 +261,85 @@ impl DefaultRuntime {
             tools,
             policy: Arc::new(DefaultToolPolicy::new()),
             observer: Arc::new(NoopRuntimeObserver),
-            max_steps: 8,
-            max_tool_concurrency: 1,
+            config: RuntimeConfig::default(),
         }
     }
 
+    /// 使用自定义配置创建运行时
+    pub fn with_config(
+        provider: Arc<dyn LlmProvider>,
+        tools: ToolRegistry,
+        config: RuntimeConfig,
+    ) -> Self {
+        Self {
+            provider,
+            system_prompt: None,
+            tools,
+            policy: Arc::new(DefaultToolPolicy::new()),
+            observer: Arc::new(NoopRuntimeObserver),
+            config,
+        }
+    }
+
+    /// 设置系统提示词
     pub fn with_system_prompt(mut self, system_prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(system_prompt.into());
         self
     }
 
+    /// 设置工具策略
     pub fn with_policy(mut self, policy: Arc<dyn ToolPolicy>) -> Self {
         self.policy = policy;
         self
     }
 
+    /// 设置观测器
     pub fn with_observer(mut self, observer: Arc<dyn RuntimeObserver>) -> Self {
         self.observer = observer;
         self
     }
 
-    pub fn with_max_steps(mut self, max_steps: usize) -> Self {
-        self.max_steps = max_steps;
+    /// 设置运行时配置
+    pub fn with_config_mut(mut self, config: RuntimeConfig) -> Self {
+        self.config = config;
         self
     }
 
-    pub fn with_max_tool_concurrency(mut self, max_concurrency: usize) -> Self {
-        self.max_tool_concurrency = max_concurrency.max(1);
+    /// 设置最大步数
+    pub fn with_max_steps(mut self, max_steps: usize) -> Self {
+        self.config.max_steps = max_steps;
         self
+    }
+
+    /// 设置最大工具并发数
+    pub fn with_max_tool_concurrency(mut self, max_concurrency: usize) -> Self {
+        self.config.max_tool_concurrency = max_concurrency.max(1);
+        self
+    }
+
+    /// 获取工具注册表的引用
+    pub fn tools(&self) -> &ToolRegistry {
+        &self.tools
+    }
+
+    /// 获取可变工具注册表
+    pub fn tools_mut(&mut self) -> &mut ToolRegistry {
+        &mut self.tools
+    }
+
+    /// 从其他注册表添加工具
+    pub fn add_tools(&mut self, registry: ToolRegistry) {
+        self.tools = self.tools.clone().merge(registry);
+    }
+
+    /// 启用/禁用工具
+    pub fn set_tool_enabled(&mut self, name: &str, enabled: bool) {
+        self.tools.set_tool_enabled(name, enabled);
+    }
+
+    /// 按来源获取工具数量
+    pub fn tool_count_by_source(&self, source: ToolSource) -> usize {
+        self.tools.filter_by_source(source).len()
     }
 
     fn emit(&self, event: ChannelEvent) {
@@ -80,7 +351,7 @@ impl DefaultRuntime {
             return Ok(vec![]);
         }
 
-        let max = self.max_tool_concurrency.max(1);
+        let max = self.config.max_tool_concurrency.max(1);
         if max == 1 || calls.len() == 1 {
             let mut out: Vec<ToolResult> = Vec::with_capacity(calls.len());
             for call in calls {
@@ -126,6 +397,7 @@ impl DefaultRuntime {
         Ok(ok.into_iter().map(|(_, v)| v).collect())
     }
 
+    /// 流式执行
     pub fn run_stream(
         &self,
         mut input: AgentInput,
@@ -135,8 +407,8 @@ impl DefaultRuntime {
         let policy = self.policy.clone();
         let observer = self.observer.clone();
         let system_prompt = self.system_prompt.clone();
-        let max_steps = self.max_steps;
-        let max_tool_concurrency = self.max_tool_concurrency;
+        let max_steps = self.config.max_steps;
+        let max_tool_concurrency = self.config.max_tool_concurrency;
 
         let stream = async_stream::try_stream! {
             if let Some(system_prompt) = &system_prompt {
@@ -152,6 +424,13 @@ impl DefaultRuntime {
 
             let tool_defs = tools.definitions();
             let mut messages = input.messages;
+
+            info!(
+                tool_count = tool_defs.len(),
+                max_steps,
+                max_tool_concurrency,
+                "stream_runtime.start"
+            );
 
             for step in 0..max_steps {
                 debug!(step, messages_len = messages.len(), "stream_runtime.step.start");
@@ -242,6 +521,12 @@ impl DefaultRuntime {
                     break;
                 }
 
+                info!(
+                    step,
+                    tool_call_count = tool_calls.len(),
+                    "stream_runtime.tool_calls"
+                );
+
                 let max = max_tool_concurrency.max(1);
                 let results: Vec<Result<(usize, ToolResult), AgentError>> = stream::iter(
                     tool_calls
@@ -305,6 +590,8 @@ impl DefaultRuntime {
                 observer.on_event(ev.clone());
                 yield ev;
             }
+
+            info!("stream_runtime.done");
         };
 
         Box::pin(stream)
@@ -314,7 +601,11 @@ impl DefaultRuntime {
 #[async_trait]
 impl Runtime for DefaultRuntime {
     async fn run(&self, mut input: AgentInput) -> Result<AgentOutput, AgentError> {
-        info!(max_steps = self.max_steps, "runtime.run.start");
+        info!(
+            max_steps = self.config.max_steps,
+            tool_count = self.tools.enabled_len(),
+            "runtime.run.start"
+        );
 
         if let Some(system_prompt) = &self.system_prompt {
             input.messages.insert(
@@ -331,7 +622,7 @@ impl Runtime for DefaultRuntime {
         let mut messages = input.messages;
         let mut tool_results: Vec<ToolResult> = Vec::new();
 
-        for step in 0..self.max_steps {
+        for step in 0..self.config.max_steps {
             debug!(step, messages_len = messages.len(), "runtime.step.start");
             self.emit(ChannelEvent::Debug(DebugEvent {
                 message: "step.start".to_string(),
@@ -348,14 +639,10 @@ impl Runtime for DefaultRuntime {
                 metadata: input.metadata.clone(),
             };
 
-            let resp = self
-                .provider
-                .chat(request)
-                .await
-                .map_err(|e| {
-                    let diag = e.diagnostic();
-                    AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message))
-                })?;
+            let resp = self.provider.chat(request).await.map_err(|e| {
+                let diag = e.diagnostic();
+                AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message))
+            })?;
 
             messages.push(resp.message.clone());
             self.emit(ChannelEvent::Message(resp.message.clone()));
@@ -376,6 +663,12 @@ impl Runtime for DefaultRuntime {
                 });
             }
 
+            info!(
+                step,
+                tool_call_count = resp.tool_calls.len(),
+                "runtime.executing_tools"
+            );
+
             let results = self.execute_tool_calls(&resp.tool_calls).await?;
             for (idx, result) in results.into_iter().enumerate() {
                 let call = &resp.tool_calls[idx];
@@ -395,14 +688,115 @@ impl Runtime for DefaultRuntime {
         }
 
         warn!(
-            max_steps = self.max_steps,
+            max_steps = self.config.max_steps,
             tool_results_len = tool_results.len(),
             "runtime.run.max_steps_exceeded"
         );
 
         Err(AgentError::Message(format!(
             "超过最大步数限制（max_steps={}），仍未结束工具调用流程",
-            self.max_steps
+            self.config.max_steps
         )))
+    }
+}
+
+/// 运行时构建器
+pub struct DefaultRuntimeBuilder {
+    provider: Option<Arc<dyn LlmProvider>>,
+    tools: ToolRegistry,
+    system_prompt: Option<String>,
+    policy: Option<Arc<dyn ToolPolicy>>,
+    observer: Option<Arc<dyn RuntimeObserver>>,
+    config: RuntimeConfig,
+}
+
+impl Default for DefaultRuntimeBuilder {
+    fn default() -> Self {
+        Self {
+            provider: None,
+            tools: ToolRegistry::new(),
+            system_prompt: None,
+            policy: None,
+            observer: None,
+            config: RuntimeConfig::default(),
+        }
+    }
+}
+
+impl DefaultRuntimeBuilder {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn provider(mut self, provider: Arc<dyn LlmProvider>) -> Self {
+        self.provider = Some(provider);
+        self
+    }
+
+    pub fn tools(mut self, tools: ToolRegistry) -> Self {
+        self.tools = tools;
+        self
+    }
+
+    pub fn add_tool<T: agentkit_core::tool::Tool + 'static>(mut self, tool: T) -> Self {
+        self.tools = self.tools.register(tool);
+        self
+    }
+
+    pub fn add_tools(mut self, tools: ToolRegistry) -> Self {
+        self.tools = self.tools.merge(tools);
+        self
+    }
+
+    pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
+        self.system_prompt = Some(prompt.into());
+        self
+    }
+
+    pub fn policy(mut self, policy: Arc<dyn ToolPolicy>) -> Self {
+        self.policy = Some(policy);
+        self
+    }
+
+    pub fn observer(mut self, observer: Arc<dyn RuntimeObserver>) -> Self {
+        self.observer = Some(observer);
+        self
+    }
+
+    pub fn config(mut self, config: RuntimeConfig) -> Self {
+        self.config = config;
+        self
+    }
+
+    pub fn max_steps(mut self, max: usize) -> Self {
+        self.config.max_steps = max;
+        self
+    }
+
+    pub fn max_tool_concurrency(mut self, max: usize) -> Self {
+        self.config.max_tool_concurrency = max.max(1);
+        self
+    }
+
+    pub fn build(self) -> Result<DefaultRuntime, AgentError> {
+        let provider = self
+            .provider
+            .ok_or_else(|| AgentError::Message("必须提供 LlmProvider".to_string()))?;
+
+        let mut runtime = DefaultRuntime::new(provider, self.tools).with_config_mut(self.config);
+
+        if let Some(prompt) = self.system_prompt {
+            runtime = runtime.with_system_prompt(prompt);
+        }
+
+        if let Some(policy) = self.policy {
+            runtime = runtime.with_policy(policy);
+        }
+
+        if let Some(observer) = self.observer {
+            runtime = runtime.with_observer(observer);
+        }
+
+        Ok(runtime)
     }
 }

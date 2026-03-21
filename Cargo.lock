@@ -95,11 +95,16 @@ dependencies = [
 name = "agentkit-runtime"
 version = "0.1.0"
 dependencies = [
+ "agentkit",
+ "agentkit-a2a",
  "agentkit-core",
+ "agentkit-mcp",
  "async-stream",
  "async-trait",
  "criterion",
  "futures-util",
+ "ra2a",
+ "rmcp",
  "serde_json",
  "tokio",
  "tracing",

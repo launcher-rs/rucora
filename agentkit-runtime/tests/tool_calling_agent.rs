@@ -8,15 +8,15 @@
 use agentkit_core::{
     agent::types::AgentInput,
     error::{ProviderError, ToolError},
-    provider::LlmProvider,
     provider::types::{ChatMessage, ChatRequest, ChatResponse, Role},
+    provider::LlmProvider,
     runtime::Runtime,
-    tool::Tool,
     tool::types::{ToolCall, ToolResult},
+    tool::Tool,
 };
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use async_trait::async_trait;
-use serde_json::{Value, json};
+use serde_json::{json, Value};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
