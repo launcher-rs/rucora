@@ -3,7 +3,7 @@
 //! 本示例展示 AgentKit 中的高级错误处理技巧
 
 use agentkit_core::error::{
-    AgentError, DiagnosticError, MemoryError, ProviderError, SkillError, ToolError,
+    AgentError, DiagnosticError, ProviderError, ToolError,
 };
 use tracing::info;
 
@@ -143,6 +143,7 @@ async fn demo_custom_error() -> anyhow::Result<()> {
 
     // 定义业务错误
     #[derive(Debug)]
+    #[allow(dead_code)]
     enum BusinessError {
         NotFound(String),
         InvalidInput(String),

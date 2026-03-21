@@ -71,6 +71,7 @@ async fn provider_contract_stream_chat_default_should_error() {
         Ok(_) => panic!("expected stream_chat to return Err for default implementation"),
         Err(err) => match err {
             ProviderError::Message(msg) => assert!(msg.contains("not supported")),
+            _ => panic!("expected Message error, got {:?}", err),
         },
     }
 }

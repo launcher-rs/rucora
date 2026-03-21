@@ -30,6 +30,8 @@ tokio = { version = "1", features = ["process", "fs", "time", "sync"] }
 tracing = "0.1"
 rhai = { version = "1", features = ["serde", "sync"] }
 url = "2"
+regex = "1"
+thiserror = "2"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

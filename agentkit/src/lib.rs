@@ -12,16 +12,17 @@
 //!
 //! ```text
 //! agentkit
-//! ├── core       - 核心抽象层（重新导出 agentkit-core）
-//! ├── runtime    - 运行时（重新导出 agentkit-runtime）
-//! ├── provider   - LLM Provider 实现（OpenAI/Ollama/Router）
-//! ├── tools      - 工具实现（Shell/File/HTTP/Git/Memory）
-//! ├── skills     - 技能实现（Echo/Rhai/Command）
-//! ├── memory     - 记忆实现（InMemory/File）
-//! ├── retrieval  - 检索实现（Chroma）
-//! ├── embed      - Embedding 实现（OpenAI/Ollama）
-//! ├── rag        - RAG 管线（Chunking/Indexing/Retrieval）
-//! └── config     - 统一配置系统
+//! ├── core          - 核心抽象层（重新导出 agentkit-core）
+//! ├── runtime       - 运行时（重新导出 agentkit-runtime）
+//! ├── provider      - LLM Provider 实现（OpenAI/Ollama/Router）
+//! ├── tools         - 工具实现（Shell/File/HTTP/Git/Memory）
+//! ├── skills        - 技能实现（Echo/Rhai/Command）
+//! ├── memory        - 记忆实现（InMemory/File）
+//! ├── retrieval     - 检索实现（Chroma）
+//! ├── embed         - Embedding 实现（OpenAI/Ollama）
+//! ├── rag           - RAG 管线（Chunking/Indexing/Retrieval）
+//! ├── conversation  - 对话历史管理（新增）
+//! └── config        - 统一配置系统
 //! ```
 //!
 //! # 快速开始
@@ -321,6 +322,26 @@ pub mod memory;
 /// - Profile 切换（dev/prod）
 /// - 环境变量覆盖
 pub mod config;
+
+/// Conversation（对话历史）管理
+///
+/// 提供对话历史管理功能：
+///
+/// - [`conversation::ConversationManager`]: 对话管理器
+/// - 消息窗口限制
+/// - Token 限制
+/// - 消息压缩
+pub mod conversation;
+
+/// Prompt 模板系统
+///
+/// 提供 Prompt 模板功能：
+///
+/// - [`prompt::PromptTemplate`]: Prompt 模板
+/// - [`prompt::PromptBuilder`]: Prompt 构建器
+/// - 变量替换
+/// - 条件渲染
+pub mod prompt;
 
 /// MCP（Model Context Protocol）集成（可选）
 ///

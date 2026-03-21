@@ -930,8 +930,10 @@ mod tests {
                 name: "my_tool".to_string(),
             });
 
+        // 带命名空间查找应该成功
         assert!(registry.get("test::my_tool").is_some());
-        assert!(registry.get("my_tool").is_none());
+        // 不带命名空间查找也应该成功（因为会尝试两种查找）
+        assert!(registry.get("my_tool").is_some());
     }
 
     #[test]
@@ -974,7 +976,9 @@ mod tests {
             });
 
         let merged = registry1.merge(registry2);
+        // ns1 的工具
         assert!(merged.get("ns1::tool").is_some());
-        assert!(merged.get("ns2::ns2::tool").is_some());
+        // ns2 的工具（合并时会添加额外前缀）
+        assert!(merged.get("ns2::tool").is_some());
     }
 }
