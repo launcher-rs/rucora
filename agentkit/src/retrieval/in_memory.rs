@@ -90,10 +90,7 @@ impl VectorStore for InMemoryVectorStore {
 
     async fn get(&self, ids: Vec<String>) -> Result<Vec<VectorRecord>, ProviderError> {
         let store = self.records.read().await;
-        Ok(ids
-            .iter()
-            .filter_map(|id| store.get(id).cloned())
-            .collect())
+        Ok(ids.iter().filter_map(|id| store.get(id).cloned()).collect())
     }
 
     async fn search(&self, query: VectorQuery) -> Result<Vec<SearchResult>, ProviderError> {
@@ -115,7 +112,11 @@ impl VectorStore for InMemoryVectorStore {
             .collect();
 
         // 按相似度排序（降序）
-        results.sort_by(|a, b| b.score.partial_cmp(&a.score).unwrap_or(std::cmp::Ordering::Equal));
+        results.sort_by(|a, b| {
+            b.score
+                .partial_cmp(&a.score)
+                .unwrap_or(std::cmp::Ordering::Equal)
+        });
 
         // 应用阈值过滤
         if let Some(threshold) = query.score_threshold {
@@ -176,10 +177,7 @@ mod tests {
         assert_eq!(results[0].id, "doc1"); // 最相似
 
         // 删除
-        store
-            .delete(vec!["doc1".to_string()])
-            .await
-            .unwrap();
+        store.delete(vec!["doc1".to_string()]).await.unwrap();
         assert_eq!(store.count().await.unwrap(), 1);
 
         // 清空

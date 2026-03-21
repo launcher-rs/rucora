@@ -343,6 +343,28 @@ pub mod conversation;
 /// - 条件渲染
 pub mod prompt;
 
+/// Token 计数和成本管理
+///
+/// 提供 Token 计数和 API 成本管理功能：
+///
+/// - [`cost::TokenCounter`]: Token 计数器
+/// - [`cost::CostTracker`]: 成本追踪器
+/// - 预算控制
+/// - 使用统计
+pub mod cost;
+
+/// 中间件系统
+///
+/// 提供请求/响应拦截功能：
+///
+/// - [`middleware::Middleware`]: 中间件 trait
+/// - [`middleware::MiddlewareChain`]: 中间件链
+/// - [`middleware::LoggingMiddleware`]: 日志中间件
+/// - [`middleware::CacheMiddleware`]: 缓存中间件
+/// - [`middleware::RateLimitMiddleware`]: 限流中间件
+/// - [`middleware::MetricsMiddleware`]: 指标中间件
+pub mod middleware;
+
 /// MCP（Model Context Protocol）集成（可选）
 ///
 /// 需要启用 `mcp` feature。

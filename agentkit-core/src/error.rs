@@ -229,7 +229,10 @@ impl ProviderError {
     }
 
     /// 创建限流错误
-    pub fn rate_limit(message: impl Into<String>, retry_after: Option<std::time::Duration>) -> Self {
+    pub fn rate_limit(
+        message: impl Into<String>,
+        retry_after: Option<std::time::Duration>,
+    ) -> Self {
         Self::RateLimit {
             message: message.into(),
             retry_after,
@@ -268,7 +271,9 @@ impl ProviderError {
 impl DiagnosticError for ProviderError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
-            ProviderError::Network { message, retriable, .. } => ErrorDiagnostic {
+            ProviderError::Network {
+                message, retriable, ..
+            } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
                 retriable: *retriable,
@@ -277,7 +282,11 @@ impl DiagnosticError for ProviderError {
                 status_code: None,
                 retry_after: None,
             },
-            ProviderError::Api { status, message, code } => ErrorDiagnostic {
+            ProviderError::Api {
+                status,
+                message,
+                code,
+            } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
                 retriable: *status >= 500,
@@ -295,7 +304,10 @@ impl DiagnosticError for ProviderError {
                 status_code: None,
                 retry_after: None,
             },
-            ProviderError::RateLimit { message, retry_after } => ErrorDiagnostic {
+            ProviderError::RateLimit {
+                message,
+                retry_after,
+            } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
                 retriable: true,
@@ -344,10 +356,7 @@ pub enum ToolError {
 
     /// 策略拒绝
     #[error("tool policy denied (rule_id={rule_id}): {reason}")]
-    PolicyDenied {
-        rule_id: String,
-        reason: String,
-    },
+    PolicyDenied { rule_id: String, reason: String },
 
     /// 工具不存在
     #[error("工具不存在：{name}")]
@@ -579,7 +588,8 @@ mod tests {
         assert!(!auth.is_retriable());
         assert_eq!(auth.category(), ErrorCategory::Authentication);
 
-        let rate_limit = ProviderError::rate_limit("限流", Some(std::time::Duration::from_secs(60)));
+        let rate_limit =
+            ProviderError::rate_limit("限流", Some(std::time::Duration::from_secs(60)));
         assert!(rate_limit.is_retriable());
         assert_eq!(rate_limit.category(), ErrorCategory::RateLimit);
     }

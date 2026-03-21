@@ -181,7 +181,7 @@ impl ConversationManager {
     /// 清空历史
     pub fn clear(&mut self) {
         self.messages.clear();
-        
+
         // 保留系统提示词
         if let Some(prompt) = &self.system_prompt {
             self.messages.push(ChatMessage {
@@ -196,7 +196,9 @@ impl ConversationManager {
     fn enforce_limits(&mut self) {
         if self.max_messages > 0 && self.messages.len() > self.max_messages {
             // 保留系统提示词
-            let has_system = self.messages.first()
+            let has_system = self
+                .messages
+                .first()
                 .map(|m| m.role == Role::System)
                 .unwrap_or(false);
 
@@ -217,10 +219,12 @@ impl ConversationManager {
     ///
     /// 将早期消息压缩为单个摘要消息。
     pub fn compress(&mut self, summary: impl Into<String>) {
-        let has_system = self.messages.first()
+        let has_system = self
+            .messages
+            .first()
             .map(|m| m.role == Role::System)
             .unwrap_or(false);
-        
+
         let summary_message = ChatMessage {
             role: Role::System,
             content: format!("对话历史摘要：{}", summary.into()),
@@ -233,7 +237,7 @@ impl ConversationManager {
             new_messages.push(self.messages[0].clone());
         }
         new_messages.push(summary_message);
-        
+
         // 保留最近 2 条消息
         if self.messages.len() > 2 {
             new_messages.extend_from_slice(&self.messages[self.messages.len() - 2..]);
@@ -268,9 +272,7 @@ pub fn estimate_tokens(text: &str) -> usize {
 
 /// 计算消息列表的 token 数（估算）
 pub fn estimate_messages_tokens(messages: &[ChatMessage]) -> usize {
-    messages.iter()
-        .map(|m| estimate_tokens(&m.content))
-        .sum()
+    messages.iter().map(|m| estimate_tokens(&m.content)).sum()
 }
 
 #[cfg(test)]
@@ -280,21 +282,20 @@ mod tests {
     #[test]
     fn test_conversation_manager_basic() {
         let mut manager = ConversationManager::new();
-        
+
         manager.add_user_message("你好");
         manager.add_assistant_message("你好！有什么可以帮助你的？");
-        
+
         assert_eq!(manager.len(), 2);
         assert!(!manager.is_empty());
     }
 
     #[test]
     fn test_conversation_manager_system_prompt() {
-        let mut manager = ConversationManager::new()
-            .with_system_prompt("你是助手");
-        
+        let mut manager = ConversationManager::new().with_system_prompt("你是助手");
+
         manager.add_user_message("你好");
-        
+
         assert_eq!(manager.len(), 2);
         assert_eq!(manager.messages[0].role, Role::System);
     }
@@ -304,11 +305,11 @@ mod tests {
         let mut manager = ConversationManager::new()
             .with_system_prompt("系统")
             .with_max_messages(5);
-        
+
         for i in 0..10 {
             manager.add_user_message(format!("消息 {}", i));
         }
-        
+
         // 应该保留系统提示词 + 最近 4 条消息
         assert_eq!(manager.len(), 5);
         assert_eq!(manager.messages[0].role, Role::System);
@@ -316,12 +317,11 @@ mod tests {
 
     #[test]
     fn test_conversation_manager_clear() {
-        let mut manager = ConversationManager::new()
-            .with_system_prompt("系统");
-        
+        let mut manager = ConversationManager::new().with_system_prompt("系统");
+
         manager.add_user_message("你好");
         manager.clear();
-        
+
         assert_eq!(manager.len(), 1);
         assert_eq!(manager.messages[0].content, "系统");
     }
@@ -330,7 +330,7 @@ mod tests {
     fn test_estimate_tokens() {
         // 英文测试
         assert!(estimate_tokens("Hello World") > 0);
-        
+
         // 中文测试
         assert!(estimate_tokens("你好世界") > 0);
     }

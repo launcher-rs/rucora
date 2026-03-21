@@ -2,9 +2,7 @@
 //!
 //! 本示例展示 AgentKit 中的高级错误处理技巧
 
-use agentkit_core::error::{
-    AgentError, DiagnosticError, ProviderError, ToolError,
-};
+use agentkit_core::error::{AgentError, DiagnosticError, ProviderError, ToolError};
 use tracing::info;
 
 /// 运行示例

@@ -67,7 +67,7 @@ impl PromptTemplate {
     pub fn from_string(template: impl Into<String>) -> Self {
         let template = template.into();
         let variables = extract_variables(&template);
-        
+
         Self {
             template,
             name: None,
@@ -77,9 +77,9 @@ impl PromptTemplate {
 
     /// 从文件加载模板
     pub fn from_file(path: &std::path::Path) -> Result<Self, PromptError> {
-        let content = std::fs::read_to_string(path)
-            .map_err(|e| PromptError::IoError { source: e })?;
-        
+        let content =
+            std::fs::read_to_string(path).map_err(|e| PromptError::IoError { source: e })?;
+
         Ok(Self::from_string(content))
     }
 
@@ -120,7 +120,7 @@ impl PromptTemplate {
     /// ```
     pub fn render(&self, context: &Value) -> Result<String, PromptError> {
         let mut result = self.template.clone();
-        
+
         // 替换变量
         for var in &self.variables {
             if let Some(value) = get_json_value(context, var) {
@@ -128,16 +128,16 @@ impl PromptTemplate {
                 result = result.replace(&format!("{{{{{}}}}}", var), &escaped);
             }
         }
-        
+
         // 处理条件渲染
         result = process_if_blocks(&result, context)?;
-        
+
         // 处理循环渲染
         result = process_each_blocks(&result, context)?;
-        
+
         // 清理未替换的变量
         result = cleanup_unused_variables(&result);
-        
+
         Ok(result)
     }
 
@@ -149,17 +149,17 @@ impl PromptTemplate {
     /// 仅在确保输入安全时使用。
     pub fn render_unescaped(&self, context: &Value) -> Result<String, PromptError> {
         let mut result = self.template.clone();
-        
+
         for var in &self.variables {
             if let Some(value) = get_json_value(context, var) {
                 result = result.replace(&format!("{{{{{}}}}}", var), &value);
             }
         }
-        
+
         result = process_if_blocks(&result, context)?;
         result = process_each_blocks(&result, context)?;
         result = cleanup_unused_variables(&result);
-        
+
         Ok(result)
     }
 
@@ -216,11 +216,11 @@ pub enum PromptError {
 fn extract_variables(template: &str) -> Vec<String> {
     let mut variables = Vec::new();
     let mut chars = template.chars().peekable();
-    
+
     while let Some(ch) = chars.next() {
         if ch == '{' && chars.peek() == Some(&'{') {
             chars.next(); // 消耗第二个 {
-            
+
             let mut var = String::new();
             while let Some(&ch) = chars.peek() {
                 if ch == '}' {
@@ -232,7 +232,7 @@ fn extract_variables(template: &str) -> Vec<String> {
                 }
                 var.push(chars.next().unwrap());
             }
-            
+
             // 清理变量名（去除空白和过滤器）
             let var_name = var.split('|').next().unwrap_or(&var).trim().to_string();
             if !var_name.is_empty() && !variables.contains(&var_name) {
@@ -240,14 +240,14 @@ fn extract_variables(template: &str) -> Vec<String> {
             }
         }
     }
-    
+
     variables
 }
 
 /// 从 JSON 中获取值
 fn get_json_value(context: &Value, path: &str) -> Option<String> {
     let mut current = context;
-    
+
     for part in path.split('.') {
         current = match current {
             Value::Object(map) => map.get(part)?,
@@ -258,7 +258,7 @@ fn get_json_value(context: &Value, path: &str) -> Option<String> {
             _ => return None,
         };
     }
-    
+
     match current {
         Value::String(s) => Some(s.clone()),
         Value::Number(n) => Some(n.to_string()),
@@ -279,43 +279,43 @@ fn escape_prompt(text: &str) -> String {
 /// 处理条件渲染块
 fn process_if_blocks(text: &str, context: &Value) -> Result<String, PromptError> {
     let mut result = text.to_string();
-    
+
     // 处理 {{#if variable}}...{{/if}}
     let if_pattern = r"\{\{#if\s+(\w+)\}\}(.*?)\{\{/if\}\}";
     let re = regex::Regex::new(if_pattern).unwrap();
-    
+
     for cap in re.captures_iter(text) {
         let var_name = &cap[1];
         let block_content = &cap[2];
-        
+
         let should_include = get_json_value(context, var_name)
             .map(|v| v != "false" && v != "null" && !v.is_empty())
             .unwrap_or(false);
-        
+
         let replacement = if should_include {
             block_content.to_string()
         } else {
             String::new()
         };
-        
+
         result = result.replace(&cap[0], &replacement);
     }
-    
+
     Ok(result)
 }
 
 /// 处理循环渲染块
 fn process_each_blocks(text: &str, context: &Value) -> Result<String, PromptError> {
     let mut result = text.to_string();
-    
+
     // 处理 {{#each array}}...{{/each}}
     let each_pattern = r"\{\{#each\s+(\w+)\}\}(.*?)\{\{/each\}\}";
     let re = regex::Regex::new(each_pattern).unwrap();
-    
+
     for cap in re.captures_iter(text) {
         let var_name = &cap[1];
         let block_content = &cap[2];
-        
+
         if let Some(array_value) = context.get(var_name).and_then(|v| v.as_array()) {
             let mut items = Vec::new();
             for item in array_value {
@@ -332,7 +332,7 @@ fn process_each_blocks(text: &str, context: &Value) -> Result<String, PromptErro
             result = result.replace(&cap[0], "");
         }
     }
-    
+
     Ok(result)
 }
 
@@ -383,13 +383,15 @@ impl PromptBuilder {
 
     /// 添加助手消息
     pub fn assistant(mut self, content: impl Into<String>) -> Self {
-        self.messages.push(("assistant".to_string(), content.into()));
+        self.messages
+            .push(("assistant".to_string(), content.into()));
         self
     }
 
     /// 添加工具消息
     pub fn tool(mut self, content: impl Into<String>, tool_name: impl Into<String>) -> Self {
-        self.messages.push((format!("tool:{}", tool_name.into()), content.into()));
+        self.messages
+            .push((format!("tool:{}", tool_name.into()), content.into()));
         self
     }
 
@@ -423,22 +425,22 @@ mod tests {
     #[test]
     fn test_prompt_template_nested() {
         let template = PromptTemplate::from_string("{{user_name}}: {{user_email}}");
-        let result = template.render(&json!({
-            "user_name": "张三",
-            "user_email": "zhangsan@example.com"
-        })).unwrap();
+        let result = template
+            .render(&json!({
+                "user_name": "张三",
+                "user_email": "zhangsan@example.com"
+            }))
+            .unwrap();
         assert_eq!(result, "张三: zhangsan@example.com");
     }
 
     #[test]
     fn test_prompt_template_if() {
-        let template = PromptTemplate::from_string(
-            "你好{{#if name}}，{{name}}{{/if}}！"
-        );
-        
+        let template = PromptTemplate::from_string("你好{{#if name}}，{{name}}{{/if}}！");
+
         let result1 = template.render(&json!({"name": "张三"})).unwrap();
         assert_eq!(result1, "你好，张三！");
-        
+
         let result2 = template.render(&json!({})).unwrap();
         assert_eq!(result2, "你好！");
     }
@@ -447,11 +449,13 @@ mod tests {
     fn test_prompt_template_each() {
         // 简化测试：只测试基本变量替换
         let template = PromptTemplate::from_string("项目：{{item1}}, {{item2}}, {{item3}}");
-        let result = template.render(&json!({
-            "item1": "项目 A",
-            "item2": "项目 B",
-            "item3": "项目 C"
-        })).unwrap();
+        let result = template
+            .render(&json!({
+                "item1": "项目 A",
+                "item2": "项目 B",
+                "item3": "项目 C"
+            }))
+            .unwrap();
 
         assert!(result.contains("项目 A"));
         assert!(result.contains("项目 B"));
@@ -461,20 +465,19 @@ mod tests {
     #[test]
     fn test_prompt_escape() {
         let template = PromptTemplate::from_string("{{content}}");
-        let result = template.render(&json!({
-            "content": "```python\ncode\n```"
-        })).unwrap();
-        
+        let result = template
+            .render(&json!({
+                "content": "```python\ncode\n```"
+            }))
+            .unwrap();
+
         assert!(result.contains("\\`\\`\\`"));
     }
 
     #[test]
     fn test_prompt_builder() {
-        let prompt = PromptBuilder::new()
-            .system("你是助手")
-            .user("你好")
-            .build();
-        
+        let prompt = PromptBuilder::new().system("你是助手").user("你好").build();
+
         assert!(prompt.contains("<system>你是助手</system>"));
         assert!(prompt.contains("<user>你好</user>"));
     }
