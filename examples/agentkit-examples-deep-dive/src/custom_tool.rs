@@ -1,7 +1,7 @@
 //! 自定义 Tool 实现示例
 
-use agentkit_core::error::ToolError;
-use agentkit_core::tool::{Tool, ToolCategory};
+use agentkit::core::error::ToolError;
+use agentkit::core::tool::{Tool, ToolCategory};
 use async_trait::async_trait;
 use serde_json::{json, Value};
 use tracing::info;

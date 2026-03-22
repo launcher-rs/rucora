@@ -2,11 +2,11 @@
 //!
 //! 本示例展示如何实现自定义的 Runtime
 
-use agentkit_core::agent::types::{AgentInput, AgentOutput};
-use agentkit_core::error::AgentError;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest};
-use agentkit_core::provider::LlmProvider;
-use agentkit_core::runtime::Runtime;
+use agentkit::core::agent::types::{AgentInput, AgentOutput};
+use agentkit::core::error::AgentError;
+use agentkit::core::provider::types::{ChatMessage, ChatRequest};
+use agentkit::core::provider::LlmProvider;
+use agentkit::core::runtime::Runtime;
 use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;

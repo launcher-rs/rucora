@@ -12,3 +12,6 @@ members = [
     "examples/agentkit-examples-complete",
     "examples/agentkit-examples-deep-dive"
 ]
+
+[workspace.package]
+version = "0.1.0"

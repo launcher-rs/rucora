@@ -2,11 +2,11 @@
 //!
 //! 本示例展示如何实现自定义的 LLM Provider
 
-use agentkit_core::error::ProviderError;
-use agentkit_core::provider::types::{
+use agentkit::core::error::ProviderError;
+use agentkit::core::provider::types::{
     ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role,
 };
-use agentkit_core::provider::LlmProvider;
+use agentkit::core::provider::LlmProvider;
 use async_trait::async_trait;
 use futures_util::stream::{self, BoxStream};
 use futures_util::StreamExt;

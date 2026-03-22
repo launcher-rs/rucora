@@ -22,13 +22,13 @@ use agentkit::provider::OpenAiProvider;
 use agentkit::tools::{
     EchoTool, GitTool, HttpRequestTool, MemoryRecallTool, MemoryStoreTool, ShellTool,
 };
-use agentkit_core::agent::types::AgentInput;
-use agentkit_core::channel::types::ChannelEvent;
-use agentkit_core::memory::{Memory, MemoryItem, MemoryQuery};
-use agentkit_core::provider::types::{ChatMessage, Role};
-use agentkit_core::provider::LlmProvider;
-use agentkit_core::runtime::Runtime;
-use agentkit_core::tool::Tool;
+use agentkit::core::agent::types::AgentInput;
+use agentkit::core::channel::types::ChannelEvent;
+use agentkit::core::memory::{Memory, MemoryItem, MemoryQuery};
+use agentkit::core::provider::types::{ChatMessage, Role};
+use agentkit::core::provider::LlmProvider;
+use agentkit::core::runtime::Runtime;
+use agentkit::core::tool::Tool;
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use futures_util::StreamExt;
 use serde_json::json;
@@ -78,7 +78,7 @@ async fn demo_provider() -> anyhow::Result<()> {
             info!("✓ OpenAI Provider 创建成功");
 
             // 测试聊天
-            let request = agentkit_core::provider::types::ChatRequest {
+            let request = agentkit::core::provider::types::ChatRequest {
                 messages: vec![ChatMessage {
                     role: Role::User,
                     content: "用一句话介绍 Rust".to_string(),
@@ -115,8 +115,8 @@ async fn demo_provider() -> anyhow::Result<()> {
 
 /// Mock Provider 演示
 async fn demo_mock_provider() -> anyhow::Result<()> {
-    use agentkit_core::error::ProviderError;
-    use agentkit_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
+    use agentkit::core::error::ProviderError;
+    use agentkit::core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
     use async_trait::async_trait;
     use futures_util::stream::{self, BoxStream};
     use futures_util::StreamExt;
@@ -310,8 +310,8 @@ async fn demo_runtime() -> anyhow::Result<()> {
     info!("\n=== 4. Runtime 示例 ===");
 
     // 创建 Mock Provider
-    use agentkit_core::error::ProviderError;
-    use agentkit_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
+    use agentkit::core::error::ProviderError;
+    use agentkit::core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
     use async_trait::async_trait;
     use futures_util::stream::{self, BoxStream};
 

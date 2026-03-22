@@ -10,8 +10,8 @@ use agentkit::prelude::*;
 use agentkit::provider::{
     AnthropicProvider, DeepSeekProvider, GeminiProvider, MoonshotProvider, OpenRouterProvider,
 };
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
-use agentkit_core::provider::LlmProvider;
+use agentkit::core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+use agentkit::core::provider::LlmProvider;
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use async_trait::async_trait;
 use std::sync::Arc;

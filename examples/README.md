@@ -134,7 +134,7 @@ examples/
 展示如何实现自定义 Provider：
 
 ```rust
-use agentkit_core::provider::LlmProvider;
+use agentkit::core::provider::LlmProvider;
 use async_trait::async_trait;
 
 struct MockProvider;
@@ -153,7 +153,7 @@ impl LlmProvider for MockProvider {
 展示如何实现自定义 Tool：
 
 ```rust
-use agentkit_core::tool::Tool;
+use agentkit::core::tool::Tool;
 use async_trait::async_trait;
 
 struct CalculatorTool;
@@ -161,7 +161,7 @@ struct CalculatorTool;
 #[async_trait]
 impl Tool for CalculatorTool {
     fn name(&self) -> &str { "calculator" }
-    
+
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
         // 实现计算逻辑
         Ok(json!({"result": 42}))
@@ -174,7 +174,7 @@ impl Tool for CalculatorTool {
 展示如何实现自定义 Runtime：
 
 ```rust
-use agentkit_core::runtime::Runtime;
+use agentkit::core::runtime::Runtime;
 use async_trait::async_trait;
 
 struct SimpleRuntime<P> {
