@@ -175,10 +175,7 @@ impl Middleware for LoggingMiddleware {
 
     async fn on_request(&self, input: &mut AgentInput) -> Result<(), AgentError> {
         if self.log_request {
-            tracing::info!(
-                input_len = input.text.len(),
-                "middleware.logging.request"
-            );
+            tracing::info!(input_len = input.text.len(), "middleware.logging.request");
         }
         Ok(())
     }
@@ -275,10 +272,7 @@ impl Middleware for CacheMiddleware {
 
     async fn on_request(&self, input: &mut AgentInput) -> Result<(), AgentError> {
         if self.enabled {
-            tracing::debug!(
-                input_len = input.text.len(),
-                "middleware.cache.request"
-            );
+            tracing::debug!(input_len = input.text.len(), "middleware.cache.request");
         }
         Ok(())
     }

@@ -39,7 +39,10 @@ impl LlmProvider for TestProvider {
         &self,
         _request: ChatRequest,
     ) -> Result<
-        futures_util::stream::BoxStream<'static, Result<agentkit_core::provider::types::ChatStreamChunk, ProviderError>>,
+        futures_util::stream::BoxStream<
+            'static,
+            Result<agentkit_core::provider::types::ChatStreamChunk, ProviderError>,
+        >,
         ProviderError,
     > {
         // 简化测试，不支持流式
@@ -53,10 +56,8 @@ async fn test_basic_runtime() {
         call_count: Arc::new(Mutex::new(0)),
     };
 
-    let runtime = DefaultRuntime::new(
-        Arc::new(provider.clone()),
-        ToolRegistry::new(),
-    ).with_system_prompt("你是有用的助手");
+    let runtime = DefaultRuntime::new(Arc::new(provider.clone()), ToolRegistry::new())
+        .with_system_prompt("你是有用的助手");
 
     let input = AgentInput::new("你好");
     let output = runtime.run(input).await.expect("运行失败");
@@ -72,10 +73,7 @@ async fn test_agent_input_builder() {
         call_count: Arc::new(Mutex::new(0)),
     };
 
-    let runtime = DefaultRuntime::new(
-        Arc::new(provider.clone()),
-        ToolRegistry::new(),
-    );
+    let runtime = DefaultRuntime::new(Arc::new(provider.clone()), ToolRegistry::new());
 
     // 测试 builder 模式
     let input = AgentInput::builder("帮我查询天气")
@@ -93,16 +91,13 @@ async fn test_multiple_calls() {
         call_count: Arc::new(Mutex::new(0)),
     };
 
-    let runtime = DefaultRuntime::new(
-        Arc::new(provider.clone()),
-        ToolRegistry::new(),
-    );
+    let runtime = DefaultRuntime::new(Arc::new(provider.clone()), ToolRegistry::new());
 
     // 多次调用验证计数器
     for i in 1..=3 {
         let input = AgentInput::new(format!("消息{}", i));
         let _output = runtime.run(input).await.expect("运行失败");
-        
+
         let count = *provider.call_count.lock().unwrap();
         assert_eq!(count, i, "调用次数应该递增");
     }
@@ -114,10 +109,7 @@ async fn test_output_structure() {
         call_count: Arc::new(Mutex::new(0)),
     };
 
-    let runtime = DefaultRuntime::new(
-        Arc::new(provider.clone()),
-        ToolRegistry::new(),
-    );
+    let runtime = DefaultRuntime::new(Arc::new(provider.clone()), ToolRegistry::new());
 
     let input = AgentInput::new("测试");
     let output = runtime.run(input).await.expect("运行失败");

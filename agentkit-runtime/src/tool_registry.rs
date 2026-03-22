@@ -901,9 +901,16 @@ impl ToolRegistry {
     /// # 返回
     ///
     /// 返回工具执行结果
-    pub async fn call_tool(&self, name: &str, input: serde_json::Value) -> Result<serde_json::Value, agentkit_core::error::ToolError> {
-        let tool = self.get(name)
-            .ok_or_else(|| agentkit_core::error::ToolError::NotFound { name: name.to_string() })?;
+    pub async fn call_tool(
+        &self,
+        name: &str,
+        input: serde_json::Value,
+    ) -> Result<serde_json::Value, agentkit_core::error::ToolError> {
+        let tool = self
+            .get(name)
+            .ok_or_else(|| agentkit_core::error::ToolError::NotFound {
+                name: name.to_string(),
+            })?;
         tool.call(input).await
     }
 }

@@ -77,10 +77,7 @@ impl AgentContext {
 
     /// 添加工具调用结果。
     pub fn add_tool_result(&mut self, tool_name: String, result: Value) {
-        self.tool_results.push(ToolResult {
-            tool_name,
-            result,
-        });
+        self.tool_results.push(ToolResult { tool_name, result });
     }
 
     /// 创建默认的对话请求。
@@ -107,17 +104,17 @@ pub struct ToolResult {
 }
 
 /// Agent 输入。
-/// 
+///
 /// 用于向 Agent 传递用户请求。
-/// 
+///
 /// # 使用示例
-/// 
+///
 /// ```rust
 /// use agentkit_core::agent::AgentInput;
-/// 
+///
 /// // 简单文本输入
 /// let input = AgentInput::new("你好");
-/// 
+///
 /// // 使用 builder 模式
 /// let input = AgentInput::builder("帮我查询天气")
 ///     .with_context("user_location", "北京")
@@ -180,7 +177,11 @@ impl AgentInputBuilder {
     }
 
     /// 添加上下文键值对。
-    pub fn with_context(mut self, key: impl Into<String>, value: impl Into<serde_json::Value>) -> Self {
+    pub fn with_context(
+        mut self,
+        key: impl Into<String>,
+        value: impl Into<serde_json::Value>,
+    ) -> Self {
         if let serde_json::Value::Object(ref mut map) = self.context {
             map.insert(key.into(), value.into());
         }
@@ -215,31 +216,31 @@ impl From<&str> for AgentInput {
 }
 
 /// Agent 输出。
-/// 
+///
 /// 包含 Agent 执行的结果和相关信息。
-/// 
+///
 /// # 字段说明
-/// 
+///
 /// - `value`: 主要输出内容（通常是 JSON 格式）
 /// - `messages`: 对话历史
 /// - `tool_calls`: 工具调用记录
-/// 
+///
 /// # 使用示例
-/// 
+///
 /// ```rust
 /// use agentkit_core::agent::AgentOutput;
-/// 
+///
 /// // 访问输出内容
 /// let output: AgentOutput = get_output();
-/// 
+///
 /// // 提取文本内容
 /// if let Some(content) = output.value.get("content").and_then(|v| v.as_str()) {
 ///     println!("回复：{}", content);
 /// }
-/// 
+///
 /// // 访问对话历史
 /// println!("对话轮数：{}", output.messages.len());
-/// 
+///
 /// // 访问工具调用
 /// println!("工具调用次数：{}", output.tool_calls.len());
 /// ```
@@ -376,28 +377,28 @@ pub enum AgentError {
 }
 
 /// 默认 Agent 实现。
-/// 
+///
 /// 这是一个简单的 Agent，适合大多数对话场景。
 /// 它使用 LLM Provider 进行思考，返回对话决策。
-/// 
+///
 /// # 使用示例
-/// 
+///
 /// ```rust,no_run
 /// use agentkit_core::agent::{Agent, DefaultAgent};
 /// use agentkit_core::provider::LlmProvider;
-/// 
+///
 /// # async fn example<P: LlmProvider + 'static>(provider: P) -> Result<(), Box<dyn std::error::Error>> {
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
 ///     .system_prompt("你是有用的助手")
 ///     .build();
-/// 
+///
 /// let output = agent.run("你好").await?;
 /// # Ok(())
 /// # }
 /// ```
 pub struct DefaultAgent<P> {
-    #[allow(dead_code)]  // provider 字段在运行时通过 think() 方法间接使用
+    #[allow(dead_code)] // provider 字段在运行时通过 think() 方法间接使用
     provider: P,
     system_prompt: Option<String>,
     default_model: Option<String>,

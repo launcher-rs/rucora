@@ -17,11 +17,6 @@
 //! cargo run -p agentkit-examples-complete
 //! ```
 
-use agentkit::memory::InMemoryMemory;
-use agentkit::provider::OpenAiProvider;
-use agentkit::tools::{
-    EchoTool, GitTool, HttpRequestTool, MemoryRecallTool, MemoryStoreTool, ShellTool,
-};
 use agentkit::core::agent::types::AgentInput;
 use agentkit::core::channel::types::ChannelEvent;
 use agentkit::core::memory::{Memory, MemoryItem, MemoryQuery};
@@ -29,6 +24,11 @@ use agentkit::core::provider::types::{ChatMessage, Role};
 use agentkit::core::provider::LlmProvider;
 use agentkit::core::runtime::Runtime;
 use agentkit::core::tool::Tool;
+use agentkit::memory::InMemoryMemory;
+use agentkit::provider::OpenAiProvider;
+use agentkit::tools::{
+    EchoTool, GitTool, HttpRequestTool, MemoryRecallTool, MemoryStoreTool, ShellTool,
+};
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use futures_util::StreamExt;
 use serde_json::json;

@@ -2,8 +2,8 @@
 //!
 //! 本示例展示 AgentKit 中的性能优化技巧
 
-use agentkit::memory::InMemoryMemory;
 use agentkit::core::memory::{Memory, MemoryItem};
+use agentkit::memory::InMemoryMemory;
 use futures_util::future::join_all;
 use std::sync::Arc;
 use std::time::Instant;

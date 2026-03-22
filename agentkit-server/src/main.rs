@@ -156,7 +156,8 @@ async fn chat_stream(
     Json(req): Json<ChatStreamRequest>,
 ) -> Sse<impl futures_util::Stream<Item = Result<Event, axum::Error>>> {
     // 将消息转换为文本输入
-    let text = req.messages
+    let text = req
+        .messages
         .last()
         .map(|m| m.content.clone())
         .unwrap_or_default();

@@ -71,7 +71,7 @@ where
     async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         // 将 AgentInput 转换为 ChatRequest
         let messages = vec![ChatMessage::user(input.text)];
-        
+
         let req = ChatRequest {
             messages,
             model: None,

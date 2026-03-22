@@ -18,8 +18,7 @@ async fn main() {
     // 初始化日志
     tracing_subscriber::fmt()
         .with_env_filter(
-            EnvFilter::try_from_default_env()
-                .unwrap_or_else(|_| EnvFilter::new("info")),
+            EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")),
         )
         .init();
 
@@ -66,15 +65,18 @@ async fn main() {
             println!("\n使用方法:");
             println!("  1. 设置环境变量: export OPENAI_API_KEY=sk-...");
             println!("  2. 重新运行：cargo run -p agentkit --example skill_read_local_file_demo");
-            
+
             // 演示工具调用（不依赖 Provider）
             println!("\n=== 演示工具直接调用 ===\n");
-            
+
             let file_tool = FileReadTool::new();
-            match file_tool.call(serde_json::json!({
-                "path": "C:\\code\\agentkit\\readme.md",
-                "max_bytes": 500
-            })).await {
+            match file_tool
+                .call(serde_json::json!({
+                    "path": "C:\\code\\agentkit\\readme.md",
+                    "max_bytes": 500
+                }))
+                .await
+            {
                 Ok(result) => {
                     println!("✓ 文件读取成功");
                     println!("  结果：{:?}\n", result);

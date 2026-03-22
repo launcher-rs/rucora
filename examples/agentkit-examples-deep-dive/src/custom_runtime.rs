@@ -104,8 +104,7 @@ impl<R: Runtime + Send + Sync> Runtime for LoggingRuntime<R> {
             Ok(output) => {
                 info!(
                     "LoggingRuntime: 执行成功，耗时：{:?}，回复：{}",
-                    elapsed,
-                    output.value
+                    elapsed, output.value
                 );
             }
             Err(e) => {

@@ -157,7 +157,9 @@ use futures_util::{stream::BoxStream, StreamExt};
 use serde_json::json;
 use tracing::{debug, info, warn};
 
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, ToolCallRecord};
+use agentkit_core::agent::{
+    Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, ToolCallRecord,
+};
 use agentkit_core::channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent};
 use agentkit_core::error::{AgentError, DiagnosticError};
 use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
@@ -632,16 +634,17 @@ impl DefaultRuntime {
                     // 2. 调用 LLM
                     let response = self.provider.chat(request).await.map_err(|e| {
                         let diag = e.diagnostic();
-                        AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message))
+                        AgentError::Message(format!(
+                            "provider error ({}): {}",
+                            diag.kind, diag.message
+                        ))
                     })?;
                     context.add_message(response.message.clone());
 
                     // 检查是否有工具调用
                     if !response.tool_calls.is_empty() {
                         // 执行工具调用
-                        let tool_results = self
-                            .execute_tool_calls(&response.tool_calls)
-                            .await?;
+                        let tool_results = self.execute_tool_calls(&response.tool_calls).await?;
 
                         // 添加工具结果到上下文
                         for (call, result) in response.tool_calls.iter().zip(tool_results.iter()) {
@@ -663,7 +666,10 @@ impl DefaultRuntime {
                 }
                 AgentDecision::ToolCall { name, input } => {
                     // 直接调用工具
-                    let result = self.tools.call_tool(&name, input.clone()).await
+                    let result = self
+                        .tools
+                        .call_tool(&name, input.clone())
+                        .await
                         .map_err(|e| AgentError::Message(format!("tool error: {}", e)))?;
                     context.add_tool_result(name.clone(), result.clone());
                     tool_call_history.push(ToolCallRecord {
