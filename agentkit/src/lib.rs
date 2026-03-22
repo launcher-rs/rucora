@@ -14,6 +14,7 @@
 //! agentkit
 //! ├── core          - 核心抽象层（重新导出 agentkit-core）
 //! ├── runtime       - 运行时（重新导出 agentkit-runtime）
+//! ├── agent         - Agent 实现（增强的 DefaultAgent，支持 Tools/MCP/A2A/Skills）
 //! ├── provider      - LLM Provider 实现（OpenAI/Ollama/Router）
 //! ├── tools         - 工具实现（Shell/File/HTTP/Git/Memory）
 //! ├── skills        - 技能实现（Echo/Rhai/Command）
@@ -240,6 +241,9 @@
 /// 导出 core 抽象层（traits + 共享类型）
 pub use agentkit_core as core;
 
+/// Agent 模块（增强的 DefaultAgent，支持 Tools/MCP/A2A/Skills）
+pub mod agent;
+
 /// 常用导入集合（prelude）
 ///
 /// # 使用方式
@@ -268,7 +272,7 @@ pub mod prelude {
         // Agent 类型
         agent::types::{
             Agent, AgentContext, AgentDecision, AgentError as CoreAgentError, AgentInput,
-            AgentInputBuilder, AgentOutput, DefaultAgent, DefaultAgentBuilder,
+            AgentInputBuilder, AgentOutput,
         },
         // Channel 类型
         channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent},
@@ -283,6 +287,9 @@ pub mod prelude {
         // Tool 类型
         tool::types::{ToolCall, ToolDefinition, ToolRegistry, ToolResult},
     };
+
+    /// Agent 模块类型（增强的 DefaultAgent）
+    pub use crate::agent::{DefaultAgent, DefaultAgentBuilder};
 
     /// Core 抽象层常用 trait
     pub use crate::core::{provider::LlmProvider, tool::Tool};

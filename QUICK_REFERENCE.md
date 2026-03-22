@@ -99,14 +99,15 @@ let provider = OpenRouterProvider::from_env()?
 ### 简单对话（独立模式）
 
 ```rust
-use agentkit_core::agent::{Agent, DefaultAgent};
+use agentkit::agent::DefaultAgent;
 
 let agent = DefaultAgent::builder()
     .provider(provider)
     .system_prompt("你是有用的助手")
+    .tool(agentkit::tools::EchoTool)
     .build();
 
-let input = AgentInput::new("你好");
+let input = agentkit::core::agent::AgentInput::new("你好");
 let output = agent.run(input).await?;
 
 if let Some(content) = output.text() {
@@ -118,8 +119,8 @@ if let Some(content) = output.text() {
 
 ```rust
 use agentkit::provider::OpenAiProvider;
+use agentkit::agent::DefaultAgent;
 use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::{Agent, DefaultAgent};
 
 // 创建 Agent
 let agent = DefaultAgent::builder()
@@ -387,7 +388,8 @@ match agent.run(input).await {
 // 使用 Arc 共享 Provider
 let provider = Arc::new(OpenAiProvider::from_env()?);
 
-// 多个 Agent/ Runtime 共享
+// 多个 Agent 共享
+use agentkit::agent::DefaultAgent;
 let agent1 = DefaultAgent::builder().provider(provider.clone()).build();
 let agent2 = DefaultAgent::builder().provider(provider.clone()).build();
 ```

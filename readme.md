@@ -110,6 +110,8 @@ AgentKit 采用**思考与执行分离**的架构：
 - **Runtime（运行时）**: 负责执行、调用、编排（身体）
 
 ```rust
+use agentkit::agent::DefaultAgent;
+
 // Agent 独立运行（简单对话）
 let agent = DefaultAgent::builder()
     .provider(provider)
