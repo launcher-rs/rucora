@@ -1,4 +1,4 @@
-//! 统一工具加载器模块
+﻿//! 统一工具加载器模块
 //!
 //! # 概述
 //!
@@ -7,24 +7,28 @@
 //!
 //! # 支持的工具来源
 //!
-//! - **BuiltIn**: 内置工具（shell、file、http、git、memory 等）
-//! - **Skill**: 从 Skills 目录加载的技能
 //! - **Mcp**: 从 MCP（Model Context Protocol）服务器加载的工具
 //! - **A2A**: 从 A2A（Agent-to-Agent）协议加载的工具
+//! - **Custom**: 用户自定义工具（通过 `register()` 方法手动注册）
+//!
+//! # 关于内置工具和 Skills
+//!
+//! `agentkit-runtime` 本身不提供内置工具或 Skills 加载功能。
+//! 如果需要使用内置工具（如 shell、file、http 等）或 Skills，
+//! 请使用 `agentkit` crate 中的工具加载器，或手动注册实现 `Tool` trait 的类型。
 //!
 //! # 使用示例
 //!
 //! ## 基本使用
 //!
 //! ```rust,no_run
-//! use agentkit_runtime::loader::ToolLoader;
+//! use agentkit::runtime::loader::ToolLoader;
+//! use agentkit::runtime::ToolWrapper;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 加载内置工具和 Skills
+//! // 手动注册自定义工具
 //! let loader = ToolLoader::new()
-//!     .load_builtin_tools()
-//!     .load_skills_from_dir("skills")
-//!     .await?;
+//!     .register(MyCustomTool::new());
 //!
 //! let registry = loader.build();
 //! # Ok(())
@@ -34,7 +38,7 @@
 //! ## 使用过滤器
 //!
 //! ```rust,no_run
-//! use agentkit_runtime::loader::ToolLoader;
+//! use agentkit::runtime::loader::ToolLoader;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 只加载特定工具
@@ -42,8 +46,23 @@
 //!     .include("shell")      // 包含 shell
 //!     .include("file")       // 包含 file
 //!     .exclude("dangerous")  // 排除 dangerous
-//!     .load_builtin_tools()
-//!     .load_skills_from_dir("skills")
+//!     .register(MyCustomTool::new());
+//!
+//! let registry = loader.build();
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## 使用 MCP 工具
+//!
+//! ```rust,no_run
+//! # #[cfg(feature = "mcp")]
+//! use agentkit::runtime::loader::ToolLoader;
+//!
+//! # #[cfg(feature = "mcp")]
+//! # async fn example(client: rmcp::client::Client) -> Result<(), Box<dyn std::error::Error>> {
+//! let loader = ToolLoader::new()
+//!     .load_mcp_tools(client)
 //!     .await?;
 //!
 //! let registry = loader.build();
@@ -54,16 +73,13 @@
 //! ## 获取加载统计
 //!
 //! ```rust,no_run
-//! use agentkit_runtime::loader::ToolLoader;
+//! use agentkit::runtime::loader::ToolLoader;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let (registry, stats) = ToolLoader::new()
-//!     .load_builtin_tools()
-//!     .load_skills_from_dir("skills")
-//!     .await?
+//!     .register(MyCustomTool::new())
 //!     .build_with_stats();
 //!
-//! // 打印统计信息
 //! stats.print();
 //! # Ok(())
 //! # }
@@ -72,51 +88,45 @@
 //! ## 便捷函数
 //!
 //! ```rust,no_run
-//! use agentkit_runtime::loader::load_all_tools;
+//! use agentkit::runtime::loader::load_tools;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 一键加载所有工具
-//! let (registry, stats) = load_all_tools(
-//!     Some("skills"),  // Skills 目录
-//!     true,            // 包含内置工具
-//! ).await?;
+//! // 一键加载 MCP 工具
+//! # #[cfg(feature = "mcp")]
+//! let (registry, stats) = load_tools(Some(client)).await?;
 //!
 //! stats.print();
 //! # Ok(())
 //! # }
 //! ```
 //!
-//! # 内置工具列表
+//! # 关于内置工具
 //!
-//! 使用 `load_builtin_tools()` 会加载以下工具：
+//! `agentkit-runtime` 不提供内置工具。如果需要使用内置工具，可以：
 //!
-//! | 工具名称 | 说明 | 分类 |
-//! |---------|------|------|
-//! | `shell` | 执行系统命令 | System |
-//! | `cmd_exec` | 受限命令执行（仅 curl） | System |
-//! | `git` | Git 操作 | System |
-//! | `file_read` | 读取文件 | File |
-//! | `file_write` | 写入文件 | File |
-//! | `file_edit` | 编辑文件 | File |
-//! | `http_request` | HTTP 请求 | Network |
-//! | `web_fetch` | 获取网页内容 | Network |
-//! | `browse` | 浏览网页 | Browser |
-//! | `browser_open` | 打开浏览器 | Browser |
-//! | `memory_store` | 存储记忆 | Memory |
-//! | `memory_recall` | 回忆记忆 | Memory |
+//! 1. 使用 `agentkit` crate 中的工具类型手动注册：
 //!
-//! # Feature 标志
+//! ```rust,no_run
+//! use agentkit::runtime::loader::ToolLoader;
+//! use agentkit::tools::{ShellTool, FileReadTool};
 //!
-//! - `builtin-tools`: 启用 `load_builtin_tools()` 方法
-//! - `skills`: 启用 `load_skills_from_dir()` 方法
-//! - `mcp`: 启用 `load_mcp_tools()` 方法
-//! - `a2a`: 启用 `load_a2a_tools()` 方法
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let loader = ToolLoader::new()
+//!     .register(ShellTool::new())
+//!     .register(FileReadTool::new());
+//!
+//! let registry = loader.build();
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! 2. 或者实现自己的工具类型并注册。
 
 use std::path::Path;
 
 use tracing::{debug, info};
 
-use crate::tool_registry::{ToolRegistry, ToolSource};
+use crate::runtime::tool_registry::{ToolRegistry, ToolSource};
 
 /// 工具加载器构建器
 ///
@@ -125,7 +135,7 @@ use crate::tool_registry::{ToolRegistry, ToolSource};
 /// # 示例
 ///
 /// ```rust,no_run
-/// use agentkit_runtime::loader::ToolLoader;
+/// use agentkit::runtime::loader::ToolLoader;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let loader = ToolLoader::new()
@@ -162,7 +172,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// let loader = ToolLoader::new();
     /// ```
@@ -183,7 +193,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let loader = ToolLoader::new()
@@ -208,7 +218,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// let loader = ToolLoader::new()
     ///     .include("shell")   // 只加载包含 shell 的工具
@@ -226,7 +236,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// let loader = ToolLoader::new()
     ///     .exclude("dangerous")  // 排除危险工具
@@ -257,7 +267,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     /// use agentkit::tools::ShellTool;
     ///
     /// let loader = ToolLoader::new()
@@ -279,7 +289,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::{loader::ToolLoader, ToolSource};
+    /// use agentkit::runtime::{loader::ToolLoader, ToolSource};
     /// use agentkit::tools::ShellTool;
     ///
     /// let loader = ToolLoader::new()
@@ -303,7 +313,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::{loader::ToolLoader, ToolRegistry};
+    /// use agentkit::runtime::{loader::ToolLoader, ToolRegistry};
     ///
     /// let loader1 = ToolLoader::new();
     /// let loader2 = ToolLoader::new()
@@ -327,12 +337,12 @@ impl ToolLoader {
     ///
     /// # Feature 标志
     ///
-    /// 需要启用 `builtin-tools` feature。
+    /// 需要启用 `skills` feature。
     ///
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let loader = ToolLoader::new()
@@ -342,9 +352,9 @@ impl ToolLoader {
     /// # Ok(())
     /// # }
     /// ```
-    #[cfg(feature = "builtin-tools")]
+    #[cfg(feature = "skills")]
     pub fn load_builtin_tools(mut self) -> Self {
-        use agentkit::tools::{
+        use crate::tools::{
             BrowseTool, BrowserOpenTool, CmdExecTool, FileEditTool, FileReadTool, FileWriteTool,
             GitTool, HttpRequestTool, MemoryRecallTool, MemoryStoreTool, ShellTool, WebFetchTool,
         };
@@ -432,7 +442,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let loader = ToolLoader::new()
@@ -494,7 +504,7 @@ impl ToolLoader {
     ///
     /// ```rust,no_run
     /// # #[cfg(feature = "mcp")]
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     /// # #[cfg(feature = "mcp")]
     /// use rmcp::client::Client;
     ///
@@ -551,7 +561,7 @@ impl ToolLoader {
     ///
     /// ```rust,no_run
     /// # #[cfg(feature = "a2a")]
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     /// # #[cfg(feature = "a2a")]
     /// use ra2a::types::AgentCard;
     ///
@@ -597,7 +607,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let registry = ToolLoader::new()
@@ -624,7 +634,7 @@ impl ToolLoader {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_runtime::loader::ToolLoader;
+    /// use agentkit::runtime::loader::ToolLoader;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let (registry, stats) = ToolLoader::new()
@@ -681,7 +691,7 @@ impl ToolLoader {
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_runtime::loader::ToolLoadStats;
+/// use agentkit::runtime::loader::ToolLoadStats;
 ///
 /// let stats = ToolLoadStats {
 ///     total: 15,
@@ -724,7 +734,7 @@ impl ToolLoadStats {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_runtime::loader::ToolLoadStats;
+    /// use agentkit::runtime::loader::ToolLoadStats;
     ///
     /// let stats = ToolLoadStats {
     ///     total: 15,
@@ -777,7 +787,7 @@ impl ToolLoadStats {
 /// # 示例
 ///
 /// ```rust,no_run
-/// use agentkit_runtime::loader::load_all_tools;
+/// use agentkit::runtime::loader::load_all_tools;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 /// let (registry, stats) = load_all_tools(
@@ -796,7 +806,7 @@ pub async fn load_all_tools(
     let mut loader = ToolLoader::new();
 
     if include_builtin {
-        #[cfg(feature = "builtin-tools")]
+        #[cfg(feature = "skills")]
         {
             loader = loader.load_builtin_tools();
         }

@@ -3,7 +3,7 @@
 //! # 概述
 //!
 //! `agentkit` 是 Agentkit 框架的聚合入口 crate，提供：
-//! - 统一导出 core（抽象层）与 runtime（编排层）
+//! - 统一导出 core（抽象层）与 runtime（编排层，需要 `runtime` feature）
 //! - 具体实现（Provider/Tools/Skills/Memory/Retrieval）
 //! - 统一配置系统
 //! - 便捷的 prelude 模块
@@ -13,7 +13,7 @@
 //! ```text
 //! agentkit
 //! ├── core          - 核心抽象层（重新导出 agentkit-core）
-//! ├── runtime       - 运行时（重新导出 agentkit-runtime）
+//! ├── runtime       - 运行时（重新导出 agentkit-runtime，需要 `runtime` feature）
 //! ├── agent         - Agent 实现（增强的 DefaultAgent，支持 Tools/MCP/A2A/Skills）
 //! ├── provider      - LLM Provider 实现（OpenAI/Ollama/Router）
 //! ├── tools         - 工具实现（Shell/File/HTTP/Git/Memory）
@@ -22,7 +22,7 @@
 //! ├── retrieval     - 检索实现（Chroma）
 //! ├── embed         - Embedding 实现（OpenAI/Ollama）
 //! ├── rag           - RAG 管线（Chunking/Indexing/Retrieval）
-//! ├── conversation  - 对话历史管理（新增）
+//! ├── conversation  - 对话历史管理
 //! └── config        - 统一配置系统
 //! ```
 //!
@@ -261,6 +261,7 @@ pub mod agent;
 /// - [`ChannelEvent`], [`TokenDeltaEvent`]: 事件类型
 /// - [`ProviderError`], [`ToolError`], [`SkillError`]: 错误类型
 /// - [`LlmProvider`], [`Tool`]: 核心 trait
+/// - [`Runtime`]: Runtime trait（需要 `runtime` feature）
 pub mod prelude {
     /// Runtime trait（用于支持可替换 runtime）
     pub use crate::core::runtime::Runtime;
@@ -293,7 +294,22 @@ pub mod prelude {
 
     /// Core 抽象层常用 trait
     pub use crate::core::{provider::LlmProvider, tool::Tool};
+
+    /// Runtime 模块类型（需要 `runtime` feature）
+    #[cfg(feature = "runtime")]
+    pub use crate::runtime::DefaultRuntime;
 }
+
+/// Runtime（运行时）模块（可选）
+///
+/// 需要启用 `runtime` feature。
+///
+/// 本模块包含运行时的实现：
+///
+/// - [`runtime::DefaultRuntime`]: 默认运行时实现
+/// - [`runtime::ToolRegistry`]: 工具注册表
+#[cfg(feature = "runtime")]
+pub mod runtime;
 
 /// Provider（模型提供者）实现与示例
 ///

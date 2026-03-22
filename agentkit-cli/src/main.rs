@@ -2,10 +2,11 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use agentkit::config::AgentkitConfig;
+use agentkit::runtime::trace::write_trace_jsonl;
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use agentkit_core::agent::types::AgentInput;
+use agentkit_core::channel::types::ChannelEvent;
 use agentkit_core::runtime::Runtime;
-use agentkit_runtime::trace::write_trace_jsonl;
-use agentkit_runtime::{ChannelEvent, DefaultRuntime, ToolRegistry};
 use clap::{Parser, Subcommand};
 use futures_util::StreamExt;
 use tracing_subscriber::EnvFilter;

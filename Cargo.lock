@@ -15,7 +15,6 @@ dependencies = [
  "agentkit-a2a",
  "agentkit-core",
  "agentkit-mcp",
- "agentkit-runtime",
  "agentkit-skills",
  "async-stream",
  "async-trait",
@@ -57,7 +56,6 @@ version = "0.1.0"
 dependencies = [
  "agentkit",
  "agentkit-core",
- "agentkit-runtime",
  "clap",
  "futures-util",
  "serde_json",
@@ -84,7 +82,6 @@ name = "agentkit-examples-complete"
 version = "0.1.0"
 dependencies = [
  "agentkit",
- "agentkit-runtime",
  "anyhow",
  "async-trait",
  "futures-util",
@@ -99,7 +96,6 @@ name = "agentkit-examples-deep-dive"
 version = "0.1.0"
 dependencies = [
  "agentkit",
- "agentkit-runtime",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -126,32 +122,11 @@ dependencies = [
 ]
 
 [[package]]
-name = "agentkit-runtime"
-version = "0.1.0"
-dependencies = [
- "agentkit",
- "agentkit-a2a",
- "agentkit-core",
- "agentkit-mcp",
- "agentkit-skills",
- "async-stream",
- "async-trait",
- "criterion",
- "futures-util",
- "ra2a",
- "rmcp",
- "serde_json",
- "tokio",
- "tracing",
-]
-
-[[package]]
 name = "agentkit-server"
 version = "0.1.0"
 dependencies = [
  "agentkit",
  "agentkit-core",
- "agentkit-runtime",
  "axum 0.7.9",
  "futures-util",
  "serde",

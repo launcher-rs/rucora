@@ -167,9 +167,11 @@ use agentkit_core::provider::LlmProvider;
 use agentkit_core::runtime::{NoopRuntimeObserver, Runtime, RuntimeObserver};
 use agentkit_core::tool::types::{ToolCall, ToolResult};
 
-use crate::policy::{DefaultToolPolicy, ToolPolicy};
-use crate::tool_execution::{execute_tool_call_with_policy_and_observer, tool_result_to_message};
-use crate::tool_registry::{ToolRegistry, ToolSource};
+use crate::runtime::policy::{DefaultToolPolicy, ToolPolicy};
+use crate::runtime::tool_execution::{
+    execute_tool_call_with_policy_and_observer, tool_result_to_message,
+};
+use crate::runtime::tool_registry::{ToolRegistry, ToolSource};
 
 /// 运行时配置
 ///

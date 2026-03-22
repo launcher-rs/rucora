@@ -99,9 +99,10 @@ use std::path::PathBuf;
 use std::sync::Arc;
 
 use agentkit::config::AgentkitConfig;
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use agentkit_core::agent::types::AgentInput;
+use agentkit_core::channel::types::{ChannelEvent, ErrorEvent};
 use agentkit_core::provider::types::ChatMessage;
-use agentkit_runtime::{ChannelEvent, DefaultRuntime, ToolRegistry};
 use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::routing::{get, post};
@@ -169,7 +170,7 @@ async fn chat_stream(
             Ok::<Event, axum::Error>(Event::default().event("event").data(data))
         }
         Err(e) => {
-            let err = ChannelEvent::Error(agentkit_runtime::ErrorEvent {
+            let err = ChannelEvent::Error(ErrorEvent {
                 kind: "runtime".to_string(),
                 message: e.to_string(),
                 data: None,

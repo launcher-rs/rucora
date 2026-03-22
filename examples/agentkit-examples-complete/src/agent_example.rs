@@ -1,4 +1,4 @@
-//! Agent 使用示例
+﻿//! Agent 使用示例
 //!
 //! 本示例展示 Agent 和 Runtime 的完整使用方式，包括：
 //! - Agent 独立运行（简单任务）
@@ -12,7 +12,7 @@ use agentkit::provider::{
 };
 use agentkit::core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use agentkit::core::provider::LlmProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::{info, warn};

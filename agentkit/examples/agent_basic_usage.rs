@@ -5,11 +5,11 @@
 //! - 自定义 Agent 实现
 //! - Agent 与 Runtime 配合使用
 
-use agentkit::agent::{DefaultAgent, DefaultAgentBuilder};
+use agentkit::agent::DefaultAgentBuilder;
 use agentkit::core::agent::{Agent, AgentContext, AgentDecision, AgentInput};
 use agentkit::prelude::*;
 use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use async_trait::async_trait;
 use futures_util::StreamExt;
 use std::sync::Arc;
@@ -138,8 +138,8 @@ async fn demo_custom_agent() -> Result<(), Box<dyn std::error::Error>> {
             info!("  - Agent 描述：{:?}", agent.description());
 
             // 使用 Runtime 运行自定义 Agent
-            let runtime =
-                DefaultRuntime::new(Arc::new(provider), ToolRegistry::new()).with_max_steps(3);
+            let tools: ToolRegistry = ToolRegistry::new();
+            let runtime = DefaultRuntime::new(Arc::new(provider), tools).with_max_steps(3);
 
             let input = AgentInput::new("Hello, how are you today?");
 
@@ -210,7 +210,7 @@ async fn demo_agent_with_runtime() -> Result<(), Box<dyn std::error::Error>> {
     match OpenAiProvider::from_env() {
         Ok(provider) => {
             // 创建工具注册表
-            let tools = ToolRegistry::new().register(agentkit::tools::EchoTool);
+            let tools: ToolRegistry = ToolRegistry::new().register(agentkit::tools::EchoTool);
 
             info!("✓ 工具注册表：{} 个工具", tools.len());
 

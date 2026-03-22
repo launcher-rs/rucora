@@ -5,11 +5,11 @@
 //! 运行方式：
 //! - `cargo run -p agentkit --example skill_read_local_file_demo`
 
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use agentkit::tools::FileReadTool;
 use agentkit_core::agent::AgentInput;
 use agentkit_core::runtime::Runtime;
 use agentkit_core::tool::Tool;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
 use std::sync::Arc;
 use tracing_subscriber::EnvFilter;
 
@@ -51,6 +51,7 @@ async fn main() {
                     if let Some(content) = out.text() {
                         println!("✓ 回复：{}\n", content);
                     } else {
+                        let out: agentkit_core::agent::AgentOutput = out;
                         println!("✓ 回复：{:?}\n", out.value);
                     }
                 }
