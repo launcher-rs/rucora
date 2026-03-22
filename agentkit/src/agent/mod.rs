@@ -54,6 +54,8 @@ use std::sync::Arc;
 ///
 /// # 使用示例
 ///
+/// ## 基本使用
+///
 /// ```rust,no_run
 /// use agentkit::agent::DefaultAgent;
 /// use agentkit::provider::OpenAiProvider;
@@ -73,6 +75,23 @@ use std::sync::Arc;
 /// # Ok(())
 /// # }
 /// ```
+///
+/// ## 使用 Skills
+///
+/// ```rust,no_run
+/// use agentkit::agent::DefaultAgent;
+/// use agentkit::provider::OpenAiProvider;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let provider = OpenAiProvider::from_env()?;
+///
+/// let agent = DefaultAgent::builder()
+///     .provider(provider)
+///     .with_skills("skills")
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
 pub struct DefaultAgent<P> {
     /// LLM Provider。
     #[allow(dead_code)]
@@ -86,6 +105,15 @@ pub struct DefaultAgent<P> {
     /// 最大步骤数。
     #[allow(dead_code)]
     max_steps: usize,
+    /// Skills 目录路径
+    #[cfg(feature = "skills")]
+    skills_dir: Option<String>,
+    /// MCP 服务器地址
+    #[cfg(feature = "mcp")]
+    mcp_server: Option<String>,
+    /// A2A 代理 URL
+    #[cfg(feature = "a2a")]
+    a2a_agent_url: Option<String>,
 }
 
 impl<P> DefaultAgent<P> {
@@ -331,6 +359,8 @@ where
 ///
 /// # 使用示例
 ///
+/// ## 基本使用
+///
 /// ```rust,no_run
 /// use agentkit::agent::DefaultAgent;
 /// use agentkit::provider::OpenAiProvider;
@@ -349,12 +379,56 @@ where
 /// # Ok(())
 /// # }
 /// ```
+///
+/// ## 使用 Skills 目录
+///
+/// ```rust,no_run
+/// use agentkit::agent::DefaultAgent;
+/// use agentkit::provider::OpenAiProvider;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let provider = OpenAiProvider::from_env()?;
+///
+/// let agent = DefaultAgent::builder()
+///     .provider(provider)
+///     .system_prompt("你是有用的助手")
+///     .with_skills("skills")  // 加载 skills 目录
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## 使用 MCP 服务器
+///
+/// ```rust,no_run
+/// use agentkit::agent::DefaultAgent;
+/// use agentkit::provider::OpenAiProvider;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let provider = OpenAiProvider::from_env()?;
+///
+/// let agent = DefaultAgent::builder()
+///     .provider(provider)
+///     .system_prompt("你是有用的助手")
+///     .with_mcp("http://localhost:8080")  // MCP 服务器地址
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
 pub struct DefaultAgentBuilder<P> {
     provider: Option<P>,
     system_prompt: Option<String>,
     default_model: Option<String>,
     tools: HashMap<String, Arc<dyn Tool>>,
     max_steps: usize,
+    /// Skills 目录路径
+    skills_dir: Option<String>,
+    /// MCP 服务器地址
+    #[cfg(feature = "mcp")]
+    mcp_server: Option<String>,
+    /// A2A 代理 URL
+    #[cfg(feature = "a2a")]
+    a2a_agent_url: Option<String>,
 }
 
 impl<P> DefaultAgentBuilder<P> {
@@ -366,6 +440,11 @@ impl<P> DefaultAgentBuilder<P> {
             default_model: None,
             tools: HashMap::new(),
             max_steps: 10,
+            skills_dir: None,
+            #[cfg(feature = "mcp")]
+            mcp_server: None,
+            #[cfg(feature = "a2a")]
+            a2a_agent_url: None,
         }
     }
 }
@@ -423,6 +502,96 @@ where
         self
     }
 
+    /// 配置 Skills 目录
+    ///
+    /// # 参数
+    ///
+    /// - `dir`: Skills 目录路径
+    ///
+    /// # Feature 标志
+    ///
+    /// 需要启用 `skills` feature。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::provider::OpenAiProvider;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .with_skills("skills")
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "skills")]
+    pub fn with_skills(mut self, dir: impl Into<String>) -> Self {
+        self.skills_dir = Some(dir.into());
+        self
+    }
+
+    /// 配置 MCP 服务器
+    ///
+    /// # 参数
+    ///
+    /// - `server_url`: MCP 服务器地址
+    ///
+    /// # Feature 标志
+    ///
+    /// 需要启用 `mcp` feature。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::provider::OpenAiProvider;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .with_mcp("http://localhost:8080")
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "mcp")]
+    pub fn with_mcp(mut self, server_url: impl Into<String>) -> Self {
+        self.mcp_server = Some(server_url.into());
+        self
+    }
+
+    /// 配置 A2A 代理
+    ///
+    /// # 参数
+    ///
+    /// - `agent_url`: A2A 代理 URL
+    ///
+    /// # Feature 标志
+    ///
+    /// 需要启用 `a2a` feature。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::provider::OpenAiProvider;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .with_a2a("http://agent.example.com")
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    #[cfg(feature = "a2a")]
+    pub fn with_a2a(mut self, agent_url: impl Into<String>) -> Self {
+        self.a2a_agent_url = Some(agent_url.into());
+        self
+    }
+
     /// 构建 Agent。
     pub fn build(self) -> DefaultAgent<P> {
         DefaultAgent {
@@ -433,6 +602,12 @@ where
             default_model: self.default_model,
             tools: self.tools,
             max_steps: self.max_steps,
+            #[cfg(feature = "skills")]
+            skills_dir: self.skills_dir,
+            #[cfg(feature = "mcp")]
+            mcp_server: self.mcp_server,
+            #[cfg(feature = "a2a")]
+            a2a_agent_url: self.a2a_agent_url,
         }
     }
 }

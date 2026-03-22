@@ -43,7 +43,6 @@ pub mod policy;
 pub mod tool_execution;
 pub mod tool_registry;
 pub mod trace;
-pub mod utils;
 
 // 重新导出主要类型
 pub use agentkit_core::runtime::{Runtime, RuntimeObserver};
