@@ -3,7 +3,7 @@
 //! # 概述
 //!
 //! 该模块主要用于转导出 `rmcp::transport`，包含 MCP 连接所需的 transport 实现与类型。
-//! 上层可以通过 `agentkit_mcp::transport::*` 使用这些能力。
+//! 上层可以通过 `agentkit::mcp::transport::*` 使用这些能力。
 //!
 //! # 支持的传输方式
 //!
@@ -16,7 +16,7 @@
 //! ## Stdio 传输
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::transport::StdioTransport;
+//! use agentkit::mcp::transport::StdioTransport;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 创建 Stdio 传输层
@@ -31,7 +31,7 @@
 //! ## HTTP 传输
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::transport::StreamableHttpTransport;
+//! use agentkit::mcp::transport::StreamableHttpTransport;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 创建 HTTP 传输层

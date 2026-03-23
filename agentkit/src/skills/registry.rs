@@ -15,14 +15,16 @@ use std::sync::Arc;
 use tracing::debug;
 
 #[cfg(feature = "rhai-skills")]
-use crate::command_skills::{
+use crate::skills::command_skills::{
     extract_primary_command_template, parse_skill_md_frontmatter, validate_manifest, CommandSkill,
     SkillManifest, SkillMetaYaml,
 };
 #[cfg(feature = "rhai-skills")]
-use crate::file_skills::FileReadSkill;
+use crate::skills::file_skills::FileReadSkill;
 #[cfg(feature = "rhai-skills")]
-use crate::rhai_skills::{get_global_rhai_engine_registrar, RhaiEngineRegistrar, RhaiSkill};
+use crate::skills::rhai_skills::{
+    get_global_rhai_engine_registrar, RhaiEngineRegistrar, RhaiSkill,
+};
 #[cfg(feature = "rhai-skills")]
 use tokio::fs;
 #[cfg(feature = "rhai-skills")]

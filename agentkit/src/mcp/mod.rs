@@ -2,7 +2,7 @@
 //!
 //! # 概述
 //!
-//! 本 crate 提供 MCP（Model Context Protocol）集成支持，用于：
+//! 本模块提供 MCP（Model Context Protocol）集成支持，用于：
 //! - 连接 MCP 服务器
 //! - 将 MCP 工具转换为 agentkit 的 Tool trait
 //! - 统一 MCP 工具调用接口
@@ -36,7 +36,7 @@
 //! [`McpToolAdapter`] 将远程 MCP 工具包装为 [`agentkit_core::tool::Tool`]：
 //!
 //! ```rust
-//! use agentkit_mcp::McpToolAdapter;
+//! use agentkit::mcp::McpToolAdapter;
 //! use agentkit_core::tool::Tool;
 //!
 //! // MCP 工具可以直接作为 agentkit 的 Tool 使用
@@ -49,7 +49,7 @@
 //! ## 连接 MCP 服务器
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::{McpClient, StdioTransport};
+//! use agentkit::mcp::{McpClient, StdioTransport};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 创建传输层
@@ -71,7 +71,7 @@
 //! ## 调用 MCP 工具
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::{McpClient, StdioTransport};
+//! use agentkit::mcp::{McpClient, StdioTransport};
 //! use serde_json::json;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -92,7 +92,7 @@
 //! ## 将 MCP 工具转换为 agentkit Tool
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::{McpClient, McpToolAdapter, StdioTransport};
+//! use agentkit::mcp::{McpClient, McpToolAdapter, StdioTransport};
 //! use agentkit_core::tool::Tool;
 //! use std::sync::Arc;
 //!
@@ -121,7 +121,7 @@
 //!
 //! # 依赖
 //!
-//! 本 crate 基于 [`rmcp`](https://crates.io/crates/rmcp) 库构建。
+//! 本模块基于 [`rmcp`](https://crates.io/crates/rmcp) 库构建。
 //!
 //! # Feature 标志
 //!

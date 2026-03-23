@@ -14,8 +14,8 @@
 //! - `register`: 注册 Agent 并获取消息接收器
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::transport::{A2aTransport, InProcessA2aTransport};
-//! use agentkit_a2a::protocol::{AgentId, A2aMessage};
+//! use agentkit::a2a::transport::{A2aTransport, InProcessA2aTransport};
+//! use agentkit::a2a::protocol::{AgentId, A2aMessage};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let transport = InProcessA2aTransport::new();
@@ -38,7 +38,7 @@
 //! - 线程安全（使用 `Arc<Mutex<>>` 保护）
 //!
 //! ```rust
-//! use agentkit_a2a::transport::InProcessA2aTransport;
+//! use agentkit::a2a::transport::InProcessA2aTransport;
 //!
 //! let transport = InProcessA2aTransport::new();
 //! ```
@@ -48,8 +48,8 @@
 //! ## 进程内多 Agent 通信
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::transport::{A2aTransport, InProcessA2aTransport};
-//! use agentkit_a2a::protocol::{AgentId, A2aMessage};
+//! use agentkit::a2a::transport::{A2aTransport, InProcessA2aTransport};
+//! use agentkit::a2a::protocol::{AgentId, A2aMessage};
 //! use futures_util::StreamExt;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -84,8 +84,8 @@
 //! 可以实现自定义传输层：
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::transport::A2aTransport;
-//! use agentkit_a2a::protocol::{AgentId, A2aMessage};
+//! use agentkit::a2a::transport::A2aTransport;
+//! use agentkit::a2a::protocol::{AgentId, A2aMessage};
 //! use async_trait::async_trait;
 //! use tokio::sync::mpsc;
 //!
@@ -109,9 +109,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use tokio::sync::{Mutex, mpsc};
+use tokio::sync::{mpsc, Mutex};
 
-use crate::protocol::{A2aMessage, AgentId};
+use crate::a2a::protocol::{A2aMessage, AgentId};
 
 /// A2A 传输层接口
 ///
@@ -122,8 +122,8 @@ use crate::protocol::{A2aMessage, AgentId};
 /// # 示例
 ///
 /// ```rust,no_run
-/// use agentkit_a2a::transport::A2aTransport;
-/// # use agentkit_a2a::protocol::{AgentId, A2aMessage};
+/// use agentkit::a2a::transport::A2aTransport;
+/// # use agentkit::a2a::protocol::{AgentId, A2aMessage};
 ///
 /// # async fn example(transport: impl A2aTransport) -> Result<(), Box<dyn std::error::Error>> {
 /// // 注册 Agent
@@ -175,7 +175,7 @@ pub trait A2aTransport: Send + Sync {
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_a2a::transport::InProcessA2aTransport;
+/// use agentkit::a2a::transport::InProcessA2aTransport;
 ///
 /// let transport = InProcessA2aTransport::new();
 /// ```
@@ -191,7 +191,7 @@ impl InProcessA2aTransport {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_a2a::transport::InProcessA2aTransport;
+    /// use agentkit::a2a::transport::InProcessA2aTransport;
     ///
     /// let transport = InProcessA2aTransport::new();
     /// ```

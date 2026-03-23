@@ -15,7 +15,7 @@
 //! - 调用远端工具（`call_tool`）
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::McpClient;
+//! use agentkit::mcp::McpClient;
 //!
 //! # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
 //! // 列出可用工具
@@ -36,7 +36,7 @@
 //! [`McpTool`] 将远端 MCP 工具包装为 [`agentkit_core::tool::Tool`]：
 //!
 //! ```rust,no_run
-//! use agentkit_mcp::{McpClient, McpTool};
+//! use agentkit::mcp::{McpClient, McpTool};
 //! use agentkit_core::tool::Tool;
 //!
 //! # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
@@ -102,7 +102,7 @@ use tracing::{debug, trace};
 /// # 示例
 ///
 /// ```rust,no_run
-/// use agentkit_mcp::{McpClient, StdioTransport};
+/// use agentkit::mcp::{McpClient, StdioTransport};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 创建传输层并连接
@@ -133,7 +133,7 @@ impl McpClient {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_mcp::McpClient;
+    /// use agentkit::mcp::McpClient;
     /// # use rmcp::service::{RunningService, RoleClient, InitializeRequestParams};
     ///
     /// # fn example(client: RunningService<RoleClient, InitializeRequestParams>) {
@@ -160,7 +160,7 @@ impl McpClient {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_mcp::McpClient;
+    /// use agentkit::mcp::McpClient;
     ///
     /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let tools = client.list_tools().await?;
@@ -205,7 +205,7 @@ impl McpClient {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit_mcp::McpClient;
+    /// use agentkit::mcp::McpClient;
     /// use serde_json::json;
     ///
     /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
@@ -290,7 +290,7 @@ impl McpClient {
 /// # 示例
 ///
 /// ```rust,no_run
-/// use agentkit_mcp::{McpClient, McpTool};
+/// use agentkit::mcp::{McpClient, McpTool};
 /// use agentkit_core::tool::Tool;
 ///
 /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
@@ -325,7 +325,7 @@ impl McpTool {
     /// # 示例
     ///
     /// ```rust
-    /// use agentkit_mcp::{McpClient, McpTool};
+    /// use agentkit::mcp::{McpClient, McpTool};
     /// # use rmcp::model::Tool as RmcpTool;
     ///
     /// # fn example(client: McpClient, spec: RmcpTool) {

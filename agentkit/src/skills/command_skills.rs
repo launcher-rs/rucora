@@ -23,31 +23,31 @@ pub use agentkit_core::skill::Skill;
 #[derive(Debug, Clone, Default, Deserialize)]
 pub struct SkillMetaYaml {
     #[serde(default)]
-    name: Option<String>,
+    pub name: Option<String>,
     #[serde(default)]
-    description: Option<String>,
+    pub description: Option<String>,
     #[serde(default)]
-    version: Option<String>,
+    pub version: Option<String>,
     #[serde(default)]
-    triggers: Vec<String>,
+    pub triggers: Vec<String>,
     #[serde(default)]
-    capabilities: Vec<String>,
+    pub capabilities: Vec<String>,
 
     #[serde(default)]
-    requires: Option<SkillRequires>,
+    pub requires: Option<SkillRequires>,
 
     #[serde(default)]
-    permissions: Vec<String>,
+    pub permissions: Vec<String>,
 }
 
 /// 技能依赖声明结构。
 #[cfg(feature = "rhai-skills")]
 #[derive(Debug, Clone, Default, Deserialize)]
-struct SkillRequires {
+pub struct SkillRequires {
     #[serde(default)]
-    bins: Vec<String>,
+    pub bins: Vec<String>,
     #[serde(default)]
-    env: Vec<String>,
+    pub env: Vec<String>,
 }
 
 /// 技能清单：描述技能的基本信息和依赖。
@@ -222,11 +222,21 @@ impl Skill for CommandSkill {
     async fn run_value(&self, input: Value) -> Result<Value, SkillError> {
         debug!(skill.name = %self.name, skill.template = %self.command_template, "command_skill.start");
 
-        let _cmd = self.render_command(&input)?;
-        // 注意：这里需要引用 agentkit 的 CmdExecTool，由于跨 crate 依赖，
-        // 实际使用时可能需要调整导入路径
-        // 暂时保留原有逻辑，实际项目需要根据依赖结构调整
-        unimplemented!("CommandSkill::run_value 需要依赖 agentkit 的 CmdExecTool")
+        let cmd = self.render_command(&input)?;
+        debug!(skill.name = %self.name, cmd.command = %cmd, "command_skill.exec");
+
+        // Skill 内部通过 tool 来执行命令（符合"skills 执行时调用工具执行命令"的约束）。
+        let tool = crate::tools::CmdExecTool::new();
+        let out = tool
+            .call(json!({"command": cmd}))
+            .await
+            .map_err(|e| SkillError::Message(format!("cmd_exec tool 执行失败：{}", e)))?;
+
+        Ok(json!({
+            "skill": self.name,
+            "tool": "cmd_exec",
+            "result": out
+        }))
     }
 }
 
@@ -268,8 +278,6 @@ pub fn parse_skill_md_frontmatter(md: &str) -> (Option<String>, Option<String>) 
 /// 约定：从第一个 ```bash 代码块中提取第一条以 curl 开头的命令。
 #[cfg(feature = "rhai-skills")]
 pub fn extract_primary_command_template(md: &str) -> Option<String> {
-    // 约定：从第一个 ```bash 代码块中提取第一条以 curl 开头的命令。
-    // weather 的 SKILL.md 示例为：curl -s "wttr.in/London?format=3"
     let mut in_bash = false;
 
     for line in md.lines() {
@@ -290,7 +298,6 @@ pub fn extract_primary_command_template(md: &str) -> Option<String> {
 
         if t.starts_with("curl") {
             // 把示例中的 London 替换为 {location}。
-            // 目前先覆盖 weather skill 的常见写法，后续可以做更通用的模板化。
             let mut cmd = t.to_string();
             cmd = cmd.replace("wttr.in/London?format=3", "wttr.in/{location}?format=3");
             cmd = cmd.replace("wttr.in/London?T", "wttr.in/{location}?T");

@@ -1,263 +1,382 @@
-# Changelog
+# 变更日志
 
-All notable changes to AgentKit will be documented in this file.
-
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
-and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
-## [Unreleased]
-
-### Changed (Breaking)
-
-#### DefaultAgent API 重构
-- **移除了 `tools` 字段**: `DefaultAgent` 现在只持有 `provider`，职责更单一
-- **迁移指南**:
-  ```rust
-  // 旧代码 (v0.1.0)
-  let agent = DefaultAgent::builder()
-      .provider(provider)
-      .tools(tools)  // 不再需要
-      .build();
-  
-  // 新代码 (v0.2.0)
-  let agent = DefaultAgent::builder()
-      .provider(provider)
-      .build();
-  ```
-
-#### AgentInput API 改进
-- **字段重命名**: `extras` → `context`（语义更清晰）
-- **新增 builder 模式**: 支持流式添加上下文
-- **迁移指南**:
-  ```rust
-  // 旧代码 (v0.1.0)
-  let input = AgentInput {
-      text: "你好".to_string(),
-      extras: json!({"key": "value"}),
-  };
-  
-  // 新代码 (v0.2.0)
-  let input = AgentInput::builder("你好")
-      .with_context("key", json!("value"))
-      .build();
-  
-  // 或简单用法
-  let input = AgentInput::new("你好");
-  ```
-
-#### AgentOutput 辅助方法
-- **新增方法**: `text()`, `message_count()`, `tool_call_count()`
-- **向后兼容**: 字段保持不变
-
-### Added
-
-#### New Providers
-- **OpenRouterProvider** - Multi-model aggregator service (70+ models)
-  - Supports Anthropic Claude, Google Gemini, OpenAI, and more
-  - Environment variable: `OPENROUTER_API_KEY`
-  - Default base URL: `https://openrouter.ai/api/v1`
-
-- **AnthropicProvider** - Anthropic Claude models
-  - Supports Claude 3.5/3 series
-  - Environment variable: `ANTHROPIC_API_KEY`
-  - Default base URL: `https://api.anthropic.com/v1`
-
-- **GeminiProvider** - Google Gemini models
-  - Supports Gemini 1.5 Pro/Flash
-  - Environment variable: `GOOGLE_API_KEY` or `GEMINI_API_KEY`
-  - Default base URL: `https://generativelanguage.googleapis.com/v1beta`
-
-- **AzureOpenAiProvider** - Azure OpenAI Service
-  - Enterprise-grade GPT deployment
-  - Environment variables: `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`
-  - Supports custom API versions
-
-- **DeepSeekProvider** - DeepSeek models
-  - Supports DeepSeek-V3, DeepSeek-R1
-  - Environment variable: `DEEPSEEK_API_KEY`
-  - Default base URL: `https://api.deepseek.com/v1`
-
-- **MoonshotProvider** - Moonshot AI (月之暗面) Kimi models
-  - Supports moonshot-v1-8k/32k/128k
-  - Environment variable: `MOONSHOT_API_KEY`
-  - Default base URL: `https://api.moonshot.cn/v1`
-
-#### Agent Architecture
-- **Agent trait** - Core abstraction for intelligent agents
-  - `think()` method for decision making
-  - `AgentDecision` enum for action types (Chat, ToolCall, Return, ThinkAgain, Stop)
-  - `AgentContext` for managing conversation state
-  - `AgentInput` and `AgentOutput` types
-
-- **DefaultAgent** - Built-in agent implementation
-  - Builder pattern for configuration
-  - Supports custom system prompts
-  - Supports default model selection
-
-- **Agent + Runtime integration**
-  - `Runtime::run_with_agent()` method for executing agents
-  - Support for both standalone and runtime modes
-  - Full tool calling support in runtime mode
-
-#### Skills System
-- **agentkit-skills crate** - Independent skills module
-  - Feature-gated Rhai scripting support (`rhai-skills` feature)
-  - Command-based skills from SKILL.md templates
-  - File operation skills (FileReadSkill)
-  - Dynamic skill loading from directory
-
-#### Documentation
-- `docs/agent_runtime_relationship.md` - Detailed explanation of Agent vs Runtime
-- `examples/agentkit-examples-complete/src/agent_example.rs` - Complete agent usage examples
-- Updated README with provider comparison table
-
-### Changed
-
-#### Breaking Changes
-- **AgentInput structure changed**:
-  - Old: `AgentInput { messages: Vec<ChatMessage>, metadata: Option<Value> }`
-  - New: `AgentInput { text: String, extras: Value }`
-  - Migration: Use `AgentInput::new(text)` for simple text input
-
-- **AgentOutput structure changed**:
-  - Old: `AgentOutput { message: ChatMessage, tool_results: Vec<ToolResult> }`
-  - New: `AgentOutput { value: Value, messages: Vec<ChatMessage>, tool_calls: Vec<ToolCallRecord> }`
-  - Migration: Access `output.value` or use `output.value.get("content")`
-
-- **ToolRegistry trait added** to agentkit-core
-  - Required for Agent implementation
-  - Methods: `get_tool()`, `list_tools()`, `call()`
-
-#### Improvements
-- Separated skills into independent crate for better modularity
-- Improved error handling with better error messages
-- Enhanced streaming support for all providers
-- Better type safety with explicit FinishReason enum
-
-### Fixed
-
-- Fixed lifetime issues in async stream implementations
-- Fixed type conversions between ProviderError and AgentError
-- Fixed ToolRegistry method naming consistency
-- Fixed compilation warnings across all crates
-
-### Removed
-
-- Deprecated `AgentInput::from()` implementations in favor of `AgentInput::new()`
-
-## [0.1.0] - 2024-01-XX
-
-### Added
-
-- Initial release of AgentKit framework
-- Core abstractions in `agentkit-core`
-- Runtime implementation in `agentkit-runtime`
-- Built-in providers: OpenAI, Ollama
-- Tool system with 12+ built-in tools
-- Skills system with Rhai scripting support
-- MCP and A2A protocol support
-- CLI and server applications
-
-### Project Structure
-
-```
-agentkit/
-├── agentkit-core       # Core traits and types
-├── agentkit            # Main crate (aggregates all)
-├── agentkit-runtime    # Runtime orchestration
-├── agentkit-skills     # Skills system (NEW)
-├── agentkit-cli        # Command-line interface
-├── agentkit-server     # HTTP server
-├── agentkit-mcp        # MCP protocol support
-└── agentkit-a2a        # A2A protocol support
-```
-
-### Supported Providers (Initial)
-
-- OpenAI (GPT-4, GPT-3.5)
-- Ollama (Local models)
-
-### Built-in Tools
-
-- ShellTool - Execute shell commands
-- FileReadTool - Read local files
-- FileWriteTool - Write to files
-- HttpRequestTool - Make HTTP requests
-- GitTool - Git operations
-- And more...
+本项目遵循 [语义化版本](https://semver.org/lang/zh-CN/) 规范。
 
 ---
 
-## Migration Guide
+## [未发布]
 
-### Migrating from 0.1.0 to Unreleased
+### 架构调整
 
-#### 1. Update AgentInput usage
+#### Crate 合并（破坏性变更）
 
+**变更内容**：
+- 将 `agentkit-mcp`、`agentkit-a2a`、`agentkit-skills` 三个独立 crate 合并到 `agentkit` 主库中
+- 移除 `agentkit-cli` 和 `agentkit-server` 独立 crate
+- Workspace 成员从 10 个减少到 4 个
+
+**影响**：
+- 用户只需依赖 `agentkit` 一个 crate 即可使用所有功能
+- 导入路径发生变化
+
+**迁移指南**：
 ```rust
-// Old (0.1.0)
-let input = AgentInput {
-    messages: vec![ChatMessage::user("Hello")],
-    metadata: None,
-};
+// 旧导入方式
+use agentkit_mcp::McpClient;
+use agentkit_a2a::client::Client;
+use agentkit_skills::load_skills_from_dir;
 
-// New (Unreleased)
-let input = AgentInput::new("Hello");
-// Or with extras
-let input = AgentInput::with_extras("Hello", json!({"key": "value"}));
+// 新导入方式
+use agentkit::mcp::McpClient;
+use agentkit::a2a::client::Client;
+use agentkit::skills::load_skills_from_dir;
 ```
 
-#### 2. Update AgentOutput access
+```toml
+# 旧依赖配置
+[dependencies]
+agentkit = "0.1"
+agentkit-mcp = "0.1"
+agentkit-a2a = "0.1"
+agentkit-skills = "0.1"
 
-```rust
-// Old (0.1.0)
-println!("{}", output.message.content);
-
-// New (Unreleased)
-// Option 1: Access value directly
-println!("{}", output.value);
-
-// Option 2: Extract content
-if let Some(content) = output.value.get("content").and_then(|v| v.as_str()) {
-    println!("{}", content);
-}
+# 新依赖配置
+[dependencies]
+agentkit = { version = "0.1", features = ["mcp", "a2a", "skills"] }
 ```
 
-#### 3. Using Agent with Runtime
+#### DefaultAgent API 重构（破坏性变更）
 
+**变更内容**：
+- 移除了 `tools` 字段，`DefaultAgent` 现在只持有 `provider`，职责更单一
+
+**迁移指南**：
 ```rust
-// Old (0.1.0) - Runtime only
-let runtime = DefaultRuntime::new(provider, tools);
-let output = runtime.run(input).await?;
+// 旧代码
+let agent = DefaultAgent::builder()
+    .provider(provider)
+    .tools(tools)  // 不再需要
+    .build();
 
-// New (Unreleased) - Agent + Runtime
+// 新代码
 let agent = DefaultAgent::builder()
     .provider(provider)
     .build();
-let runtime = DefaultRuntime::new(provider, tools);
-let output = runtime.run_with_agent(&agent, input).await?;
 ```
 
-#### 4. Skills feature flag
+#### AgentInput API 改进（破坏性变更）
 
+**变更内容**：
+- 字段简化，移除 `messages` 和 `metadata` 字段
+- 使用更简洁的构造方式
+
+**迁移指南**：
+```rust
+// 旧代码
+let input = AgentInput {
+    messages: vec![ChatMessage::user("你好")],
+    metadata: None,
+};
+
+// 新代码
+let input = AgentInput::new("你好");
+```
+
+#### AgentOutput API 改进（破坏性变更）
+
+**变更内容**：
+- 简化输出结构，使用 `Value` 统一返回
+- 新增辅助方法：`text()`, `message_count()`, `tool_call_count()`
+
+**迁移指南**：
+```rust
+// 旧代码
+println!("{}", output.message.content);
+
+// 新代码
+println!("{}", output.text().unwrap_or("无回复"));
+```
+
+### 新增功能
+
+#### MCP 协议支持（可选）
+
+**功能说明**：
+- 支持连接 MCP（Model Context Protocol）服务器
+- 将 MCP 工具转换为 agentkit 的 Tool trait
+- 支持多种传输层（Stdio、HTTP）
+
+**使用示例**：
+```rust
+use agentkit::mcp::{McpClient, StdioTransport};
+
+// 创建传输层并连接
+let transport = StdioTransport::new("mcp-server");
+let client = McpClient::connect(transport).await?;
+
+// 列出可用工具
+let tools = client.list_tools().await?;
+```
+
+**启用方式**：
 ```toml
-# Old (0.1.0)
 [dependencies]
-agentkit = "0.1.0"
+agentkit = { version = "0.1", features = ["mcp"] }
+```
 
-# New (Unreleased) - Skills is now optional
+#### A2A 协议支持（可选）
+
+**功能说明**：
+- 支持 Agent 之间的通信与协作
+- 支持任务委托与结果返回
+- 支持多 Agent 系统编排
+
+**使用示例**：
+```rust
+use agentkit::a2a::client::Client;
+
+// 连接远程 Agent
+let client = Client::connect("http://agent-server:8080").await?;
+
+// 发送任务
+let task = client.send_task("process_data", "input data").await?;
+```
+
+**启用方式**：
+```toml
 [dependencies]
-agentkit = { version = "0.2.0", features = ["skills"] }
-# Or with Rhai support
-agentkit = { version = "0.2.0", features = ["skills", "rhai-skills"] }
+agentkit = { version = "0.1", features = ["a2a"] }
+```
+
+#### Skills 技能系统（默认启用）
+
+**功能说明**：
+- 支持 Rhai 脚本技能（可选）
+- 支持命令模板技能（基于 SKILL.md）
+- 支持从目录动态加载技能
+
+**使用示例**：
+```rust
+use agentkit::skills::load_skills_from_dir;
+
+// 从目录加载技能
+let skills = load_skills_from_dir("skills").await?;
+
+// 转换为工具列表
+let tools = skills.as_tools();
+```
+
+**启用方式**：
+```toml
+[dependencies]
+agentkit = { version = "0.1", features = ["skills", "rhai-skills"] }
+```
+
+### 改进优化
+
+#### 项目结构优化
+- 简化依赖管理，用户只需依赖一个 crate
+- 统一版本号，所有功能使用同一版本
+- 减少 crate 数量，降低维护成本
+- 改善内部集成，子模块间可直接调用
+
+#### 编译优化
+- 避免多个 crate 间的重复编译
+- 减少链接时间
+- 统一文档，所有功能在一个 crate 的文档中
+
+### 文档更新
+
+#### 新增文档
+- `docs/QUICK_REFERENCE.md` - 快速参考手册
+- `docs/MERGE_COMPLETE.md` - Crate 合并完成报告
+
+#### 更新文档
+- `readme.md` - 更新项目结构和使用示例
+- `docs/README.md` - 添加文档导航
+
+### 删除内容
+
+#### 移除的 Crate
+- `agentkit-cli` - 命令行工具（可参考源码自行实现）
+- `agentkit-server` - HTTP 服务器（可参考源码自行实现）
+
+#### 移除的文档（开发过程文档）
+- `AGENT_BUILDER_OPTIMIZATION.md`
+- `AUTO_FIX_COMPLETE.md`
+- `AUTO_FIX_PROGRESS.md`
+- `FINAL_STATUS.md`
+- `IMPROVEMENTS.md`
+- `PROJECT_SUMMARY.md`
+- `REFACTORING_COMPLETE.md`
+- `REFACTORING.md`
+- `RUNTIME_MIGRATION.md`
+- `STATUS.md`
+- `TODO_FIXES.md`
+- `WARNINGS_FIXED.md`
+
+---
+
+## [0.1.0] - 2024-01-XX
+
+### 新增功能
+
+#### 核心框架
+- **agentkit-core** - 核心抽象层（traits/types）
+- **agentkit** - 主库（实现聚合）
+- **agentkit-runtime** - 运行时编排层
+
+#### Provider 支持
+- **OpenAiProvider** - OpenAI GPT 系列模型
+- **OllamaProvider** - Ollama 本地模型
+
+#### 工具系统
+- **ShellTool** - 执行系统命令
+- **FileReadTool** - 读取本地文件
+- **FileWriteTool** - 写入文件
+- **HttpRequestTool** - HTTP 请求
+- **GitTool** - Git 操作
+- 等 12+ 内置工具
+
+#### 技能系统
+- **RhaiSkill** - Rhai 脚本技能
+- **CommandSkill** - 命令模板技能
+- **FileReadSkill** - 文件读取技能
+
+#### 协议支持
+- **MCP 协议** - Model Context Protocol
+- **A2A 协议** - Agent-to-Agent Protocol
+
+#### 应用
+- **agentkit-cli** - 命令行工具
+- **agentkit-server** - HTTP 服务器
+
+### 项目结构
+
+```
+agentkit/
+├── agentkit-core       # 核心抽象层
+├── agentkit            # 主库（实现聚合）
+├── agentkit-runtime    # 运行时编排
+├── agentkit-skills     # 技能系统
+├── agentkit-cli        # 命令行工具
+├── agentkit-server     # HTTP 服务器
+├── agentkit-mcp        # MCP 协议支持
+└── agentkit-a2a        # A2A 协议支持
 ```
 
 ---
 
-## Contributing
+## 迁移指南
 
-We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
+### 从 0.1.0 迁移到当前版本
 
-## License
+#### 1. 更新依赖配置
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+```toml
+# 旧配置（0.1.0）
+[dependencies]
+agentkit = "0.1"
+agentkit-runtime = "0.1"
+agentkit-mcp = "0.1"
+agentkit-a2a = "0.1"
+agentkit-skills = "0.1"
+
+# 新配置（当前版本）
+[dependencies]
+agentkit = { version = "0.1", features = ["runtime", "mcp", "a2a", "skills"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+anyhow = "1"
+```
+
+#### 2. 更新导入语句
+
+```rust
+// 旧导入方式（0.1.0）
+use agentkit::provider::OpenAiProvider;
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use agentkit_core::agent::AgentInput;
+use agentkit_mcp::McpClient;
+use agentkit_skills::load_skills_from_dir;
+
+// 新导入方式（当前版本）
+use agentkit::provider::OpenAiProvider;
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use agentkit::prelude::AgentInput;
+use agentkit::mcp::McpClient;
+use agentkit::skills::load_skills_from_dir;
+```
+
+#### 3. 更新 AgentInput 使用
+
+```rust
+// 旧用法（0.1.0）
+let input = AgentInput {
+    messages: vec![ChatMessage::user("你好")],
+    metadata: None,
+};
+
+// 新用法（当前版本）
+let input = AgentInput::new("你好");
+```
+
+#### 4. 更新 AgentOutput 访问
+
+```rust
+// 旧用法（0.1.0）
+println!("{}", output.message.content);
+
+// 新用法（当前版本）
+println!("{}", output.text().unwrap_or("无回复"));
+```
+
+#### 5. 更新运行时使用
+
+```rust
+// 旧用法（0.1.0）
+use agentkit::provider::OpenAiProvider;
+use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use std::sync::Arc;
+
+let provider = OpenAiProvider::from_env()?;
+let runtime = DefaultRuntime::new(
+    Arc::new(provider),
+    ToolRegistry::new()
+).with_system_prompt("你是有用的助手");
+
+let input = AgentInput::new("用一句话介绍 Rust");
+let output = runtime.run(input).await?;
+
+// 新用法（当前版本）
+use agentkit::provider::OpenAiProvider;
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use agentkit::prelude::AgentInput;
+use std::sync::Arc;
+
+let provider = OpenAiProvider::from_env()?;
+let runtime = DefaultRuntime::new(
+    Arc::new(provider),
+    ToolRegistry::new()
+).with_system_prompt("你是有用的助手");
+
+let input = AgentInput::new("用一句话介绍 Rust");
+let output = runtime.run(input).await?;
+println!("{}", output.text().unwrap_or("无回复"));
+```
+
+---
+
+## 贡献
+
+欢迎贡献代码、文档或反馈问题！
+
+1. Fork 项目
+2. 创建特性分支 (`git checkout -b feature/amazing-feature`)
+3. 提交更改 (`git commit -m 'Add amazing feature'`)
+4. 推送到分支 (`git push origin feature/amazing-feature`)
+5. 开启 Pull Request
+
+## 许可证
+
+本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情。

@@ -27,17 +27,34 @@ AgentKit 是一个高性能、类型安全的 LLM 应用开发框架，提供完
 # 创建新项目
 cargo new my-agent
 cd my-agent
-
-# 添加依赖
-cargo add agentkit agentkit-runtime tokio serde_json anyhow
 ```
+
+### 添加依赖
+
+```toml
+[dependencies]
+agentkit = { version = "0.1", features = ["runtime"] }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+anyhow = "1"
+```
+
+### 可选 Features
+
+| Feature | 说明 |
+|---------|------|
+| `runtime` | 运行时支持（默认启用） |
+| `mcp` | MCP 协议支持 |
+| `a2a` | A2A 协议支持 |
+| `skills` | Skills 技能系统（默认启用） |
+| `rhai-skills` | Rhai 脚本技能支持 |
 
 ### 第一个 Agent
 
 ```rust
 use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::AgentInput;
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use agentkit::prelude::AgentInput;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -55,7 +72,7 @@ async fn main() -> anyhow::Result<()> {
     let input = AgentInput::new("用一句话介绍 Rust");
     let output = runtime.run(input).await?;
 
-    println!("{}", output.value);
+    println!("{}", output.text().unwrap_or("无回复"));
     Ok(())
 }
 ```
@@ -127,13 +144,14 @@ let output = runtime.run_with_agent(&agent, "帮我查询天气").await?;
 
 ## 📚 文档
 
-| 文档类型 | 说明 | 链接 |
+| 文档类型 | 说明 | 路径 |
 |----------|------|------|
-| 📘 用户指南 | 完整使用文档 | [查看](docs/user_guide.md) |
-| 🏃 快速入门 | 10 分钟上手教程 | [查看](docs/quick_start.md) |
-| 🍳 示例集合 | 实用代码示例 | [查看](docs/cookbook.md) |
-| ❓ 常见问题 | 问题解答 | [查看](docs/faq.md) |
-| 📖 API 参考 | 完整 API 文档 | [查看](https://docs.rs/agentkit) |
+| 📘 用户指南 | 完整使用文档 | `docs/user_guide.md` |
+| 🏃 快速入门 | 10 分钟上手教程 | `docs/quick_start.md` |
+| 🍳 示例集合 | 实用代码示例 | `docs/cookbook.md` |
+| ❓ 常见问题 | 问题解答 | `docs/faq.md` |
+| 📖 API 参考 | 完整 API 文档 | [docs.rs](https://docs.rs/agentkit) |
+| 🔗 快速参考 | 常用代码片段 | `docs/QUICK_REFERENCE.md` |
 
 ## 🧰 核心功能
 
@@ -205,13 +223,22 @@ let chain = MiddlewareChain::new()
 ```
 agentkit/
 ├── agentkit-core       # 核心抽象层（traits/types）
-├── agentkit            # 主库（实现聚合）
-├── agentkit-runtime    # 运行时实现
-├── agentkit-cli        # 命令行工具
-├── agentkit-server     # HTTP 服务器
-├── agentkit-mcp        # MCP 协议支持
-└── agentkit-a2a        # A2A 协议支持
+├── agentkit            # 主库（实现聚合，包含所有功能）
+│   └── src/
+│       ├── mcp/        # MCP 协议支持
+│       ├── a2a/        # A2A 协议支持
+│       └── skills/     # 技能系统
+├── examples/           # 示例代码
+│   ├── agentkit-examples-complete
+│   └── agentkit-examples-deep-dive
+└── docs/               # 文档
 ```
+
+### Workspace 成员
+
+- `agentkit-core` - 核心抽象层
+- `agentkit` - 主库（包含所有功能）
+- `examples/*` - 示例代码
 
 ## 🔧 系统要求
 

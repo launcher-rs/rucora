@@ -18,6 +18,8 @@
 //! ├── provider      - LLM Provider 实现（OpenAI/Ollama/Router）
 //! ├── tools         - 工具实现（Shell/File/HTTP/Git/Memory）
 //! ├── skills        - 技能实现（Echo/Rhai/Command）
+//! ├── mcp           - MCP 协议集成（需要 `mcp` feature）
+//! ├── a2a           - A2A 协议集成（需要 `a2a` feature）
 //! ├── memory        - 记忆实现（InMemory/File）
 //! ├── retrieval     - 检索实现（Chroma）
 //! ├── embed         - Embedding 实现（OpenAI/Ollama）
@@ -408,14 +410,38 @@ pub mod middleware;
 /// MCP（Model Context Protocol）集成（可选）
 ///
 /// 需要启用 `mcp` feature。
+///
+/// 本模块包含：
+///
+/// - [`mcp::McpClient`]: MCP 客户端
+/// - [`mcp::McpTool`]: MCP 工具适配器
+/// - [`mcp::protocol`]: MCP 协议模型
+/// - [`mcp::transport`]: MCP 传输层
+/// - [`mcp::tool`]: MCP 工具相关类型
+///
+/// # 依赖
+///
+/// 本模块基于 [`rmcp`](https://crates.io/crates/rmcp) 库构建。
 #[cfg(feature = "mcp")]
-pub use agentkit_mcp as mcp;
+pub mod mcp;
 
 /// A2A（Agent-to-Agent）集成（可选）
 ///
 /// 需要启用 `a2a` feature。
+///
+/// 本模块包含：
+///
+/// - [`a2a::client`]: A2A 客户端
+/// - [`a2a::server`]: A2A 服务端
+/// - [`a2a::types`]: A2A 协议类型
+/// - [`a2a::protocol`]: A2A 协议模型
+/// - [`a2a::transport`]: A2A 传输层
+///
+/// # 依赖
+///
+/// 本模块基于 [`ra2a`](https://crates.io/crates/ra2a) 库构建。
 #[cfg(feature = "a2a")]
-pub use agentkit_a2a as a2a;
+pub mod a2a;
 
 /// Skills（技能）实现与示例（可选）
 ///
@@ -428,12 +454,11 @@ pub use agentkit_a2a as a2a;
 /// - [`skills::FileReadSkill`]: 文件读取技能
 /// - [`skills::load_skills_from_dir`]: 从目录加载 skills
 #[cfg(feature = "skills")]
-pub use agentkit_skills as skills;
+pub mod skills;
 
-/// Skills 重新导出（无论 feature 如何都可用）
+/// Skills 占位模块（未启用 skills feature）
 ///
-/// 如果启用了 `skills` feature，则使用 agentkit_skills；
-/// 否则提供一个空的占位模块，避免编译错误。
+/// 如果未启用 `skills` feature，则提供一个空的占位模块，避免编译错误。
 #[cfg(not(feature = "skills"))]
 pub mod skills {
     //! Skills 模块（未启用 skills feature）

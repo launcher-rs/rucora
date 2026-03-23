@@ -9,16 +9,27 @@ doctest = false
 [features]
 default = ["runtime", "skills"]
 runtime = []
-mcp = ["dep:agentkit-mcp"]
-a2a = ["dep:agentkit-a2a"]
-skills = ["dep:agentkit-skills"]
-rhai-skills = ["agentkit-skills?/rhai-skills"]
+# MCP 协议支持
+mcp = ["dep:rmcp"]
+# A2A 协议支持
+a2a = ["dep:ra2a"]
+# Skills 技能系统
+skills = ["dep:rhai", "dep:serde_yaml"]
+# Rhai 脚本技能支持
+rhai-skills = ["skills"]
+# MCP 完整功能
+mcp-full = ["mcp"]
+# A2A 完整功能
+a2a-full = ["a2a", "ra2a/full"]
 
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
-agentkit-mcp = { path = "../agentkit-mcp", optional = true }
-agentkit-a2a = { path = "../agentkit-a2a", optional = true, default-features = true }
-agentkit-skills = { path = "../agentkit-skills", optional = true, default-features = true }
+# 直接依赖外部库，不再通过独立 crate
+rmcp = { version = "1.2.0", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], optional = true }
+ra2a = { version = "0.8.1", default-features = false, optional = true }
+rhai = { version = "1", features = ["serde", "sync"], optional = true }
+
+# 核心依赖
 async-trait = "0.1"
 reqwest = { version = "0.13", features = ["json", "stream","query", "gzip", "brotli", "deflate", "zstd"] }
 futures-util = "0.3"
@@ -26,13 +37,12 @@ async-stream = "0.3"
 bytes = "1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = "0.9"
+serde_yaml = { version = "0.9", optional = true }
 toml = "0.8"
 dom_smoothie = "0.16"
 html2text = "0.12"
 tokio = { version = "1", features = ["process", "fs", "time", "sync"] }
 tracing = "0.1"
-rhai = { version = "1", features = ["serde", "sync"] }
 url = "2"
 regex = "1"
 thiserror = "2"

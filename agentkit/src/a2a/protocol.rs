@@ -11,7 +11,7 @@
 //! Agent 的唯一标识符：
 //!
 //! ```rust
-//! use agentkit_a2a::protocol::AgentId;
+//! use agentkit::a2a::protocol::AgentId;
 //!
 //! let id = AgentId("agent_123".to_string());
 //! ```
@@ -21,7 +21,7 @@
 //! 任务的唯一标识符：
 //!
 //! ```rust
-//! use agentkit_a2a::protocol::TaskId;
+//! use agentkit::a2a::protocol::TaskId;
 //!
 //! let id = TaskId("task_456".to_string());
 //! ```
@@ -35,7 +35,7 @@
 //! - `payload`: 任务负载（JSON）
 //!
 //! ```rust
-//! use agentkit_a2a::protocol::{A2aTask, AgentId, TaskId};
+//! use agentkit::a2a::protocol::{A2aTask, AgentId, TaskId};
 //! use serde_json::json;
 //!
 //! let task = A2aTask {
@@ -55,7 +55,7 @@
 //! - `output`: 任务输出（JSON）
 //!
 //! ```rust
-//! use agentkit_a2a::protocol::{A2aResult, AgentId, TaskId};
+//! use agentkit::a2a::protocol::{A2aResult, AgentId, TaskId};
 //! use serde_json::json;
 //!
 //! let result = A2aResult {
@@ -71,7 +71,7 @@
 //! A2A 任务取消请求：
 //!
 //! ```rust
-//! use agentkit_a2a::protocol::{A2aCancel, AgentId, TaskId};
+//! use agentkit::a2a::protocol::{A2aCancel, AgentId, TaskId};
 //!
 //! let cancel = A2aCancel {
 //!     id: TaskId("task_1".to_string()),
@@ -101,7 +101,7 @@ use serde_json::Value;
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_a2a::protocol::AgentId;
+/// use agentkit::a2a::protocol::AgentId;
 ///
 /// let id = AgentId("agent_123".to_string());
 /// assert_eq!(id.0, "agent_123");
@@ -114,7 +114,7 @@ pub struct AgentId(pub String);
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_a2a::protocol::TaskId;
+/// use agentkit::a2a::protocol::TaskId;
 ///
 /// let id = TaskId("task_456".to_string());
 /// assert_eq!(id.0, "task_456");
@@ -136,7 +136,7 @@ pub struct TaskId(pub String);
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_a2a::protocol::{A2aTask, AgentId, TaskId};
+/// use agentkit::a2a::protocol::{A2aTask, AgentId, TaskId};
 /// use serde_json::json;
 ///
 /// let task = A2aTask {
@@ -172,7 +172,7 @@ pub struct A2aTask {
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_a2a::protocol::{A2aResult, AgentId, TaskId};
+/// use agentkit::a2a::protocol::{A2aResult, AgentId, TaskId};
 /// use serde_json::json;
 ///
 /// let result = A2aResult {
@@ -207,7 +207,7 @@ pub struct A2aResult {
 /// # 示例
 ///
 /// ```rust
-/// use agentkit_a2a::protocol::{A2aCancel, AgentId, TaskId};
+/// use agentkit::a2a::protocol::{A2aCancel, AgentId, TaskId};
 ///
 /// let cancel = A2aCancel {
 ///     id: TaskId("task_1".to_string()),
@@ -223,4 +223,33 @@ pub struct A2aCancel {
     pub from: AgentId,
     /// 接收方 Agent ID
     pub to: AgentId,
+}
+
+/// A2A 消息类型
+///
+/// 用于在 Agent 之间传递各种类型的消息。
+///
+/// # 示例
+///
+/// ```rust
+/// use agentkit::a2a::protocol::{A2aMessage, A2aTask, AgentId, TaskId};
+/// use serde_json::json;
+///
+/// let task = A2aTask {
+///     id: TaskId("task_1".to_string()),
+///     from: AgentId("agent_a".to_string()),
+///     to: AgentId("agent_b".to_string()),
+///     payload: json!({"action": "process"}),
+/// };
+///
+/// let message = A2aMessage::Task(task);
+/// ```
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum A2aMessage {
+    /// 任务请求
+    Task(A2aTask),
+    /// 任务结果
+    Result(A2aResult),
+    /// 任务取消
+    Cancel(A2aCancel),
 }

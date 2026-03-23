@@ -2,7 +2,7 @@
 //!
 //! # 概述
 //!
-//! 本 crate 提供 A2A（Agent-to-Agent）协议集成支持，用于：
+//! 本模块提供 A2A（Agent-to-Agent）协议集成支持，用于：
 //! - Agent 之间的通信与协作
 //! - 任务委托与结果返回
 //! - 多 Agent 系统编排
@@ -25,7 +25,7 @@
 //! - 接收任务结果
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::client::Client;
+//! use agentkit::a2a::client::Client;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let client = Client::connect("http://agent-server:8080").await?;
@@ -47,7 +47,7 @@
 //! - 返回任务结果
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::server::Server;
+//! use agentkit::a2a::server::Server;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let server = Server::new()
@@ -76,8 +76,8 @@
 //! ## 客户端使用
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::client::Client;
-//! use agentkit_a2a::types::Task;
+//! use agentkit::a2a::client::Client;
+//! use agentkit::a2a::types::Task;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 连接 Agent 服务器
@@ -105,8 +105,8 @@
 //! ## 服务端使用
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::server::Server;
-//! use agentkit_a2a::types::{Task, TaskStatus, TaskResult};
+//! use agentkit::a2a::server::Server;
+//! use agentkit::a2a::types::{Task, TaskStatus, TaskResult};
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 创建服务器
@@ -116,7 +116,7 @@
 //! server.register_handler("analyze", |task: Task| async move {
 //!     // 处理任务
 //!     let result = format!("Analysis of: {}", task.input);
-//!     
+//!
 //!     Ok(TaskResult {
 //!         task_id: task.id,
 //!         output: result,
@@ -133,7 +133,7 @@
 //! ## 多 Agent 协作
 //!
 //! ```rust,no_run
-//! use agentkit_a2a::client::Client;
+//! use agentkit::a2a::client::Client;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! // 连接多个 Agent
@@ -156,10 +156,12 @@
 //! - [`client`]: A2A 客户端 API
 //! - [`server`]: A2A 服务端 API
 //! - [`types`]: A2A 协议类型定义
+//! - [`protocol`]: A2A 协议模型定义
+//! - [`transport`]: A2A 传输层
 //!
 //! # 依赖
 //!
-//! 本 crate 基于 [`ra2a`](https://crates.io/crates/ra2a) 库构建。
+//! 本模块基于 [`ra2a`](https://crates.io/crates/ra2a) 库构建。
 //!
 //! # Feature 标志
 //!
@@ -190,7 +192,7 @@ pub mod client {
 /// # 注意
 ///
 /// 服务端通常会依赖具体 Web 框架（例如 `axum`）。
-/// 本 crate 仅转导出 `ra2a` 的 server 侧能力，
+/// 本模块仅转导出 `ra2a` 的 server 侧能力，
 /// 具体监听端口、路由挂载、中间件等由使用方自行完成。
 pub mod server {
     pub use ra2a::server::*;
@@ -207,3 +209,9 @@ pub mod server {
 pub mod types {
     pub use ra2a::types::*;
 }
+
+/// A2A 协议模型定义
+pub mod protocol;
+
+/// A2A 传输层
+pub mod transport;
