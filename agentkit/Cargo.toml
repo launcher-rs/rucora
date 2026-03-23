@@ -46,6 +46,10 @@ tracing = "0.1"
 url = "2"
 regex = "1"
 thiserror = "2"
+chrono = "0.4"
+scraper = "0.22"
+backon = "1.5"
+# tyme4rs = "1.4"  # API 有重大变化，暂时使用 chrono 实现
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }

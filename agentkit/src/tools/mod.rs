@@ -39,6 +39,17 @@
 //! |------|------|----------|
 //! | [`HttpRequestTool`] | 发送 HTTP 请求 | 禁止内网、域名过滤 |
 //! | [`WebFetchTool`] | 获取网页 HTML | 禁止内网、超时限制 |
+//! | [`WebSearchTool`] | 联网搜索 | - |
+//! | [`WebScraperTool`] | 网页抓取 | - |
+//! | [`SerpapiTool`] | Google 搜索（需 API Key） | - |
+//! | [`TavilyTool`] | Tavily AI 搜索（需 API Key） | - |
+//!
+//! ## 实用工具 (ToolCategory::Basic)
+//!
+//! | 工具 | 说明 |
+//! |------|------|
+//! | [`DatetimeTool`] | 日期时间（农历、生肖、星座） |
+//! | [`GithubTrendingTool`] | GitHub 趋势榜 |
 //!
 //! ## 浏览器工具 (ToolCategory::Browser)
 //!
@@ -197,7 +208,10 @@ pub mod file;
 
 // 网络工具模块
 pub mod http;
+pub mod serpapi_tool;
+pub mod tavily_tool;
 pub mod web;
+pub mod web_search;
 
 // 浏览器工具模块
 pub mod browse;
@@ -221,7 +235,17 @@ pub use file::{FileEditTool, FileReadTool, FileWriteTool};
 
 // 网络工具
 pub use http::HttpRequestTool;
+pub use serpapi_tool::SerpapiTool;
+pub use tavily_tool::TavilyTool;
 pub use web::WebFetchTool;
+pub use web_search::{WebScraperTool, WebSearchTool};
+
+// 实用工具
+pub mod datetime_tool;
+pub mod github_trending_tool;
+
+pub use datetime_tool::DatetimeTool;
+pub use github_trending_tool::GithubTrendingTool;
 
 // 浏览器工具
 pub use browse::BrowseTool;

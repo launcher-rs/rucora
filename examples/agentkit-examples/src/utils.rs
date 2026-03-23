@@ -2,7 +2,6 @@
 //!
 //! 提供示例中常用的共享工具，如 Mock Provider 等
 
-use agentkit::prelude::*;
 use async_trait::async_trait;
 use futures_util::stream;
 use std::sync::Arc;
@@ -23,6 +22,7 @@ impl MockProvider {
     }
 
     /// 创建带自定义回复的 Mock Provider
+    #[allow(dead_code)]
     pub fn with_response(response: impl Into<String>) -> Self {
         Self {
             default_response: response.into(),
@@ -93,6 +93,7 @@ impl agentkit::core::provider::LlmProvider for MockProvider {
 }
 
 /// 尝试从环境变量创建 Provider，失败则返回 Mock Provider
+#[allow(dead_code)]
 pub fn create_provider_or_mock() -> Arc<dyn agentkit::core::provider::LlmProvider> {
     use agentkit::provider::OpenAiProvider;
 
