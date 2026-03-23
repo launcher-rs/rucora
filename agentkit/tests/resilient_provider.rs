@@ -2,11 +2,11 @@ use std::sync::{Arc, Mutex};
 
 use agentkit::provider::{ResilientProvider, RetryConfig};
 use agentkit_core::error::ProviderError;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
 use agentkit_core::provider::LlmProvider;
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
 use async_trait::async_trait;
-use futures_util::stream::BoxStream;
 use futures_util::StreamExt;
+use futures_util::stream::BoxStream;
 
 struct FlakyProvider {
     attempts: Mutex<u32>,

@@ -1,8 +1,8 @@
 use agentkit_core::{
     agent::types::{AgentInput, AgentOutput},
     error::{AgentError, ProviderError},
-    provider::types::{ChatMessage, ChatRequest, ChatResponse, Role},
     provider::LlmProvider,
+    provider::types::{ChatMessage, ChatRequest, ChatResponse, Role},
     runtime::Runtime,
 };
 use async_trait::async_trait;

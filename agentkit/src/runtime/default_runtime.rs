@@ -153,7 +153,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use futures_util::stream;
-use futures_util::{stream::BoxStream, StreamExt};
+use futures_util::{StreamExt, stream::BoxStream};
 use serde_json::json;
 use tracing::{debug, info, warn};
 
@@ -162,8 +162,8 @@ use agentkit_core::agent::{
 };
 use agentkit_core::channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent};
 use agentkit_core::error::{AgentError, DiagnosticError};
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
 use agentkit_core::provider::LlmProvider;
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
 use agentkit_core::runtime::{NoopRuntimeObserver, Runtime, RuntimeObserver};
 use agentkit_core::tool::types::{ToolCall, ToolResult};
 

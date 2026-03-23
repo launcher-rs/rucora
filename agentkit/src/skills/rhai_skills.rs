@@ -9,7 +9,7 @@ use async_trait::async_trait;
 #[cfg(feature = "rhai-skills")]
 use rhai::{Engine, Scope};
 #[cfg(feature = "rhai-skills")]
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 #[cfg(feature = "rhai-skills")]
 use std::sync::Arc;
 #[cfg(feature = "rhai-skills")]

@@ -15,8 +15,8 @@ use std::time::{Duration, Instant};
 
 use agentkit_core::{
     error::ProviderError,
-    provider::types::{ChatRequest, ChatResponse, ChatStreamChunk},
     provider::LlmProvider,
+    provider::types::{ChatRequest, ChatResponse, ChatStreamChunk},
 };
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;

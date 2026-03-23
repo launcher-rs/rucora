@@ -93,9 +93,9 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use agentkit_core::tool::types::ToolDefinition;
 use agentkit_core::tool::Tool;
 use agentkit_core::tool::ToolCategory;
+use agentkit_core::tool::types::ToolDefinition;
 
 /// 工具来源类型枚举
 ///
@@ -919,8 +919,8 @@ impl ToolRegistry {
 mod tests {
     use super::*;
     use agentkit_core::error::ToolError;
-    use serde_json::json;
     use serde_json::Value;
+    use serde_json::json;
 
     struct TestTool {
         name: String,

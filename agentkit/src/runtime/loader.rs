@@ -1,4 +1,4 @@
-﻿//! 统一工具加载器模块
+//! 统一工具加载器模块
 //!
 //! # 概述
 //!
@@ -463,7 +463,7 @@ impl ToolLoader {
         // 使用 agentkit 的 skills 加载器
         #[cfg(feature = "skills")]
         {
-            use crate::skills::registry::{load_skills_from_dir, SkillRegistry};
+            use crate::skills::registry::{SkillRegistry, load_skills_from_dir};
 
             let skill_registry: SkillRegistry = load_skills_from_dir(dir).await?;
             let skill_tools = skill_registry.as_tools();
@@ -523,7 +523,7 @@ impl ToolLoader {
         mut self,
         client: rmcp::client::Client,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        use agentkit_mcp::McpToolAdapter;
+        use crate::mcp::McpToolAdapter;
 
         info!("loader.mcp.start");
 
@@ -581,7 +581,7 @@ impl ToolLoader {
         agent_card: ra2a::types::AgentCard,
         transport: impl ra2a::transport::Transport + 'static,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        use agentkit_a2a::A2AToolAdapter;
+        use crate::a2a::A2AToolAdapter;
 
         info!("loader.a2a.start");
 

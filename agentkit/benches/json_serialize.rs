@@ -1,7 +1,7 @@
 use agentkit_core::channel::types::{ChannelEvent, TokenDeltaEvent};
 use agentkit_core::provider::types::{ChatMessage, Role};
 use agentkit_core::tool::types::{ToolCall, ToolResult};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use serde_json::json;
 
 fn bench_channel_event_serialize(c: &mut Criterion) {

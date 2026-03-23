@@ -7,7 +7,7 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::time::Duration;
 use tracing::{info, warn};
 

@@ -1,6 +1,6 @@
 use agentkit_core::provider::{
-    types::{ChatMessage, ChatRequest, Role},
     LlmProvider,
+    types::{ChatMessage, ChatRequest, Role},
 };
 
 #[tokio::main]

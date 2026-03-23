@@ -9,15 +9,15 @@ use std::env;
 use agentkit_core::{
     error::ProviderError,
     provider::{
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
         LlmProvider,
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
     },
     tool::types::{ToolCall, ToolDefinition},
 };
 use async_trait::async_trait;
-use futures_util::{stream::BoxStream, StreamExt};
-use reqwest::header::{HeaderMap, HeaderValue, AUTHORIZATION, CONTENT_TYPE};
-use serde_json::{json, Value};
+use futures_util::{StreamExt, stream::BoxStream};
+use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use serde_json::{Value, json};
 use tracing::{debug, trace};
 
 /// OpenAI Chat Completions Provider。

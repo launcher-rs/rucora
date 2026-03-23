@@ -16,14 +16,14 @@ use tracing::debug;
 
 #[cfg(feature = "rhai-skills")]
 use crate::skills::command_skills::{
-    extract_primary_command_template, parse_skill_md_frontmatter, validate_manifest, CommandSkill,
-    SkillManifest, SkillMetaYaml,
+    CommandSkill, SkillManifest, SkillMetaYaml, extract_primary_command_template,
+    parse_skill_md_frontmatter, validate_manifest,
 };
 #[cfg(feature = "rhai-skills")]
 use crate::skills::file_skills::FileReadSkill;
 #[cfg(feature = "rhai-skills")]
 use crate::skills::rhai_skills::{
-    get_global_rhai_engine_registrar, RhaiEngineRegistrar, RhaiSkill,
+    RhaiEngineRegistrar, RhaiSkill, get_global_rhai_engine_registrar,
 };
 #[cfg(feature = "rhai-skills")]
 use tokio::fs;

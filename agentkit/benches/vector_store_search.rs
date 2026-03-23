@@ -1,6 +1,6 @@
 use agentkit::retrieval::InMemoryVectorStore;
 use agentkit_core::retrieval::{VectorQuery, VectorRecord, VectorStore};
-use criterion::{black_box, criterion_group, criterion_main, Criterion};
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn bench_inmemory_vector_store_search(c: &mut Criterion) {
     let store = InMemoryVectorStore::new();

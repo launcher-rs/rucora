@@ -2,8 +2,8 @@ use agentkit::provider::RouterProvider;
 use agentkit_core::{
     error::ProviderError,
     provider::{
-        types::{ChatMessage, ChatRequest, ChatResponse, Role},
         LlmProvider,
+        types::{ChatMessage, ChatRequest, ChatResponse, Role},
     },
 };
 use async_trait::async_trait;

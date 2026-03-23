@@ -13,17 +13,17 @@ use crate::provider::helpers::parse_finish_reason;
 use agentkit_core::{
     error::ProviderError,
     provider::{
+        LlmProvider,
         types::{
             ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role, Usage,
         },
-        LlmProvider,
     },
     tool::types::{ToolCall, ToolDefinition},
 };
 use async_trait::async_trait;
-use futures_util::{stream::BoxStream, StreamExt};
-use reqwest::header::{HeaderMap, HeaderValue, CONTENT_TYPE};
-use serde_json::{json, Value};
+use futures_util::{StreamExt, stream::BoxStream};
+use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
+use serde_json::{Value, json};
 use tracing::{debug, trace};
 
 /// Azure OpenAI Provider。

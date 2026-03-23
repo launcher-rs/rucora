@@ -34,14 +34,202 @@
 use agentkit_core::agent::{
     Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput,
 };
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::tool::types::ToolDefinition;
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
 use agentkit_core::tool::Tool;
+use agentkit_core::tool::types::ToolDefinition;
 use async_trait::async_trait;
 use serde_json::Value;
 use std::collections::HashMap;
+use std::path::PathBuf;
 use std::sync::Arc;
+
+/// MCP 服务器配置
+///
+/// 支持多个 MCP 服务器，每个服务器可以独立配置认证信息
+///
+/// # 示例
+///
+/// ```rust,no_run
+/// use agentkit::agent::McpServerConfig;
+///
+/// // 基本配置（无认证）
+/// let config = McpServerConfig::new("http://localhost:8080");
+///
+/// // 带 Token 认证
+/// let config = McpServerConfig::with_auth(
+///     "http://localhost:8080",
+///     "Bearer my-token"
+/// );
+///
+/// // 带自定义超时
+/// let config = McpServerConfig::new("http://localhost:8080")
+///     .with_timeout_secs(60);
+/// ```
+#[derive(Clone)]
+#[cfg_attr(feature = "mcp", derive(Debug))]
+pub struct McpServerConfig {
+    /// 服务器 URL
+    pub url: String,
+    /// 认证头（可选），例如 "Bearer token123"
+    pub auth_header: Option<String>,
+    /// 超时时间（秒）
+    pub timeout_secs: u64,
+    /// 自定义元数据（可选）
+    pub metadata: HashMap<String, Value>,
+}
+
+#[cfg(feature = "mcp")]
+impl McpServerConfig {
+    /// 创建新的 MCP 服务器配置
+    pub fn new(url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            auth_header: None,
+            timeout_secs: 30,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// 创建带认证的配置
+    pub fn with_auth(url: impl Into<String>, auth_header: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            auth_header: Some(auth_header.into()),
+            timeout_secs: 30,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// 设置超时时间（秒）
+    pub fn with_timeout_secs(mut self, secs: u64) -> Self {
+        self.timeout_secs = secs;
+        self
+    }
+
+    /// 添加自定义元数据
+    pub fn with_metadata(mut self, key: impl Into<String>, value: Value) -> Self {
+        self.metadata.insert(key.into(), value);
+        self
+    }
+}
+
+/// A2A 代理配置
+///
+/// 支持多个 A2A 代理，每个代理可以独立配置认证信息
+///
+/// # 示例
+///
+/// ```rust,no_run
+/// use agentkit::agent::A2aAgentConfig;
+///
+/// // 基本配置
+/// let config = A2aAgentConfig::new("http://agent.example.com");
+///
+/// // 带 Token 认证
+/// let config = A2aAgentConfig::with_auth(
+///     "http://agent.example.com",
+///     "Bearer my-token"
+/// );
+/// ```
+#[derive(Clone)]
+#[cfg_attr(feature = "a2a", derive(Debug))]
+pub struct A2aAgentConfig {
+    /// 代理 URL
+    pub url: String,
+    /// 认证头（可选）
+    pub auth_header: Option<String>,
+    /// 超时时间（秒）
+    pub timeout_secs: u64,
+    /// 自定义元数据（可选）
+    pub metadata: HashMap<String, Value>,
+}
+
+#[cfg(feature = "a2a")]
+impl A2aAgentConfig {
+    /// 创建新的 A2A 代理配置
+    pub fn new(url: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            auth_header: None,
+            timeout_secs: 30,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// 创建带认证的配置
+    pub fn with_auth(url: impl Into<String>, auth_header: impl Into<String>) -> Self {
+        Self {
+            url: url.into(),
+            auth_header: Some(auth_header.into()),
+            timeout_secs: 30,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// 设置超时时间（秒）
+    pub fn with_timeout_secs(mut self, secs: u64) -> Self {
+        self.timeout_secs = secs;
+        self
+    }
+
+    /// 添加自定义元数据
+    pub fn with_metadata(mut self, key: impl Into<String>, value: Value) -> Self {
+        self.metadata.insert(key.into(), value);
+        self
+    }
+}
+
+/// Skills 目录配置
+///
+/// 支持多个 Skills 目录，每个目录可以独立配置
+///
+/// # 示例
+///
+/// ```rust,no_run
+/// use agentkit::agent::SkillsDirConfig;
+///
+/// // 基本配置
+/// let config = SkillsDirConfig::new("skills");
+///
+/// // 带自定义配置
+/// let config = SkillsDirConfig::new("skills")
+///     .with_enabled(true);
+/// ```
+#[derive(Clone)]
+#[cfg_attr(feature = "skills", derive(Debug))]
+pub struct SkillsDirConfig {
+    /// 目录路径
+    pub path: PathBuf,
+    /// 是否启用（默认 true）
+    pub enabled: bool,
+    /// 自定义元数据（可选）
+    pub metadata: HashMap<String, Value>,
+}
+
+#[cfg(feature = "skills")]
+impl SkillsDirConfig {
+    /// 创建新的 Skills 目录配置
+    pub fn new(path: impl Into<PathBuf>) -> Self {
+        Self {
+            path: path.into(),
+            enabled: true,
+            metadata: HashMap::new(),
+        }
+    }
+
+    /// 设置是否启用
+    pub fn with_enabled(mut self, enabled: bool) -> Self {
+        self.enabled = enabled;
+        self
+    }
+
+    /// 添加自定义元数据
+    pub fn with_metadata(mut self, key: impl Into<String>, value: Value) -> Self {
+        self.metadata.insert(key.into(), value);
+        self
+    }
+}
 
 /// 增强的 DefaultAgent 实现。
 ///
@@ -76,10 +264,10 @@ use std::sync::Arc;
 /// # }
 /// ```
 ///
-/// ## 使用 Skills
+/// ## 使用多个 MCP 服务器
 ///
 /// ```rust,no_run
-/// use agentkit::agent::DefaultAgent;
+/// use agentkit::agent::{DefaultAgent, McpServerConfig};
 /// use agentkit::provider::OpenAiProvider;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -87,7 +275,29 @@ use std::sync::Arc;
 ///
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
-///     .with_skills("skills")
+///     .mcp_server(McpServerConfig::new("http://localhost:8080"))
+///     .mcp_server(McpServerConfig::with_auth(
+///         "http://mcp.example.com",
+///         "Bearer token123"
+///     ))
+///     .build();
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## 使用多个 Skills 目录
+///
+/// ```rust,no_run
+/// use agentkit::agent::{DefaultAgent, SkillsDirConfig};
+/// use agentkit::provider::OpenAiProvider;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// let provider = OpenAiProvider::from_env()?;
+///
+/// let agent = DefaultAgent::builder()
+///     .provider(provider)
+///     .skills_dir(SkillsDirConfig::new("skills"))
+///     .skills_dir(SkillsDirConfig::new("custom_skills"))
 ///     .build();
 /// # Ok(())
 /// # }
@@ -105,15 +315,15 @@ pub struct DefaultAgent<P> {
     /// 最大步骤数。
     #[allow(dead_code)]
     max_steps: usize,
-    /// Skills 目录路径
+    /// Skills 目录配置列表
     #[cfg(feature = "skills")]
-    skills_dir: Option<String>,
-    /// MCP 服务器地址
+    skills_dirs: Vec<SkillsDirConfig>,
+    /// MCP 服务器配置列表
     #[cfg(feature = "mcp")]
-    mcp_server: Option<String>,
-    /// A2A 代理 URL
+    mcp_servers: Vec<McpServerConfig>,
+    /// A2A 代理配置列表
     #[cfg(feature = "a2a")]
-    a2a_agent_url: Option<String>,
+    a2a_agents: Vec<A2aAgentConfig>,
 }
 
 impl<P> DefaultAgent<P> {
@@ -130,6 +340,24 @@ impl<P> DefaultAgent<P> {
     /// 获取工具列表。
     pub fn tools(&self) -> Vec<&str> {
         self.tools.keys().map(|s| s.as_str()).collect()
+    }
+
+    /// 获取 MCP 服务器配置列表
+    #[cfg(feature = "mcp")]
+    pub fn mcp_servers(&self) -> &[McpServerConfig] {
+        &self.mcp_servers
+    }
+
+    /// 获取 A2A 代理配置列表
+    #[cfg(feature = "a2a")]
+    pub fn a2a_agents(&self) -> &[A2aAgentConfig] {
+        &self.a2a_agents
+    }
+
+    /// 获取 Skills 目录配置列表
+    #[cfg(feature = "skills")]
+    pub fn skills_dirs(&self) -> &[SkillsDirConfig] {
+        &self.skills_dirs
     }
 }
 
@@ -380,10 +608,10 @@ where
 /// # }
 /// ```
 ///
-/// ## 使用 Skills 目录
+/// ## 使用多个 MCP 服务器
 ///
 /// ```rust,no_run
-/// use agentkit::agent::DefaultAgent;
+/// use agentkit::agent::{DefaultAgent, McpServerConfig};
 /// use agentkit::provider::OpenAiProvider;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -391,17 +619,20 @@ where
 ///
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
-///     .system_prompt("你是有用的助手")
-///     .with_skills("skills")  // 加载 skills 目录
+///     .mcp_server(McpServerConfig::new("http://localhost:8080"))
+///     .mcp_server(McpServerConfig::with_auth(
+///         "http://mcp.example.com",
+///         "Bearer token123"
+///     ))
 ///     .build();
 /// # Ok(())
 /// # }
 /// ```
 ///
-/// ## 使用 MCP 服务器
+/// ## 使用多个 Skills 目录
 ///
 /// ```rust,no_run
-/// use agentkit::agent::DefaultAgent;
+/// use agentkit::agent::{DefaultAgent, SkillsDirConfig};
 /// use agentkit::provider::OpenAiProvider;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
@@ -409,8 +640,8 @@ where
 ///
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
-///     .system_prompt("你是有用的助手")
-///     .with_mcp("http://localhost:8080")  // MCP 服务器地址
+///     .skills_dir(SkillsDirConfig::new("skills"))
+///     .skills_dir(SkillsDirConfig::new("custom_skills"))
 ///     .build();
 /// # Ok(())
 /// # }
@@ -421,14 +652,15 @@ pub struct DefaultAgentBuilder<P> {
     default_model: Option<String>,
     tools: HashMap<String, Arc<dyn Tool>>,
     max_steps: usize,
-    /// Skills 目录路径
-    skills_dir: Option<String>,
-    /// MCP 服务器地址
+    /// Skills 目录配置列表
+    #[cfg(feature = "skills")]
+    skills_dirs: Vec<SkillsDirConfig>,
+    /// MCP 服务器配置列表
     #[cfg(feature = "mcp")]
-    mcp_server: Option<String>,
-    /// A2A 代理 URL
+    mcp_servers: Vec<McpServerConfig>,
+    /// A2A 代理配置列表
     #[cfg(feature = "a2a")]
-    a2a_agent_url: Option<String>,
+    a2a_agents: Vec<A2aAgentConfig>,
 }
 
 impl<P> DefaultAgentBuilder<P> {
@@ -440,11 +672,12 @@ impl<P> DefaultAgentBuilder<P> {
             default_model: None,
             tools: HashMap::new(),
             max_steps: 10,
-            skills_dir: None,
+            #[cfg(feature = "skills")]
+            skills_dirs: Vec::new(),
             #[cfg(feature = "mcp")]
-            mcp_server: None,
+            mcp_servers: Vec::new(),
             #[cfg(feature = "a2a")]
-            a2a_agent_url: None,
+            a2a_agents: Vec::new(),
         }
     }
 }
@@ -502,11 +735,11 @@ where
         self
     }
 
-    /// 配置 Skills 目录
+    /// 添加 Skills 目录配置
     ///
     /// # 参数
     ///
-    /// - `dir`: Skills 目录路径
+    /// - `config`: Skills 目录配置
     ///
     /// # Feature 标志
     ///
@@ -515,28 +748,47 @@ where
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::agent::{DefaultAgent, SkillsDirConfig};
     /// use agentkit::provider::OpenAiProvider;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let agent = DefaultAgent::builder()
     ///     .provider(provider)
-    ///     .with_skills("skills")
+    ///     .skills_dir(SkillsDirConfig::new("skills"))
+    ///     .skills_dir(SkillsDirConfig::new("custom_skills"))
     ///     .build();
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "skills")]
-    pub fn with_skills(mut self, dir: impl Into<String>) -> Self {
-        self.skills_dir = Some(dir.into());
+    pub fn skills_dir(mut self, config: SkillsDirConfig) -> Self {
+        self.skills_dirs.push(config);
         self
     }
 
-    /// 配置 MCP 服务器
+    /// 添加多个 Skills 目录配置
     ///
     /// # 参数
     ///
-    /// - `server_url`: MCP 服务器地址
+    /// - `configs`: Skills 目录配置列表
+    ///
+    /// # Feature 标志
+    ///
+    /// 需要启用 `skills` feature。
+    #[cfg(feature = "skills")]
+    pub fn skills_dirs<I>(mut self, configs: I) -> Self
+    where
+        I: IntoIterator<Item = SkillsDirConfig>,
+    {
+        self.skills_dirs.extend(configs);
+        self
+    }
+
+    /// 添加 MCP 服务器配置
+    ///
+    /// # 参数
+    ///
+    /// - `config`: MCP 服务器配置
     ///
     /// # Feature 标志
     ///
@@ -545,28 +797,50 @@ where
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::agent::{DefaultAgent, McpServerConfig};
     /// use agentkit::provider::OpenAiProvider;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let agent = DefaultAgent::builder()
     ///     .provider(provider)
-    ///     .with_mcp("http://localhost:8080")
+    ///     .mcp_server(McpServerConfig::new("http://localhost:8080"))
+    ///     .mcp_server(McpServerConfig::with_auth(
+    ///         "http://mcp.example.com",
+    ///         "Bearer token123"
+    ///     ))
     ///     .build();
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "mcp")]
-    pub fn with_mcp(mut self, server_url: impl Into<String>) -> Self {
-        self.mcp_server = Some(server_url.into());
+    pub fn mcp_server(mut self, config: McpServerConfig) -> Self {
+        self.mcp_servers.push(config);
         self
     }
 
-    /// 配置 A2A 代理
+    /// 添加多个 MCP 服务器配置
     ///
     /// # 参数
     ///
-    /// - `agent_url`: A2A 代理 URL
+    /// - `configs`: MCP 服务器配置列表
+    ///
+    /// # Feature 标志
+    ///
+    /// 需要启用 `mcp` feature。
+    #[cfg(feature = "mcp")]
+    pub fn mcp_servers<I>(mut self, configs: I) -> Self
+    where
+        I: IntoIterator<Item = McpServerConfig>,
+    {
+        self.mcp_servers.extend(configs);
+        self
+    }
+
+    /// 添加 A2A 代理配置
+    ///
+    /// # 参数
+    ///
+    /// - `config`: A2A 代理配置
     ///
     /// # Feature 标志
     ///
@@ -575,20 +849,42 @@ where
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::agent::{DefaultAgent, A2aAgentConfig};
     /// use agentkit::provider::OpenAiProvider;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// let agent = DefaultAgent::builder()
     ///     .provider(provider)
-    ///     .with_a2a("http://agent.example.com")
+    ///     .a2a_agent(A2aAgentConfig::new("http://agent.example.com"))
+    ///     .a2a_agent(A2aAgentConfig::with_auth(
+    ///         "http://agent2.example.com",
+    ///         "Bearer token456"
+    ///     ))
     ///     .build();
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "a2a")]
-    pub fn with_a2a(mut self, agent_url: impl Into<String>) -> Self {
-        self.a2a_agent_url = Some(agent_url.into());
+    pub fn a2a_agent(mut self, config: A2aAgentConfig) -> Self {
+        self.a2a_agents.push(config);
+        self
+    }
+
+    /// 添加多个 A2A 代理配置
+    ///
+    /// # 参数
+    ///
+    /// - `configs`: A2A 代理配置列表
+    ///
+    /// # Feature 标志
+    ///
+    /// 需要启用 `a2a` feature。
+    #[cfg(feature = "a2a")]
+    pub fn a2a_agents<I>(mut self, configs: I) -> Self
+    where
+        I: IntoIterator<Item = A2aAgentConfig>,
+    {
+        self.a2a_agents.extend(configs);
         self
     }
 
@@ -603,11 +899,11 @@ where
             tools: self.tools,
             max_steps: self.max_steps,
             #[cfg(feature = "skills")]
-            skills_dir: self.skills_dir,
+            skills_dirs: self.skills_dirs,
             #[cfg(feature = "mcp")]
-            mcp_server: self.mcp_server,
+            mcp_servers: self.mcp_servers,
             #[cfg(feature = "a2a")]
-            a2a_agent_url: self.a2a_agent_url,
+            a2a_agents: self.a2a_agents,
         }
     }
 }

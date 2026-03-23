@@ -51,26 +51,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "agentkit-examples-complete"
+name = "agentkit-examples"
 version = "0.1.0"
 dependencies = [
  "agentkit",
+ "agentkit-core",
  "anyhow",
- "async-trait",
- "futures-util",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "agentkit-examples-deep-dive"
-version = "0.1.0"
-dependencies = [
- "agentkit",
- "anyhow",
- "async-stream",
  "async-trait",
  "futures-util",
  "serde_json",

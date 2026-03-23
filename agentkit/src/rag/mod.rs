@@ -191,7 +191,7 @@ use agentkit_core::{
     error::ProviderError,
     retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore},
 };
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// 文本块
 ///

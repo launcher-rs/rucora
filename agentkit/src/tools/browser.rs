@@ -7,7 +7,7 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// 浏览器打开工具：在系统默认浏览器中打开 URL。
 ///

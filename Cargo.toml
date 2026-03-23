@@ -3,8 +3,7 @@ resolver = "3"
 members = [
     "agentkit",
     "agentkit-core",
-    "examples/agentkit-examples-complete",
-    "examples/agentkit-examples-deep-dive"
+    "examples/agentkit-examples"
 ]
 
 [workspace.package]

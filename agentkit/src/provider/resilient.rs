@@ -1,12 +1,12 @@
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use agentkit_core::error::ProviderError;
-use agentkit_core::provider::types::ChatRequest;
 use agentkit_core::provider::LlmProvider;
+use agentkit_core::provider::types::ChatRequest;
 use async_trait::async_trait;
-use futures_util::{stream::BoxStream, StreamExt};
-use tokio::time::{sleep, timeout, Duration};
+use futures_util::{StreamExt, stream::BoxStream};
+use tokio::time::{Duration, sleep, timeout};
 use tracing::warn;
 
 /// 错误类型分类

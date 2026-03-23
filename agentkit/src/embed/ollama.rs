@@ -8,7 +8,7 @@ use std::env;
 
 use agentkit_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 /// Ollama Embedding Provider。
 pub struct OllamaEmbeddingProvider {

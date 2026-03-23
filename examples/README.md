@@ -1,226 +1,160 @@
 # AgentKit 示例
 
-本目录包含 AgentKit 的使用示例，帮助开发者快速上手和深入理解。
+本目录包含 AgentKit 的使用示例，帮助开发者快速上手。
+
+## 🚀 快速开始
+
+### 运行示例
+
+```bash
+# 1. 基础聊天（推荐从这里开始）
+cargo run --bin basic-chat
+
+# 2. 工具调用
+cargo run --bin tool-calling
+
+# 3. 天气 Agent（展示新 API）
+cargo run --bin weather-agent
+
+# 4. 自定义工具
+cargo run --bin custom-tool
+```
 
 ## 📚 示例列表
 
-### 1. agentkit-examples-complete - 全部使用功能示例
+| 示例 | 说明 | 难度 | API Key |
+|------|------|------|---------|
+| **basic-chat** | 基础对话示例 | ⭐ 简单 | 可选 |
+| **tool-calling** | 工具调用示例 | ⭐⭐ 中等 | 可选 |
+| **weather-agent** | 天气 Agent（新 API） | ⭐⭐ 中等 | 可选 |
+| **file-processor** | 文件处理 | ⭐⭐ 中等 | 不需要 |
+| **multi-agent** | 多 Agent 协作 | ⭐⭐⭐ 高级 | 不需要 |
+| **custom-tool** | 自定义工具 | ⭐⭐ 中等 | 不需要 |
+| **skills-demo** | Skills 系统 | ⭐⭐⭐ 高级 | 不需要 |
 
-展示 AgentKit 所有核心功能的完整示例。
+## 📖 详细说明
 
-**功能覆盖：**
-- ✅ Provider 配置和使用（OpenAI、Mock）
-- ✅ Tool 注册和调用（Echo、Git、HTTP、Shell、Memory）
-- ✅ Memory 存储和检索
-- ✅ Runtime 配置和执行
-- ✅ 完整 Agent 集成
+### 1. basic-chat - 基础聊天
 
-**运行方式：**
+最简单的对话示例，适合快速上手。
+
+**特点**：
+- ✅ 支持 Mock Provider（无需 API Key）
+- ✅ 支持真实 OpenAI API
+- ✅ 交互式对话
+
+**运行**：
 ```bash
-# 设置环境变量（可选，用于测试真实 API）
-export OPENAI_API_KEY=your-api-key
-
-# 运行示例
-cargo run -p agentkit-examples-complete
+cargo run --bin basic-chat
 ```
 
-**输出示例：**
-```
-=== AgentKit 全部使用功能示例 ===
+### 2. tool-calling - 工具调用
 
-=== 1. Provider 示例 ===
-✓ Mock Provider 创建成功
-✓ 非流式聊天成功：Rust 是一门系统编程语言...
+展示如何使用各种内置工具。
 
-=== 2. Tool 示例 ===
-Echo 工具：echo
-✓ Echo 结果：{"text":"Hello, AgentKit!"}
+**工具**：
+- EchoTool - 回显工具
+- FileReadTool - 文件读取
+- GitTool - Git 操作
+- ShellTool - 执行命令
 
-=== 3. Memory 示例 ===
-✓ 添加记忆：user:name = 张三
-✓ 检索记忆：1 条结果
-```
-
-### 2. agentkit-examples-deep-dive - 深入研究示例
-
-深入展示特定功能的高级用法。
-
-**功能覆盖：**
-- ✅ 自定义 Provider 实现（Mock、Delayed）
-- ✅ 自定义 Tool 实现（Calculator）
-- ✅ 自定义 Runtime 实现（Simple、Logging、Retry）
-- ✅ 高级错误处理
-- ✅ 性能优化技巧（批量、并发、内存管理）
-
-**运行方式：**
+**运行**：
 ```bash
-# 运行所有示例
-cargo run -p agentkit-examples-deep-dive
-
-# 运行特定示例
-cargo run -p agentkit-examples-deep-dive -- custom_provider
-cargo run -p agentkit-examples-deep-dive -- custom_tool
-cargo run -p agentkit-examples-deep-dive -- custom_runtime
-cargo run -p agentkit-examples-deep-dive -- error_handling
-cargo run -p agentkit-examples-deep-dive -- performance
+cargo run --bin tool-calling
 ```
 
-**输出示例：**
+### 3. weather-agent - 天气 Agent
+
+展示新的 Agent 配置 API。
+
+**新功能**：
+- ✅ 多个 MCP 服务器配置
+- ✅ 多个 Skills 目录配置
+- ✅ 多个 A2A 代理配置
+- ✅ Token 认证支持
+
+**运行**：
+```bash
+cargo run --bin weather-agent
 ```
-=== AgentKit 深入研究示例 ===
 
-=== 自定义 Provider 示例 ===
-✓ Mock Provider 创建成功
-✓ 非流式聊天成功：你好！我是一个模拟的 AI 助手。
+### 4. custom-tool - 自定义工具
 
---- 流式输出 ---
-你 好！我 是 一 个 模 拟 的  A I  助 手。
-✓ 流式聊天成功
+展示如何实现和注册自定义工具。
+
+**内容**：
+- 实现 CalculatorTool
+- 定义输入 Schema
+- 注册到运行时
+
+**运行**：
+```bash
+cargo run --bin custom-tool
+```
+
+## 🔧 环境配置
+
+### 使用 Mock Provider（默认）
+
+所有示例默认使用 Mock Provider，无需配置。
+
+### 使用真实 API（可选）
+
+```bash
+# OpenAI
+export OPENAI_API_KEY=sk-xxx
+
+# Anthropic
+export ANTHROPIC_API_KEY=sk-ant-xxx
+
+# Google Gemini
+export GOOGLE_API_KEY=xxx
+```
+
+## 📝 代码结构
+
+```
+examples/
+└── agentkit-examples/
+    ├── Cargo.toml
+    └── src/
+        ├── 01_basic_chat.rs      # 基础聊天
+        ├── 02_tool_calling.rs    # 工具调用
+        ├── 03_weather_agent.rs   # 天气 Agent
+        ├── 04_file_processor.rs  # 文件处理（待实现）
+        ├── 05_multi_agent.rs     # 多 Agent（待实现）
+        ├── 06_custom_tool.rs     # 自定义工具
+        └── 07_skills_demo.rs     # Skills 系统（待实现）
 ```
 
 ## 🎯 学习路径
 
 ### 初学者
-1. 先运行 `agentkit-examples-complete` 了解基本功能
-2. 阅读代码注释理解每个组件的用途
-3. 修改示例代码尝试不同配置
+1. 运行 `basic-chat` 了解基本用法
+2. 运行 `tool-calling` 学习工具使用
+3. 运行 `custom-tool` 实现自定义工具
 
 ### 进阶开发者
-1. 运行 `agentkit-examples-deep-dive` 学习高级用法
-2. 参考示例实现自定义 Provider/Tool/Runtime
-3. 学习性能优化和错误处理技巧
+1. 运行 `weather-agent` 学习新 API
+2. 阅读源码理解架构
+3. 实现自己的 Agent 和工具
 
-### 高级开发者
-1. 结合两个示例创建完整应用
-2. 实现自定义组件并集成到 AgentKit 生态
-3. 贡献新的示例到项目
+## 💡 提示
 
-## 📋 示例结构
+1. **Mock Provider**：所有示例都支持 Mock Provider，无需 API Key 即可运行
+2. **真实 API**：设置环境变量后可使用真实 AI 服务
+3. **代码修改**：欢迎修改示例代码尝试不同配置
+4. **问题反馈**：遇到问题请查看 GitHub Issues
 
-```
-examples/
-├── README.md
-├── agentkit-examples-complete/
-│   ├── Cargo.toml
-│   └── src/
-│       └── main.rs              # 完整功能示例
-└── agentkit-examples-deep-dive/
-    ├── Cargo.toml
-    └── src/
-        ├── main.rs              # 入口
-        ├── custom_provider.rs   # 自定义 Provider
-        ├── custom_tool.rs       # 自定义 Tool
-        ├── custom_runtime.rs    # 自定义 Runtime
-        ├── error_handling.rs    # 错误处理
-        └── performance.rs       # 性能优化
-```
+## 🤝 贡献
 
-## 🔧 环境要求
+欢迎贡献新的示例！请遵循：
 
-### 必需
-- Rust 1.70+
-- Tokio 运行时
-
-### 可选（用于完整功能）
-- OpenAI API Key（用于 OpenAI Provider）
-  ```bash
-  export OPENAI_API_KEY=sk-...
-  ```
-
-## 📖 示例说明
-
-### Provider 示例
-
-展示如何实现自定义 Provider：
-
-```rust
-use agentkit::core::provider::LlmProvider;
-use async_trait::async_trait;
-
-struct MockProvider;
-
-#[async_trait]
-impl LlmProvider for MockProvider {
-    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-        // 实现聊天逻辑
-        Ok(ChatResponse { ... })
-    }
-}
-```
-
-### Tool 示例
-
-展示如何实现自定义 Tool：
-
-```rust
-use agentkit::core::tool::Tool;
-use async_trait::async_trait;
-
-struct CalculatorTool;
-
-#[async_trait]
-impl Tool for CalculatorTool {
-    fn name(&self) -> &str { "calculator" }
-
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
-        // 实现计算逻辑
-        Ok(json!({"result": 42}))
-    }
-}
-```
-
-### Runtime 示例
-
-展示如何实现自定义 Runtime：
-
-```rust
-use agentkit::core::runtime::Runtime;
-use async_trait::async_trait;
-
-struct SimpleRuntime<P> {
-    provider: Arc<P>,
-}
-
-#[async_trait]
-impl<P: LlmProvider + Send + Sync> Runtime for SimpleRuntime<P> {
-    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
-        // 实现运行时逻辑
-        Ok(AgentOutput { ... })
-    }
-}
-```
-
-## 🐛 问题排查
-
-### 常见问题
-
-1. **API Key 错误**
-   ```
-   错误：缺少 OpenAI api_key
-   解决：设置 OPENAI_API_KEY 环境变量
-   ```
-
-2. **编译错误**
-   ```
-   错误：依赖项缺失
-   解决：运行 cargo update 更新依赖
-   ```
-
-3. **运行时错误**
-   ```
-   错误：Provider 调用失败
-   解决：检查网络连接和 API 配置
-   ```
-
-## 🤝 贡献示例
-
-欢迎贡献新的示例！请遵循以下规范：
-
-1. 在对应示例 crate 中创建新模块
-2. 添加详细的中文注释
-3. 包含完整的错误处理
-4. 提供运行说明
-5. 确保代码可编译和运行
+1. 在 `src/` 目录创建新文件
+2. 使用清晰的命名（如 `08_xxx.rs`）
+3. 添加详细的中文注释
+4. 确保可编译和运行
+5. 更新本 README
 
 ## 📄 许可证
 

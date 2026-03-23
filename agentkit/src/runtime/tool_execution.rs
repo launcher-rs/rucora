@@ -1,10 +1,10 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 
 use agentkit_core::error::{AgentError, ToolError};
 use agentkit_core::provider::types::{ChatMessage, Role};
 use agentkit_core::runtime::RuntimeObserver;
-use agentkit_core::tool::types::{ToolCall, ToolResult, DEFAULT_TOOL_OUTPUT_MAX_BYTES};
-use serde_json::{json, Value};
+use agentkit_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolResult};
+use serde_json::{Value, json};
 use tracing::{debug, info};
 
 use crate::runtime::policy::{ToolCallContext, ToolPolicy};

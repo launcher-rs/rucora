@@ -7,7 +7,7 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 
 /// 允许的文件扩展名白名单
@@ -32,28 +32,19 @@ const FORBIDDEN_PATH_PREFIXES: &[&str] = &[
     "C:\\Program Files (x86)\\",
 ];
 
-/// 文件读取工具：读取文件内容。
+/// 文件工具的共享配置
 ///
-/// 安全限制：
-/// - 仅允许读取白名单扩展名的文件
-/// - 禁止访问系统敏感路径
-/// - 支持配置允许的工作目录
-///
-/// 输入格式：
-/// ```json
-/// {
-///   "path": "/path/to/file"
-/// }
-/// ```
-pub struct FileReadTool {
+/// 用于提取 FileReadTool、FileWriteTool 和 FileEditTool 的公共逻辑
+#[derive(Clone)]
+pub struct FileToolConfig {
     /// 允许的工作目录（可选，限制文件访问范围）
-    allowed_dirs: Option<Vec<PathBuf>>,
-    /// 最大文件大小（字节），默认 1MB
-    max_file_size: u64,
+    pub allowed_dirs: Option<Vec<PathBuf>>,
+    /// 最大文件大小（字节）
+    pub max_file_size: u64,
 }
 
-impl FileReadTool {
-    /// 创建一个新的 FileReadTool 实例。
+impl FileToolConfig {
+    /// 创建默认配置
     pub fn new() -> Self {
         Self {
             allowed_dirs: None,
@@ -73,8 +64,18 @@ impl FileReadTool {
         self
     }
 
-    /// 验证路径是否安全
-    fn validate_path(&self, path: &str) -> Result<PathBuf, ToolError> {
+    /// 验证路径是否安全（用于读取）
+    pub fn validate_path_for_read(&self, path: &str) -> Result<PathBuf, ToolError> {
+        self.validate_path(path, false)
+    }
+
+    /// 验证路径是否安全（用于写入）
+    pub fn validate_path_for_write(&self, path: &str) -> Result<PathBuf, ToolError> {
+        self.validate_path(path, true)
+    }
+
+    /// 验证路径的共享逻辑
+    fn validate_path(&self, path: &str, is_write: bool) -> Result<PathBuf, ToolError> {
         let path = Path::new(path);
 
         // 检查是否为绝对路径且包含禁止前缀
@@ -105,19 +106,94 @@ impl FileReadTool {
 
         // 如果配置了允许的目录，检查路径是否在其中
         if let Some(allowed_dirs) = &self.allowed_dirs {
-            let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            let is_allowed = allowed_dirs
-                .iter()
-                .any(|dir| canonical_path.starts_with(dir));
-            if !is_allowed {
-                return Err(ToolError::Message(format!(
-                    "文件路径不在允许的工作目录内（允许的目录：{:?}）",
-                    allowed_dirs
-                )));
+            if is_write {
+                // 写入时检查父目录
+                let parent = path.parent().unwrap_or(path);
+                let canonical_path = parent
+                    .canonicalize()
+                    .unwrap_or_else(|_| parent.to_path_buf());
+                let is_allowed = allowed_dirs
+                    .iter()
+                    .any(|dir| canonical_path.starts_with(dir) || dir.starts_with(&canonical_path));
+                if !is_allowed {
+                    return Err(ToolError::Message(format!(
+                        "文件路径不在允许的工作目录内（允许的目录：{:?}）",
+                        allowed_dirs
+                    )));
+                }
+            } else {
+                // 读取时检查文件本身
+                let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
+                let is_allowed = allowed_dirs
+                    .iter()
+                    .any(|dir| canonical_path.starts_with(dir));
+                if !is_allowed {
+                    return Err(ToolError::Message(format!(
+                        "文件路径不在允许的工作目录内（允许的目录：{:?}）",
+                        allowed_dirs
+                    )));
+                }
             }
         }
 
         Ok(path.to_path_buf())
+    }
+
+    /// 检查文件大小
+    pub fn check_file_size(&self, size: u64, operation: &str) -> Result<(), ToolError> {
+        if size > self.max_file_size {
+            return Err(ToolError::Message(format!(
+                "{}过大（{} 字节），超过限制（{} 字节）",
+                operation, size, self.max_file_size
+            )));
+        }
+        Ok(())
+    }
+}
+
+impl Default for FileToolConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+/// 文件读取工具：读取文件内容。
+///
+/// 安全限制：
+/// - 仅允许读取白名单扩展名的文件
+/// - 禁止访问系统敏感路径
+/// - 支持配置允许的工作目录
+///
+/// 输入格式：
+/// ```json
+/// {
+///   "path": "/path/to/file"
+/// }
+/// ```
+pub struct FileReadTool {
+    config: FileToolConfig,
+}
+
+impl FileReadTool {
+    /// 创建一个新的 FileReadTool 实例。
+    pub fn new() -> Self {
+        Self {
+            config: FileToolConfig::new(),
+        }
+    }
+
+    /// 设置允许的工作目录
+    pub fn with_allowed_dirs(self, dirs: Vec<PathBuf>) -> Self {
+        Self {
+            config: self.config.with_allowed_dirs(dirs),
+        }
+    }
+
+    /// 设置最大文件大小
+    pub fn with_max_file_size(self, size: u64) -> Self {
+        Self {
+            config: self.config.with_max_file_size(size),
+        }
     }
 }
 
@@ -165,20 +241,14 @@ impl Tool for FileReadTool {
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::Message("缺少必需的 'path' 字段".to_string()))?;
 
-        let path = self.validate_path(path_str)?;
+        let path = self.config.validate_path_for_read(path_str)?;
 
         // 检查文件大小
         let metadata = tokio::fs::metadata(&path)
             .await
             .map_err(|e| ToolError::Message(format!("无法获取文件信息：{}", e)))?;
 
-        if metadata.len() > self.max_file_size {
-            return Err(ToolError::Message(format!(
-                "文件过大（{} 字节），超过限制（{} 字节）",
-                metadata.len(),
-                self.max_file_size
-            )));
-        }
+        self.config.check_file_size(metadata.len(), "文件")?;
 
         let content = tokio::fs::read_to_string(&path)
             .await
@@ -210,81 +280,29 @@ impl Tool for FileReadTool {
 /// }
 /// ```
 pub struct FileWriteTool {
-    /// 允许的工作目录（可选，限制文件访问范围）
-    allowed_dirs: Option<Vec<PathBuf>>,
-    /// 最大文件大小（字节），默认 1MB
-    max_file_size: u64,
+    config: FileToolConfig,
 }
 
 impl FileWriteTool {
     /// 创建一个新的 FileWriteTool 实例。
     pub fn new() -> Self {
         Self {
-            allowed_dirs: None,
-            max_file_size: 1024 * 1024, // 1MB
+            config: FileToolConfig::new(),
         }
     }
 
     /// 设置允许的工作目录
-    pub fn with_allowed_dirs(mut self, dirs: Vec<PathBuf>) -> Self {
-        self.allowed_dirs = Some(dirs);
-        self
+    pub fn with_allowed_dirs(self, dirs: Vec<PathBuf>) -> Self {
+        Self {
+            config: self.config.with_allowed_dirs(dirs),
+        }
     }
 
     /// 设置最大文件大小
-    pub fn with_max_file_size(mut self, size: u64) -> Self {
-        self.max_file_size = size;
-        self
-    }
-
-    /// 验证路径是否安全
-    fn validate_path(&self, path: &str) -> Result<PathBuf, ToolError> {
-        let path = Path::new(path);
-
-        // 检查是否为绝对路径且包含禁止前缀
-        if let Some(path_str) = path.to_str() {
-            let path_lower = path_str.to_lowercase();
-            for prefix in FORBIDDEN_PATH_PREFIXES {
-                if path_lower.starts_with(&prefix.to_lowercase()) {
-                    return Err(ToolError::Message(format!(
-                        "禁止访问系统敏感路径：{}",
-                        path_str
-                    )));
-                }
-            }
+    pub fn with_max_file_size(self, size: u64) -> Self {
+        Self {
+            config: self.config.with_max_file_size(size),
         }
-
-        // 检查扩展名
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            let ext_lower = ext.to_lowercase();
-            if !ALLOWED_EXTENSIONS.contains(&ext_lower.as_str()) {
-                return Err(ToolError::Message(format!(
-                    "不支持的文件类型：{}（允许的类型：{:?}）",
-                    ext, ALLOWED_EXTENSIONS
-                )));
-            }
-        } else {
-            return Err(ToolError::Message("文件必须包含扩展名".to_string()));
-        }
-
-        // 如果配置了允许的目录，检查路径是否在其中
-        if let Some(allowed_dirs) = &self.allowed_dirs {
-            let parent = path.parent().unwrap_or(path);
-            let canonical_path = parent
-                .canonicalize()
-                .unwrap_or_else(|_| parent.to_path_buf());
-            let is_allowed = allowed_dirs
-                .iter()
-                .any(|dir| canonical_path.starts_with(dir) || dir.starts_with(&canonical_path));
-            if !is_allowed {
-                return Err(ToolError::Message(format!(
-                    "文件路径不在允许的工作目录内（允许的目录：{:?}）",
-                    allowed_dirs
-                )));
-            }
-        }
-
-        Ok(path.to_path_buf())
     }
 }
 
@@ -342,15 +360,9 @@ impl Tool for FileWriteTool {
             .ok_or_else(|| ToolError::Message("缺少必需的 'content' 字段".to_string()))?;
 
         // 检查内容大小
-        if content.len() as u64 > self.max_file_size {
-            return Err(ToolError::Message(format!(
-                "内容过大（{} 字节），超过限制（{} 字节）",
-                content.len(),
-                self.max_file_size
-            )));
-        }
+        self.config.check_file_size(content.len() as u64, "内容")?;
 
-        let path = self.validate_path(path_str)?;
+        let path = self.config.validate_path_for_write(path_str)?;
 
         tokio::fs::write(&path, content)
             .await
@@ -384,78 +396,29 @@ impl Tool for FileWriteTool {
 /// }
 /// ```
 pub struct FileEditTool {
-    /// 允许的工作目录（可选，限制文件访问范围）
-    allowed_dirs: Option<Vec<PathBuf>>,
-    /// 最大文件大小（字节），默认 1MB
-    max_file_size: u64,
+    config: FileToolConfig,
 }
 
 impl FileEditTool {
     /// 创建一个新的 FileEditTool 实例。
     pub fn new() -> Self {
         Self {
-            allowed_dirs: None,
-            max_file_size: 1024 * 1024, // 1MB
+            config: FileToolConfig::new(),
         }
     }
 
     /// 设置允许的工作目录
-    pub fn with_allowed_dirs(mut self, dirs: Vec<PathBuf>) -> Self {
-        self.allowed_dirs = Some(dirs);
-        self
+    pub fn with_allowed_dirs(self, dirs: Vec<PathBuf>) -> Self {
+        Self {
+            config: self.config.with_allowed_dirs(dirs),
+        }
     }
 
     /// 设置最大文件大小
-    pub fn with_max_file_size(mut self, size: u64) -> Self {
-        self.max_file_size = size;
-        self
-    }
-
-    /// 验证路径是否安全
-    fn validate_path(&self, path: &str) -> Result<PathBuf, ToolError> {
-        let path = Path::new(path);
-
-        // 检查是否为绝对路径且包含禁止前缀
-        if let Some(path_str) = path.to_str() {
-            let path_lower = path_str.to_lowercase();
-            for prefix in FORBIDDEN_PATH_PREFIXES {
-                if path_lower.starts_with(&prefix.to_lowercase()) {
-                    return Err(ToolError::Message(format!(
-                        "禁止访问系统敏感路径：{}",
-                        path_str
-                    )));
-                }
-            }
+    pub fn with_max_file_size(self, size: u64) -> Self {
+        Self {
+            config: self.config.with_max_file_size(size),
         }
-
-        // 检查扩展名
-        if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
-            let ext_lower = ext.to_lowercase();
-            if !ALLOWED_EXTENSIONS.contains(&ext_lower.as_str()) {
-                return Err(ToolError::Message(format!(
-                    "不支持的文件类型：{}（允许的类型：{:?}）",
-                    ext, ALLOWED_EXTENSIONS
-                )));
-            }
-        } else {
-            return Err(ToolError::Message("文件必须包含扩展名".to_string()));
-        }
-
-        // 如果配置了允许的目录，检查路径是否在其中
-        if let Some(allowed_dirs) = &self.allowed_dirs {
-            let canonical_path = path.canonicalize().unwrap_or_else(|_| path.to_path_buf());
-            let is_allowed = allowed_dirs
-                .iter()
-                .any(|dir| canonical_path.starts_with(dir));
-            if !is_allowed {
-                return Err(ToolError::Message(format!(
-                    "文件路径不在允许的工作目录内（允许的目录：{:?}）",
-                    allowed_dirs
-                )));
-            }
-        }
-
-        Ok(path.to_path_buf())
     }
 }
 
@@ -525,7 +488,7 @@ impl Tool for FileEditTool {
             return Err(ToolError::Message("old_string 不能为空".to_string()));
         }
 
-        let path = self.validate_path(path_str)?;
+        let path = self.config.validate_path_for_read(path_str)?;
 
         // 读取文件内容
         let content = tokio::fs::read_to_string(&path)
@@ -551,13 +514,8 @@ impl Tool for FileEditTool {
         let new_content = content.replacen(old_string, new_string, 1);
 
         // 检查新内容大小
-        if new_content.len() as u64 > self.max_file_size {
-            return Err(ToolError::Message(format!(
-                "编辑后文件过大（{} 字节），超过限制（{} 字节）",
-                new_content.len(),
-                self.max_file_size
-            )));
-        }
+        self.config
+            .check_file_size(new_content.len() as u64, "编辑后文件")?;
 
         // 写回文件
         tokio::fs::write(&path, new_content)

@@ -1,0 +1,45 @@
+[package]
+name = "agentkit-examples"
+version.workspace = true
+edition = "2021"
+description = "AgentKit 使用示例 - 展示核心功能和实际应用场景"
+publish = false
+
+[dependencies]
+agentkit = { path = "../../agentkit", features = ["runtime", "skills"] }
+agentkit-core = { path = "../../agentkit-core" }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+futures-util = "0.3"
+async-trait = "0.1"
+
+[[bin]]
+name = "basic-chat"
+path = "src/01_basic_chat.rs"
+
+[[bin]]
+name = "tool-calling"
+path = "src/02_tool_calling.rs"
+
+[[bin]]
+name = "weather-agent"
+path = "src/03_weather_agent.rs"
+
+[[bin]]
+name = "file-processor"
+path = "src/04_file_processor.rs"
+
+[[bin]]
+name = "multi-agent"
+path = "src/05_multi_agent.rs"
+
+[[bin]]
+name = "custom-tool"
+path = "src/06_custom_tool.rs"
+
+[[bin]]
+name = "skills-demo"
+path = "src/07_skills_demo.rs"

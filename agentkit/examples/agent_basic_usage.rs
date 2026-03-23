@@ -13,7 +13,7 @@ use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use async_trait::async_trait;
 use futures_util::StreamExt;
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]

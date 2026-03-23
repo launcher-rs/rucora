@@ -9,7 +9,7 @@ use async_trait::async_trait;
 #[cfg(feature = "rhai-skills")]
 use serde::Deserialize;
 #[cfg(feature = "rhai-skills")]
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 #[cfg(feature = "rhai-skills")]
 use std::path::Path;
 #[cfg(feature = "rhai-skills")]

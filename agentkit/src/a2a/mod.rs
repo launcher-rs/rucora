@@ -178,26 +178,6 @@
 // 重新导出 ra2a 的所有内容
 pub use ra2a::*;
 
-/// A2A 客户端相关 API（来自 `ra2a::client`）
-///
-/// 用于连接远程 Agent 并发送任务请求。
-pub mod client {
-    pub use ra2a::client::*;
-}
-
-/// A2A 服务端相关 API（来自 `ra2a::server`）
-///
-/// 用于接收任务请求并执行任务逻辑。
-///
-/// # 注意
-///
-/// 服务端通常会依赖具体 Web 框架（例如 `axum`）。
-/// 本模块仅转导出 `ra2a` 的 server 侧能力，
-/// 具体监听端口、路由挂载、中间件等由使用方自行完成。
-pub mod server {
-    pub use ra2a::server::*;
-}
-
 /// A2A 协议核心数据结构（来自 `ra2a::types`）
 ///
 /// 包含：
