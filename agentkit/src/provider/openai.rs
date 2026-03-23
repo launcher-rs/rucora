@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// OpenAI Chat Completions Provider。
 ///
@@ -248,7 +248,43 @@ impl LlmProvider for OpenAiProvider {
             }
         }
 
-        trace!(
+        // 支持更多参数
+        if let Some(top_p) = request.top_p {
+            if let Some(map) = body.as_object_mut() {
+                map.insert("top_p".to_string(), json!(top_p));
+            }
+        }
+        if let Some(top_k) = request.top_k {
+            if let Some(map) = body.as_object_mut() {
+                map.insert("top_k".to_string(), json!(top_k));
+            }
+        }
+        if let Some(frequency_penalty) = request.frequency_penalty {
+            if let Some(map) = body.as_object_mut() {
+                map.insert("frequency_penalty".to_string(), json!(frequency_penalty));
+            }
+        }
+        if let Some(presence_penalty) = request.presence_penalty {
+            if let Some(map) = body.as_object_mut() {
+                map.insert("presence_penalty".to_string(), json!(presence_penalty));
+            }
+        }
+        if let Some(stop) = request.stop.as_ref() {
+            if let Some(map) = body.as_object_mut() {
+                map.insert("stop".to_string(), json!(stop));
+            }
+        }
+
+        // 额外参数（用于支持 provider 特定的参数，如 NVIDIA 的 reasoning_budget 等）
+        if let Some(extra) = request.extra.as_ref() {
+            if let Some(map) = body.as_object_mut() {
+                for (key, value) in extra.as_object().unwrap_or(&serde_json::Map::new()) {
+                    map.insert(key.clone(), value.clone());
+                }
+            }
+        }
+
+        debug!(
             provider = "openai",
             model = %model,
             body = %preview(&body.to_string(), 1200),
@@ -266,10 +302,12 @@ impl LlmProvider for OpenAiProvider {
             .map_err(|e| ProviderError::Message(e.to_string()))?;
 
         let status = resp.status();
-        let data: Value = resp
-            .json()
+
+        // 先读取原始文本，再尝试解析 JSON
+        let text = resp
+            .text()
             .await
-            .map_err(|e| ProviderError::Message(e.to_string()))?;
+            .map_err(|e| ProviderError::Message(format!("读取响应失败：{}", e)))?;
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
         debug!(
@@ -278,35 +316,68 @@ impl LlmProvider for OpenAiProvider {
             elapsed_ms,
             "provider.chat.http.done"
         );
-        trace!(
+        debug!(
             provider = "openai",
             status = %status,
-            body = %preview(&data.to_string(), 1200),
+            body = %preview(&text, 1200),
             "provider.chat.response_body"
         );
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
                 "OpenAI 请求失败：status={} body={} ",
-                status, data
+                status, text
             )));
         }
 
+        // 尝试解析 JSON，提供更友好的错误信息
+        let data: Value = serde_json::from_str(&text).map_err(|e| {
+            ProviderError::Message(format!(
+                "解析响应 JSON 失败：{}。响应内容：{}",
+                e,
+                preview(&text, 500)
+            ))
+        })?;
+
+        // 解析响应，兼容第三方 API
         let message = data
             .get("choices")
             .and_then(|v| v.as_array())
             .and_then(|arr| arr.first())
-            .and_then(|c| c.get("message"))
-            .cloned()
-            .ok_or_else(|| {
-                ProviderError::Message("OpenAI 响应缺少 choices[0].message".to_string())
-            })?;
+            .and_then(|c| c.get("message"));
 
+        if message.is_none() {
+            // 尝试兼容某些第三方 API 的格式
+            if let Some(error) = data.get("error") {
+                return Err(ProviderError::Message(format!("API 返回错误：{}", error)));
+            }
+
+            return Err(ProviderError::Message(format!(
+                "OpenAI 响应格式不兼容。响应内容：{}",
+                preview(&text, 500)
+            )));
+        }
+
+        let message = message.unwrap().clone();
+
+        // 解析 content，兼容多种格式
         let content = message
             .get("content")
-            .and_then(|v| v.as_str())
-            .unwrap_or("")
-            .to_string();
+            .and_then(|v| {
+                // 可能是字符串
+                if let Some(s) = v.as_str() {
+                    return Some(s.to_string());
+                }
+                // 可能是对象（如某些第三方 API）
+                if let Some(obj) = v.as_object() {
+                    // 尝试获取 text 字段
+                    if let Some(text) = obj.get("text").and_then(|t| t.as_str()) {
+                        return Some(text.to_string());
+                    }
+                }
+                None
+            })
+            .unwrap_or_default();
 
         let tool_calls = Self::parse_tool_calls(&message);
 
@@ -399,7 +470,7 @@ impl LlmProvider for OpenAiProvider {
             }
         }
 
-        trace!(
+        debug!(
             provider = "openai",
             model = %model,
             body = %preview(&body.to_string(), 1200),

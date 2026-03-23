@@ -16,7 +16,7 @@ use agentkit_core::{
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use serde_json::{Value, json};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// Ollama Chat Provider。
 ///
@@ -96,6 +96,26 @@ impl LlmProvider for OllamaProvider {
             "stream": false
         });
 
+        // 添加工具定义（如果存在）
+        if let Some(tools) = &request.tools {
+            if let Some(map) = body.as_object_mut() {
+                let tools_array: Vec<Value> = tools
+                    .iter()
+                    .map(|tool_def| {
+                        json!({
+                            "type": "function",
+                            "function": {
+                                "name": tool_def.name,
+                                "description": tool_def.description.as_deref().unwrap_or(""),
+                                "parameters": tool_def.input_schema
+                            }
+                        })
+                    })
+                    .collect();
+                map.insert("tools".to_string(), json!(tools_array));
+            }
+        }
+
         if let Some(fmt) = request.response_format.as_ref() {
             match fmt {
                 ResponseFormat::JsonObject => {
@@ -131,10 +151,11 @@ impl LlmProvider for OllamaProvider {
             url = %url,
             model = %body.get("model").and_then(|v| v.as_str()).unwrap_or(""),
             messages_len = request.messages.len(),
+            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
             last_user = last_user_preview.as_deref().unwrap_or(""),
             "provider.chat.start"
         );
-        trace!(provider = "ollama", body = %preview(&body.to_string(), 1200), "provider.chat.request_body");
+        debug!(provider = "ollama", body = %preview(&body.to_string(), 1200), "provider.chat.request_body");
 
         let start = std::time::Instant::now();
 
@@ -154,7 +175,7 @@ impl LlmProvider for OllamaProvider {
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
         debug!(provider = "ollama", status = %status, elapsed_ms, "provider.chat.http.done");
-        trace!(provider = "ollama", status = %status, body = %preview(&data.to_string(), 1200), "provider.chat.response_body");
+        debug!(provider = "ollama", status = %status, body = %preview(&data.to_string(), 1200), "provider.chat.response_body");
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
@@ -170,9 +191,42 @@ impl LlmProvider for OllamaProvider {
             .unwrap_or("")
             .to_string();
 
+        // 解析 tool_calls（如果存在）
+        let tool_calls = data
+            .get("message")
+            .and_then(|m| m.get("tool_calls"))
+            .and_then(|tc| tc.as_array())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|tc| {
+                        let function = tc.get("function")?;
+                        let name = function.get("name")?.as_str()?.to_string();
+                        let arguments = function
+                            .get("arguments")
+                            .and_then(|a| a.as_str())
+                            .unwrap_or("{}");
+                        let input: Value = serde_json::from_str(arguments)
+                            .unwrap_or_else(|_| json!({"_raw": arguments}));
+                        let id = tc
+                            .get("id")
+                            .and_then(|v| v.as_str())
+                            .unwrap_or("")
+                            .to_string();
+
+                        if name.is_empty() {
+                            None
+                        } else {
+                            Some(agentkit_core::tool::types::ToolCall { id, name, input })
+                        }
+                    })
+                    .collect::<Vec<_>>()
+            })
+            .unwrap_or_default();
+
         debug!(
             provider = "ollama",
             assistant_content_len = content.len(),
+            tool_calls_len = tool_calls.len(),
             "provider.chat.parsed"
         );
 
@@ -182,7 +236,7 @@ impl LlmProvider for OllamaProvider {
                 content,
                 name: None,
             },
-            tool_calls: vec![],
+            tool_calls,
             usage: None,
             finish_reason: None,
         })
@@ -236,7 +290,7 @@ impl LlmProvider for OllamaProvider {
             messages_len = request.messages.len(),
             "provider.stream_chat.start"
         );
-        trace!(provider = "ollama", body = %preview(&body.to_string(), 1200), "provider.stream_chat.request_body");
+        debug!(provider = "ollama", body = %preview(&body.to_string(), 1200), "provider.stream_chat.request_body");
 
         // 说明：Ollama 的流式输出通常是“每行一个 JSON”（NDJSON）。
         let stream = async_stream::try_stream! {

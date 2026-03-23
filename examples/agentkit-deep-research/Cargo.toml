@@ -21,3 +21,5 @@ chrono = "0.4"
 serde = { version = "1", features = ["derive"] }
 toml = "0.8"
 dirs = "5.0"
+dialoguer = "0.11"
+console = "0.15"

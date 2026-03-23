@@ -90,6 +90,12 @@ impl AgentContext {
             max_tokens: None,
             response_format: None,
             metadata: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            extra: None,
         }
     }
 }

@@ -58,6 +58,26 @@ impl ProviderType {
             ProviderType::Ollama => "llama2",
         }
     }
+
+    /// 获取默认 base_url（如果适用）
+    pub fn default_base_url(&self) -> Option<&'static str> {
+        match self {
+            ProviderType::OpenAI => Some("https://api.openai.com/v1"),
+            ProviderType::Anthropic => Some("https://api.anthropic.com/v1"),
+            ProviderType::Gemini => Some("https://generativelanguage.googleapis.com/v1beta"),
+            ProviderType::AzureOpenAI => None, // Azure 需要自定义端点
+            ProviderType::OpenRouter => Some("https://openrouter.ai/api/v1"),
+            ProviderType::DeepSeek => Some("https://api.deepseek.com/v1"),
+            ProviderType::Moonshot => Some("https://api.moonshot.cn/v1"),
+            ProviderType::Ollama => Some("http://localhost:11434/v1"),
+        }
+    }
+
+    /// 是否显示 base_url 输入（所有 Provider 都显示，让用户选择）
+    pub fn show_base_url_input(&self) -> bool {
+        // 所有 Provider 都允许自定义 base_url
+        true
+    }
 }
 
 /// 用户配置

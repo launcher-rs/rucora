@@ -63,6 +63,12 @@ async fn resilient_provider_should_retry_chat() {
             max_tokens: None,
             response_format: None,
             metadata: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            extra: None,
         })
         .await
         .expect("chat should succeed after retries");
@@ -117,6 +123,12 @@ async fn resilient_provider_stream_should_be_cancellable() {
             max_tokens: None,
             response_format: None,
             metadata: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            extra: None,
         })
         .expect("stream should start");
 

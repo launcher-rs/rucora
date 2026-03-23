@@ -3,7 +3,6 @@ resolver = "3"
 members = [
     "agentkit",
     "agentkit-core",
-    "examples/agentkit-examples",
     "examples/agentkit-deep-research"
 ]
 

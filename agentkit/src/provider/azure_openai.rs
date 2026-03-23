@@ -24,7 +24,7 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// Azure OpenAI Provider。
 ///
@@ -322,7 +322,7 @@ impl LlmProvider for AzureOpenAiProvider {
             }
         }
 
-        trace!(
+        debug!(
             provider = "azure_openai",
             deployment_id = %deployment_id,
             body = %preview(&body.to_string(), 1200),
@@ -352,7 +352,7 @@ impl LlmProvider for AzureOpenAiProvider {
             elapsed_ms,
             "provider.chat.http.done"
         );
-        trace!(
+        debug!(
             provider = "azure_openai",
             status = %status,
             body = %preview(&data.to_string(), 1200),

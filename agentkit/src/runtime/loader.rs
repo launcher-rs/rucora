@@ -521,19 +521,19 @@ impl ToolLoader {
     #[cfg(feature = "mcp")]
     pub async fn load_mcp_tools(
         mut self,
-        client: rmcp::client::Client,
+        client: crate::mcp::McpClient,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::mcp::McpToolAdapter;
+        use crate::mcp::McpTool;
 
         info!("loader.mcp.start");
 
         let tools = client.list_tools().await?;
         let mut count = 0;
 
-        for mcp_tool in tools.tools {
+        for mcp_tool in tools {
             let name = mcp_tool.name.clone();
             if self.should_include(&name) {
-                let adapter = McpToolAdapter::new(client.clone(), mcp_tool);
+                let adapter = McpTool::new(client.clone(), mcp_tool);
                 self.registry = self.registry.register_with_source(adapter, ToolSource::Mcp);
                 count += 1;
                 debug!(tool.name = %name, "loader.mcp.registered");

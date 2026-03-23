@@ -145,6 +145,31 @@ pub struct ChatRequest {
     /// 透传元数据（便于实现层做 tracing/路由/调试）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
+
+    // === 以下为扩展参数，支持更多 provider 特性 ===
+    /// Top P（核采样参数，可选）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+
+    /// Top K（可选，某些 provider 支持）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+
+    /// Frequency Penalty（频率惩罚，可选）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>,
+
+    /// Presence Penalty（存在惩罚，可选）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>,
+
+    /// Stop 序列（可选）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Vec<String>>,
+
+    /// 额外参数（用于支持 provider 特定的参数，如 NVIDIA 的 reasoning_budget 等）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extra: Option<Value>,
 }
 
 impl ChatRequest {
@@ -158,6 +183,12 @@ impl ChatRequest {
             max_tokens: None,
             response_format: None,
             metadata: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            extra: None,
         }
     }
 
@@ -199,6 +230,42 @@ impl ChatRequest {
     /// 设置 metadata。
     pub fn with_metadata(mut self, metadata: Value) -> Self {
         self.metadata = Some(metadata);
+        self
+    }
+
+    /// 设置 top_p。
+    pub fn with_top_p(mut self, top_p: f32) -> Self {
+        self.top_p = Some(top_p);
+        self
+    }
+
+    /// 设置 top_k。
+    pub fn with_top_k(mut self, top_k: u32) -> Self {
+        self.top_k = Some(top_k);
+        self
+    }
+
+    /// 设置 frequency_penalty。
+    pub fn with_frequency_penalty(mut self, penalty: f32) -> Self {
+        self.frequency_penalty = Some(penalty);
+        self
+    }
+
+    /// 设置 presence_penalty。
+    pub fn with_presence_penalty(mut self, penalty: f32) -> Self {
+        self.presence_penalty = Some(penalty);
+        self
+    }
+
+    /// 设置 stop 序列。
+    pub fn with_stop(mut self, stop: Vec<String>) -> Self {
+        self.stop = Some(stop);
+        self
+    }
+
+    /// 设置 extra 参数。
+    pub fn with_extra(mut self, extra: Value) -> Self {
+        self.extra = Some(extra);
         self
     }
 

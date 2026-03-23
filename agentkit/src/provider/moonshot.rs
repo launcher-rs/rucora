@@ -23,7 +23,7 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// Moonshot (月之暗面) Provider。
 ///
@@ -281,7 +281,7 @@ impl LlmProvider for MoonshotProvider {
             }
         }
 
-        trace!(
+        debug!(
             provider = "moonshot",
             model = %model,
             body = %preview(&body.to_string(), 1200),
@@ -311,7 +311,7 @@ impl LlmProvider for MoonshotProvider {
             elapsed_ms,
             "provider.chat.http.done"
         );
-        trace!(
+        debug!(
             provider = "moonshot",
             status = %status,
             body = %preview(&data.to_string(), 1200),

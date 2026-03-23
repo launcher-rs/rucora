@@ -66,6 +66,12 @@ async fn router_should_route_by_model_prefix_and_strip_prefix() {
             max_tokens: None,
             response_format: None,
             metadata: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            extra: None,
         })
         .await
         .expect("chat failed");
@@ -90,6 +96,12 @@ async fn router_should_route_by_model_prefix_and_strip_prefix() {
             max_tokens: None,
             response_format: None,
             metadata: None,
+            top_p: None,
+            top_k: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            extra: None,
         })
         .await
         .expect("chat failed");

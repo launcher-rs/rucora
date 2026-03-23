@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// Anthropic Claude Provider。
 ///
@@ -285,7 +285,7 @@ impl LlmProvider for AnthropicProvider {
             }
         }
 
-        trace!(
+        debug!(
             provider = "anthropic",
             model = %model,
             body = %preview(&body.to_string(), 1200),
@@ -315,7 +315,7 @@ impl LlmProvider for AnthropicProvider {
             elapsed_ms,
             "provider.chat.http.done"
         );
-        trace!(
+        debug!(
             provider = "anthropic",
             status = %status,
             body = %preview(&data.to_string(), 1200),

@@ -8,7 +8,8 @@ use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use agentkit::tools::{DatetimeTool, FileWriteTool, SerpapiTool, WebScraperTool, WebSearchTool};
 use chrono::Local;
 use config::{AppConfig, ProviderType};
-use serde_json::json;
+use console::style;
+use dialoguer::{Input, Select};
 use std::io::{self, Write};
 use std::sync::Arc;
 use tracing::{info, Level};
@@ -62,77 +63,85 @@ fn load_or_create_config() -> anyhow::Result<AppConfig> {
             println!("  模型：{}", config.model.as_ref().unwrap());
 
             // 询问是否使用现有配置
-            print!("\n是否使用现有配置？(Y/n): ");
-            io::stdout().flush()?;
+            let use_existing = dialoguer::Confirm::new()
+                .with_prompt("是否使用现有配置？")
+                .default(true)
+                .interact()?;
 
-            let mut input = String::new();
-            io::stdin().read_line(&mut input)?;
-
-            if input.trim().to_lowercase() != "n" {
+            if use_existing {
                 return Ok(config);
             }
         }
     }
 
     // 交互式配置
-    println!("\n━━━ 配置向导 ━━━\n");
+    println!("\n{}", style("━━━ 配置向导 ━━━").blue().bold());
 
-    // 选择 Provider
-    println!("选择 Provider:");
-    for (i, provider) in ProviderType::all().iter().enumerate() {
-        println!(
-            "  {}. {} (默认模型：{})",
-            i + 1,
-            provider.name(),
-            provider.default_model()
-        );
-    }
+    // 选择 Provider - 使用 Select 组件
+    let provider_names: Vec<String> = ProviderType::all()
+        .iter()
+        .map(|p| format!("{} - {}", p.name(), p.default_model()))
+        .collect();
 
-    print!("\n请输入 Provider 编号 (1-{}): ", ProviderType::all().len());
-    io::stdout().flush()?;
-    let mut provider_input = String::new();
-    io::stdin().read_line(&mut provider_input)?;
-    let provider_idx = provider_input
-        .trim()
-        .parse::<usize>()
-        .unwrap_or(1)
-        .max(1)
-        .min(ProviderType::all().len())
-        - 1;
-    let selected_provider = ProviderType::all()[provider_idx].clone();
+    let selected_idx = Select::new()
+        .with_prompt("选择 Provider")
+        .items(&provider_names)
+        .default(0)
+        .interact()?;
 
-    // 输入 API Key
-    print!("\n输入 API Key (或 URL for Ollama): ");
-    io::stdout().flush()?;
-    let mut api_key = String::new();
-    io::stdin().read_line(&mut api_key)?;
-    api_key = api_key.trim().to_string();
+    let selected_provider = ProviderType::all()[selected_idx].clone();
 
-    // 输入模型名称（可选，使用默认值）
-    print!(
-        "输入模型名称 (留空使用默认：{}): ",
-        selected_provider.default_model()
-    );
-    io::stdout().flush()?;
-    let mut model = String::new();
-    io::stdin().read_line(&mut model)?;
-    model = model.trim().to_string();
-    if model.is_empty() {
-        model = selected_provider.default_model().to_string();
+    // 输入 API Key - 使用 Input 组件
+    let api_key: String = Input::new().with_prompt("输入 API Key").interact_text()?;
+
+    // 输入模型名称 - 使用 Input 组件，带默认值
+    let model: String = Input::new()
+        .with_prompt("输入模型名称")
+        .default(selected_provider.default_model().to_string())
+        .interact_text()?;
+
+    // 输入 base_url（可选，所有 Provider 都允许自定义）
+    let mut base_url: Option<String> = None;
+    if selected_provider.show_base_url_input() {
+        let default_url = selected_provider.default_base_url().unwrap_or("");
+        if !default_url.is_empty() {
+            let url_input: String = Input::new()
+                .with_prompt("输入 Base URL")
+                .default(default_url.to_string())
+                // .with_initial_text("按 Enter 使用默认值")
+                .interact_text()?;
+            // 如果用户输入了不同的值，使用用户输入；否则使用默认值
+            if url_input.is_empty() {
+                base_url = Some(default_url.to_string());
+            } else if url_input != default_url {
+                base_url = Some(url_input);
+            } else {
+                base_url = Some(default_url.to_string());
+            }
+        } else {
+            let url_input: String = Input::new()
+                .with_prompt("输入 Base URL (可选)")
+                .allow_empty(true)
+                .with_initial_text("留空使用标准 API 端点")
+                .interact_text()?;
+            if !url_input.is_empty() {
+                base_url = Some(url_input);
+            }
+        }
     }
 
     // 输入 SerpAPI Keys（可选）
-    print!("\n输入 SerpAPI Keys (可选，逗号分隔，留空跳过): ");
-    io::stdout().flush()?;
-    let mut serpapi_keys = String::new();
-    io::stdin().read_line(&mut serpapi_keys)?;
-    serpapi_keys = serpapi_keys.trim().to_string();
+    println!();
+    let serpapi_keys: String = Input::new()
+        .with_prompt("输入 SerpAPI Keys (可选，逗号分隔)")
+        .allow_empty(true)
+        .interact_text()?;
 
     let config = AppConfig {
         provider: Some(selected_provider.name().to_string()),
         api_key: Some(api_key),
         model: Some(model),
-        base_url: None,
+        base_url,
         serpapi_keys: if serpapi_keys.is_empty() {
             None
         } else {
@@ -142,7 +151,10 @@ fn load_or_create_config() -> anyhow::Result<AppConfig> {
 
     // 保存配置
     config.save()?;
-    println!("✓ 配置已保存到 ~/.agentkit/config.toml");
+    println!(
+        "✓ 配置已保存到 {}",
+        AppConfig::config_path().unwrap().display()
+    );
 
     Ok(config)
 }
@@ -159,12 +171,19 @@ fn create_provider(
         .model
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("缺少模型配置"))?;
+    let base_url = config
+        .base_url
+        .as_ref()
+        .map(|s| s.as_str())
+        .unwrap_or("https://api.openai.com/v1");
 
-    let provider: Arc<dyn agentkit::core::provider::LlmProvider + Send + Sync> = Arc::new(
-        OpenAiProvider::new("https://api.openai.com/v1", api_key.clone()),
-    );
+    let provider: Arc<dyn agentkit::core::provider::LlmProvider + Send + Sync> =
+        Arc::new(OpenAiProvider::new(base_url, api_key.clone()).with_default_model(model.clone()));
 
     info!("✓ Provider 初始化成功：OpenAI ({})", model);
+    if let Some(ref url) = config.base_url {
+        info!("  Base URL: {}", url);
+    }
     Ok(provider)
 }
 
@@ -196,92 +215,93 @@ async fn run_research(
     }
 
     // 创建运行时
-    let _runtime = DefaultRuntime::new(provider, tools)
+    let runtime = DefaultRuntime::new(provider, tools)
         .with_system_prompt("你是一个专业的深度研究助手。请制定详细研究计划，多轮迭代收集信息，分析整理，最后生成完整报告。")
         .with_max_steps(15);
 
-    // 简化的研究流程（实际应该更复杂）
-    // TODO: 使用 runtime 执行实际的研究任务
     info!("\n【研究开始】");
 
-    // 第 1 轮：基础信息收集
+    // 第 1 轮：使用 runtime 执行研究
     info!("\n━━━ 第 1 轮研究 ━━━");
-    let queries = vec![
-        format!("{} 基本原理", topic),
-        format!("{} 应用场景", topic),
-        format!("{} 发展趋势", topic),
-    ];
 
-    let mut collected_info = Vec::new();
-    for query in &queries {
-        info!("  搜索：{}", query);
-        let search_tool = WebSearchTool::new().with_max_results(3);
-        if let Ok(result) = search_tool.call(json!({"query": query})).await {
-            if let Some(results) = result.get("results").and_then(|v| v.as_array()) {
-                for item in results {
-                    if let (Some(title), Some(snippet)) = (
-                        item.get("title").and_then(|v| v.as_str()),
-                        item.get("snippet").and_then(|v| v.as_str()),
-                    ) {
-                        collected_info.push(format!("[{}] {}", title, snippet));
-                    }
-                }
-            }
-        }
+    // 构建研究问题
+    let research_prompt = format!(
+        "请研究以下主题：{}\n\n\
+         请从以下几个方面进行研究：\n\
+         1. 主题的基本情况和背景\n\
+         2. 主要影响因素和相关方\n\
+         3. 可能的影响和后果\n\
+         4. 未来发展趋势\n\n\
+         请提供详细、客观的分析。",
+        topic
+    );
+
+    let input = AgentInput::new(research_prompt);
+
+    // 使用 runtime 执行研究
+    info!("  正在执行研究...");
+    if let Some(ref url) = config.base_url {
+        info!("  Base URL: {}", url);
     }
+    if let Some(ref m) = config.model {
+        info!("  Model: {}", m);
+    }
+    match runtime.run(input).await {
+        Ok(output) => {
+            if let Some(content) = output.text() {
+                info!("✓ 研究完成");
 
-    info!("✓ 收集到 {} 条信息", collected_info.len());
+                // 生成报告
+                let safe_filename = topic
+                    .chars()
+                    .map(|c| {
+                        if c.is_alphanumeric() || c == '-' || c == '_' {
+                            c
+                        } else {
+                            '_'
+                        }
+                    })
+                    .collect::<String>();
 
-    // 生成报告
-    let safe_filename = topic
-        .chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '-' || c == '_' {
-                c
-            } else {
-                '_'
-            }
-        })
-        .collect::<String>();
-
-    let report = format!(
-        r#"# {} 深度研究报告
+                let report = format!(
+                    r#"# {} 深度研究报告
 
 **研究日期**: {}
 **研究轮数**: 1
 
-## 执行摘要
-
-本报告对"{}"进行了初步研究。通过联网搜索收集了相关信息。
-
-## 信息来源
+## 研究结果
 
 {}
-
-## 结论
-
-建议进一步深入研究该主题。
 
 ---
 *报告生成时间：{}*
 *本研究报告由 AgentKit 深度研究助手自动生成*
 "#,
-        topic,
-        Local::now().format("%Y 年%m 月%d 日"),
-        topic,
-        collected_info
-            .iter()
-            .map(|i| format!("- {}", i))
-            .collect::<Vec<_>>()
-            .join("\n"),
-        Local::now().format("%Y-%m-%d %H:%M:%S"),
-    );
+                    topic,
+                    Local::now().format("%Y 年%m 月%d 日"),
+                    content,
+                    Local::now().format("%Y-%m-%d %H:%M:%S"),
+                );
 
-    // 保存报告
-    let filename = format!("research_report_{}.md", safe_filename);
-    std::fs::write(&filename, &report)?;
+                // 保存报告
+                let filename = format!("research_report_{}.md", safe_filename);
+                std::fs::write(&filename, &report)?;
 
-    info!("\n✓ 报告已保存到：{}", filename);
+                info!("\n✓ 报告已保存到：{}", filename);
+            }
+        }
+        Err(e) => {
+            info!("❌ 研究失败：{}", e);
+            info!("\n可能的原因：");
+            info!("  1. API Key 无效或过期");
+            info!("  2. Base URL 不正确");
+            info!("  3. Model 名称不正确");
+            info!("  4. 网络连接问题");
+            info!("\n请检查配置并重试。");
+            info!("提示：可以使用 `cargo run -p agentkit-deep-research` 重新配置");
+        }
+    }
+
     info!("\n=== 研究完成 ===");
 
     Ok(())

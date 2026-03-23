@@ -21,7 +21,7 @@ use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
-use tracing::{debug, trace};
+use tracing::debug;
 
 /// Google Gemini Provider。
 ///
@@ -290,7 +290,7 @@ impl LlmProvider for GeminiProvider {
             map.insert("generationConfig".to_string(), generation_config);
         }
 
-        trace!(
+        debug!(
             provider = "gemini",
             model = %model,
             body = %preview(&body.to_string(), 1200),
@@ -320,7 +320,7 @@ impl LlmProvider for GeminiProvider {
             elapsed_ms,
             "provider.chat.http.done"
         );
-        trace!(
+        debug!(
             provider = "gemini",
             status = %status,
             body = %preview(&data.to_string(), 1200),

@@ -55,6 +55,7 @@ backon = "1.5"
 tokio = { version = "1", features = ["macros", "rt"] }
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 criterion = "0.5"
+anyhow = "1"
 
 [[bench]]
 name = "json_serialize"
@@ -63,3 +64,47 @@ harness = false
 [[bench]]
 name = "vector_store_search"
 harness = false
+
+# 示例配置
+[[example]]
+name = "01_basic_chat"
+path = "examples/01_basic_chat.rs"
+required-features = ["runtime"]
+
+[[example]]
+name = "02_provider"
+path = "examples/02_provider.rs"
+
+[[example]]
+name = "03_tools"
+path = "examples/03_tools.rs"
+
+[[example]]
+name = "04_memory"
+path = "examples/04_memory.rs"
+
+[[example]]
+name = "05_conversation"
+path = "examples/05_conversation.rs"
+
+[[example]]
+name = "06_cost"
+path = "examples/06_cost.rs"
+
+[[example]]
+name = "07_router_provider"
+path = "examples/07_router_provider.rs"
+
+[[example]]
+name = "08_resilient_provider"
+path = "examples/08_resilient_provider.rs"
+
+[[example]]
+name = "09_mcp"
+path = "examples/09_mcp.rs"
+required-features = ["mcp"]
+
+[[example]]
+name = "10_research_assistant"
+path = "examples/10_research_assistant.rs"
+required-features = ["runtime"]
