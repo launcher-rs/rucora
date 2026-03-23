@@ -1,7 +1,7 @@
 use agentkit_core::error::ToolError;
 use agentkit_core::tool::Tool;
 use async_trait::async_trait;
-use serde_json::{json, Value};
+use serde_json::{Value, json};
 
 struct EchoTool;
 

@@ -1,0 +1,18 @@
+[package]
+name = "a2a-server"
+version = "0.1.0"
+edition = "2024"
+description = "AgentKit A2A 服务器示例 - 实现 A2A 协议的 Agent 服务器"
+publish = false
+
+[dependencies]
+ra2a = { version = "0.8.1", default-features = false, features = ["server"] }
+agentkit = { path = "../../agentkit", features = ["a2a"] }
+tokio = { version = "1", features = ["full"] }
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+chrono = "0.4"

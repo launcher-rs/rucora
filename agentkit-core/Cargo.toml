@@ -1,7 +1,7 @@
 [package]
 name = "agentkit-core"
 version.workspace = true
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 async-trait = "0.1"

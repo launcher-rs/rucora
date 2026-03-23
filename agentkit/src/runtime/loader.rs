@@ -557,49 +557,40 @@ impl ToolLoader {
     ///
     /// 需要启用 `a2a` feature。
     ///
+    /// 注意：此方法暂时未实现，因为 ra2a 库的 API 与预期不同。
+    /// 请直接在示例中创建 A2AToolAdapter。
+    ///
     /// # 示例
     ///
     /// ```rust,no_run
-    /// # #[cfg(feature = "a2a")]
-    /// use agentkit::runtime::loader::ToolLoader;
-    /// # #[cfg(feature = "a2a")]
-    /// use ra2a::types::AgentCard;
+    /// use agentkit::a2a::A2AToolAdapter;
+    /// use ra2a::client::Client;
     ///
-    /// # #[cfg(feature = "a2a")]
-    /// # async fn example(card: AgentCard, transport: impl ra2a::transport::Transport) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    /// let loader = ToolLoader::new()
-    ///     .load_a2a_tools(card, transport)
-    ///     .await?;
-    ///
-    /// let registry = loader.build();
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// // 直接创建 A2A 工具
+    /// let client = Client::from_url("http://localhost:8080")?;
+    /// let tool = A2AToolAdapter::new(
+    ///     "remote_agent".to_string(),
+    ///     "远程 A2A Agent".to_string(),
+    ///     serde_json::json!({
+    ///         "type": "object",
+    ///         "properties": {
+    ///             "message": {"type": "string"}
+    ///         },
+    ///         "required": ["message"]
+    ///     }),
+    ///     client,
+    /// );
     /// # Ok(())
     /// # }
     /// ```
     #[cfg(feature = "a2a")]
     pub async fn load_a2a_tools(
-        mut self,
-        agent_card: ra2a::types::AgentCard,
-        transport: impl ra2a::transport::Transport + 'static,
+        self,
+        _agent_card: ra2a::types::AgentCard,
     ) -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
-        use crate::a2a::A2AToolAdapter;
-
-        info!("loader.a2a.start");
-
-        let mut count = 0;
-        if let Some(capabilities) = &agent_card.capabilities {
-            for capability in &capabilities.tools {
-                let name = capability.name.clone();
-                if self.should_include(&name) {
-                    let adapter = A2AToolAdapter::new(capability.clone(), transport.clone());
-                    self.registry = self.registry.register_with_source(adapter, ToolSource::A2A);
-                    count += 1;
-                    debug!(tool.name = %name, "loader.a2a.registered");
-                }
-            }
-        }
-
-        info!(count, "loader.a2a.done");
-        Ok(self)
+        // 暂时未实现
+        Err("load_a2a_tools is not implemented yet. Please create A2AToolAdapter directly.".into())
     }
 
     /// 构建最终的 ToolRegistry

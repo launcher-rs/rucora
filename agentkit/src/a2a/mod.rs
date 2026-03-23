@@ -175,8 +175,12 @@
 //! - `sqlite`: 启用 SQLite 存储
 //! - `full`: 启用所有功能
 
-// 重新导出 ra2a 的所有内容
-pub use ra2a::*;
+use async_trait::async_trait;
+use serde_json::Value;
+use std::sync::Arc;
+
+// 重新导出 ra2a 的客户端和服务器（避免类型冲突）
+pub use ra2a::{client, server};
 
 /// A2A 协议核心数据结构（来自 `ra2a::types`）
 ///
@@ -195,3 +199,99 @@ pub mod protocol;
 
 /// A2A 传输层
 pub mod transport;
+
+/// A2A 工具适配器
+///
+/// 将 A2A 远程 Agent 适配为本地 Tool 接口
+pub struct A2AToolAdapter {
+    /// 工具名称
+    name: String,
+    /// 工具描述
+    description: String,
+    /// 工具参数定义
+    parameters: Value,
+    /// A2A 客户端
+    client: Arc<ra2a::client::Client>,
+}
+
+impl A2AToolAdapter {
+    /// 创建新的 A2A 工具适配器
+    pub fn new(
+        name: String,
+        description: String,
+        parameters: Value,
+        client: ra2a::client::Client,
+    ) -> Self {
+        Self {
+            name,
+            description,
+            parameters,
+            client: Arc::new(client),
+        }
+    }
+}
+
+#[async_trait]
+impl crate::core::tool::Tool for A2AToolAdapter {
+    fn name(&self) -> &str {
+        &self.name
+    }
+
+    fn description(&self) -> Option<&str> {
+        Some(&self.description)
+    }
+
+    fn categories(&self) -> &'static [crate::core::tool::ToolCategory] {
+        &[crate::core::tool::ToolCategory::External]
+    }
+
+    fn input_schema(&self) -> Value {
+        self.parameters.clone()
+    }
+
+    async fn call(
+        &self,
+        input: Value,
+    ) -> std::result::Result<Value, crate::core::error::ToolError> {
+        use ra2a::types::{Message, MessageSendParams, Part};
+
+        // 从输入中提取 message 字段
+        let message_text = input.get("message").and_then(|v| v.as_str()).unwrap_or("");
+
+        // 调试输出
+        eprintln!("[A2AToolAdapter] 调用工具：{}", self.name);
+        eprintln!("[A2AToolAdapter] 输入：{:?}", input);
+        eprintln!("[A2AToolAdapter] 发送消息：{}", message_text);
+
+        // 构建消息
+        let msg = Message::user(vec![Part::text(message_text.to_string())]);
+
+        // 发送到 A2A server
+        let result = self
+            .client
+            .send_message(&MessageSendParams::new(msg))
+            .await
+            .map_err(|e| crate::core::error::ToolError::Message(format!("A2A 调用失败：{}", e)))?;
+
+        // 解析响应
+        let response = match result {
+            ra2a::types::SendMessageResult::Task(task) => task
+                .status
+                .message
+                .as_ref()
+                .and_then(|m| m.text_content())
+                .unwrap_or_default()
+                .to_string(),
+            ra2a::types::SendMessageResult::Message(msg) => {
+                msg.text_content().unwrap_or_default().to_string()
+            }
+        };
+
+        eprintln!("[A2AToolAdapter] 收到响应：{}", response);
+
+        // 返回 JSON 格式结果
+        Ok(serde_json::json!({
+            "response": response
+        }))
+    }
+}

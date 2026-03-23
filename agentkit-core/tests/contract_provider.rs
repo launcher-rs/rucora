@@ -1,6 +1,6 @@
 use agentkit_core::error::ProviderError;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
 use agentkit_core::provider::LlmProvider;
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
 use async_trait::async_trait;
 
 struct MockProvider;

@@ -208,10 +208,10 @@ pub mod file;
 
 // 网络工具模块
 pub mod http;
-pub mod web;
-pub mod web_search;
 pub mod serpapi_tool;
 pub mod tavily_tool;
+pub mod web;
+pub mod web_search;
 
 // 浏览器工具模块
 pub mod browse;
@@ -235,10 +235,10 @@ pub use file::{FileEditTool, FileReadTool, FileWriteTool};
 
 // 网络工具
 pub use http::HttpRequestTool;
-pub use web::WebFetchTool;
-pub use web_search::{WebSearchTool, WebScraperTool};
 pub use serpapi_tool::SerpapiTool;
 pub use tavily_tool::TavilyTool;
+pub use web::WebFetchTool;
+pub use web_search::{WebScraperTool, WebSearchTool};
 
 // 实用工具
 pub mod datetime_tool;

@@ -1,7 +1,7 @@
 [package]
 name = "agentkit-deep-research"
 version.workspace = true
-edition = "2021"
+edition = "2024"
 description = "AgentKit 深度研究示例 - 自动调用工具完成研究并生成报告"
 publish = false
 

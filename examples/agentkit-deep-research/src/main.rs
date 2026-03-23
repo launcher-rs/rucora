@@ -12,7 +12,7 @@ use console::style;
 use dialoguer::{Input, Select};
 use std::io::{self, Write};
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 fn main() -> anyhow::Result<()> {

@@ -258,8 +258,8 @@ pub struct ToolResult {
     pub output: Value,
 }
 
-use crate::error::ToolError;
 use crate::Tool;
+use crate::error::ToolError;
 use async_trait::async_trait;
 use std::sync::Arc;
 
