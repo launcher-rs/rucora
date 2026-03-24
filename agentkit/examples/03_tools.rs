@@ -8,7 +8,6 @@
 //! cargo run --example 03_tools -p agentkit
 //! ```
 
-use agentkit::prelude::*;
 use agentkit::tools::{EchoTool, FileReadTool, GitTool, ShellTool};
 use agentkit_core::tool::Tool;
 use serde_json::json;

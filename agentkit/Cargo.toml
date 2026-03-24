@@ -103,8 +103,3 @@ path = "examples/08_resilient_provider.rs"
 name = "09_mcp"
 path = "examples/09_mcp.rs"
 required-features = ["mcp"]
-
-[[example]]
-name = "10_research_assistant"
-path = "examples/10_research_assistant.rs"
-required-features = ["runtime"]

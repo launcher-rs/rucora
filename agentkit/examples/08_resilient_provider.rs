@@ -9,10 +9,9 @@
 //! cargo run --example 08_resilient_provider -p agentkit
 //! ```
 
-use agentkit::prelude::*;
 use agentkit::provider::{OpenAiProvider, ResilientProvider};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest};
+use agentkit_core::provider::types::ChatRequest;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;

@@ -9,7 +9,7 @@
 //! ```
 
 use agentkit::conversation::ConversationManager;
-use agentkit_core::provider::types::{ChatMessage, Role};
+use agentkit_core::provider::types::Role;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 

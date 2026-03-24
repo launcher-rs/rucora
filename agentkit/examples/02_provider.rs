@@ -9,7 +9,6 @@
 //! cargo run --example 02_provider -p agentkit
 //! ```
 
-use agentkit::prelude::*;
 use agentkit::provider::{AnthropicProvider, GeminiProvider, OpenAiProvider, OpenRouterProvider};
 use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::{ChatMessage, ChatRequest};

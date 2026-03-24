@@ -22,7 +22,7 @@
 
 use agentkit::prelude::*;
 use agentkit::provider::{AnthropicProvider, GeminiProvider, OpenAiProvider, OpenRouterProvider};
-use agentkit::runtime::{DefaultRuntime, RuntimeConfig, ToolRegistry};
+use agentkit::runtime::{DefaultRuntime, ToolRegistry};
 use agentkit_core::provider::LlmProvider;
 use std::sync::Arc;
 use tracing::{Level, info};
