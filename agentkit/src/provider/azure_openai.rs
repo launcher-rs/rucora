@@ -26,6 +26,9 @@ use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// Azure OpenAI 默认 Deployment ID。
+pub const AZURE_OPENAI_DEFAULT_DEPLOYMENT: &str = "gpt-4";
+
 /// Azure OpenAI Provider。
 ///
 /// 支持 Azure OpenAI 服务：
@@ -62,34 +65,54 @@ use tracing::debug;
 /// | `AZURE_OPENAI_API_KEY` | Azure OpenAI API Key | `...` |
 /// | `AZURE_OPENAI_ENDPOINT` | Azure OpenAI Endpoint | `https://your-resource.openai.azure.com` |
 /// | `AZURE_OPENAI_DEPLOYMENT_ID` | 默认 Deployment ID | `gpt-4` |
+/// | `AZURE_OPENAI_DEFAULT_DEPLOYMENT` | 默认 Deployment ID（优先级高于 `AZURE_OPENAI_DEPLOYMENT_ID`） | `gpt-4` |
 /// | `AZURE_OPENAI_API_VERSION` | API 版本 | `2024-02-15-preview` |
 pub struct AzureOpenAiProvider {
     client: reqwest::Client,
     endpoint: String,
     api_version: String,
-    default_deployment_id: Option<String>,
+    default_deployment_id: String,
 }
 
 impl AzureOpenAiProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 默认 Deployment 优先级：
+    /// 1. `AZURE_OPENAI_DEFAULT_DEPLOYMENT` 环境变量
+    /// 2. `AZURE_OPENAI_DEPLOYMENT_ID` 环境变量
+    /// 3. 内置默认值 `gpt-4`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("AZURE_OPENAI_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 AZURE_OPENAI_API_KEY".to_string()))?;
         let endpoint = env::var("AZURE_OPENAI_ENDPOINT").map_err(|_| {
             ProviderError::Message("缺少环境变量 AZURE_OPENAI_ENDPOINT".to_string())
         })?;
-        let deployment_id = env::var("AZURE_OPENAI_DEPLOYMENT_ID").ok();
+        // 优先使用 AZURE_OPENAI_DEFAULT_DEPLOYMENT，其次使用 AZURE_OPENAI_DEPLOYMENT_ID
+        let default_deployment = env::var("AZURE_OPENAI_DEFAULT_DEPLOYMENT")
+            .or_else(|_| env::var("AZURE_OPENAI_DEPLOYMENT_ID"))
+            .unwrap_or_else(|_| AZURE_OPENAI_DEFAULT_DEPLOYMENT.to_string());
         let api_version = env::var("AZURE_OPENAI_API_VERSION")
             .unwrap_or_else(|_| "2024-02-15-preview".to_string());
 
-        let mut provider = Self::new(endpoint, api_key, deployment_id.as_deref().unwrap_or(""));
+        let mut provider = Self::with_deployment(endpoint, api_key, default_deployment);
         provider.api_version = api_version;
 
         Ok(provider)
     }
 
     /// 创建 Provider。
+    ///
+    /// 使用内置默认 Deployment ID `gpt-4`。
     pub fn new(
+        endpoint: impl Into<String>,
+        api_key: impl Into<String>,
+        deployment_id: impl Into<String>,
+    ) -> Self {
+        Self::with_deployment(endpoint, api_key, deployment_id)
+    }
+
+    /// 创建 Provider 并指定默认 Deployment ID。
+    pub fn with_deployment(
         endpoint: impl Into<String>,
         api_key: impl Into<String>,
         deployment_id: impl Into<String>,
@@ -112,23 +135,28 @@ impl AzureOpenAiProvider {
             client,
             endpoint: endpoint.into(),
             api_version: "2024-02-15-preview".to_string(),
-            default_deployment_id: if deployment_id_str.is_empty() {
-                None
-            } else {
-                Some(deployment_id_str)
-            },
+            default_deployment_id: deployment_id_str,
         }
     }
 
-    /// 仅使用 API Key 和 Endpoint 创建 Provider。
+    /// 仅使用 API Key 和 Endpoint 创建 Provider（使用默认 Deployment ID）。
     pub fn with_endpoint_and_key(endpoint: impl Into<String>, api_key: impl Into<String>) -> Self {
-        Self::new(endpoint, api_key, "")
+        Self::with_deployment(
+            endpoint,
+            api_key,
+            AZURE_OPENAI_DEFAULT_DEPLOYMENT.to_string(),
+        )
     }
 
     /// 设置默认 Deployment ID。
     pub fn with_default_deployment(mut self, deployment_id: impl Into<String>) -> Self {
-        self.default_deployment_id = Some(deployment_id.into());
+        self.default_deployment_id = deployment_id.into();
         self
+    }
+
+    /// 获取默认 Deployment ID。
+    pub fn default_deployment_id(&self) -> &str {
+        &self.default_deployment_id
     }
 
     /// 设置 API 版本。
@@ -253,10 +281,7 @@ impl LlmProvider for AzureOpenAiProvider {
         let deployment_id = request
             .model
             .clone()
-            .or_else(|| self.default_deployment_id.clone())
-            .ok_or_else(|| {
-                ProviderError::Message("Azure OpenAI 请求缺少 deployment_id".to_string())
-            })?;
+            .unwrap_or_else(|| self.default_deployment_id.clone());
 
         // Azure OpenAI URL 格式：
         // {endpoint}/openai/deployments/{deployment-id}/chat/completions?api-version={api_version}
@@ -419,10 +444,7 @@ impl LlmProvider for AzureOpenAiProvider {
         let deployment_id = request
             .model
             .clone()
-            .or_else(|| self.default_deployment_id.clone())
-            .ok_or_else(|| {
-                ProviderError::Message("Azure OpenAI 请求缺少 deployment_id".to_string())
-            })?;
+            .unwrap_or_else(|| self.default_deployment_id.clone());
 
         let url = format!(
             "{}/openai/deployments/{}/chat/completions?api-version={}",
@@ -534,21 +556,18 @@ mod tests {
 
     #[test]
     fn test_azure_openai_provider_creation() {
-        let provider = AzureOpenAiProvider::new(
+        let provider = AzureOpenAiProvider::with_deployment(
             "https://test.openai.azure.com",
             "test-key",
             "test-deployment",
         );
         assert!(provider.endpoint.contains("azure.com"));
-        assert_eq!(
-            provider.default_deployment_id,
-            Some("test-deployment".to_string())
-        );
+        assert_eq!(provider.default_deployment_id(), "test-deployment");
     }
 
     #[test]
     fn test_azure_openai_provider_with_custom_version() {
-        let provider = AzureOpenAiProvider::new(
+        let provider = AzureOpenAiProvider::with_deployment(
             "https://test.openai.azure.com",
             "test-key",
             "test-deployment",

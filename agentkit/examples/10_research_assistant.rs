@@ -80,8 +80,9 @@ async fn main() -> anyhow::Result<()> {
 
     // 5. 创建运行时
     info!("=== 5. 创建运行时 ===");
-    let runtime =
-        DefaultRuntime::new(provider.clone(), tools).with_system_prompt("你是一个智能研究助手。");
+    let model = provider.default_model().to_string();
+    let runtime = DefaultRuntime::new(provider.clone(), tools, model)
+        .with_system_prompt("你是一个智能研究助手。");
     info!("✓ 运行时创建成功\n");
 
     // 6. 模拟研究任务

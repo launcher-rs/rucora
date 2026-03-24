@@ -5,18 +5,14 @@
 //! `DefaultRuntime` 是 Agentkit 的默认运行时实现，提供完整的工具调用循环（Tool-Calling Loop）。
 //! 它负责与 LLM Provider 交互、执行工具调用、管理对话历史等。
 //!
-//! # 主要特性
+//! # 重要说明
 //!
-//! - **Tool-Calling Loop**: 自动执行工具调用直到任务完成
-//! - **流式支持**: 支持流式输出 token 和工具调用事件
-//! - **策略管理**: 支持工具调用策略（允许/拒绝）
-//! - **观测支持**: 统一的事件观测协议
-//! - **多来源工具**: 支持内置、Skills、MCP、A2A 等多种工具来源
-//! - **并发控制**: 支持工具并发执行和限制
+//! **Runtime 必须指定默认模型**。模型是 Runtime 配置的核心部分，Provider 仅提供 AI 能力，
+//! 而 Runtime 作为决策单元负责选择合适的模型。
 //!
 //! # 使用示例
 //!
-//! ## 基本使用
+//! ## 基本使用（必须指定模型）
 //!
 //! ```rust,no_run
 //! use std::sync::Arc;
@@ -28,18 +24,15 @@
 //! // 创建工具注册表
 //! let tools = ToolRegistry::new();
 //!
-//! // 创建运行时
-//! let runtime = DefaultRuntime::new(provider, tools)
-//!     .with_system_prompt("你是一个有用的助手")
-//!     .with_max_steps(10);
+//! // 创建运行时（必须指定模型）
+//! let runtime = DefaultRuntime::new(provider, tools, "gpt-4o-mini");
+//! runtime
+//!     .with_system_prompt("你是一个有用的助手");
 //!
 //! // 执行对话
-//! let input = AgentInput {
-//!     messages: vec![],
-//!     metadata: None,
-//! };
+//! let input = AgentInput::new("你好");
 //! let output = runtime.run(input).await?;
-//! println!("回复：{}", output.message.content);
+//! println!("回复：{}", output.text().unwrap_or("无回复"));
 //! # Ok(())
 //! # }
 //! ```
@@ -54,7 +47,7 @@
 //! use agentkit_core::agent::types::AgentInput;
 //!
 //! # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
-//! let runtime = DefaultRuntime::new(provider, ToolRegistry::new());
+//! let runtime = DefaultRuntime::new(provider, ToolRegistry::new(), "gpt-4o-mini");
 //! let input = AgentInput { messages: vec![], metadata: None };
 //!
 //! // 流式执行
@@ -85,9 +78,11 @@
 //! use agentkit_core::provider::LlmProvider;
 //!
 //! # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
+//! // 必须指定 model
 //! let runtime = DefaultRuntimeBuilder::new()
 //!     .provider(provider)
 //!     .tools(ToolRegistry::new())
+//!     .model("gpt-4o-mini")  // ← 必须设置
 //!     .system_prompt("你是一个有用的助手")
 //!     .max_steps(10)
 //!     .max_tool_concurrency(3)
@@ -179,25 +174,31 @@ use crate::runtime::tool_registry::{ToolRegistry, ToolSource};
 ///
 /// # 字段说明
 ///
+/// - `model`: 默认使用的模型名称（必需）
 /// - `max_steps`: 最大执行步数，防止无限循环（默认 8）
 /// - `max_tool_concurrency`: 工具并发执行数（默认 1）
 /// - `enable_tool_logging`: 是否启用工具执行日志
 /// - `debug_mode`: 是否启用详细调试模式
+///
+/// # 设计理念
+///
+/// **Runtime 必须指定默认模型**。模型是 Runtime 配置的核心部分，Provider 仅提供 AI 能力，
+/// 而 Runtime 作为决策单元负责选择合适的模型。
 ///
 /// # 示例
 ///
 /// ```rust
 /// use agentkit_runtime::RuntimeConfig;
 ///
-/// let config = RuntimeConfig {
-///     max_steps: 10,
-///     max_tool_concurrency: 3,
-///     enable_tool_logging: true,
-///     debug_mode: false,
-/// };
+/// // 必须指定 model
+/// let config = RuntimeConfig::new("gpt-4o-mini")
+///     .with_max_steps(10)
+///     .with_max_tool_concurrency(3);
 /// ```
 #[derive(Debug, Clone)]
 pub struct RuntimeConfig {
+    /// 默认使用的模型名称
+    pub model: String,
     /// 最大执行步数
     pub max_steps: usize,
     /// 工具并发执行数
@@ -208,14 +209,52 @@ pub struct RuntimeConfig {
     pub debug_mode: bool,
 }
 
-impl Default for RuntimeConfig {
-    fn default() -> Self {
+impl RuntimeConfig {
+    /// 创建新的运行时配置（必须指定 model）
+    ///
+    /// # 参数
+    ///
+    /// - `model`: 默认使用的模型名称
+    ///
+    /// # 示例
+    ///
+    /// ```rust
+    /// use agentkit_runtime::RuntimeConfig;
+    ///
+    /// let config = RuntimeConfig::new("gpt-4o-mini");
+    /// ```
+    pub fn new(model: impl Into<String>) -> Self {
         Self {
+            model: model.into(),
             max_steps: 8,
             max_tool_concurrency: 1,
             enable_tool_logging: true,
             debug_mode: false,
         }
+    }
+
+    /// 设置最大执行步数
+    pub fn with_max_steps(mut self, max_steps: usize) -> Self {
+        self.max_steps = max_steps;
+        self
+    }
+
+    /// 设置工具并发执行数
+    pub fn with_max_tool_concurrency(mut self, max_tool_concurrency: usize) -> Self {
+        self.max_tool_concurrency = max_tool_concurrency;
+        self
+    }
+
+    /// 设置是否启用工具执行日志
+    pub fn with_tool_logging(mut self, enable_tool_logging: bool) -> Self {
+        self.enable_tool_logging = enable_tool_logging;
+        self
+    }
+
+    /// 设置是否启用详细调试模式
+    pub fn with_debug_mode(mut self, debug_mode: bool) -> Self {
+        self.debug_mode = debug_mode;
+        self
     }
 }
 
@@ -236,8 +275,8 @@ impl Default for RuntimeConfig {
 /// use agentkit_core::provider::LlmProvider;
 ///
 /// # async fn example(provider: Arc<dyn LlmProvider>) {
-/// let tools = ToolRegistry::new();
-/// let runtime = DefaultRuntime::new(provider, tools)
+/// // Runtime 必须指定 model
+/// let runtime = DefaultRuntime::new(provider, ToolRegistry::new(), "gpt-4o-mini")
 ///     .with_system_prompt("你是一个有用的助手");
 /// # }
 /// ```
@@ -246,6 +285,8 @@ pub struct DefaultRuntime {
     provider: Arc<dyn LlmProvider>,
     /// 系统提示词
     system_prompt: Option<String>,
+    /// 默认使用的模型
+    model: String,
     /// 工具注册表
     tools: ToolRegistry,
     /// 工具策略
@@ -257,19 +298,63 @@ pub struct DefaultRuntime {
 }
 
 impl DefaultRuntime {
-    /// 创建新的运行时
-    pub fn new(provider: Arc<dyn LlmProvider>, tools: ToolRegistry) -> Self {
+    /// 创建新的运行时（必须指定 model）
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider
+    /// - `tools`: 工具注册表
+    /// - `model`: 默认使用的模型名称
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use std::sync::Arc;
+    /// use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+    /// use agentkit_core::provider::LlmProvider;
+    ///
+    /// # async fn example(provider: Arc<dyn LlmProvider>) {
+    /// let runtime = DefaultRuntime::new(provider, ToolRegistry::new(), "gpt-4o-mini");
+    /// # }
+    /// ```
+    pub fn new(
+        provider: Arc<dyn LlmProvider>,
+        tools: ToolRegistry,
+        model: impl Into<String>,
+    ) -> Self {
+        let model = model.into();
         Self {
             provider,
             system_prompt: None,
+            model: model.clone(),
             tools,
             policy: Arc::new(DefaultToolPolicy::new()),
             observer: Arc::new(NoopRuntimeObserver),
-            config: RuntimeConfig::default(),
+            config: RuntimeConfig::new(model),
         }
     }
 
     /// 使用自定义配置创建运行时
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider
+    /// - `tools`: 工具注册表
+    /// - `config`: 运行时配置（必须包含 model）
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use std::sync::Arc;
+    /// use agentkit_runtime::{DefaultRuntime, RuntimeConfig, ToolRegistry};
+    /// use agentkit_core::provider::LlmProvider;
+    ///
+    /// # async fn example(provider: Arc<dyn LlmProvider>) {
+    /// let config = RuntimeConfig::new("gpt-4o-mini")
+    ///     .with_max_steps(10);
+    /// let runtime = DefaultRuntime::with_config(provider, ToolRegistry::new(), config);
+    /// # }
+    /// ```
     pub fn with_config(
         provider: Arc<dyn LlmProvider>,
         tools: ToolRegistry,
@@ -278,6 +363,7 @@ impl DefaultRuntime {
         Self {
             provider,
             system_prompt: None,
+            model: config.model.clone(),
             tools,
             policy: Arc::new(DefaultToolPolicy::new()),
             observer: Arc::new(NoopRuntimeObserver),
@@ -418,6 +504,7 @@ impl DefaultRuntime {
         let observer = self.observer.clone();
         let max_steps = self.config.max_steps;
         let max_tool_concurrency = self.config.max_tool_concurrency;
+        let model = self.model.clone();
 
         let stream = async_stream::try_stream! {
             let tool_defs = tools.definitions();
@@ -434,7 +521,7 @@ impl DefaultRuntime {
 
                 let request = ChatRequest {
                     messages: messages.clone(),
-                    model: None,
+                    model: Some(model.clone()),
                     tools: Some(tool_defs.clone()),
                     temperature: None,
                     max_tokens: None,
@@ -742,7 +829,7 @@ impl Runtime for DefaultRuntime {
 
             let request = ChatRequest {
                 messages: messages.clone(),
-                model: None,
+                model: Some(self.model.clone()),
                 tools: Some(tool_defs.clone()),
                 temperature: None,
                 max_tokens: None,
@@ -808,31 +895,46 @@ impl Runtime for DefaultRuntime {
 }
 
 /// 运行时构建器
+///
+/// # 使用示例
+///
+/// ```rust,no_run
+/// use std::sync::Arc;
+/// use agentkit_runtime::{DefaultRuntimeBuilder, ToolRegistry};
+/// use agentkit_core::provider::LlmProvider;
+///
+/// # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
+/// // 必须指定 model
+/// let runtime = DefaultRuntimeBuilder::new()
+///     .provider(provider)
+///     .tools(ToolRegistry::new())
+///     .model("gpt-4o-mini")  // ← 必须设置
+///     .system_prompt("你是一个有用的助手")
+///     .build()?;
+/// # Ok(())
+/// # }
+/// ```
 pub struct DefaultRuntimeBuilder {
     provider: Option<Arc<dyn LlmProvider>>,
     tools: ToolRegistry,
     system_prompt: Option<String>,
+    model: Option<String>,
     policy: Option<Arc<dyn ToolPolicy>>,
     observer: Option<Arc<dyn RuntimeObserver>>,
-    config: RuntimeConfig,
-}
-
-impl Default for DefaultRuntimeBuilder {
-    fn default() -> Self {
-        Self {
-            provider: None,
-            tools: ToolRegistry::new(),
-            system_prompt: None,
-            policy: None,
-            observer: None,
-            config: RuntimeConfig::default(),
-        }
-    }
+    config: Option<RuntimeConfig>,
 }
 
 impl DefaultRuntimeBuilder {
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            provider: None,
+            tools: ToolRegistry::new(),
+            system_prompt: None,
+            model: None,
+            policy: None,
+            observer: None,
+            config: None,
+        }
     }
 
     pub fn provider(mut self, provider: Arc<dyn LlmProvider>) -> Self {
@@ -860,6 +962,32 @@ impl DefaultRuntimeBuilder {
         self
     }
 
+    /// 设置默认模型（必须调用）
+    ///
+    /// # 参数
+    ///
+    /// - `model`: 默认使用的模型名称
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use std::sync::Arc;
+    /// use agentkit_runtime::DefaultRuntimeBuilder;
+    /// use agentkit_core::provider::LlmProvider;
+    ///
+    /// # async fn example(provider: Arc<dyn LlmProvider>) -> Result<(), Box<dyn std::error::Error>> {
+    /// let runtime = DefaultRuntimeBuilder::new()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")  // ← 必须设置
+    ///     .build()?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
+        self
+    }
+
     pub fn policy(mut self, policy: Arc<dyn ToolPolicy>) -> Self {
         self.policy = Some(policy);
         self
@@ -871,17 +999,25 @@ impl DefaultRuntimeBuilder {
     }
 
     pub fn config(mut self, config: RuntimeConfig) -> Self {
-        self.config = config;
+        self.config = Some(config);
         self
     }
 
     pub fn max_steps(mut self, max: usize) -> Self {
-        self.config.max_steps = max;
+        if let Some(ref mut config) = self.config {
+            config.max_steps = max;
+        } else {
+            self.config = Some(RuntimeConfig::new("placeholder").with_max_steps(max));
+        }
         self
     }
 
     pub fn max_tool_concurrency(mut self, max: usize) -> Self {
-        self.config.max_tool_concurrency = max.max(1);
+        if let Some(ref mut config) = self.config {
+            config.max_tool_concurrency = max.max(1);
+        } else {
+            self.config = Some(RuntimeConfig::new("placeholder").with_max_tool_concurrency(max));
+        }
         self
     }
 
@@ -890,7 +1026,17 @@ impl DefaultRuntimeBuilder {
             .provider
             .ok_or_else(|| AgentError::Message("必须提供 LlmProvider".to_string()))?;
 
-        let mut runtime = DefaultRuntime::new(provider, self.tools).with_config_mut(self.config);
+        let model = self
+            .model
+            .ok_or_else(|| AgentError::Message("必须指定 model".to_string()))?;
+
+        let runtime = if let Some(config) = self.config {
+            DefaultRuntime::with_config(provider, self.tools, config)
+        } else {
+            DefaultRuntime::new(provider, self.tools, model.clone())
+        };
+
+        let mut runtime = runtime;
 
         if let Some(prompt) = self.system_prompt {
             runtime = runtime.with_system_prompt(prompt);

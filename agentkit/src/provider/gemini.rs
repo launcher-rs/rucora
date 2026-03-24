@@ -3,8 +3,15 @@
 //! 约定：
 //! - API Key 从 `GOOGLE_API_KEY` 或 `GEMINI_API_KEY` 环境变量读取
 //! - Base URL 默认 `https://generativelanguage.googleapis.com/v1beta`
+//! - 默认模型为 `gemini-1.5-flash`
 //! - 使用 Google Generative AI API 格式
 //! - 支持 Gemini 系列模型（gemini-1.5-pro, gemini-1.5-flash, gemini-pro 等）
+//!
+//! # 默认模型优先级
+//!
+//! 1. 手动设置：通过 `with_default_model()` 方法设置
+//! 2. 环境变量：从 `GEMINI_DEFAULT_MODEL` 环境变量读取
+//! 3. 内置默认值：`gemini-1.5-flash`
 
 use std::env;
 
@@ -23,6 +30,9 @@ use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// Gemini 默认模型名称。
+pub const GEMINI_DEFAULT_MODEL: &str = "gemini-1.5-flash";
+
 /// Google Gemini Provider。
 ///
 /// 支持 Gemini 系列模型：
@@ -37,10 +47,10 @@ use tracing::debug;
 /// use agentkit::provider::GeminiProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // 从环境变量加载
+/// // 从环境变量加载（包括 GEMINI_DEFAULT_MODEL）
 /// let provider = GeminiProvider::from_env()?;
 ///
-/// // 或手动配置
+/// // 或手动配置（使用内置默认模型 gemini-1.5-flash）
 /// let provider = GeminiProvider::new("your-api-key");
 ///
 /// // 使用特定模型
@@ -56,15 +66,28 @@ use tracing::debug;
 /// | `GOOGLE_API_KEY` | Google API Key | `...` |
 /// | `GEMINI_API_KEY` | Gemini API Key（备选） | `...` |
 /// | `GOOGLE_BASE_URL` | Google API Base URL | `https://generativelanguage.googleapis.com/v1beta` |
+/// | `GEMINI_DEFAULT_MODEL` | 默认模型名称 | `gemini-1.5-pro` |
+///
+/// # 默认模型优先级
+///
+/// 1. 手动设置：通过 `with_default_model()` 方法设置
+/// 2. 环境变量：从 `GEMINI_DEFAULT_MODEL` 环境变量读取
+/// 3. 内置默认值：`gemini-1.5-flash`
 pub struct GeminiProvider {
     client: reqwest::Client,
     base_url: String,
     api_key: String,
-    default_model: Option<String>,
+    default_model: String,
 }
 
 impl GeminiProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// # 环境变量优先级
+    ///
+    /// 1. `GOOGLE_API_KEY` 或 `GEMINI_API_KEY` - API Key
+    /// 2. `GOOGLE_BASE_URL` - Base URL（可选，默认 `https://generativelanguage.googleapis.com/v1beta`）
+    /// 3. `GEMINI_DEFAULT_MODEL` - 默认模型（可选，默认 `gemini-1.5-flash`）
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("GOOGLE_API_KEY")
             .or_else(|_| env::var("GEMINI_API_KEY"))
@@ -73,12 +96,31 @@ impl GeminiProvider {
             })?;
         let base_url = env::var("GOOGLE_BASE_URL")
             .unwrap_or_else(|_| "https://generativelanguage.googleapis.com/v1beta".to_string());
+        let default_model =
+            env::var("GEMINI_DEFAULT_MODEL").unwrap_or_else(|_| GEMINI_DEFAULT_MODEL.to_string());
 
-        Ok(Self::new(base_url, api_key))
+        Ok(Self::with_model(base_url, api_key, default_model))
     }
 
     /// 创建 Provider。
+    ///
+    /// 使用内置默认模型 `gemini-1.5-flash`。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        Self::with_model(base_url, api_key, GEMINI_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider 并指定默认模型。
+    ///
+    /// # 参数
+    ///
+    /// * `base_url` - API Base URL
+    /// * `api_key` - API Key
+    /// * `default_model` - 默认模型名称
+    pub fn with_model(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+    ) -> Self {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -92,19 +134,28 @@ impl GeminiProvider {
             client,
             base_url: base_url.into(),
             api_key,
-            default_model: None,
+            default_model: default_model.into(),
         }
     }
 
-    /// 仅使用 API Key 创建 Provider（使用默认 base_url）。
+    /// 仅使用 API Key 创建 Provider（使用默认 base_url 和默认模型）。
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self::new("https://generativelanguage.googleapis.com/v1beta", api_key)
+        Self::with_model(
+            "https://generativelanguage.googleapis.com/v1beta",
+            api_key,
+            GEMINI_DEFAULT_MODEL.to_string(),
+        )
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取默认模型。
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     fn map_role(role: &Role) -> &'static str {
@@ -211,8 +262,7 @@ impl LlmProvider for GeminiProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Gemini 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         // Gemini URL 格式：{base_url}/models/{model}:generateContent?key={api_key}
         let url = format!(
@@ -391,8 +441,7 @@ impl LlmProvider for GeminiProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Gemini 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         // Gemini 流式 URL
         let url = format!(
@@ -519,15 +568,28 @@ mod tests {
             provider.base_url,
             "https://generativelanguage.googleapis.com/v1beta"
         );
+        assert_eq!(provider.default_model(), GEMINI_DEFAULT_MODEL);
     }
 
     #[test]
     fn test_gemini_provider_with_custom_model() {
-        let provider = GeminiProvider::new(
+        let provider = GeminiProvider::with_model(
             "https://generativelanguage.googleapis.com/v1beta",
             "test-key",
-        )
-        .with_default_model("gemini-1.5-pro");
-        assert_eq!(provider.default_model, Some("gemini-1.5-pro".to_string()));
+            "gemini-1.5-pro",
+        );
+        assert_eq!(provider.default_model(), "gemini-1.5-pro");
+    }
+
+    #[test]
+    fn test_gemini_provider_with_default_model_builder() {
+        let provider =
+            GeminiProvider::with_api_key("test-key").with_default_model("gemini-1.5-pro");
+        assert_eq!(provider.default_model(), "gemini-1.5-pro");
+    }
+
+    #[test]
+    fn test_gemini_default_model_constant() {
+        assert_eq!(GEMINI_DEFAULT_MODEL, "gemini-1.5-flash");
     }
 }

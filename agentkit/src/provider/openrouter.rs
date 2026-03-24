@@ -25,6 +25,9 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// OpenRouter 默认模型。
+pub const OPENROUTER_DEFAULT_MODEL: &str = "anthropic/claude-3-5-sonnet";
+
 /// OpenRouter Provider。
 ///
 /// OpenRouter 是一个聚合了多种模型提供商的 API 服务，支持：
@@ -61,16 +64,21 @@ use tracing::debug;
 /// | `OPENROUTER_BASE_URL` | OpenRouter Base URL | `https://openrouter.ai/api/v1` |
 /// | `OPENROUTER_SITE_URL` | 网站 URL（可选） | `https://your-app.com` |
 /// | `OPENROUTER_SITE_NAME` | 网站名称（可选） | `Your App` |
+/// | `OPENROUTER_DEFAULT_MODEL` | 默认模型 | `anthropic/claude-3-5-sonnet` |
 pub struct OpenRouterProvider {
     client: reqwest::Client,
     base_url: String,
-    default_model: Option<String>,
+    default_model: String,
     site_url: Option<String>,
     site_name: Option<String>,
 }
 
 impl OpenRouterProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 默认模型优先级：
+    /// 1. `OPENROUTER_DEFAULT_MODEL` 环境变量
+    /// 2. 内置默认值 `anthropic/claude-3-5-sonnet`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("OPENROUTER_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 OPENROUTER_API_KEY".to_string()))?;
@@ -78,8 +86,10 @@ impl OpenRouterProvider {
             .unwrap_or_else(|_| "https://openrouter.ai/api/v1".to_string());
         let site_url = env::var("OPENROUTER_SITE_URL").ok();
         let site_name = env::var("OPENROUTER_SITE_NAME").ok();
+        let default_model = env::var("OPENROUTER_DEFAULT_MODEL")
+            .unwrap_or_else(|_| OPENROUTER_DEFAULT_MODEL.to_string());
 
-        let mut provider = Self::new(base_url, api_key);
+        let mut provider = Self::with_model(base_url, api_key, default_model);
         if let Some(url) = site_url {
             provider = provider.with_site_url(url);
         }
@@ -91,7 +101,18 @@ impl OpenRouterProvider {
     }
 
     /// 创建 Provider。
+    ///
+    /// 使用内置默认模型 `anthropic/claude-3-5-sonnet`。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        Self::with_model(base_url, api_key, OPENROUTER_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider 并指定默认模型。
+    pub fn with_model(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+    ) -> Self {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -107,21 +128,30 @@ impl OpenRouterProvider {
         Self {
             client,
             base_url: base_url.into(),
-            default_model: None,
+            default_model: default_model.into(),
             site_url: None,
             site_name: None,
         }
     }
 
-    /// 仅使用 API Key 创建 Provider（使用默认 base_url）。
+    /// 仅使用 API Key 创建 Provider（使用默认 base_url 和默认模型）。
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self::new("https://openrouter.ai/api/v1", api_key)
+        Self::with_model(
+            "https://openrouter.ai/api/v1",
+            api_key,
+            OPENROUTER_DEFAULT_MODEL.to_string(),
+        )
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取默认模型。
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     /// 设置网站 URL（用于 OpenRouter 统计）。
@@ -252,8 +282,7 @@ impl LlmProvider for OpenRouterProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("OpenRouter 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -427,8 +456,7 @@ impl LlmProvider for OpenRouterProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("OpenRouter 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -541,15 +569,16 @@ mod tests {
     fn test_openrouter_provider_creation() {
         let provider = OpenRouterProvider::with_api_key("test-key");
         assert_eq!(provider.base_url, "https://openrouter.ai/api/v1");
+        assert_eq!(provider.default_model(), OPENROUTER_DEFAULT_MODEL);
     }
 
     #[test]
-    fn test_openrouter_provider_with_custom_url() {
-        let provider = OpenRouterProvider::new("https://custom.openrouter.ai/api/v1", "test-key")
-            .with_default_model("anthropic/claude-3.5-sonnet");
-        assert_eq!(
-            provider.default_model,
-            Some("anthropic/claude-3.5-sonnet".to_string())
+    fn test_openrouter_provider_with_custom_model() {
+        let provider = OpenRouterProvider::with_model(
+            "https://custom.openrouter.ai/api/v1",
+            "test-key",
+            "anthropic/claude-3.5-sonnet",
         );
+        assert_eq!(provider.default_model(), "anthropic/claude-3.5-sonnet");
     }
 }

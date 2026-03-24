@@ -25,6 +25,9 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// Moonshot 默认模型。
+pub const MOONSHOT_DEFAULT_MODEL: &str = "moonshot-v1-8k";
+
 /// Moonshot (月之暗面) Provider。
 ///
 /// 支持 Kimi 系列模型：
@@ -56,25 +59,43 @@ use tracing::debug;
 /// |--------|------|------|
 /// | `MOONSHOT_API_KEY` | Moonshot API Key | `sk-...` |
 /// | `MOONSHOT_BASE_URL` | Moonshot Base URL | `https://api.moonshot.cn/v1` |
+/// | `MOONSHOT_DEFAULT_MODEL` | 默认模型 | `moonshot-v1-8k` |
 pub struct MoonshotProvider {
     client: reqwest::Client,
     base_url: String,
-    default_model: Option<String>,
+    default_model: String,
 }
 
 impl MoonshotProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 默认模型优先级：
+    /// 1. `MOONSHOT_DEFAULT_MODEL` 环境变量
+    /// 2. 内置默认值 `moonshot-v1-8k`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("MOONSHOT_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 MOONSHOT_API_KEY".to_string()))?;
         let base_url = env::var("MOONSHOT_BASE_URL")
             .unwrap_or_else(|_| "https://api.moonshot.cn/v1".to_string());
+        let default_model = env::var("MOONSHOT_DEFAULT_MODEL")
+            .unwrap_or_else(|_| MOONSHOT_DEFAULT_MODEL.to_string());
 
-        Ok(Self::new(base_url, api_key))
+        Ok(Self::with_model(base_url, api_key, default_model))
     }
 
     /// 创建 Provider。
+    ///
+    /// 使用内置默认模型 `moonshot-v1-8k`。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        Self::with_model(base_url, api_key, MOONSHOT_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider 并指定默认模型。
+    pub fn with_model(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+    ) -> Self {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -90,19 +111,28 @@ impl MoonshotProvider {
         Self {
             client,
             base_url: base_url.into(),
-            default_model: None,
+            default_model: default_model.into(),
         }
     }
 
-    /// 仅使用 API Key 创建 Provider（使用默认 base_url）。
+    /// 仅使用 API Key 创建 Provider（使用默认 base_url 和默认模型）。
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self::new("https://api.moonshot.cn/v1", api_key)
+        Self::with_model(
+            "https://api.moonshot.cn/v1",
+            api_key,
+            MOONSHOT_DEFAULT_MODEL.to_string(),
+        )
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取默认模型。
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     fn map_role(role: &Role) -> &'static str {
@@ -221,8 +251,7 @@ impl LlmProvider for MoonshotProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Moonshot 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -378,8 +407,7 @@ impl LlmProvider for MoonshotProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Moonshot 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -488,12 +516,16 @@ mod tests {
     fn test_moonshot_provider_creation() {
         let provider = MoonshotProvider::with_api_key("test-key");
         assert_eq!(provider.base_url, "https://api.moonshot.cn/v1");
+        assert_eq!(provider.default_model(), MOONSHOT_DEFAULT_MODEL);
     }
 
     #[test]
     fn test_moonshot_provider_with_custom_model() {
-        let provider = MoonshotProvider::new("https://api.moonshot.cn/v1", "test-key")
-            .with_default_model("moonshot-v1-32k");
-        assert_eq!(provider.default_model, Some("moonshot-v1-32k".to_string()));
+        let provider = MoonshotProvider::with_model(
+            "https://api.moonshot.cn/v1",
+            "test-key",
+            "moonshot-v1-32k",
+        );
+        assert_eq!(provider.default_model(), "moonshot-v1-32k");
     }
 }

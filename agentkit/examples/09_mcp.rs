@@ -118,10 +118,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     println!("✓ Ollama Provider 初始化成功");
 
-    // 创建运行时
+    // 创建运行时（必须指定 model）
     println!("=== 5. 创建运行时 ===\n");
 
-    let agent = DefaultRuntime::new(Arc::new(provider), tools)
+    let model = provider.default_model().to_string();
+    let agent = DefaultRuntime::new(Arc::new(provider), tools, model)
         .with_system_prompt(
             "你是一个严谨的助手。
 回答请使用中文。",

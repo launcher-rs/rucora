@@ -23,15 +23,24 @@ use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// Anthropic 默认模型。
+pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-3-5-sonnet-20241022";
+
 /// Anthropic Claude Provider。
 ///
 /// 支持 Claude 系列模型：
-/// - claude-3-5-sonnet-20241022 (最新)
+/// - claude-3-5-sonnet-20241022 (最新，默认)
 /// - claude-3-5-haiku-20241022
 /// - claude-3-opus-20240229
 /// - claude-3-sonnet-20240229
 /// - claude-3-haiku-20240307
 /// - claude-2.1
+///
+/// # 默认模型优先级
+///
+/// 1. **手动设置**：通过 `with_model()` 或 `with_default_model()` 显式设置
+/// 2. **环境变量**：`ANTHROPIC_DEFAULT_MODEL` 环境变量
+/// 3. **内置默认值**：`claude-3-5-sonnet-20241022`
 ///
 /// # 使用示例
 ///
@@ -39,14 +48,14 @@ use tracing::debug;
 /// use agentkit::provider::AnthropicProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // 从环境变量加载
+/// // 从环境变量加载（包括 ANTHROPIC_DEFAULT_MODEL）
 /// let provider = AnthropicProvider::from_env()?;
 ///
-/// // 或手动配置
+/// // 或手动配置（使用内置默认模型）
 /// let provider = AnthropicProvider::new("sk-ant-...");
 ///
-/// // 使用特定模型
-/// let provider = provider.with_default_model("claude-3-5-sonnet-20241022");
+/// // 使用特定模型（手动设置优先级最高）
+/// let provider = provider.with_default_model("claude-3-opus-20240229");
 /// # Ok(())
 /// # }
 /// ```
@@ -57,26 +66,49 @@ use tracing::debug;
 /// |--------|------|------|
 /// | `ANTHROPIC_API_KEY` | Anthropic API Key | `sk-ant-...` |
 /// | `ANTHROPIC_BASE_URL` | Anthropic Base URL | `https://api.anthropic.com/v1` |
+/// | `ANTHROPIC_DEFAULT_MODEL` | 默认模型 | `claude-3-5-sonnet-20241022` |
 pub struct AnthropicProvider {
     client: reqwest::Client,
     base_url: String,
-    default_model: Option<String>,
+    default_model: String,
     api_version: String,
 }
 
 impl AnthropicProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 从以下环境变量加载配置：
+    /// - `ANTHROPIC_API_KEY`: API Key（必需）
+    /// - `ANTHROPIC_BASE_URL`: Base URL（可选，默认 `https://api.anthropic.com/v1`）
+    /// - `ANTHROPIC_DEFAULT_MODEL`: 默认模型（可选，默认 `claude-3-5-sonnet-20241022`）
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("ANTHROPIC_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 ANTHROPIC_API_KEY".to_string()))?;
         let base_url = env::var("ANTHROPIC_BASE_URL")
             .unwrap_or_else(|_| "https://api.anthropic.com/v1".to_string());
+        let default_model = env::var("ANTHROPIC_DEFAULT_MODEL")
+            .unwrap_or_else(|_| ANTHROPIC_DEFAULT_MODEL.to_string());
 
-        Ok(Self::new(base_url, api_key))
+        Ok(Self::with_model(base_url, api_key, default_model))
     }
 
-    /// 创建 Provider。
+    /// 创建 Provider（使用内置默认模型）。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        Self::with_model(base_url, api_key, ANTHROPIC_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider（指定默认模型）。
+    ///
+    /// # 参数
+    ///
+    /// * `base_url` - API Base URL
+    /// * `api_key` - API Key
+    /// * `default_model` - 默认模型名称
+    pub fn with_model(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+    ) -> Self {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -95,20 +127,29 @@ impl AnthropicProvider {
         Self {
             client,
             base_url: base_url.into(),
-            default_model: None,
+            default_model: default_model.into(),
             api_version: "2023-06-01".to_string(),
         }
     }
 
-    /// 仅使用 API Key 创建 Provider（使用默认 base_url）。
+    /// 仅使用 API Key 创建 Provider（使用默认 base_url 和内置默认模型）。
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self::new("https://api.anthropic.com/v1", api_key)
+        Self::with_model(
+            "https://api.anthropic.com/v1",
+            api_key,
+            ANTHROPIC_DEFAULT_MODEL,
+        )
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取默认模型。
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     /// 设置 API 版本。
@@ -219,8 +260,7 @@ impl LlmProvider for AnthropicProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Anthropic 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/messages", self.base_url.trim_end_matches('/'));
 
@@ -366,8 +406,7 @@ impl LlmProvider for AnthropicProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Anthropic 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/messages", self.base_url.trim_end_matches('/'));
 
@@ -491,15 +530,28 @@ mod tests {
     fn test_anthropic_provider_creation() {
         let provider = AnthropicProvider::with_api_key("test-key");
         assert_eq!(provider.base_url, "https://api.anthropic.com/v1");
+        assert_eq!(provider.default_model(), ANTHROPIC_DEFAULT_MODEL);
     }
 
     #[test]
     fn test_anthropic_provider_with_custom_model() {
         let provider = AnthropicProvider::new("https://api.anthropic.com/v1", "test-key")
             .with_default_model("claude-3-5-sonnet-20241022");
-        assert_eq!(
-            provider.default_model,
-            Some("claude-3-5-sonnet-20241022".to_string())
+        assert_eq!(provider.default_model(), "claude-3-5-sonnet-20241022");
+    }
+
+    #[test]
+    fn test_anthropic_provider_with_model() {
+        let provider = AnthropicProvider::with_model(
+            "https://api.anthropic.com/v1",
+            "test-key",
+            "claude-3-opus-20240229",
         );
+        assert_eq!(provider.default_model(), "claude-3-opus-20240229");
+    }
+
+    #[test]
+    fn test_anthropic_default_model_constant() {
+        assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-3-5-sonnet-20241022");
     }
 }

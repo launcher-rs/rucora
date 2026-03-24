@@ -214,8 +214,14 @@ async fn run_research(
         }
     }
 
-    // 创建运行时
-    let runtime = DefaultRuntime::new(provider, tools)
+    // 创建运行时（必须指定 model）
+    // 从环境变量读取或使用默认值
+    let model = std::env::var("OPENAI_DEFAULT_MODEL")
+        .or_else(|_| std::env::var("ANTHROPIC_DEFAULT_MODEL"))
+        .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    info!("✓ 使用模型：{}", model);
+
+    let runtime = DefaultRuntime::new(provider, tools, model)
         .with_system_prompt("你是一个专业的深度研究助手。请制定详细研究计划，多轮迭代收集信息，分析整理，最后生成完整报告。")
         .with_max_steps(15);
 

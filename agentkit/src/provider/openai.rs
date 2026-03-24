@@ -3,6 +3,7 @@
 //! 约定：
 //! - API Key 从 `OPENAI_API_KEY` 环境变量读取
 //! - Base URL 默认 `https://api.openai.com/v1`，也可通过 `OPENAI_BASE_URL` 覆盖
+//! - 默认模型优先级：1) 手动设置 `with_default_model()` 2) `OPENAI_DEFAULT_MODEL` 环境变量 3) 内置默认值 `gpt-4o-mini`
 
 use std::env;
 
@@ -20,30 +21,80 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// OpenAI 默认模型（当未指定时使用）
+const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
+
 /// OpenAI Chat Completions Provider。
 ///
 /// 说明：
 /// - 目前仅实现 `chat`（非流式）
 /// - `tools` 会按 OpenAI 的 function tools 格式传入
+///
+/// # 默认模型
+///
+/// 默认模型的优先级顺序：
+/// 1. 手动调用 `with_default_model()` 设置的值
+/// 2. `OPENAI_DEFAULT_MODEL` 环境变量
+/// 3. 内置默认值 `gpt-4o-mini`
+///
+/// # 示例
+///
+/// ```rust,no_run
+/// use agentkit::provider::OpenAiProvider;
+///
+/// # fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// // 方式 1：使用内置默认模型（gpt-4o-mini）
+/// let provider = OpenAiProvider::from_env()?;
+///
+/// // 方式 2：通过环境变量指定（OPENAI_DEFAULT_MODEL=claude-3-5-sonnet）
+/// let provider = OpenAiProvider::from_env()?;
+///
+/// // 方式 3：手动指定（优先级最高）
+/// let provider = OpenAiProvider::from_env()?
+///     .with_default_model("gpt-4o");
+/// # Ok(())
+/// # }
+/// ```
 pub struct OpenAiProvider {
     client: reqwest::Client,
     base_url: String,
-    default_model: Option<String>,
+    default_model: String,
 }
 
 impl OpenAiProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 默认模型来源（按优先级）：
+    /// 1. `OPENAI_DEFAULT_MODEL` 环境变量
+    /// 2. 内置默认值 `gpt-4o-mini`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("OPENAI_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 OPENAI_API_KEY".to_string()))?;
         let base_url =
             env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
+        let default_model =
+            env::var("OPENAI_DEFAULT_MODEL").unwrap_or_else(|_| OPENAI_DEFAULT_MODEL.to_string());
 
-        Ok(Self::new(base_url, api_key))
+        Ok(Self::with_model(base_url, api_key, default_model))
     }
 
-    /// 创建 Provider。
+    /// 创建 Provider（使用内置默认模型 `gpt-4o-mini`）。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        Self::with_model(base_url, api_key, OPENAI_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider（指定默认模型）。
+    ///
+    /// # 参数
+    ///
+    /// - `base_url`: API 基础 URL
+    /// - `api_key`: API Key
+    /// - `default_model`: 默认使用的模型名称
+    pub fn with_model(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+    ) -> Self {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -59,14 +110,19 @@ impl OpenAiProvider {
         Self {
             client,
             base_url: base_url.into(),
-            default_model: None,
+            default_model: default_model.into(),
         }
     }
 
-    /// 设置默认模型。
+    /// 设置默认模型（覆盖环境变量或内置默认值）。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取当前配置的默认模型
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     fn map_role(role: &Role) -> &'static str {
@@ -185,11 +241,11 @@ impl OpenAiProvider {
 #[async_trait]
 impl LlmProvider for OpenAiProvider {
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        // 优先级：1) 请求中指定的 model 2) Provider 默认模型
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("OpenAI 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -413,11 +469,11 @@ impl LlmProvider for OpenAiProvider {
         &self,
         request: ChatRequest,
     ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
+        // 优先级：1) 请求中指定的 model 2) Provider 默认模型
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("OpenAI 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let client = self.client.clone();
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));

@@ -18,38 +18,66 @@ use futures_util::{StreamExt, stream::BoxStream};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// Ollama 默认模型。
+pub const OLLAMA_DEFAULT_MODEL: &str = "llama3.1:8b";
+
 /// Ollama Chat Provider。
 ///
 /// 说明：
 /// - 目前仅实现 `chat`（非流式）
 /// - tools 暂不做强保证（不同 Ollama 版本对 tools 支持存在差异）
+///
+/// # 环境变量
+///
+/// | 变量名 | 说明 | 示例 |
+/// |--------|------|------|
+/// | `OLLAMA_BASE_URL` | Ollama Base URL | `http://localhost:11434` |
+/// | `OLLAMA_DEFAULT_MODEL` | 默认模型 | `llama3.1:8b` |
 pub struct OllamaProvider {
     client: reqwest::Client,
     base_url: String,
-    default_model: Option<String>,
+    default_model: String,
 }
 
 impl OllamaProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 默认模型优先级：
+    /// 1. `OLLAMA_DEFAULT_MODEL` 环境变量
+    /// 2. 内置默认值 `llama3.1:8b`
     pub fn from_env() -> Self {
         let base_url =
             env::var("OLLAMA_BASE_URL").unwrap_or_else(|_| "http://localhost:11434".to_string());
-        Self::new(base_url)
+        let default_model =
+            env::var("OLLAMA_DEFAULT_MODEL").unwrap_or_else(|_| OLLAMA_DEFAULT_MODEL.to_string());
+        Self::with_model(base_url, default_model)
     }
 
     /// 创建 Provider。
+    ///
+    /// 使用内置默认模型 `llama3.1:8b`。
     pub fn new(base_url: impl Into<String>) -> Self {
+        Self::with_model(base_url, OLLAMA_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider 并指定默认模型。
+    pub fn with_model(base_url: impl Into<String>, default_model: impl Into<String>) -> Self {
         Self {
             client: reqwest::Client::new(),
             base_url: base_url.into(),
-            default_model: None,
+            default_model: default_model.into(),
         }
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取默认模型。
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     fn map_role(role: &Role) -> &'static str {
@@ -86,8 +114,7 @@ impl LlmProvider for OllamaProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Ollama 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/api/chat", self.base_url.trim_end_matches('/'));
         let mut body = json!({
@@ -249,8 +276,7 @@ impl LlmProvider for OllamaProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("Ollama 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let client = self.client.clone();
         let url = format!("{}/api/chat", self.base_url.trim_end_matches('/'));

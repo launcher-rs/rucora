@@ -252,8 +252,10 @@ impl SkillsDirConfig {
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let provider = OpenAiProvider::from_env()?;
 ///
+/// // Agent 必须指定 model
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
+///     .model("gpt-4o-mini")  // ← 必须设置
 ///     .system_prompt("你是有用的助手")
 ///     .tool(EchoTool)
 ///     .build();
@@ -275,6 +277,7 @@ impl SkillsDirConfig {
 ///
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
+///     .model("gpt-4o-mini")
 ///     .mcp_server(McpServerConfig::new("http://localhost:8080"))
 ///     .mcp_server(McpServerConfig::with_auth(
 ///         "http://mcp.example.com",
@@ -296,6 +299,7 @@ impl SkillsDirConfig {
 ///
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
+///     .model("gpt-4o-mini")
 ///     .skills_dir(SkillsDirConfig::new("skills"))
 ///     .skills_dir(SkillsDirConfig::new("custom_skills"))
 ///     .build();
@@ -308,8 +312,8 @@ pub struct DefaultAgent<P> {
     provider: P,
     /// 系统提示词。
     system_prompt: Option<String>,
-    /// 默认模型。
-    default_model: Option<String>,
+    /// 默认使用的模型。
+    model: String,
     /// 已注册的工具。
     tools: HashMap<String, Arc<dyn Tool>>,
     /// 最大步骤数。
@@ -413,9 +417,7 @@ where
             }
         }
 
-        if let Some(ref model) = self.default_model {
-            request.model = Some(model.clone());
-        }
+        request.model = Some(self.model.clone());
     }
 
     /// 获取工具定义列表。
@@ -638,8 +640,10 @@ where
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// let provider = OpenAiProvider::from_env()?;
 ///
+/// // Agent 必须指定 model
 /// let agent = DefaultAgent::builder()
 ///     .provider(provider)
+///     .model("gpt-4o-mini")  // ← 必须设置
 ///     .skills_dir(SkillsDirConfig::new("skills"))
 ///     .skills_dir(SkillsDirConfig::new("custom_skills"))
 ///     .build();
@@ -649,7 +653,7 @@ where
 pub struct DefaultAgentBuilder<P> {
     provider: Option<P>,
     system_prompt: Option<String>,
-    default_model: Option<String>,
+    model: Option<String>,
     tools: HashMap<String, Arc<dyn Tool>>,
     max_steps: usize,
     /// Skills 目录配置列表
@@ -669,7 +673,7 @@ impl<P> DefaultAgentBuilder<P> {
         Self {
             provider: None,
             system_prompt: None,
-            default_model: None,
+            model: None,
             tools: HashMap::new(),
             max_steps: 10,
             #[cfg(feature = "skills")]
@@ -679,12 +683,6 @@ impl<P> DefaultAgentBuilder<P> {
             #[cfg(feature = "a2a")]
             a2a_agents: Vec::new(),
         }
-    }
-}
-
-impl<P> Default for DefaultAgentBuilder<P> {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
@@ -704,9 +702,28 @@ where
         self
     }
 
-    /// 设置默认模型。
-    pub fn default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+    /// 设置默认模型（必须调用）。
+    ///
+    /// # 参数
+    ///
+    /// - `model`: 默认使用的模型名称
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::provider::OpenAiProvider;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")  // ← 必须设置
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn model(mut self, model: impl Into<String>) -> Self {
+        self.model = Some(model.into());
         self
     }
 
@@ -889,13 +906,34 @@ where
     }
 
     /// 构建 Agent。
+    ///
+    /// # Panics
+    ///
+    /// 如果没有调用 `model()` 方法，此方法会 panic。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::provider::OpenAiProvider;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")  // ← 必须设置
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
     pub fn build(self) -> DefaultAgent<P> {
         DefaultAgent {
             provider: self
                 .provider
                 .expect("Provider is required for DefaultAgent"),
             system_prompt: self.system_prompt,
-            default_model: self.default_model,
+            model: self.model.expect(
+                "model is required for DefaultAgent. Please call .model() method before build().",
+            ),
             tools: self.tools,
             max_steps: self.max_steps,
             #[cfg(feature = "skills")]
@@ -917,7 +955,7 @@ mod tests {
         // 这个测试需要实际的 Provider，所以只测试 builder 的链式调用
         let _builder = DefaultAgentBuilder::<MockProvider>::new()
             .system_prompt("test")
-            .default_model("gpt-4")
+            .model("gpt-4")
             .max_steps(5);
     }
 

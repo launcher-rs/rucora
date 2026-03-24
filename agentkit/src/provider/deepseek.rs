@@ -25,6 +25,9 @@ use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 
+/// DeepSeek 默认模型。
+pub const DEEPSEEK_DEFAULT_MODEL: &str = "deepseek-chat";
+
 /// DeepSeek Provider。
 ///
 /// 支持 DeepSeek 系列模型：
@@ -55,25 +58,43 @@ use tracing::debug;
 /// |--------|------|------|
 /// | `DEEPSEEK_API_KEY` | DeepSeek API Key | `sk-...` |
 /// | `DEEPSEEK_BASE_URL` | DeepSeek Base URL | `https://api.deepseek.com/v1` |
+/// | `DEEPSEEK_DEFAULT_MODEL` | 默认模型 | `deepseek-chat` |
 pub struct DeepSeekProvider {
     client: reqwest::Client,
     base_url: String,
-    default_model: Option<String>,
+    default_model: String,
 }
 
 impl DeepSeekProvider {
     /// 从环境变量创建 Provider。
+    ///
+    /// 默认模型优先级：
+    /// 1. `DEEPSEEK_DEFAULT_MODEL` 环境变量
+    /// 2. 内置默认值 `deepseek-chat`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("DEEPSEEK_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 DEEPSEEK_API_KEY".to_string()))?;
         let base_url = env::var("DEEPSEEK_BASE_URL")
             .unwrap_or_else(|_| "https://api.deepseek.com/v1".to_string());
+        let default_model = env::var("DEEPSEEK_DEFAULT_MODEL")
+            .unwrap_or_else(|_| DEEPSEEK_DEFAULT_MODEL.to_string());
 
-        Ok(Self::new(base_url, api_key))
+        Ok(Self::with_model(base_url, api_key, default_model))
     }
 
     /// 创建 Provider。
+    ///
+    /// 使用内置默认模型 `deepseek-chat`。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
+        Self::with_model(base_url, api_key, DEEPSEEK_DEFAULT_MODEL.to_string())
+    }
+
+    /// 创建 Provider 并指定默认模型。
+    pub fn with_model(
+        base_url: impl Into<String>,
+        api_key: impl Into<String>,
+        default_model: impl Into<String>,
+    ) -> Self {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
@@ -89,19 +110,28 @@ impl DeepSeekProvider {
         Self {
             client,
             base_url: base_url.into(),
-            default_model: None,
+            default_model: default_model.into(),
         }
     }
 
-    /// 仅使用 API Key 创建 Provider（使用默认 base_url）。
+    /// 仅使用 API Key 创建 Provider（使用默认 base_url 和默认模型）。
     pub fn with_api_key(api_key: impl Into<String>) -> Self {
-        Self::new("https://api.deepseek.com/v1", api_key)
+        Self::with_model(
+            "https://api.deepseek.com/v1",
+            api_key,
+            DEEPSEEK_DEFAULT_MODEL.to_string(),
+        )
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
-        self.default_model = Some(model.into());
+        self.default_model = model.into();
         self
+    }
+
+    /// 获取默认模型。
+    pub fn default_model(&self) -> &str {
+        &self.default_model
     }
 
     fn map_role(role: &Role) -> &'static str {
@@ -220,8 +250,7 @@ impl LlmProvider for DeepSeekProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("DeepSeek 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -377,8 +406,7 @@ impl LlmProvider for DeepSeekProvider {
         let model = request
             .model
             .clone()
-            .or_else(|| self.default_model.clone())
-            .ok_or_else(|| ProviderError::Message("DeepSeek 请求缺少 model".to_string()))?;
+            .unwrap_or_else(|| self.default_model.clone());
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
@@ -487,12 +515,16 @@ mod tests {
     fn test_deepseek_provider_creation() {
         let provider = DeepSeekProvider::with_api_key("test-key");
         assert_eq!(provider.base_url, "https://api.deepseek.com/v1");
+        assert_eq!(provider.default_model(), DEEPSEEK_DEFAULT_MODEL);
     }
 
     #[test]
     fn test_deepseek_provider_with_custom_model() {
-        let provider = DeepSeekProvider::new("https://api.deepseek.com/v1", "test-key")
-            .with_default_model("deepseek-chat");
-        assert_eq!(provider.default_model, Some("deepseek-chat".to_string()));
+        let provider = DeepSeekProvider::with_model(
+            "https://api.deepseek.com/v1",
+            "test-key",
+            "deepseek-chat",
+        );
+        assert_eq!(provider.default_model(), "deepseek-chat");
     }
 }

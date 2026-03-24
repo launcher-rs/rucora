@@ -2,25 +2,35 @@
 //!
 //! 展示最简单的对话场景
 //!
+//! # 设计理念
+//!
+//! - **Provider** = 提供 AI 能力（连接 API），不需要指定 model
+//! - **Runtime** = 决策和执行单元，**必须指定 model**
+//!
 //! # 运行方式
 //!
 //! ```bash
-//! # 设置环境变量
+//! # 方式 1：使用环境变量指定默认模型（推荐）
 //! export OPENAI_API_KEY=sk-xxx
+//! export OPENAI_DEFAULT_MODEL=gpt-4o
+//! cargo run --example 01_basic_chat
 //!
-//! # 运行示例
+//! # 方式 2：Runtime 中显式指定模型
+//! export OPENAI_API_KEY=sk-xxx
 //! cargo run --example 01_basic_chat
 //! ```
 
 use agentkit::prelude::*;
 use agentkit::provider::{AnthropicProvider, GeminiProvider, OpenAiProvider, OpenRouterProvider};
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use agentkit::runtime::{DefaultRuntime, RuntimeConfig, ToolRegistry};
 use agentkit_core::provider::LlmProvider;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 /// 从环境变量创建 Provider
+///
+/// Provider 仅提供 AI 连接能力，不负责选择模型
 fn create_provider_from_env() -> anyhow::Result<Arc<dyn LlmProvider + Send + Sync>> {
     // 尝试 OpenAI
     if let Ok(provider) = OpenAiProvider::from_env() {
@@ -64,11 +74,24 @@ async fn main() -> anyhow::Result<()> {
     info!("║         AgentKit 基础聊天示例                          ║");
     info!("╚════════════════════════════════════════════════════════╝\n");
 
-    // 创建 Provider
+    // 创建 Provider（仅仅提供 AI 能力）
     let provider = create_provider_from_env()?;
 
-    // 创建运行时
-    let runtime = DefaultRuntime::new(provider, ToolRegistry::new())
+    // 方式 1：从环境变量读取模型（推荐）
+    // 优先级：OPENAI_DEFAULT_MODEL > ANTHROPIC_DEFAULT_MODEL > ... > gpt-4o-mini
+    let model = std::env::var("OPENAI_DEFAULT_MODEL")
+        .or_else(|_| std::env::var("ANTHROPIC_DEFAULT_MODEL"))
+        .or_else(|_| std::env::var("GEMINI_DEFAULT_MODEL"))
+        .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+
+    info!("✓ 使用模型：{}", model);
+
+    // 方式 2：显式指定模型（更清晰）
+    // let model = "gpt-4o";  // 或者任何你想要的模型
+
+    // 创建运行时（必须指定 model）
+    // Runtime 作为决策单元，负责选择合适的模型
+    let runtime = DefaultRuntime::new(provider, ToolRegistry::new(), model)
         .with_system_prompt("你是一个友好的助手，用简短的语句回复");
 
     // 对话循环

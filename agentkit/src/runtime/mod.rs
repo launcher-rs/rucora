@@ -24,8 +24,8 @@
 //! // 创建工具注册表
 //! let tools = ToolRegistry::new();
 //!
-//! // 创建运行时
-//! let runtime = DefaultRuntime::new(provider, tools)
+//! // 创建运行时（必须指定 model）
+//! let runtime = DefaultRuntime::new(provider, tools, "gpt-4o-mini")
 //!     .with_system_prompt("你是一个有用的助手")
 //!     .with_max_steps(10);
 //!
