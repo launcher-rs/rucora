@@ -327,7 +327,6 @@ pub mod ollama;
 pub mod openai;
 pub mod openrouter;
 pub mod resilient;
-pub mod router;
 
 /// 重新导出常用 provider 实现
 pub use anthropic::AnthropicProvider;
@@ -339,4 +338,14 @@ pub use ollama::OllamaProvider;
 pub use openai::OpenAiProvider;
 pub use openrouter::OpenRouterProvider;
 pub use resilient::{CancelHandle, ResilientProvider, RetryConfig};
-pub use router::RouterProvider;
+
+/// 预览函数
+pub(crate) fn preview(s: &str, max: usize) -> String {
+    if s.len() <= max {
+        s.to_string()
+    } else {
+        // 使用 char_indices 找到正确的字符边界，避免截断多字节字符
+        let truncated: String = s.char_indices().take(max).map(|(_, c)| c).collect();
+        format!("{}...<truncated:{}>", truncated, s.len())
+    }
+}

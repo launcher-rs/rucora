@@ -9,6 +9,7 @@
 use std::env;
 
 use crate::provider::helpers::parse_finish_reason;
+use crate::provider::preview;
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -255,14 +256,6 @@ impl LlmProvider for MoonshotProvider {
 
         let url = format!("{}/chat/completions", self.base_url.trim_end_matches('/'));
         let messages = Self::build_messages(&request.messages);
-
-        let preview = |s: &str, max: usize| {
-            if s.len() <= max {
-                s.to_string()
-            } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
-            }
-        };
 
         let last_user_preview = request
             .messages

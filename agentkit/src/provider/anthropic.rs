@@ -9,6 +9,7 @@
 use std::env;
 
 use crate::provider::helpers::parse_finish_reason;
+use crate::provider::preview;
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -266,14 +267,6 @@ impl LlmProvider for AnthropicProvider {
 
         let system_prompt = Self::build_system_prompt(&request.messages);
         let messages = Self::build_messages(&request.messages);
-
-        let preview = |s: &str, max: usize| {
-            if s.len() <= max {
-                s.to_string()
-            } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
-            }
-        };
 
         let last_user_preview = request
             .messages

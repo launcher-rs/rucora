@@ -357,14 +357,6 @@ pub mod rag;
 /// - [`memory::FileMemory`]: 文件记忆
 pub mod memory;
 
-/// 统一配置系统
-///
-/// 支持：
-/// - 配置文件（YAML/TOML）
-/// - Profile 切换（dev/prod）
-/// - 环境变量覆盖
-pub mod config;
-
 /// Conversation（对话历史）管理
 ///
 /// 提供对话历史管理功能：

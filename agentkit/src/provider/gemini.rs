@@ -16,6 +16,7 @@
 use std::env;
 
 use crate::provider::helpers::parse_finish_reason;
+use crate::provider::preview;
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -274,14 +275,6 @@ impl LlmProvider for GeminiProvider {
 
         let system_instruction = Self::build_system_instruction(&request.messages);
         let messages = Self::build_messages(&request.messages);
-
-        let preview = |s: &str, max: usize| {
-            if s.len() <= max {
-                s.to_string()
-            } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
-            }
-        };
 
         let last_user_preview = request
             .messages

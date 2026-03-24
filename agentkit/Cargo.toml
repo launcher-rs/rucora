@@ -91,9 +91,7 @@ path = "examples/05_conversation.rs"
 name = "06_agent_conversation"
 path = "examples/06_agent_conversation.rs"
 
-[[example]]
-name = "07_router_provider"
-path = "examples/07_router_provider.rs"
+
 
 [[example]]
 name = "08_resilient_provider"

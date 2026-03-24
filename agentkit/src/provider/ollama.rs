@@ -6,6 +6,7 @@
 
 use std::env;
 
+use crate::provider::preview;
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -158,14 +159,6 @@ impl LlmProvider for OllamaProvider {
             }
         }
 
-        let preview = |s: &str, max: usize| {
-            if s.len() <= max {
-                s.to_string()
-            } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
-            }
-        };
-
         let last_user_preview = request
             .messages
             .iter()
@@ -300,14 +293,6 @@ impl LlmProvider for OllamaProvider {
                 }
             }
         }
-
-        let preview = |s: &str, max: usize| {
-            if s.len() <= max {
-                s.to_string()
-            } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
-            }
-        };
 
         debug!(
             provider = "ollama",
