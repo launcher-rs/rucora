@@ -254,7 +254,12 @@ impl LlmProvider for OpenAiProvider {
             if s.len() <= max {
                 s.to_string()
             } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
+                // 使用 char_indices 找到正确的字符边界，避免截断多字节字符
+                let truncated: String = s.char_indices()
+                    .take(max)
+                    .map(|(_, c)| c)
+                    .collect();
+                format!("{}...<truncated:{}>", truncated, s.len())
             }
         };
 
@@ -482,7 +487,12 @@ impl LlmProvider for OpenAiProvider {
             if s.len() <= max {
                 s.to_string()
             } else {
-                format!("{}...<truncated:{}>", &s[..max], s.len())
+                // 使用 char_indices 找到正确的字符边界，避免截断多字节字符
+                let truncated: String = s.char_indices()
+                    .take(max)
+                    .map(|(_, c)| c)
+                    .collect();
+                format!("{}...<truncated:{}>", truncated, s.len())
             }
         };
 

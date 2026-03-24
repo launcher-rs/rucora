@@ -43,6 +43,9 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
+use tokio::sync::Mutex;
+
+use crate::conversation::ConversationManager;
 
 /// MCP 服务器配置
 ///
@@ -319,6 +322,8 @@ pub struct DefaultAgent<P> {
     /// 最大步骤数。
     #[allow(dead_code)]
     max_steps: usize,
+    /// 对话管理器（可选，用于自动管理对话历史）
+    conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// Skills 目录配置列表
     #[cfg(feature = "skills")]
     skills_dirs: Vec<SkillsDirConfig>,
@@ -362,6 +367,72 @@ impl<P> DefaultAgent<P> {
     #[cfg(feature = "skills")]
     pub fn skills_dirs(&self) -> &[SkillsDirConfig] {
         &self.skills_dirs
+    }
+
+    /// 获取对话历史（如果启用了对话历史）。
+    ///
+    /// # 返回
+    ///
+    /// - `Some(Vec<ChatMessage>)`: 如果启用了对话历史，返回历史消息的副本
+    /// - `None`: 如果没有启用对话历史
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")
+    ///     .with_conversation(true)
+    ///     .build();
+    ///
+    /// // 获取对话历史
+    /// if let Some(history) = agent.get_conversation_history().await {
+    ///     println!("历史消息数：{}", history.len());
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn get_conversation_history(&self) -> Option<Vec<ChatMessage>> {
+        match &self.conversation_manager {
+            Some(conv_arc) => {
+                let conv = conv_arc.lock().await;
+                Some(conv.get_messages().to_vec())
+            },
+            None => None,
+        }
+    }
+
+    /// 清空对话历史（如果启用了对话历史）。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")
+    ///     .with_conversation(true)
+    ///     .build();
+    ///
+    /// // 清空对话历史
+    /// agent.clear_conversation().await;
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn clear_conversation(&self) {
+        if let Some(ref conv_arc) = self.conversation_manager {
+            let mut conv = conv_arc.lock().await;
+            conv.clear();
+            // 重新添加系统提示
+            if let Some(ref prompt) = self.system_prompt {
+                conv.ensure_system_prompt(prompt);
+            }
+        }
     }
 }
 
@@ -460,6 +531,13 @@ where
     /// # 返回
     ///
     /// 返回 AgentOutput，包含回复内容、对话历史和工具调用记录。
+    ///
+    /// # 对话历史
+    ///
+    /// 如果启用了对话历史（`with_conversation(true)`），此方法会自动：
+    /// 1. 添加用户消息到历史
+    /// 2. 添加助手回复到历史
+    /// 3. 在下次调用时包含历史记录
     pub async fn run(
         &self,
         input: impl Into<AgentInput> + Send,
@@ -469,6 +547,15 @@ where
         let mut tool_call_records: Vec<agentkit_core::agent::ToolCallRecord> = Vec::new();
         let mut step = 0;
         let max_steps = self.max_steps;
+
+        // 如果启用了对话历史，从历史中获取消息
+        let conversation_history: Vec<ChatMessage> = if let Some(ref conv_arc) = self.conversation_manager {
+            let conv = conv_arc.lock().await;
+            conv.get_messages().to_vec()
+        } else {
+            Vec::new()
+        };
+        messages.extend(conversation_history);
 
         // 添加用户消息
         messages.push(ChatMessage::user(input.text.clone()));
@@ -532,14 +619,25 @@ where
                         step += 1;
                     } else {
                         // 没有工具调用，返回最终结果
-                        return Ok(AgentOutput::with_history(
+                        let output = Ok(AgentOutput::with_history(
                             Value::Object(serde_json::Map::from_iter(vec![(
                                 "content".to_string(),
                                 Value::String(response.message.content.clone()),
                             )])),
-                            messages,
+                            messages.clone(),
                             tool_call_records,
                         ));
+
+                        // 如果启用了对话历史，保存消息到历史
+                        if let Some(ref conv_arc) = self.conversation_manager {
+                            let mut conv = conv_arc.lock().await;
+                            // 添加用户消息
+                            conv.add_user_message(input.text.clone());
+                            // 添加助手回复
+                            conv.add_assistant_message(response.message.content.clone());
+                        }
+
+                        return output;
                     }
                 }
                 AgentDecision::ToolCall { name, input } => {
@@ -656,6 +754,10 @@ pub struct DefaultAgentBuilder<P> {
     model: Option<String>,
     tools: HashMap<String, Arc<dyn Tool>>,
     max_steps: usize,
+    /// 对话管理器配置
+    conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    /// 对话历史最大消息数（在 build 时应用）
+    max_conversation_messages: Option<usize>,
     /// Skills 目录配置列表
     #[cfg(feature = "skills")]
     skills_dirs: Vec<SkillsDirConfig>,
@@ -676,6 +778,8 @@ impl<P> DefaultAgentBuilder<P> {
             model: None,
             tools: HashMap::new(),
             max_steps: 10,
+            conversation_manager: None,
+            max_conversation_messages: None,
             #[cfg(feature = "skills")]
             skills_dirs: Vec::new(),
             #[cfg(feature = "mcp")]
@@ -690,7 +794,7 @@ impl<P> DefaultAgentBuilder<P>
 where
     P: LlmProvider,
 {
-    /// 设置 Provider。
+    /// 设置 Provider（必需）。
     pub fn provider(mut self, provider: P) -> Self {
         self.provider = Some(provider);
         self
@@ -702,7 +806,7 @@ where
         self
     }
 
-    /// 设置默认模型（必须调用）。
+    /// 设置默认模型（必需）。
     ///
     /// # 参数
     ///
@@ -749,6 +853,76 @@ where
     /// 设置最大步骤数。
     pub fn max_steps(mut self, max: usize) -> Self {
         self.max_steps = max;
+        self
+    }
+
+    /// 启用对话历史管理（自动管理多轮对话上下文）。
+    ///
+    /// # 参数
+    ///
+    /// - `enabled`: 是否启用对话历史
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    /// use agentkit::provider::OpenAiProvider;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")
+    ///     .with_conversation(true)  // 启用对话历史
+    ///     .build();
+    ///
+    /// // 第一轮
+    /// agent.run("你好，我叫小明").await?;
+    ///
+    /// // 第二轮（自动记住上一轮）
+    /// agent.run("你还记得我叫什么吗？").await?;  // 回答：小明
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_conversation(mut self, enabled: bool) -> Self {
+        if enabled {
+            let mut conv = ConversationManager::new();
+            if let Some(ref prompt) = self.system_prompt {
+                conv = conv.with_system_prompt(prompt.clone());
+            }
+            // 应用 max_messages 设置
+            if let Some(max_msgs) = self.max_conversation_messages {
+                conv = conv.with_max_messages(max_msgs);
+            }
+            self.conversation_manager = Some(Arc::new(Mutex::new(conv)));
+        } else {
+            self.conversation_manager = None;
+        }
+        self
+    }
+
+    /// 设置对话历史最大消息数（仅在启用对话时有效）。
+    ///
+    /// # 参数
+    ///
+    /// - `max_messages`: 最大消息数（0 表示无限制）
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::DefaultAgent;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// let agent = DefaultAgent::builder()
+    ///     .provider(provider)
+    ///     .model("gpt-4o-mini")
+    ///     .with_conversation(true)
+    ///     .with_max_messages(20)  // 保留最近 20 条消息
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn with_max_messages(mut self, max_messages: usize) -> Self {
+        self.max_conversation_messages = Some(max_messages);
         self
     }
 
@@ -930,12 +1104,13 @@ where
             provider: self
                 .provider
                 .expect("Provider is required for DefaultAgent"),
-            system_prompt: self.system_prompt,
+            system_prompt: self.system_prompt.clone(),
             model: self.model.expect(
                 "model is required for DefaultAgent. Please call .model() method before build().",
             ),
             tools: self.tools,
             max_steps: self.max_steps,
+            conversation_manager: self.conversation_manager,
             #[cfg(feature = "skills")]
             skills_dirs: self.skills_dirs,
             #[cfg(feature = "mcp")]
