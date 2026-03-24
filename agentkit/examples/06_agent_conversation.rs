@@ -11,9 +11,9 @@
 //! cargo run --example 06_agent_conversation -p agentkit
 //! ```
 
+use agentkit::agent::DefaultAgent;
 use agentkit::prelude::*;
 use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -40,10 +40,10 @@ async fn main() -> anyhow::Result<()> {
         .provider(provider)
         .system_prompt("你是一个专业的ai")
         .model(model)
-        .with_conversation(true)       // ← 启用自动对话历史管理
+        .with_conversation(true) // ← 启用自动对话历史管理
         .with_max_messages(20) // ← 保留最近 20 条消息
         .build();
-    
+
     info!("✓ 已创建 DefaultAgent (模型：{}, 启用对话历史)", model);
     info!("");
 
@@ -71,7 +71,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 示例 2: 查看对话历史
     info!("=== 示例 2: 查看对话历史 ===\n");
-    
+
     if let Some(history) = agent.get_conversation_history().await {
         info!("当前对话历史消息数：{}", history.len());
         info!("\n历史记录:");
@@ -90,10 +90,10 @@ async fn main() -> anyhow::Result<()> {
 
     // 示例 3: 清空对话历史
     info!("=== 示例 3: 清空对话历史 ===\n");
-    
+
     agent.clear_conversation().await;
     info!("✓ 已清空对话历史");
-    
+
     if let Some(history) = agent.get_conversation_history().await {
         info!("清空后消息数：{}", history.len());
     }
@@ -117,16 +117,16 @@ async fn main() -> anyhow::Result<()> {
 
     // 示例 5: 对比 - 不启用对话历史
     info!("=== 示例 5: 不启用对话历史（对比）===\n");
-    
+
     let provider2 = OpenAiProvider::from_env()?;
     let agent_no_conv = DefaultAgent::builder()
         .provider(provider2)
         .model(model)
-        .with_conversation(false)  // 不启用对话历史
+        .with_conversation(false) // 不启用对话历史
         .build();
-    
+
     info!("创建了一个不启用对话历史的 Agent");
-    
+
     info!("\n第 1 轮：用户：'我叫王五'");
     let output: Result<AgentOutput, _> = agent_no_conv.run("我叫王五").await;
     if let Ok(output) = output {

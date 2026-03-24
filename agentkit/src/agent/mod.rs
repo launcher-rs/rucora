@@ -400,7 +400,7 @@ impl<P> DefaultAgent<P> {
             Some(conv_arc) => {
                 let conv = conv_arc.lock().await;
                 Some(conv.get_messages().to_vec())
-            },
+            }
             None => None,
         }
     }
@@ -549,12 +549,13 @@ where
         let max_steps = self.max_steps;
 
         // 如果启用了对话历史，从历史中获取消息
-        let conversation_history: Vec<ChatMessage> = if let Some(ref conv_arc) = self.conversation_manager {
-            let conv = conv_arc.lock().await;
-            conv.get_messages().to_vec()
-        } else {
-            Vec::new()
-        };
+        let conversation_history: Vec<ChatMessage> =
+            if let Some(ref conv_arc) = self.conversation_manager {
+                let conv = conv_arc.lock().await;
+                conv.get_messages().to_vec()
+            } else {
+                Vec::new()
+            };
         messages.extend(conversation_history);
 
         // 添加用户消息

@@ -19,11 +19,11 @@
 //! cargo run --example 05_conversation -p agentkit
 //! ```
 
+use agentkit::agent::DefaultAgent;
 use agentkit::conversation::ConversationManager;
 use agentkit::prelude::*;
 use agentkit::provider::OpenAiProvider;
 use agentkit::runtime::{DefaultRuntime, ToolRegistry};
-use agentkit::agent::DefaultAgent;
 use agentkit_core::provider::types::Role;
 use std::sync::Arc;
 use tracing::{Level, info};
@@ -70,7 +70,7 @@ async fn test_conversation_basics() -> anyhow::Result<()> {
     let mut conv = ConversationManager::new()
         .with_system_prompt("你是一个有帮助的 AI 助手。")
         .with_max_messages(20); // 保留最近 20 条消息
-    
+
     info!("   ✓ 已创建 ConversationManager (最大消息数：20)");
 
     // 添加对话消息
@@ -78,14 +78,17 @@ async fn test_conversation_basics() -> anyhow::Result<()> {
     conv.add_user_message("你好，请介绍一下自己".to_string());
     info!("   用户：你好，请介绍一下自己");
 
-    conv.add_assistant_message("你好！我是一个 AI 助手，可以帮助你回答问题、完成任务。".to_string());
+    conv.add_assistant_message(
+        "你好！我是一个 AI 助手，可以帮助你回答问题、完成任务。".to_string(),
+    );
     info!("   助手：你好！我是一个 AI 助手，可以帮助你回答问题、完成任务。");
 
     conv.add_user_message("你会做什么？".to_string());
     info!("   用户：你会做什么？");
 
     conv.add_assistant_message(
-        "我可以帮助你：\n1. 回答各种问题\n2. 编写和解释代码\n3. 翻译文本\n4. 总结文档\n等等。".to_string()
+        "我可以帮助你：\n1. 回答各种问题\n2. 编写和解释代码\n3. 翻译文本\n4. 总结文档\n等等。"
+            .to_string(),
     );
     info!("   助手：我可以帮助你：1. 回答问题 2. 编写代码 3. 翻译文本 4. 总结文档");
 
@@ -109,7 +112,7 @@ async fn test_conversation_basics() -> anyhow::Result<()> {
     info!("\n4. 获取 API 消息格式...");
     let api_messages = conv.get_messages();
     info!("   API 消息数：{}", api_messages.len());
-    
+
     for (i, msg) in api_messages.iter().enumerate() {
         let role_str = match msg.role {
             Role::System => "系统",
@@ -127,25 +130,21 @@ async fn test_conversation_basics() -> anyhow::Result<()> {
 /// 展示如何在 Runtime 中集成对话历史管理
 async fn test_runtime_with_conversation() -> anyhow::Result<()> {
     info!("1. 创建 Provider 和 Runtime...");
-    
+
     // 创建 Provider（仅仅提供 AI 连接能力）
     let provider = OpenAiProvider::from_env()?;
     info!("   ✓ 已创建 OpenAiProvider");
 
     // 创建 Runtime（必须指定模型）
     let model = "qwen3.5:9b";
-    let runtime = DefaultRuntime::new(
-        Arc::new(provider),
-        ToolRegistry::new(),
-        model,
-    );
+    let runtime = DefaultRuntime::new(Arc::new(provider), ToolRegistry::new(), model);
     info!("   ✓ 已创建 DefaultRuntime (模型：{})", model);
 
     // 第一轮对话
     info!("\n2. 第一轮对话...");
     let input = AgentInput::new("AgentKit 是什么？");
     info!("   用户：AgentKit 是什么？");
-    
+
     match runtime.run(input).await {
         Ok(output) => {
             if let Some(content) = output.text() {
@@ -161,7 +160,7 @@ async fn test_runtime_with_conversation() -> anyhow::Result<()> {
     info!("3. 第二轮对话（带上下文）...");
     let input = AgentInput::new("它支持哪些 Provider？");
     info!("   用户：它支持哪些 Provider？");
-    
+
     match runtime.run(input).await {
         Ok(output) => {
             if let Some(content) = output.text() {
@@ -183,7 +182,7 @@ async fn test_runtime_with_conversation() -> anyhow::Result<()> {
 /// 展示如何在 Agent 中集成对话历史管理
 async fn test_agent_with_conversation() -> anyhow::Result<()> {
     info!("1. 创建 Provider 和 Agent...");
-    
+
     // 创建 Provider
     let provider = OpenAiProvider::from_env()?;
     info!("   ✓ 已创建 OpenAiProvider");
@@ -202,7 +201,7 @@ async fn test_agent_with_conversation() -> anyhow::Result<()> {
     info!("\n2. 第一轮对话...");
     let input = AgentInput::new("你好，我叫小明");
     info!("   用户：你好，我叫小明");
-    
+
     match agent.run(input).await {
         Ok(output) => {
             if let Some(content) = output.text() {
@@ -218,7 +217,7 @@ async fn test_agent_with_conversation() -> anyhow::Result<()> {
     info!("3. 第二轮对话...");
     let input = AgentInput::new("我今年 25 岁");
     info!("   用户：我今年 25 岁");
-    
+
     match agent.run(input).await {
         Ok(output) => {
             if let Some(content) = output.text() {
@@ -234,7 +233,7 @@ async fn test_agent_with_conversation() -> anyhow::Result<()> {
     info!("4. 第三轮对话（测试记忆）...");
     let input = AgentInput::new("我叫什么名字？");
     info!("   用户：我叫什么名字？");
-    
+
     match agent.run(input).await {
         Ok(output) => {
             if let Some(content) = output.text() {
@@ -254,7 +253,7 @@ async fn test_agent_with_conversation() -> anyhow::Result<()> {
 /// 展示如何使用 ConversationManager 配合 Agent 实现真正的多轮对话
 async fn test_multi_turn_conversation() -> anyhow::Result<()> {
     info!("1. 创建 Provider、Agent 和 ConversationManager...");
-    
+
     // 创建 Provider
     let provider = OpenAiProvider::from_env()?;
     info!("   ✓ 已创建 OpenAiProvider");
@@ -294,7 +293,7 @@ async fn test_multi_turn_conversation() -> anyhow::Result<()> {
 
         // 获取对话历史并创建请求
         let messages = conv.get_messages();
-        
+
         // 构建包含历史消息的输入
         let input_text = user_input.to_string();
         let input = if messages.len() > 1 {
@@ -322,7 +321,7 @@ async fn test_multi_turn_conversation() -> anyhow::Result<()> {
             Ok(output) => {
                 if let Some(content) = output.text() {
                     info!("   助手：{}", content);
-                    
+
                     // 添加助手回复到对话历史
                     conv.add_assistant_message(content.to_string());
                 }

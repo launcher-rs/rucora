@@ -88,8 +88,8 @@ name = "05_conversation"
 path = "examples/05_conversation.rs"
 
 [[example]]
-name = "06_cost"
-path = "examples/06_cost.rs"
+name = "06_agent_conversation"
+path = "examples/06_agent_conversation.rs"
 
 [[example]]
 name = "07_router_provider"
