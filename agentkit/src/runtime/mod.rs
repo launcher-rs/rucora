@@ -47,6 +47,7 @@ pub mod trace;
 // 重新导出主要类型
 pub use agentkit_core::runtime::{Runtime, RuntimeObserver};
 pub use default_runtime::DefaultRuntime;
-pub use loader::ToolLoader;
+// TODO: ToolLoader 待重新实现
+// pub use loader::ToolLoader;
 pub use policy::{DefaultToolPolicy, ToolPolicy};
 pub use tool_registry::{ToolRegistry, ToolSource};

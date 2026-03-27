@@ -286,7 +286,7 @@ pub mod prelude {
         // Provider 类型
         provider::types::*,
         // Skill 类型
-        skill::types::*,
+        skill::*,
         // Tool 类型
         tool::types::{ToolCall, ToolDefinition, ToolRegistry, ToolResult},
     };

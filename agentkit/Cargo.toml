@@ -67,37 +67,37 @@ harness = false
 
 # 示例配置
 [[example]]
-name = "01_basic_chat"
-path = "examples/01_basic_chat.rs"
+name = "basic_chat"
+path = "examples/basic_chat.rs"
 required-features = ["runtime"]
 
 [[example]]
-name = "02_provider"
-path = "examples/02_provider.rs"
+name = "provider"
+path = "examples/provider.rs"
 
 [[example]]
-name = "03_tools"
-path = "examples/03_tools.rs"
+name = "tools"
+path = "examples/tools.rs"
 
 [[example]]
-name = "04_memory"
-path = "examples/04_memory.rs"
+name = "memory"
+path = "examples/memory.rs"
 
 [[example]]
-name = "05_conversation"
-path = "examples/05_conversation.rs"
+name = "conversation"
+path = "examples/conversation.rs"
 
 [[example]]
-name = "06_agent_conversation"
-path = "examples/06_agent_conversation.rs"
+name = "agent_conversation"
+path = "examples/agent_conversation.rs"
 
 
 
 [[example]]
-name = "08_resilient_provider"
-path = "examples/08_resilient_provider.rs"
+name = "resilient_provider"
+path = "examples/resilient_provider.rs"
 
 [[example]]
-name = "09_mcp"
-path = "examples/09_mcp.rs"
+name = "mcp"
+path = "examples/mcp.rs"
 required-features = ["mcp"]
