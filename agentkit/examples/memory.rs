@@ -24,6 +24,7 @@ use agentkit_core::provider::LlmProvider;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
+use agentkit_core::Runtime;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

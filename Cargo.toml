@@ -3,10 +3,6 @@ resolver = "3"
 members = [
     "agentkit",
     "agentkit-core",
-    "examples/agentkit-deep-research",
-    "examples/agentkit-skills-example",
-    "examples/a2a-server",
-    "examples/a2a-client"
 ]
 
 [workspace.package]

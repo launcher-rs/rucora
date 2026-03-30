@@ -17,8 +17,8 @@
 
 | 文档 | 说明 |
 |------|------|
-| [Agent 与 Runtime](agent_runtime_relationship.md) | 理解核心架构 |
 | [设计文档](design.md) | 系统设计理念 |
+| [Agent 与 Runtime](agent_runtime_relationship.md) | 理解核心架构 |
 | [快速参考](QUICK_REFERENCE.md) | API 快速查询 |
 
 ### 技能系统
@@ -27,6 +27,7 @@
 |------|------|
 | [Skill 配置规范](skill_yaml_spec.md) | 配置文件完整说明 |
 | [Skill 配置示例](skill_yaml_examples.md) | 实际使用示例 |
+| [配置优化总结](SKILL_CONFIG_COMPLETE.md) | 完整优化说明 |
 
 ### 开发指南
 
@@ -34,6 +35,15 @@
 |------|------|
 | [对话设计](conversation_guide.md) | 对话系统指南 |
 | [Provider 设计](provider_default_model.md) | LLM Provider 实现 |
+| [运行时设计](runtime_agent_model_design.md) | Runtime 实现细节 |
+
+### 项目文档
+
+| 文档 | 说明 |
+|------|------|
+| [INDEX.md](INDEX.md) | 完整文档索引 |
+| [CHANGELOG.md](CHANGELOG.md) | 版本更新记录 |
+| [DOCUMENTATION_OPTIMIZATION.md](DOCUMENTATION_OPTIMIZATION.md) | 文档优化说明 |
 
 ## 🚀 快速开始
 
@@ -88,22 +98,6 @@ let agent = DefaultAgent::builder()
     .build();
 ```
 
-## 📖 文档说明
-
-### 新手入门路径
-
-1. **阅读 [快速开始](quick_start.md)** - 5 分钟了解基本用法
-2. **查看 [用户指南](user_guide.md)** - 深入学习各项功能
-3. **参考 [示例集合](cookbook.md)** - 实际应用场景
-4. **查阅 [常见问题](faq.md)** - 解决问题
-
-### 开发者路径
-
-1. **阅读 [设计文档](design.md)** - 理解系统架构
-2. **查看 [Agent 与 Runtime](agent_runtime_relationship.md)** - 核心概念
-3. **参考 [快速参考](QUICK_REFERENCE.md)** - API 查询
-4. **学习 [Skill 配置规范](skill_yaml_spec.md)** - 技能开发
-
 ## 🔧 资源配置
 
 ### 环境变量
@@ -126,7 +120,7 @@ let agent = DefaultAgent::builder()
 
 ## 📝 更新日志
 
-查看 [CHANGELOG.md](../CHANGELOG.md) 了解最新版本和变更。
+查看 [CHANGELOG.md](CHANGELOG.md) 了解最新版本和变更。
 
 ## 🤝 贡献
 

@@ -21,6 +21,7 @@ use std::time::Instant;
 use std::sync::RwLock;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
+use agentkit_core::Runtime;
 
 // 自定义中间件：性能监控
 pub struct PerformanceMonitorMiddleware {

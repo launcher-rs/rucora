@@ -20,11 +20,16 @@
 ### 技能系统
 - ✅ [Skill 配置规范](skill_yaml_spec.md) - 配置文件完整说明 **NEW**
 - ✅ [Skill 配置示例](skill_yaml_examples.md) - 实际使用示例 **NEW**
+- ✅ [配置优化总结](SKILL_CONFIG_COMPLETE.md) - 完整优化说明 **NEW**
 
 ### 开发指南
 - ✅ [对话设计](conversation_guide.md) - 对话系统指南
 - ✅ [Provider 设计](provider_default_model.md) - LLM Provider 实现说明
 - ✅ [运行时设计](runtime_agent_model_design.md) - Runtime 实现细节
+
+### 项目文档
+- ✅ [更新日志](CHANGELOG.md) - 版本更新记录
+- ✅ [文档优化总结](DOCUMENTATION_OPTIMIZATION.md) - 文档优化说明 **NEW**
 
 ## 📝 已清理的过时文档
 

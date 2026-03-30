@@ -1,14 +1,142 @@
-//! agentkit - Agentkit 框架主库
+//! # AgentKit
 //!
-//! # 概述
+//! 用 Rust 编写的高性能、类型安全的 LLM 应用开发框架
 //!
-//! `agentkit` 是 Agentkit 框架的聚合入口 crate，提供：
-//! - 统一导出 core（抽象层）与 runtime（编排层，需要 `runtime` feature）
-//! - 具体实现（Provider/Tools/Skills/Memory/Retrieval）
-//! - 统一配置系统
-//! - 便捷的 prelude 模块
+//! ## 特性
 //!
-//! # 模块结构
+//! - ⚡ **极速性能** - Rust 原生，零成本抽象
+//! - 🔒 **类型安全** - 编译时错误检查，运行时更可靠
+//! - 💰 **成本监控** - 内置 Token 计数和成本管理
+//! - 🧰 **丰富工具** - 12+ 内置工具（Shell/File/HTTP/Git/Memory 等）
+//! - 🔌 **灵活集成** - 支持 10+ LLM Provider（OpenAI、Anthropic、Gemini、Ollama 等）
+//! - 📊 **可观测性** - 完整的日志、指标、追踪支持
+//! - 🧠 **Agent 架构** - 思考与执行分离，支持自定义 Agent
+//!
+//! ## 快速开始
+//!
+//! ### 1. 添加依赖
+//!
+//! ```toml
+//! [dependencies]
+//! agentkit = "0.1"
+//! tokio = { version = "1", features = ["full"] }
+//! anyhow = "1"
+//! ```
+//!
+//! ### 2. 设置环境变量
+//!
+//! ```bash
+//! # 使用 OpenAI
+//! export OPENAI_API_KEY=sk-your-key
+//!
+//! # 或使用 Ollama（本地）
+//! export OPENAI_BASE_URL=http://localhost:11434
+//! ```
+//!
+//! ### 3. 编写代码
+//!
+//! ```rust,no_run
+//! use agentkit::provider::OpenAiProvider;
+//! use agentkit::agent::DefaultAgent;
+//!
+//! #[tokio::main]
+//! async fn main() -> anyhow::Result<()> {
+//!     let provider = OpenAiProvider::from_env()?;
+//!     
+//!     let agent = DefaultAgent::builder()
+//!         .provider(provider)
+//!         .model("gpt-4o-mini")
+//!         .system_prompt("你是有用的助手")
+//!         .build();
+//!     
+//!     let output = agent.run("你好").await?;
+//!     println!("{}", output.text().unwrap_or("无回复"));
+//!     
+//!     Ok(())
+//! }
+//! ```
+//!
+//! ### 4. 运行
+//!
+//! ```bash
+//! cargo run
+//! ```
+//!
+//! ## 核心概念
+//!
+//! ### Agent（智能体）
+//!
+//! Agent 负责思考和决策。它接收用户输入，分析需求，决定是否需要调用工具。
+//!
+//! ```rust,no_run
+//! use agentkit::agent::DefaultAgent;
+//!
+//! let agent = DefaultAgent::builder()
+//!     .provider(provider)
+//!     .model("gpt-4o-mini")
+//!     .system_prompt("你是有用的助手")
+//!     .build();
+//!
+//! let output = agent.run("北京天气怎么样？").await?;
+//! ```
+//!
+//! ### Tool（工具）
+//!
+//! 工具提供具体能力，如执行命令、读取文件、HTTP 请求等。
+//!
+//! ```rust,no_run
+//! use agentkit::tools::{ShellTool, FileReadTool};
+//! use agentkit::agent::DefaultAgent;
+//!
+//! let agent = DefaultAgent::builder()
+//!     .provider(provider)
+//!     .model("gpt-4o-mini")
+//!     .tool(ShellTool)
+//!     .tool(FileReadTool)
+//!     .build();
+//! ```
+//!
+//! ### Skill（技能）
+//!
+//! 技能是可配置的自动化任务，通过配置文件定义。
+//!
+//! ```rust,no_run
+//! use agentkit::skills::{SkillLoader, skills_to_tools, SkillExecutor};
+//! use std::sync::Arc;
+//!
+//! // 加载 Skills
+//! let mut loader = SkillLoader::new("skills/");
+//! let skills = loader.load_from_dir().await?;
+//!
+//! // 转换为 Tools
+//! let executor = Arc::new(SkillExecutor::new());
+//! let tools = skills_to_tools(&skills, executor, skills_dir);
+//!
+//! // 注册到 Agent
+//! let agent = DefaultAgent::builder()
+//!     .provider(provider)
+//!     .tools(tools)
+//!     .build();
+//! ```
+//!
+//! ## 学习路径
+//!
+//! ### 新手
+//! 1. 运行 [Hello World](#快速开始) 示例
+//! 2. 阅读 [快速开始](docs/quick_start.md)
+//! 3. 查看 [用户指南](docs/user_guide.md)
+//! 4. 参考 [示例集合](docs/cookbook.md)
+//!
+//! ### 开发者
+//! 1. 阅读 [设计文档](docs/design.md)
+//! 2. 学习 [Agent 与 Runtime](docs/agent_runtime_relationship.md)
+//! 3. 参考 [快速参考](docs/QUICK_REFERENCE.md)
+//!
+//! ### 技能开发者
+//! 1. 阅读 [Skill 配置规范](docs/skill_yaml_spec.md)
+//! 2. 参考 [Skill 配置示例](docs/skill_yaml_examples.md)
+//!
+//! ## 项目结构
 //!
 //! ```text
 //! agentkit
@@ -28,449 +156,73 @@
 //! └── config        - 统一配置系统
 //! ```
 //!
-//! # 快速开始
+//! ## 相关文档
 //!
-//! ## 使用 prelude 简化导入
-//!
-//! ```rust
-//! use agentkit::prelude::*;
-//!
-//! // 现在可以直接使用：
-//! // - Runtime trait
-//! // - AgentInput, AgentOutput
-//! // - ChannelEvent, TokenDeltaEvent
-//! // - ProviderError, ToolError, SkillError
-//! // - LlmProvider trait
-//! // - Tool trait
-//! ```
-//!
-//! ## 创建运行时
-//!
-//! ```rust,no_run
-//! use agentkit::prelude::*;
-//! use agentkit::provider::OpenAiProvider;
-//! use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-//! use std::sync::Arc;
-//!
-//! # fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 创建 Provider
-//! let provider = OpenAiProvider::from_env()?;
-//!
-//! // 创建工具注册表
-//! let tools = ToolRegistry::new();
-//!
-//! // 创建运行时（必须指定 model）
-//! let runtime = DefaultRuntime::new(Arc::new(provider), tools, "gpt-4o-mini")
-//!     .with_system_prompt("你是一个有用的助手")
-//!     .with_max_steps(10);
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## 加载 Skills
-//!
-//! ```rust,no_run
-//! use agentkit::skills::load_skills_from_dir;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let skills = load_skills_from_dir("skills").await?;
-//!
-//! // 将 skills 转换为 tools
-//! let tools = skills.as_tools();
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! ## 使用配置系统
-//!
-//! ```rust,no_run
-//! use agentkit::config::AgentkitConfig;
-//!
-//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 从环境变量和配置文件加载
-//! let profile = AgentkitConfig::load().await?;
-//!
-//! // 构建 provider
-//! let provider = AgentkitConfig::build_provider(&profile)?;
-//! # Ok(())
-//! # }
-//! ```
-//!
-//! # 功能模块
-//!
-//! ## Provider（模型提供者）
-//!
-//! 支持多种 LLM Provider：
-//!
-//! - [`provider::OpenAiProvider`]: OpenAI API 兼容服务
-//! - [`provider::OllamaProvider`]: Ollama 本地模型
-//! - [`provider::RouterProvider`]: 多 Provider 路由
-//! - [`provider::ResilientProvider`]: 带重试机制的 Provider
-//!
-//! ## Tools（工具）
-//!
-//! 内置 12+ 种工具：
-//!
-//! | 工具 | 说明 | 分类 |
-//! |------|------|------|
-//! | [`tools::ShellTool`] | 执行系统命令 | System |
-//! | [`tools::CmdExecTool`] | 受限命令执行 | System |
-//! | [`tools::GitTool`] | Git 操作 | System |
-//! | [`tools::FileReadTool`] | 读取文件 | File |
-//! | [`tools::FileWriteTool`] | 写入文件 | File |
-//! | [`tools::FileEditTool`] | 编辑文件 | File |
-//! | [`tools::HttpRequestTool`] | HTTP 请求 | Network |
-//! | [`tools::WebFetchTool`] | 获取网页 | Network |
-//! | [`tools::BrowseTool`] | 浏览网页 | Browser |
-//! | [`tools::MemoryStoreTool`] | 存储记忆 | Memory |
-//! | [`tools::MemoryRecallTool`] | 检索记忆 | Memory |
-//!
-//! ## Skills（技能）
-//!
-//! 技能是对 Tool/Provider 的高级封装：
-//!
-//! - [`skills::EchoSkill`]: 回显技能（示例）
-//! - [`skills::RhaiSkill`]: Rhai 脚本技能
-//! - [`skills::CommandSkill`]: 命令模板技能
-//!
-//! ## Memory（记忆）
-//!
-//! 支持多种记忆存储：
-//!
-//! - [`memory::InMemoryMemory`]: 进程内记忆
-//! - [`memory::FileMemory`]: 文件记忆
-//!
-//! ## Retrieval（检索）
-//!
-//! 支持向量数据库：
-//!
-//! - [`retrieval::ChromaVectorStore`]: Chroma 向量库
-//! - [`retrieval::ChromaPersistentStore`]: Chroma 持久化存储
-//!
-//! ## Embedding（向量嵌入）
-//!
-//! 支持多种 Embedding Provider：
-//!
-//! - [`embed::OpenAiEmbedding`]: OpenAI Embedding
-//! - [`embed::OllamaEmbedding`]: Ollama Embedding
-//! - [`embed::CachedEmbeddingProvider`]: 带缓存的 Provider
-//!
-//! ## RAG（检索增强生成）
-//!
-//! 提供完整的 RAG 管线：
-//!
-//! - [`rag::chunk_text`]: 文本分块
-//! - [`rag::index_chunks`]: 索引分块
-//! - [`rag::index_text`]: 索引文本
-//! - [`rag::retrieve`]: 检索引用
-//! - [`rag::Citation`]: 引用格式
-//!
-//! ## Config（配置）
-//!
-//! 统一配置系统：
-//!
-//! - 支持 YAML/TOML 配置文件
-//! - 支持 Profile 切换（dev/prod）
-//! - 支持环境变量覆盖
-//!
-//! ```rust,no_run
-//! use agentkit::config::AgentkitConfig;
-//!
-//! # async fn example() {
-//! // 设置配置文件路径
-//! std::env::set_var("AGENTKIT_CONFIG", "config.yaml");
-//!
-//! // 设置 Profile
-//! std::env::set_var("AGENTKIT_PROFILE", "prod");
-//!
-//! // 加载配置
-//! let profile = AgentkitConfig::load().await.unwrap();
-//! # }
-//! ```
-//!
-//! # Feature 标志
-//!
-//! - `mcp`: 启用 MCP 协议支持
-//! - `a2a`: 启用 A2A 协议支持
-//!
-//! # 完整示例
-//!
-//! ```rust,no_run
-//! use agentkit::prelude::*;
-//! use agentkit::provider::OpenAiProvider;
-//! use agentkit::skills::load_skills_from_dir;
-//! use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-//! use std::sync::Arc;
-//!
-//! #[tokio::main]
-//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
-//!     // 1. 创建 Provider
-//!     let provider = OpenAiProvider::from_env()?;
-//!
-//!     // 2. 加载 Skills
-//!     let skills = load_skills_from_dir("skills").await?;
-//!
-//!     // 3. 创建工具注册表
-//!     let mut tools = ToolRegistry::new();
-//!     for tool in skills.as_tools() {
-//!         tools = tools.register_arc(tool);
-//!     }
-//!
-//!     // 4. 创建运行时（必须指定 model）
-//!     let runtime = DefaultRuntime::new(Arc::new(provider), tools, "gpt-4o-mini")
-//!         .with_system_prompt("你是一个有用的助手")
-//!         .with_max_steps(10);
-//!
-//!     // 5. 执行对话
-//!     let input = AgentInput {
-//!         messages: vec![],
-//!         metadata: None,
-//!     };
-//!
-//!     let output = runtime.run(input).await?;
-//!     println!("助手回复：{}", output.message.content);
-//!
-//!     Ok(())
-//! }
-//! ```
-//!
-//! # 相关文档
-//!
-//! - [agentkit-core](../agentkit_core/index.html): 核心抽象层
-//! - [agentkit-runtime](../agentkit_runtime/index.html): 运行时
-//! - [Agentkit GitHub](https://github.com/agentkit-rs/agentkit)
+//! - [完整文档](docs/README.md)
+//! - [示例集合](docs/cookbook.md)
+//! - [常见问题](docs/faq.md)
+//! - [更新日志](docs/CHANGELOG.md)
 
-/// 导出 core 抽象层（traits + 共享类型）
+// ===== 模块导出 =====
+
 pub use agentkit_core as core;
 
-/// Agent 模块（增强的 DefaultAgent，支持 Tools/MCP/A2A/Skills）
+// Agent 模块
 pub mod agent;
 
-/// 常用导入集合（prelude）
-///
-/// # 使用方式
-///
-/// ```rust
-/// use agentkit::prelude::*;
-/// ```
-///
-/// 这个模块重新导出了最常用的类型和 trait，避免用户手动导入多个模块。
-///
-/// # 导出的类型
-///
-/// - [`Runtime`]: Runtime trait
-/// - [`AgentInput`], [`AgentOutput`]: Agent 输入输出
-/// - [`ChannelEvent`], [`TokenDeltaEvent`]: 事件类型
-/// - [`ProviderError`], [`ToolError`], [`SkillError`]: 错误类型
-/// - [`LlmProvider`], [`Tool`]: 核心 trait
-/// - [`Runtime`]: Runtime trait（需要 `runtime` feature）
-pub mod prelude {
-    /// Runtime trait（用于支持可替换 runtime）
-    pub use crate::core::runtime::Runtime;
-
-    /// Core 常用类型与错误
-    ///
-    /// 注意：为避免命名冲突，部分类型需要显式导入
-    pub use crate::core::{
-        // Agent 类型
-        agent::types::{
-            Agent, AgentContext, AgentDecision, AgentError as CoreAgentError, AgentInput,
-            AgentInputBuilder, AgentOutput,
-        },
-        // Channel 类型
-        channel::types::{ChannelEvent, DebugEvent, ErrorEvent, TokenDeltaEvent},
-        // 错误类型
-        error::*,
-        // Memory 类型
-        memory::types::*,
-        // Provider 类型
-        provider::types::*,
-        // Skill 类型
-        skill::*,
-        // Tool 类型
-        tool::types::{ToolCall, ToolDefinition, ToolRegistry, ToolResult},
-    };
-
-    /// Agent 模块类型（增强的 DefaultAgent）
-    pub use crate::agent::{DefaultAgent, DefaultAgentBuilder};
-
-    /// Core 抽象层常用 trait
-    pub use crate::core::{provider::LlmProvider, tool::Tool};
-
-    /// Runtime 模块类型（需要 `runtime` feature）
-    #[cfg(feature = "runtime")]
-    pub use crate::runtime::DefaultRuntime;
-}
-
-/// Runtime（运行时）模块（可选）
-///
-/// 需要启用 `runtime` feature。
-///
-/// 本模块包含运行时的实现：
-///
-/// - [`runtime::DefaultRuntime`]: 默认运行时实现
-/// - [`runtime::ToolRegistry`]: 工具注册表
-#[cfg(feature = "runtime")]
-pub mod runtime;
-
-/// Provider（模型提供者）实现与示例
-///
-/// 本模块包含各种 LLM 提供者的具体实现：
-///
-/// - [`provider::OpenAiProvider`]: OpenAI API 兼容服务
-/// - [`provider::OllamaProvider`]: Ollama 本地模型
-/// - [`provider::RouterProvider`]: 多 Provider 路由
-/// - [`provider::ResilientProvider`]: 带重试机制的 Provider
+// Provider 模块
 pub mod provider;
 
-/// Embedding（向量嵌入）实现与示例
-///
-/// 本模块包含 Embedding Provider 的实现：
-///
-/// - [`embed::OpenAiEmbedding`]: OpenAI Embedding
-/// - [`embed::OllamaEmbedding`]: Ollama Embedding
-/// - [`embed::CachedEmbeddingProvider`]: 带缓存的 Provider
-pub mod embed;
+// Tools 模块
+pub mod tools;
 
-/// Retrieval（语义检索）实现与示例
-///
-/// 本模块包含 VectorStore 的实现：
-///
-/// - [`retrieval::ChromaVectorStore`]: Chroma 向量库
-/// - [`retrieval::ChromaPersistentStore`]: Chroma 持久化存储
-pub mod retrieval;
-
-/// RAG（检索增强生成）管线
-///
-/// 提供完整的 RAG 功能：
-///
-/// - [`rag::chunk_text`]: 文本分块
-/// - [`rag::index_chunks`]: 索引分块
-/// - [`rag::retrieve`]: 检索引用
-pub mod rag;
-
-/// Memory（记忆）实现与示例
-///
-/// 本模块包含 Memory 的实现：
-///
-/// - [`memory::InMemoryMemory`]: 进程内记忆
-/// - [`memory::FileMemory`]: 文件记忆
-pub mod memory;
-
-/// Conversation（对话历史）管理
-///
-/// 提供对话历史管理功能：
-///
-/// - [`conversation::ConversationManager`]: 对话管理器
-/// - 消息窗口限制
-/// - Token 限制
-/// - 消息压缩
-pub mod conversation;
-
-/// Prompt 模板系统
-///
-/// 提供 Prompt 模板功能：
-///
-/// - [`prompt::PromptTemplate`]: Prompt 模板
-/// - [`prompt::PromptBuilder`]: Prompt 构建器
-/// - 变量替换
-/// - 条件渲染
-pub mod prompt;
-
-/// 中间件系统
-///
-/// 提供请求/响应拦截功能：
-///
-/// - [`middleware::Middleware`]: 中间件 trait
-/// - [`middleware::MiddlewareChain`]: 中间件链
-/// - [`middleware::LoggingMiddleware`]: 日志中间件
-/// - [`middleware::CacheMiddleware`]: 缓存中间件
-/// - [`middleware::RateLimitMiddleware`]: 限流中间件
-/// - [`middleware::MetricsMiddleware`]: 指标中间件
-pub mod middleware;
-
-/// MCP（Model Context Protocol）集成（可选）
-///
-/// 需要启用 `mcp` feature。
-///
-/// 本模块包含：
-///
-/// - [`mcp::McpClient`]: MCP 客户端
-/// - [`mcp::McpTool`]: MCP 工具适配器
-/// - [`mcp::protocol`]: MCP 协议模型
-/// - [`mcp::transport`]: MCP 传输层
-/// - [`mcp::tool`]: MCP 工具相关类型
-///
-/// # 依赖
-///
-/// 本模块基于 [`rmcp`](https://crates.io/crates/rmcp) 库构建。
-#[cfg(feature = "mcp")]
-pub mod mcp;
-
-/// A2A（Agent-to-Agent）集成（可选）
-///
-/// 需要启用 `a2a` feature。
-///
-/// 本模块包含：
-///
-/// - [`a2a::client`]: A2A 客户端
-/// - [`a2a::server`]: A2A 服务端
-/// - [`a2a::types`]: A2A 协议类型
-/// - [`a2a::protocol`]: A2A 协议模型
-/// - [`a2a::transport`]: A2A 传输层
-///
-/// # 依赖
-///
-/// 本模块基于 [`ra2a`](https://crates.io/crates/ra2a) 库构建。
-#[cfg(feature = "a2a")]
-pub mod a2a;
-
-/// Skills（技能）实现与示例（可选）
-///
-/// 需要启用 `skills` feature。
-///
-/// 本模块包含具体的技能实现：
-///
-/// - [`skills::RhaiSkill`]: Rhai 脚本技能（需要 `rhai-skills` feature）
-/// - [`skills::CommandSkill`]: 命令模板技能
-/// - [`skills::FileReadSkill`]: 文件读取技能
-/// - [`skills::load_skills_from_dir`]: 从目录加载 skills
+// Skills 模块（可选）
 #[cfg(feature = "skills")]
 pub mod skills;
 
-/// Skills 占位模块（未启用 skills feature）
-///
-/// 如果未启用 `skills` feature，则提供一个空的占位模块，避免编译错误。
-#[cfg(not(feature = "skills"))]
-pub mod skills {
-    //! Skills 模块（未启用 skills feature）
-    //!
-    //! 请启用 `skills` feature 来使用技能系统。
-}
+// Memory 模块
+pub mod memory;
 
-/// Tools（工具）实现与示例
+// Retrieval 模块
+pub mod retrieval;
+
+// Embedding 模块
+pub mod embed;
+
+// RAG 模块
+pub mod rag;
+
+// Conversation 模块
+pub mod conversation;
+
+// Prompt 模块
+pub mod prompt;
+
+// Middleware 模块
+pub mod middleware;
+
+// MCP 模块（可选）
+#[cfg(feature = "mcp")]
+pub mod mcp;
+
+// A2A 模块（可选）
+#[cfg(feature = "a2a")]
+pub mod a2a;
+
+#[cfg(feature = "runtime")]
+pub mod runtime;
+
+// ===== 便捷导出 =====
+
+/// 常用类型和 trait 的快速访问
 ///
-/// 本模块包含 12+ 种工具的实现：
-///
-/// ## 系统工具
-/// - [`tools::ShellTool`]: 执行系统命令
-/// - [`tools::CmdExecTool`]: 受限命令执行
-/// - [`tools::GitTool`]: Git 操作
-///
-/// ## 文件工具
-/// - [`tools::FileReadTool`]: 读取文件
-/// - [`tools::FileWriteTool`]: 写入文件
-/// - [`tools::FileEditTool`]: 编辑文件
-///
-/// ## 网络工具
-/// - [`tools::HttpRequestTool`]: HTTP 请求
-/// - [`tools::WebFetchTool`]: 获取网页
-///
-/// ## 浏览器工具
-/// - [`tools::BrowseTool`]: 浏览网页
-/// - [`tools::BrowserOpenTool`]: 打开浏览器
-///
-/// ## 记忆工具
-/// - [`tools::MemoryStoreTool`]: 存储记忆
-/// - [`tools::MemoryRecallTool`]: 检索记忆
-pub mod tools;
+/// 使用 `use agentkit::prelude::*;` 可以快速导入常用类型。
+pub mod prelude {
+    pub use crate::agent::DefaultAgent;
+    pub use crate::provider::OpenAiProvider;
+    pub use agentkit_core::agent::{Agent, AgentInput, AgentOutput};
+    pub use agentkit_core::channel::types::{ChannelEvent, TokenDeltaEvent};
+    pub use agentkit_core::error::{AgentError, ProviderError, ToolError};
+    pub use agentkit_core::provider::LlmProvider;
+    pub use agentkit_core::tool::Tool;
+}

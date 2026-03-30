@@ -7,8 +7,8 @@ edition = "2024"
 doctest = false
 
 [features]
-default = ["runtime", "skills"]
-runtime = []
+default = []
+runtime = []  # 空 feature，用于兼容
 # MCP 协议支持
 mcp = ["dep:rmcp"]
 # A2A 协议支持
@@ -25,7 +25,7 @@ agentkit-core = { path = "../agentkit-core" }
 # 直接依赖外部库，不再通过独立 crate
 rmcp = { version = "1.2.0", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], 
 optional = true }
-ra2a = { version = "0.8.1", default-features = false, features = ["client", "server"], optional = true }
+ra2a = { version = "0.8.1", default-features = false, features = ["client", "server"], optional = true }  
 
 # 核心依赖
 async-trait = "0.1"
@@ -64,9 +64,14 @@ harness = false
 
 # 示例配置
 [[example]]
-name = "basic_chat"
-path = "examples/basic_chat.rs"
+name = "chat_basic"
+path = "examples/chat_basic.rs"
 required-features = ["runtime"]
+
+[[example]]
+name = "chat_with_tools"
+path = "examples/chat_with_tools.rs"
+
 
 [[example]]
 name = "provider"
@@ -79,20 +84,33 @@ path = "examples/tools.rs"
 [[example]]
 name = "memory"
 path = "examples/memory.rs"
+required-features = ["runtime"]
 
 [[example]]
 name = "conversation"
 path = "examples/conversation.rs"
+required-features = ["runtime"]
 
 [[example]]
 name = "agent_conversation"
 path = "examples/agent_conversation.rs"
+required-features = ["runtime"]
 
 [[example]]
 name = "resilient_provider"
 path = "examples/resilient_provider.rs"
 
 [[example]]
+name = "middleware"
+path = "examples/middleware.rs"
+required-features = ["runtime"]
+
+[[example]]
 name = "mcp"
 path = "examples/mcp.rs"
 required-features = ["mcp"]
+
+[[example]]
+name = "hello_world"
+path = "examples/hello_world.rs"
+
