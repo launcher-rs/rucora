@@ -18,7 +18,7 @@
 
 use agentkit::agent::DefaultAgent;
 use agentkit::provider::OpenAiProvider;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -36,9 +36,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 1. 检查 API Key
     info!("1. 检查配置...");
-    if std::env::var("OPENAI_API_KEY").is_err()
-        && std::env::var("OPENAI_BASE_URL").is_err()
-    {
+    if std::env::var("OPENAI_API_KEY").is_err() && std::env::var("OPENAI_BASE_URL").is_err() {
         info!("⚠ 未设置 API 配置");
         info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
@@ -63,10 +61,7 @@ async fn main() -> anyhow::Result<()> {
     // 4. 测试对话
     info!("4. 测试对话...\n");
 
-    let queries = vec![
-        "你好，请介绍一下自己",
-        "1+1 等于多少？",
-    ];
+    let queries = vec!["你好，请介绍一下自己", "1+1 等于多少？"];
 
     for query in queries {
         info!("用户：{}", query);

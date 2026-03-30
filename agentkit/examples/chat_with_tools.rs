@@ -11,7 +11,7 @@
 use agentkit::agent::DefaultAgent;
 use agentkit::provider::OpenAiProvider;
 use agentkit::tools::{DatetimeTool, EchoTool};
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
@@ -28,9 +28,7 @@ async fn main() -> anyhow::Result<()> {
     info!("╚════════════════════════════════════════╝\n");
 
     // 检查配置
-    if std::env::var("OPENAI_API_KEY").is_err()
-        && std::env::var("OPENAI_BASE_URL").is_err()
-    {
+    if std::env::var("OPENAI_API_KEY").is_err() && std::env::var("OPENAI_BASE_URL").is_err() {
         info!("⚠ 未设置 API 配置");
         info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
@@ -48,8 +46,8 @@ async fn main() -> anyhow::Result<()> {
         .provider(provider)
         .model("gpt-4o-mini")
         .system_prompt("你是有用的智能助手。当用户询问时间或需要回显时，使用相应的工具。")
-        .tool(DatetimeTool)  // 注册日期时间工具
-        .tool(EchoTool)      // 注册回显工具
+        .tool(DatetimeTool) // 注册日期时间工具
+        .tool(EchoTool) // 注册回显工具
         .build();
     info!("✓ Agent 创建成功\n");
 
@@ -60,11 +58,7 @@ async fn main() -> anyhow::Result<()> {
     // 工具调用测试
     info!("3. 工具调用测试...\n");
 
-    let queries = vec![
-        "现在几点了？",
-        "请重复这句话：你好世界",
-        "今天是什么日期？",
-    ];
+    let queries = vec!["现在几点了？", "请重复这句话：你好世界", "今天是什么日期？"];
 
     for query in queries {
         info!("用户：{}", query);

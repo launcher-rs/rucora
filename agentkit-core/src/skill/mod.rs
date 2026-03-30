@@ -49,7 +49,7 @@ impl SkillDefinition {
             metadata: None,
         }
     }
-    
+
     pub fn to_tool_description(&self) -> Value {
         serde_json::json!({
             "type": "function",
@@ -60,12 +60,12 @@ impl SkillDefinition {
             }
         })
     }
-    
+
     pub fn validate_input(&self, input: &Value) -> Result<(), String> {
         if self.input_schema.is_null() {
             return Ok(());
         }
-        
+
         if let Some(_props) = self.input_schema.get("properties") {
             if let Some(required) = self.input_schema.get("required").and_then(|v| v.as_array()) {
                 for req_field in required {
@@ -77,7 +77,7 @@ impl SkillDefinition {
                 }
             }
         }
-        
+
         Ok(())
     }
 }
@@ -103,7 +103,7 @@ impl SkillResult {
             execution_time_ms: None,
         }
     }
-    
+
     pub fn error(message: impl Into<String>) -> Self {
         Self {
             success: false,
@@ -112,7 +112,7 @@ impl SkillResult {
             execution_time_ms: None,
         }
     }
-    
+
     pub fn to_json(&self) -> Value {
         serde_json::to_value(self).unwrap_or_else(|_| {
             serde_json::json!({
@@ -141,7 +141,7 @@ impl SkillContext {
             work_dir: None,
         }
     }
-    
+
     pub fn with_work_dir(mut self, dir: impl Into<std::path::PathBuf>) -> Self {
         self.work_dir = Some(dir.into());
         self

@@ -11,17 +11,17 @@
 //! cargo run --example 08_middleware -p agentkit
 //! ```
 
+use agentkit::agent::DefaultAgent;
 use agentkit::middleware::{LoggingMiddleware, Middleware, MiddlewareChain, RateLimitMiddleware};
 use agentkit::prelude::*;
 use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
 use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use agentkit_core::Runtime;
 use std::sync::Arc;
-use std::time::Instant;
 use std::sync::RwLock;
+use std::time::Instant;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
-use agentkit_core::Runtime;
 
 // 自定义中间件：性能监控
 pub struct PerformanceMonitorMiddleware {
@@ -48,13 +48,19 @@ impl Middleware for PerformanceMonitorMiddleware {
         "performance_monitor"
     }
 
-    async fn on_request(&self, input: &mut AgentInput) -> Result<(), agentkit_core::error::AgentError> {
+    async fn on_request(
+        &self,
+        input: &mut AgentInput,
+    ) -> Result<(), agentkit_core::error::AgentError> {
         *self.start_time.write().unwrap() = Some(Instant::now());
         info!("⏱️  [性能监控] 开始处理请求：{} 字符", input.text.len());
         Ok(())
     }
 
-    async fn on_response(&self, output: &mut AgentOutput) -> Result<(), agentkit_core::error::AgentError> {
+    async fn on_response(
+        &self,
+        output: &mut AgentOutput,
+    ) -> Result<(), agentkit_core::error::AgentError> {
         if let Some(start) = *self.start_time.read().unwrap() {
             let elapsed = start.elapsed();
             info!(
@@ -66,7 +72,10 @@ impl Middleware for PerformanceMonitorMiddleware {
         Ok(())
     }
 
-    async fn on_error(&self, _error: &mut agentkit_core::error::AgentError) -> Result<(), agentkit_core::error::AgentError> {
+    async fn on_error(
+        &self,
+        _error: &mut agentkit_core::error::AgentError,
+    ) -> Result<(), agentkit_core::error::AgentError> {
         if let Some(start) = *self.start_time.read().unwrap() {
             let elapsed = start.elapsed();
             info!("⏱️  [性能监控] 请求失败：耗时 {:?}", elapsed);
@@ -94,7 +103,10 @@ impl Middleware for PrefixMiddleware {
         "prefix"
     }
 
-    async fn on_request(&self, input: &mut AgentInput) -> Result<(), agentkit_core::error::AgentError> {
+    async fn on_request(
+        &self,
+        input: &mut AgentInput,
+    ) -> Result<(), agentkit_core::error::AgentError> {
         // 在用户输入前添加前缀
         input.text = format!("{} {}", self.prefix, input.text);
         info!("📝  [前缀中间件] 已添加前缀：{}", self.prefix);
@@ -121,7 +133,10 @@ impl Middleware for ResponseFilterMiddleware {
         "response_filter"
     }
 
-    async fn on_response(&self, output: &mut AgentOutput) -> Result<(), agentkit_core::error::AgentError> {
+    async fn on_response(
+        &self,
+        output: &mut AgentOutput,
+    ) -> Result<(), agentkit_core::error::AgentError> {
         // 过滤敏感词
         if let Some(text) = output.text() {
             let mut filtered_text = text.to_string();
@@ -150,8 +165,6 @@ async fn main() -> anyhow::Result<()> {
     info!("║         AgentKit Middleware 使用示例                      ║");
     info!("╚═══════════════════════════════════════════════════════════╝\n");
 
-
-
     // 示例 2: 在 Agent 中使用 Middleware
     info!("\n=== 示例 2: 在 Agent 中使用 Middleware ===\n");
     test_agent_with_middleware().await?;
@@ -169,7 +182,6 @@ async fn main() -> anyhow::Result<()> {
     Ok(())
 }
 
-
 /// 示例 2: 在 Agent 中使用 Middleware
 async fn test_agent_with_middleware() -> anyhow::Result<()> {
     info!("创建 Agent 和中间件链...");
@@ -186,7 +198,7 @@ async fn test_agent_with_middleware() -> anyhow::Result<()> {
     // 创建 Agent
     let provider = OpenAiProvider::from_env()?;
     let model = "qwen3.5:9b";
-    
+
     let agent = DefaultAgent::builder()
         .provider(provider)
         .model(model)
@@ -198,18 +210,21 @@ async fn test_agent_with_middleware() -> anyhow::Result<()> {
     // 测试 Agent（带中间件处理）
     info!("\n测试 Agent 请求...");
     let mut input = AgentInput::new("用一句话介绍 Rust");
-    
+
     // 处理请求中间件
     middleware_chain.process_request(&mut input).await?;
-    
+
     // 运行 Agent
     match agent.run(input).await {
         Ok(mut output) => {
             // 处理响应中间件
             middleware_chain.process_response(&mut output).await?;
-            
+
             if let Some(text) = output.text() {
-                info!("✓ Agent 回复：{}", text.chars().take(50).collect::<String>());
+                info!(
+                    "✓ Agent 回复：{}",
+                    text.chars().take(50).collect::<String>()
+                );
             }
         }
         Err(e) => {
@@ -235,31 +250,30 @@ async fn test_runtime_with_middleware() -> anyhow::Result<()> {
     // 创建 Runtime
     let provider = OpenAiProvider::from_env()?;
     let model = "qwen3.5:9b";
-    
-    let runtime = DefaultRuntime::new(
-        Arc::new(provider),
-        ToolRegistry::new(),
-        model,
-    )
-    .with_system_prompt("你是一个简洁的助手，回答要简短。");
+
+    let runtime = DefaultRuntime::new(Arc::new(provider), ToolRegistry::new(), model)
+        .with_system_prompt("你是一个简洁的助手，回答要简短。");
 
     info!("✓ Runtime 创建成功 (模型：{})", model);
 
     // 测试 Runtime（带中间件处理）
     info!("\n测试 Runtime 请求...");
     let mut input = AgentInput::new("1+1 等于几？");
-    
+
     // 处理请求中间件
     middleware_chain.process_request(&mut input).await?;
-    
+
     // 运行 Runtime
     match runtime.run(input).await {
         Ok(mut output) => {
             // 处理响应中间件
             middleware_chain.process_response(&mut output).await?;
-            
+
             if let Some(text) = output.text() {
-                info!("✓ Runtime 回复：{}", text.chars().take(50).collect::<String>());
+                info!(
+                    "✓ Runtime 回复：{}",
+                    text.chars().take(50).collect::<String>()
+                );
             }
         }
         Err(e) => {
@@ -279,8 +293,7 @@ async fn test_custom_middleware_chain() -> anyhow::Result<()> {
         .with_log_request(true)
         .with_log_response(true);
 
-    let rate_limit = RateLimitMiddleware::new(10)
-        .with_window_secs(60);
+    let rate_limit = RateLimitMiddleware::new(10).with_window_secs(60);
 
     let perf_monitor = PerformanceMonitorMiddleware::new();
     let prefix = PrefixMiddleware::new("[测试模式]");
@@ -294,26 +307,33 @@ async fn test_custom_middleware_chain() -> anyhow::Result<()> {
         .with(prefix)
         .with(filter);
 
-    info!("✓ 自定义中间件链创建成功 ({} 个中间件)", middleware_chain.len());
+    info!(
+        "✓ 自定义中间件链创建成功 ({} 个中间件)",
+        middleware_chain.len()
+    );
 
     // 测试中间件链
     info!("\n测试中间件链处理...");
-    
+
     let mut input = AgentInput::new("这是一个测试请求");
     info!("原始输入：{}", input.text);
-    
+
     // 处理请求
     middleware_chain.process_request(&mut input).await?;
     info!("处理后输入：{}", input.text);
 
     // 创建模拟响应
-    let mut output = AgentOutput::new(serde_json::json!({"content": "这是一个测试回复，不包含敏感词"}));
-    
+    let mut output =
+        AgentOutput::new(serde_json::json!({"content": "这是一个测试回复，不包含敏感词"}));
+
     // 处理响应
     middleware_chain.process_response(&mut output).await?;
-    
+
     if let Some(text) = output.text() {
-        info!("✓ 响应处理完成：{}", text.chars().take(50).collect::<String>());
+        info!(
+            "✓ 响应处理完成：{}",
+            text.chars().take(50).collect::<String>()
+        );
     }
 
     Ok(())

@@ -13,31 +13,31 @@ pub struct SkillConfig {
     /// 技能基本信息
     #[serde(default)]
     pub skill: SkillMeta,
-    
+
     /// 输入 Schema
     #[serde(default)]
     pub input_schema: Option<serde_json::Value>,
-    
+
     /// 输出 Schema
     #[serde(default)]
     pub output_schema: Option<serde_json::Value>,
-    
+
     /// 执行配置
     #[serde(default)]
     pub execution: Option<ExecutionConfig>,
-    
+
     /// 触发器配置
     #[serde(default)]
     pub triggers: Vec<String>,
-    
+
     /// 权限配置
     #[serde(default)]
     pub permissions: Option<PermissionsConfig>,
-    
+
     /// 依赖配置
     #[serde(default)]
     pub dependencies: Option<DependenciesConfig>,
-    
+
     /// 元数据
     #[serde(default)]
     pub metadata: HashMap<String, serde_json::Value>,
@@ -48,19 +48,19 @@ pub struct SkillConfig {
 pub struct SkillMeta {
     /// 技能名称
     pub name: String,
-    
+
     /// 技能描述
     #[serde(default)]
     pub description: String,
-    
+
     /// 版本号
     #[serde(default = "default_version")]
     pub version: String,
-    
+
     /// 作者
     #[serde(default)]
     pub author: Option<String>,
-    
+
     /// 标签
     #[serde(default)]
     pub tags: Vec<String>,
@@ -76,15 +76,15 @@ pub struct ExecutionConfig {
     /// 超时时间（秒）
     #[serde(default = "default_timeout")]
     pub timeout: u64,
-    
+
     /// 工作目录
     #[serde(default)]
     pub work_dir: Option<String>,
-    
+
     /// 重试次数
     #[serde(default)]
     pub retries: u32,
-    
+
     /// 是否缓存结果
     #[serde(default)]
     pub cache: bool,
@@ -100,19 +100,19 @@ pub struct PermissionsConfig {
     /// 网络访问权限
     #[serde(default)]
     pub network: bool,
-    
+
     /// 文件系统访问权限
     #[serde(default)]
     pub filesystem: bool,
-    
+
     /// 允许的命令列表
     #[serde(default)]
     pub commands: Vec<String>,
-    
+
     /// 允许的域名白名单
     #[serde(default)]
     pub allowed_domains: Vec<String>,
-    
+
     /// 禁止的域名黑名单
     #[serde(default)]
     pub denied_domains: Vec<String>,
@@ -124,11 +124,11 @@ pub struct DependenciesConfig {
     /// 需要的二进制文件
     #[serde(default)]
     pub bins: Vec<String>,
-    
+
     /// 需要的环境变量
     #[serde(default)]
     pub env: Vec<String>,
-    
+
     /// 需要的 Python 包
     #[serde(default)]
     pub python_packages: Vec<String>,
@@ -162,7 +162,7 @@ impl ConfigLoadOptions {
             ..Default::default()
         }
     }
-    
+
     /// 创建只加载执行配置的选项（用于技能执行）
     pub fn for_execution() -> Self {
         Self {
@@ -173,7 +173,7 @@ impl ConfigLoadOptions {
             ..Default::default()
         }
     }
-    
+
     /// 创建只加载注册信息的选项（用于技能注册）
     pub fn for_registration() -> Self {
         Self {
@@ -182,7 +182,7 @@ impl ConfigLoadOptions {
             ..Default::default()
         }
     }
-    
+
     /// 创建只加载搜索信息的选项（用于技能搜索）
     pub fn for_search() -> Self {
         Self {
@@ -191,7 +191,7 @@ impl ConfigLoadOptions {
             ..Default::default()
         }
     }
-    
+
     /// 创建加载所有信息的选项
     pub fn full() -> Self {
         Self {
@@ -226,7 +226,7 @@ impl SkillConfig {
     pub fn from_file(path: &Path) -> Result<Self, Box<dyn std::error::Error>> {
         let content = std::fs::read_to_string(path)?;
         let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
-        
+
         match ext.to_lowercase().as_str() {
             "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
             "toml" => Ok(toml::from_str(&content)?),
@@ -234,7 +234,7 @@ impl SkillConfig {
             _ => Err(format!("Unsupported config format: {}", ext).into()),
         }
     }
-    
+
     /// 从文件加载配置（按需加载）
     pub fn from_file_with_options(
         path: &Path,
@@ -244,40 +244,40 @@ impl SkillConfig {
         config.apply_options(options);
         Ok(config)
     }
-    
+
     /// 应用加载选项（清理不需要的字段）
     pub fn apply_options(&mut self, options: &ConfigLoadOptions) {
         if !options.load_schema {
             self.input_schema = None;
             self.output_schema = None;
         }
-        
+
         if !options.load_execution {
             self.execution = None;
         }
-        
+
         if !options.load_triggers {
             self.triggers.clear();
         }
-        
+
         if !options.load_permissions {
             self.permissions = None;
         }
-        
+
         if !options.load_dependencies {
             self.dependencies = None;
         }
-        
+
         if !options.load_metadata {
             self.metadata.clear();
         }
     }
-    
+
     /// 尝试从目录加载配置（按优先级尝试不同格式）
     pub fn from_dir(dir: &Path) -> Option<Self> {
         // 优先级：skill.yaml > skill.toml > skill.json
         let formats = ["skill.yaml", "skill.toml", "skill.json"];
-        
+
         for format in &formats {
             let path = dir.join(format);
             if path.exists() {
@@ -288,11 +288,11 @@ impl SkillConfig {
         }
         None
     }
-    
+
     /// 从目录加载配置（按需加载）
     pub fn from_dir_with_options(dir: &Path, options: &ConfigLoadOptions) -> Option<Self> {
         let formats = ["skill.yaml", "skill.toml", "skill.json"];
-        
+
         for format in &formats {
             let path = dir.join(format);
             if path.exists() {
@@ -304,27 +304,31 @@ impl SkillConfig {
         }
         None
     }
-    
+
     /// 合并另一个配置（当前配置优先）
     pub fn merge(&self, other: &Self) -> Self {
         Self {
             skill: SkillMeta {
-                name: if self.skill.name.is_empty() { 
-                    other.skill.name.clone() 
-                } else { 
-                    self.skill.name.clone() 
+                name: if self.skill.name.is_empty() {
+                    other.skill.name.clone()
+                } else {
+                    self.skill.name.clone()
                 },
-                description: if self.skill.description.is_empty() { 
-                    other.skill.description.clone() 
-                } else { 
-                    self.skill.description.clone() 
+                description: if self.skill.description.is_empty() {
+                    other.skill.description.clone()
+                } else {
+                    self.skill.description.clone()
                 },
-                version: if self.skill.version.is_empty() || self.skill.version == "0.1.0" { 
-                    other.skill.version.clone() 
-                } else { 
-                    self.skill.version.clone() 
+                version: if self.skill.version.is_empty() || self.skill.version == "0.1.0" {
+                    other.skill.version.clone()
+                } else {
+                    self.skill.version.clone()
                 },
-                author: self.skill.author.clone().or_else(|| other.skill.author.clone()),
+                author: self
+                    .skill
+                    .author
+                    .clone()
+                    .or_else(|| other.skill.author.clone()),
                 tags: {
                     let mut tags = self.skill.tags.clone();
                     tags.extend(other.skill.tags.iter().cloned());
@@ -333,8 +337,14 @@ impl SkillConfig {
                     tags
                 },
             },
-            input_schema: self.input_schema.clone().or_else(|| other.input_schema.clone()),
-            output_schema: self.output_schema.clone().or_else(|| other.output_schema.clone()),
+            input_schema: self
+                .input_schema
+                .clone()
+                .or_else(|| other.input_schema.clone()),
+            output_schema: self
+                .output_schema
+                .clone()
+                .or_else(|| other.output_schema.clone()),
             execution: self.execution.clone().or_else(|| other.execution.clone()),
             triggers: {
                 let mut triggers = self.triggers.clone();
@@ -343,8 +353,14 @@ impl SkillConfig {
                 triggers.dedup();
                 triggers
             },
-            permissions: self.permissions.clone().or_else(|| other.permissions.clone()),
-            dependencies: self.dependencies.clone().or_else(|| other.dependencies.clone()),
+            permissions: self
+                .permissions
+                .clone()
+                .or_else(|| other.permissions.clone()),
+            dependencies: self
+                .dependencies
+                .clone()
+                .or_else(|| other.dependencies.clone()),
             metadata: {
                 let mut metadata = self.metadata.clone();
                 metadata.extend(other.metadata.iter().map(|(k, v)| (k.clone(), v.clone())));
@@ -352,7 +368,7 @@ impl SkillConfig {
             },
         }
     }
-    
+
     /// 获取技能的显示名称
     pub fn display_name(&self) -> &str {
         if self.skill.name.is_empty() {
@@ -361,7 +377,7 @@ impl SkillConfig {
             &self.skill.name
         }
     }
-    
+
     /// 获取技能的描述
     pub fn display_description(&self) -> &str {
         if self.skill.description.is_empty() {
@@ -370,11 +386,11 @@ impl SkillConfig {
             &self.skill.description
         }
     }
-    
+
     /// 检查配置是否有效
     pub fn validate(&self) -> Result<(), Vec<ConfigError>> {
         let mut errors = Vec::new();
-        
+
         // 验证 name
         if self.skill.name.is_empty() {
             errors.push(ConfigError {
@@ -386,13 +402,18 @@ impl SkillConfig {
                 field: "skill.name".to_string(),
                 message: "must be 3-50 characters".to_string(),
             });
-        } else if !self.skill.name.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-') {
+        } else if !self
+            .skill
+            .name
+            .chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+        {
             errors.push(ConfigError {
                 field: "skill.name".to_string(),
                 message: "must contain only lowercase letters, digits, and hyphens".to_string(),
             });
         }
-        
+
         // 验证 description
         if self.skill.description.is_empty() {
             errors.push(ConfigError {
@@ -405,7 +426,7 @@ impl SkillConfig {
                 message: "must be less than 500 characters".to_string(),
             });
         }
-        
+
         // 验证 version
         if !self.skill.version.is_empty() && self.skill.version != "0.1.0" {
             // 简单的语义化版本验证
@@ -417,7 +438,7 @@ impl SkillConfig {
                 });
             }
         }
-        
+
         // 验证 timeout
         if let Some(exec) = &self.execution {
             if exec.timeout == 0 {
@@ -432,24 +453,26 @@ impl SkillConfig {
                 });
             }
         }
-        
+
         if errors.is_empty() {
             Ok(())
         } else {
             Err(errors)
         }
     }
-    
+
     /// 检查是否有某个标签
     pub fn has_tag(&self, tag: &str) -> bool {
         self.skill.tags.iter().any(|t| t == tag)
     }
-    
+
     /// 检查是否匹配触发器
     pub fn matches_trigger(&self, keyword: &str) -> bool {
-        self.triggers.iter().any(|t| t.contains(keyword) || keyword.contains(t))
+        self.triggers
+            .iter()
+            .any(|t| t.contains(keyword) || keyword.contains(t))
     }
-    
+
     /// 获取配置的摘要信息
     pub fn summary(&self) -> String {
         format!(
@@ -459,12 +482,12 @@ impl SkillConfig {
             self.display_description()
         )
     }
-    
+
     /// 转换为 JSON 字符串
     pub fn to_json(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string_pretty(self)
     }
-    
+
     /// 从 JSON 字符串加载
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
@@ -485,7 +508,7 @@ mod tests {
             },
             ..Default::default()
         };
-        
+
         assert!(config.validate().is_ok());
     }
 
@@ -499,7 +522,7 @@ mod tests {
             },
             ..Default::default()
         };
-        
+
         assert!(config.validate().is_err());
     }
 
@@ -528,7 +551,7 @@ mod tests {
         };
 
         let merged = config1.merge(&config2);
-        
+
         assert_eq!(merged.skill.name, "skill1");
         assert!(merged.skill.tags.contains(&"tag1".to_string()));
         assert!(merged.skill.tags.contains(&"tag2".to_string()));

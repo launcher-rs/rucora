@@ -24,11 +24,11 @@ use agentkit::conversation::ConversationManager;
 use agentkit::prelude::*;
 use agentkit::provider::OpenAiProvider;
 use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use agentkit_core::Runtime;
 use agentkit_core::provider::types::Role;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
-use agentkit_core::Runtime;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

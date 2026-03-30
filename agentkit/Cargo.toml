@@ -23,8 +23,7 @@ a2a-full = ["a2a", "ra2a/full"]
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
 # 直接依赖外部库，不再通过独立 crate
-rmcp = { version = "1.2.0", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], 
-optional = true }
+rmcp = { version = "1.2.0", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], optional = true }
 ra2a = { version = "0.8.1", default-features = false, features = ["client", "server"], optional = true }  
 
 # 核心依赖
@@ -114,3 +113,6 @@ required-features = ["mcp"]
 name = "hello_world"
 path = "examples/hello_world.rs"
 
+[[example]]
+name = "custom_provider"
+path = "examples/custom_provider.rs"

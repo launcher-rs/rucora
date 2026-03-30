@@ -1,13 +1,13 @@
-﻿//! Skill 到 Tool 的适配器
+//! Skill 到 Tool 的适配器
 
-use agentkit_core::tool::{Tool, ToolCategory};
-use agentkit_core::error::ToolError;
-use serde_json::{Value, json};
-use async_trait::async_trait;
-use std::sync::Arc;
-use std::path::{Path, PathBuf};
-use std::fmt::Write;
 use crate::skills::{SkillDefinition, SkillExecutor, SkillsPromptMode};
+use agentkit_core::error::ToolError;
+use agentkit_core::tool::{Tool, ToolCategory};
+use async_trait::async_trait;
+use serde_json::{Value, json};
+use std::fmt::Write;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 /// Skill 工具适配器
 pub struct SkillTool {
@@ -18,19 +18,29 @@ pub struct SkillTool {
 
 impl SkillTool {
     pub fn new(skill: SkillDefinition, executor: Arc<SkillExecutor>, skill_path: PathBuf) -> Self {
-        Self { skill, executor, skill_path }
+        Self {
+            skill,
+            executor,
+            skill_path,
+        }
     }
 }
 
 #[async_trait]
 impl Tool for SkillTool {
-    fn name(&self) -> &str { &self.skill.name }
-    fn description(&self) -> Option<&str> { Some(&self.skill.description) }
-    fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Custom("skill")] }
+    fn name(&self) -> &str {
+        &self.skill.name
+    }
+    fn description(&self) -> Option<&str> {
+        Some(&self.skill.description)
+    }
+    fn categories(&self) -> &'static [ToolCategory] {
+        &[ToolCategory::Custom("skill")]
+    }
     fn input_schema(&self) -> Value {
         // 确保 input_schema 是完整的 JSON Schema 格式
         let mut schema = self.skill.input_schema.clone();
-        
+
         // 如果是对象，确保有 type 字段
         if let Some(obj) = schema.as_object_mut() {
             if !obj.contains_key("type") {
@@ -43,27 +53,34 @@ impl Tool for SkillTool {
                 "properties": self.skill.input_schema
             });
         }
-        
+
         schema
     }
 
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
         // 查找脚本文件
         let script_path = find_script_file(&self.skill_path);
-        
+
         if let Some(path) = script_path {
             match self.executor.execute(&self.skill, &path, &input).await {
                 Ok(result) => {
                     if result.success {
-                        Ok(result.data.unwrap_or_else(|| Value::Object(serde_json::Map::new())))
+                        Ok(result
+                            .data
+                            .unwrap_or_else(|| Value::Object(serde_json::Map::new())))
                     } else {
-                        Err(ToolError::Message(result.error.unwrap_or_else(|| "Skill 执行失败".to_string())))
+                        Err(ToolError::Message(
+                            result.error.unwrap_or_else(|| "Skill 执行失败".to_string()),
+                        ))
                     }
                 }
                 Err(e) => Err(ToolError::Message(format!("Skill 执行错误：{}", e))),
             }
         } else {
-            Err(ToolError::Message(format!("未找到脚本实现：{:?}", self.skill_path)))
+            Err(ToolError::Message(format!(
+                "未找到脚本实现：{:?}",
+                self.skill_path
+            )))
         }
     }
 }
@@ -72,21 +89,25 @@ impl Tool for SkillTool {
 fn find_script_file(skill_dir: &Path) -> Option<PathBuf> {
     // 优先级：Python > JavaScript > Shell
     let script_names = ["SKILL.py", "SKILL.js", "SKILL.sh"];
-    
+
     for script_name in &script_names {
         let path = skill_dir.join(script_name);
         if path.exists() {
             return Some(path);
         }
     }
-    
+
     None
 }
 
 /// 将 Skills 转换为 Tools
-pub fn skills_to_tools(skills: &[SkillDefinition], executor: Arc<SkillExecutor>, skills_dir: &Path) -> Vec<Arc<dyn Tool>> {
+pub fn skills_to_tools(
+    skills: &[SkillDefinition],
+    executor: Arc<SkillExecutor>,
+    skills_dir: &Path,
+) -> Vec<Arc<dyn Tool>> {
     let mut tools: Vec<Arc<dyn Tool>> = Vec::new();
-    
+
     for skill in skills {
         // 查找 skill 目录（支持 skill.name 和文件夹名不一致）
         let mut skill_path = skills_dir.join(&skill.name);
@@ -94,24 +115,32 @@ pub fn skills_to_tools(skills: &[SkillDefinition], executor: Arc<SkillExecutor>,
             // 尝试使用文件夹名作为 skill 名称（去掉连字符后的第一部分）
             skill_path = skills_dir.join(skill.name.split('-').next().unwrap_or(&skill.name));
         }
-        
+
         // 检查是否有实现文件
         if let Some(_script_path) = find_script_file(&skill_path) {
             let tool = SkillTool::new(skill.clone(), executor.clone(), skill_path);
             tools.push(Arc::new(tool) as Arc<dyn Tool>);
         }
     }
-    
+
     tools
 }
 
 /// XML 转义
 fn xml_escape(s: &str) -> String {
-    s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;").replace('\'', "&apos;")
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&apos;")
 }
 
 /// 渲染 skill 位置
-fn render_skill_location(skill: &SkillDefinition, workspace_dir: &Path, prefer_relative: bool) -> String {
+fn render_skill_location(
+    skill: &SkillDefinition,
+    workspace_dir: &Path,
+    prefer_relative: bool,
+) -> String {
     if let Some(ref location) = skill.homepage {
         let location_path = PathBuf::from(location);
         if prefer_relative {
@@ -126,11 +155,15 @@ fn render_skill_location(skill: &SkillDefinition, workspace_dir: &Path, prefer_r
 }
 
 /// 根据模式构建 Skills 提示词
-pub fn skills_to_prompt_with_mode(skills: &[SkillDefinition], workspace_dir: &Path, mode: SkillsPromptMode) -> String {
+pub fn skills_to_prompt_with_mode(
+    skills: &[SkillDefinition],
+    workspace_dir: &Path,
+    mode: SkillsPromptMode,
+) -> String {
     if skills.is_empty() {
         return String::new();
     }
-    
+
     let mut prompt = match mode {
         SkillsPromptMode::Full => String::from(
             "## Available Skills\n\n\
@@ -143,23 +176,38 @@ pub fn skills_to_prompt_with_mode(skills: &[SkillDefinition], workspace_dir: &Pa
              <available_skills>\n",
         ),
     };
-    
+
     for skill in skills {
-        let location = render_skill_location(skill, workspace_dir, matches!(mode, SkillsPromptMode::Compact));
+        let location = render_skill_location(
+            skill,
+            workspace_dir,
+            matches!(mode, SkillsPromptMode::Compact),
+        );
         let _ = write!(prompt, "  <skill>\n");
         let _ = write!(prompt, "    <name>{}</name>\n", xml_escape(&skill.name));
-        let _ = write!(prompt, "    <description>{}</description>\n", xml_escape(&skill.description));
-        let _ = write!(prompt, "    <location>{}</location>\n", xml_escape(&location));
+        let _ = write!(
+            prompt,
+            "    <description>{}</description>\n",
+            xml_escape(&skill.description)
+        );
+        let _ = write!(
+            prompt,
+            "    <location>{}</location>\n",
+            xml_escape(&location)
+        );
         let _ = write!(prompt, "  </skill>\n");
     }
-    
+
     let _ = write!(prompt, "</available_skills>\n");
-    
+
     if matches!(mode, SkillsPromptMode::Compact) {
         let _ = write!(prompt, "\n<callable_tools>\n");
         let _ = write!(prompt, "  <tool>\n");
         let _ = write!(prompt, "    <name>read_skill</name>\n");
-        let _ = write!(prompt, "    <description>Read full skill file by name</description>\n");
+        let _ = write!(
+            prompt,
+            "    <description>Read full skill file by name</description>\n"
+        );
         let _ = write!(prompt, "    <parameters>\n");
         let _ = write!(prompt, "      <name>skill_name</name>\n");
         let _ = write!(prompt, "      <type>string</type>\n");
@@ -167,7 +215,7 @@ pub fn skills_to_prompt_with_mode(skills: &[SkillDefinition], workspace_dir: &Pa
         let _ = write!(prompt, "  </tool>\n");
         let _ = write!(prompt, "</callable_tools>\n");
     }
-    
+
     prompt
 }
 
@@ -184,9 +232,15 @@ impl ReadSkillTool {
 
 #[async_trait]
 impl Tool for ReadSkillTool {
-    fn name(&self) -> &str { "read_skill" }
-    fn description(&self) -> Option<&str> { Some("Read full skill file by name") }
-    fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Custom("skill")] }
+    fn name(&self) -> &str {
+        "read_skill"
+    }
+    fn description(&self) -> Option<&str> {
+        Some("Read full skill file by name")
+    }
+    fn categories(&self) -> &'static [ToolCategory] {
+        &[ToolCategory::Custom("skill")]
+    }
     fn input_schema(&self) -> Value {
         json!({
             "type": "object",
@@ -201,10 +255,11 @@ impl Tool for ReadSkillTool {
     }
 
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
-        let skill_name = input.get("skill_name")
+        let skill_name = input
+            .get("skill_name")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::Message("Missing skill_name parameter".to_string()))?;
-        
+
         match read_skill(skill_name, &self.skills_dir) {
             Ok(content) => Ok(json!({ "success": true, "content": content })),
             Err(e) => Ok(json!({ "success": false, "error": e.to_string() })),
@@ -213,17 +268,20 @@ impl Tool for ReadSkillTool {
 }
 
 /// 读取 skill 详细信息
-pub fn read_skill(skill_name: &str, skills_dir: &Path) -> Result<String, Box<dyn std::error::Error>> {
+pub fn read_skill(
+    skill_name: &str,
+    skills_dir: &Path,
+) -> Result<String, Box<dyn std::error::Error>> {
     // 查找 skill 目录
     let mut skill_path = skills_dir.join(skill_name);
     if !skill_path.exists() {
         skill_path = skills_dir.join(skill_name.split('-').next().unwrap_or(skill_name));
     }
-    
+
     if !skill_path.exists() {
         return Err(format!("Skill not found: {}", skill_name).into());
     }
-    
+
     // 优先级：skill.yaml > skill.toml > skill.json > SKILL.md
     for config_file in &["skill.yaml", "skill.toml", "skill.json"] {
         let path = skill_path.join(config_file);
@@ -232,13 +290,13 @@ pub fn read_skill(skill_name: &str, skills_dir: &Path) -> Result<String, Box<dyn
             return Ok(format!("=== {} ===\n{}", config_file, content));
         }
     }
-    
+
     // 读取 SKILL.md
     let md_path = skill_path.join("SKILL.md");
     if md_path.exists() {
         let content = std::fs::read_to_string(&md_path)?;
         return Ok(format!("=== SKILL.md ===\n{}", content));
     }
-    
+
     Err(format!("No skill file found in {:?}", skill_path).into())
 }
