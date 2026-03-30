@@ -1,0 +1,25 @@
+name: rhai_min
+description: 最小 Rhai 脚本技能示例（通过 call_tool 调用 cmd_exec 执行 curl）
+version: 1.0.0
+author: AgentKit Team
+tags:
+  - rhai
+  - example
+timeout: 10
+input_schema:
+  type: object
+  properties:
+    location:
+      type: string
+      description: 地点名称
+  required:
+    - location
+output_schema:
+  type: object
+  properties:
+    success:
+      type: boolean
+    location:
+      type: string
+    weather:
+      type: string

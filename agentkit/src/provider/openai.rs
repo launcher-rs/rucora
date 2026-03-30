@@ -410,7 +410,7 @@ impl LlmProvider for OpenAiProvider {
         let message = message.unwrap().clone();
 
         // 解析 content，兼容多种格式
-        let content = message
+        let mut content = message
             .get("content")
             .and_then(|v| {
                 // 可能是字符串
@@ -429,6 +429,15 @@ impl LlmProvider for OpenAiProvider {
             .unwrap_or_default();
 
         let tool_calls = Self::parse_tool_calls(&message);
+
+        // 兼容部分第三方 API：把最终回答写进 reasoning 字段而 content 为空。
+        if content.trim().is_empty() && tool_calls.is_empty() {
+            if let Some(r) = message.get("reasoning").and_then(|v| v.as_str()) {
+                if !r.trim().is_empty() {
+                    content = r.to_string();
+                }
+            }
+        }
 
         if !tool_calls.is_empty() {
             let names: Vec<&str> = tool_calls.iter().map(|c| c.name.as_str()).collect();

@@ -1,10 +1,70 @@
-//! Skill 加载器和执行器模块
+﻿//! Skill 加载器和执行器模块
 
 use agentkit_core::skill::{SkillDefinition, SkillResult};
 use std::path::{Path, PathBuf};
 use std::collections::HashMap;
 use serde_json::Value;
 use tracing::{info, warn, debug};
+
+fn parse_skill_stdout(stdout: &str) -> SkillResult {
+    // 1) Try strict SkillResult
+    if let Ok(mut r) = serde_json::from_str::<SkillResult>(stdout) {
+        // Backward/loose compatibility:
+        // If a script prints {success:true, city:..., weather:...} without `data`,
+        // serde will ignore unknown fields and we end up with data=None.
+        // In that case, wrap the remaining fields into data.
+        if r.success && r.data.is_none() {
+            if let Ok(v) = serde_json::from_str::<Value>(stdout) {
+                if let Some(obj) = v.as_object() {
+                    let mut data_obj = serde_json::Map::new();
+                    for (k, val) in obj {
+                        if k == "success" || k == "error" || k == "execution_time_ms" {
+                            continue;
+                        }
+                        data_obj.insert(k.clone(), val.clone());
+                    }
+                    if !data_obj.is_empty() {
+                        r.data = Some(Value::Object(data_obj));
+                    }
+                }
+            }
+        }
+        return r;
+    }
+
+    // 2) Try generic JSON
+    match serde_json::from_str::<Value>(stdout) {
+        Ok(v) => {
+            if v.get("success").and_then(|x| x.as_bool()).is_some() {
+                // Has `success` but doesn't match SkillResult schema
+                let success = v.get("success").and_then(|x| x.as_bool()).unwrap_or(false);
+                if success {
+                    SkillResult::success(v)
+                } else {
+                    let msg = v
+                        .get("error")
+                        .and_then(|x| x.as_str())
+                        .unwrap_or("Skill 执行失败");
+                    SkillResult::error(msg)
+                }
+            } else {
+                // No `success` field: treat whole JSON as successful payload
+                SkillResult::success(v)
+            }
+        }
+        Err(_) => SkillResult::error(format!("输出格式错误：{}", stdout)),
+    }
+}
+
+/// Skill 实现类型
+#[derive(Debug, Clone, PartialEq)]
+pub enum SkillImplementation {
+    Python(PathBuf),
+    JavaScript(PathBuf),
+    Shell(PathBuf),
+    Rhai(PathBuf),
+    Unknown,
+}
 
 /// Skill 加载器
 pub struct SkillLoader {
@@ -49,67 +109,57 @@ impl SkillLoader {
     }
     
     pub async fn load_skill(&self, skill_dir: &Path) -> Result<SkillDefinition, SkillLoadError> {
-        let md_path = skill_dir.join("SKILL.md");
-        if !md_path.exists() {
-            return Err(SkillLoadError::NotFound(format!("SKILL.md 不存在：{:?}", md_path)));
-        }
-        
-        let content = std::fs::read_to_string(&md_path)
-            .map_err(|e| SkillLoadError::IoError(format!("读取 SKILL.md 失败：{}", e)))?;
-        
-        let definition = parse_skill_md(&content)?;
+        // 配置文件优先级：skill.yaml > skill.toml > skill.json > SKILL.md
+        let definition = if skill_dir.join("skill.yaml").exists() {
+            // 读取 skill.yaml
+            let content = std::fs::read_to_string(skill_dir.join("skill.yaml"))
+                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.yaml 失败：{}", e)))?;
+            serde_yaml::from_str(&content)
+                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.yaml 失败：{}", e)))?
+        } else if skill_dir.join("skill.toml").exists() {
+            // 读取 skill.toml
+            let content = std::fs::read_to_string(skill_dir.join("skill.toml"))
+                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.toml 失败：{}", e)))?;
+            toml::from_str(&content)
+                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.toml 失败：{}", e)))?
+        } else if skill_dir.join("skill.json").exists() {
+            // 读取 skill.json
+            let content = std::fs::read_to_string(skill_dir.join("skill.json"))
+                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.json 失败：{}", e)))?;
+            serde_json::from_str(&content)
+                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.json 失败：{}", e)))?
+        } else {
+            // 读取 SKILL.md
+            let md_path = skill_dir.join("SKILL.md");
+            if !md_path.exists() {
+                return Err(SkillLoadError::NotFound(format!(
+                    "SKILL.md 不存在：{:?}", md_path
+                )));
+            }
+            
+            let content = std::fs::read_to_string(&md_path)
+                .map_err(|e| SkillLoadError::IoError(format!("读取 SKILL.md 失败：{}", e)))?;
+            
+            parse_skill_md(&content)?
+        };
         
         let implementation = detect_implementation(skill_dir);
         debug!("技能 {} 使用实现：{:?}", definition.name, implementation);
         
         Ok(definition)
     }
-    
+
     pub fn get_skill(&self, name: &str) -> Option<&SkillDefinition> {
         self.skills.get(name)
     }
-    
+
     pub fn get_all_skills(&self) -> Vec<&SkillDefinition> {
         self.skills.values().collect()
     }
-    
+
     pub fn to_tool_descriptions(&self) -> Vec<Value> {
         self.skills.values().map(|s| s.to_tool_description()).collect()
     }
-}
-
-/// Skill 实现类型
-#[derive(Debug, Clone, PartialEq)]
-pub enum SkillImplementation {
-    Python(PathBuf),
-    JavaScript(PathBuf),
-    Shell(PathBuf),
-    Rhai(PathBuf),
-    Unknown,
-}
-
-fn detect_implementation(skill_dir: &Path) -> SkillImplementation {
-    let py_path = skill_dir.join("SKILL.py");
-    if py_path.exists() {
-        return SkillImplementation::Python(py_path);
-    }
-    
-    let js_path = skill_dir.join("SKILL.js");
-    if js_path.exists() {
-        return SkillImplementation::JavaScript(js_path);
-    }
-    
-    let sh_path = skill_dir.join("SKILL.sh");
-    if sh_path.exists() {
-        return SkillImplementation::Shell(sh_path);
-    }
-    
-    let rhai_path = skill_dir.join("SKILL.rhai");
-    if rhai_path.exists() {
-        return SkillImplementation::Rhai(rhai_path);
-    }
-    
-    SkillImplementation::Unknown
 }
 
 fn parse_skill_md(content: &str) -> Result<SkillDefinition, SkillLoadError> {
@@ -151,6 +201,30 @@ fn extract_frontmatter(content: &str) -> Result<String, SkillLoadError> {
     }
     
     Ok(frontmatter)
+}
+
+fn detect_implementation(skill_dir: &Path) -> SkillImplementation {
+    let py_path = skill_dir.join("SKILL.py");
+    if py_path.exists() {
+        return SkillImplementation::Python(py_path);
+    }
+    
+    let js_path = skill_dir.join("SKILL.js");
+    if js_path.exists() {
+        return SkillImplementation::JavaScript(js_path);
+    }
+    
+    let sh_path = skill_dir.join("SKILL.sh");
+    if sh_path.exists() {
+        return SkillImplementation::Shell(sh_path);
+    }
+    
+    let rhai_path = skill_dir.join("SKILL.rhai");
+    if rhai_path.exists() {
+        return SkillImplementation::Rhai(rhai_path);
+    }
+    
+    SkillImplementation::Unknown
 }
 
 /// Skill 执行器
@@ -214,14 +288,29 @@ impl SkillExecutor {
         
         let start = std::time::Instant::now();
         
-        let mut child = Command::new("python3")
+        // 尝试 python 或 python3
+        let python_cmd = if cfg!(windows) { "python" } else { "python3" };
+
+        debug!(
+            skill.impl = "python",
+            skill.script = %script_path.display(),
+            skill.timeout_s = timeout,
+            skill.work_dir = %self.work_dir.display(),
+            "skill.exec.start"
+        );
+        
+        let mut child = Command::new(python_cmd)
+            .arg("-X")
+            .arg("utf8")
             .arg(script_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
             .current_dir(&self.work_dir)
+            .env("PYTHONIOENCODING", "utf-8")
+            .env("PYTHONUTF8", "1")
             .spawn()
-            .map_err(|e| SkillExecuteError::IoError(format!("启动 Python 失败：{}", e)))?;
+            .map_err(|e| SkillExecuteError::IoError(format!("启动 Python 失败：{}，请确保 Python 已安装并添加到 PATH", e)))?;
         
         if let Some(mut stdin) = child.stdin.take() {
             let input_str = input.to_string();
@@ -238,10 +327,34 @@ impl SkillExecutor {
         .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{}", e)))?;
         
         let execution_time_ms = start.elapsed().as_millis() as u64;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !stderr.trim().is_empty() {
+            let preview: String = stderr.chars().take(400).collect();
+            warn!(
+                skill.impl = "python",
+                skill.script = %script_path.display(),
+                skill.stderr_preview = %preview,
+                "skill.exec.stderr"
+            );
+        }
         
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: SkillResult = serde_json::from_str(&stdout)
-            .unwrap_or_else(|_| SkillResult::error(format!("输出格式错误：{}", stdout)));
+
+        debug!(
+            skill.impl = "python",
+            skill.script = %script_path.display(),
+            skill.stdout_len = stdout.len(),
+            skill.elapsed_ms = execution_time_ms,
+            "skill.exec.stdout"
+        );
+        
+        // 如果输出为空，返回错误
+        if stdout.trim().is_empty() {
+            return Ok(SkillResult::error("脚本输出为空"));
+        }
+        
+        let result = parse_skill_stdout(&stdout);
         
         Ok(SkillResult {
             execution_time_ms: Some(execution_time_ms),
@@ -262,7 +375,18 @@ impl SkillExecutor {
         
         let start = std::time::Instant::now();
         
-        let mut child = Command::new("node")
+        // 尝试 node 或 nodejs
+        let node_cmd = if cfg!(windows) { "node" } else { "nodejs" };
+
+        debug!(
+            skill.impl = "javascript",
+            skill.script = %script_path.display(),
+            skill.timeout_s = timeout,
+            skill.work_dir = %self.work_dir.display(),
+            "skill.exec.start"
+        );
+        
+        let mut child = Command::new(node_cmd)
             .arg(script_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -286,10 +410,33 @@ impl SkillExecutor {
         .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{}", e)))?;
         
         let execution_time_ms = start.elapsed().as_millis() as u64;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !stderr.trim().is_empty() {
+            let preview: String = stderr.chars().take(400).collect();
+            warn!(
+                skill.impl = "javascript",
+                skill.script = %script_path.display(),
+                skill.stderr_preview = %preview,
+                "skill.exec.stderr"
+            );
+        }
         
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: SkillResult = serde_json::from_str(&stdout)
-            .unwrap_or_else(|_| SkillResult::error(format!("输出格式错误：{}", stdout)));
+
+        debug!(
+            skill.impl = "javascript",
+            skill.script = %script_path.display(),
+            skill.stdout_len = stdout.len(),
+            skill.elapsed_ms = execution_time_ms,
+            "skill.exec.stdout"
+        );
+        
+        if stdout.trim().is_empty() {
+            return Ok(SkillResult::error("脚本输出为空"));
+        }
+        
+        let result = parse_skill_stdout(&stdout);
         
         Ok(SkillResult {
             execution_time_ms: Some(execution_time_ms),
@@ -309,6 +456,14 @@ impl SkillExecutor {
         use tokio::io::AsyncWriteExt;
         
         let start = std::time::Instant::now();
+
+        debug!(
+            skill.impl = "shell",
+            skill.script = %script_path.display(),
+            skill.timeout_s = timeout,
+            skill.work_dir = %self.work_dir.display(),
+            "skill.exec.start"
+        );
         
         let mut child = Command::new("bash")
             .arg(script_path)
@@ -334,10 +489,34 @@ impl SkillExecutor {
         .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{}", e)))?;
         
         let execution_time_ms = start.elapsed().as_millis() as u64;
+
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        if !stderr.trim().is_empty() {
+            let preview: String = stderr.chars().take(400).collect();
+            warn!(
+                skill.impl = "shell",
+                skill.script = %script_path.display(),
+                skill.stderr_preview = %preview,
+                "skill.exec.stderr"
+            );
+        }
         
         let stdout = String::from_utf8_lossy(&output.stdout);
-        let result: SkillResult = serde_json::from_str(&stdout)
-            .unwrap_or_else(|_| SkillResult::error(format!("输出格式错误：{}", stdout)));
+
+        debug!(
+            skill.impl = "shell",
+            skill.script = %script_path.display(),
+            skill.stdout_len = stdout.len(),
+            skill.elapsed_ms = execution_time_ms,
+            "skill.exec.stdout"
+        );
+        
+        // 如果输出为空，返回错误
+        if stdout.trim().is_empty() {
+            return Ok(SkillResult::error("脚本输出为空"));
+        }
+        
+        let result = parse_skill_stdout(&stdout);
         
         Ok(SkillResult {
             execution_time_ms: Some(execution_time_ms),

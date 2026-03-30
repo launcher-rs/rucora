@@ -38,14 +38,36 @@ use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
 use agentkit_core::tool::Tool;
 use agentkit_core::tool::types::ToolDefinition;
+use agentkit_core::tool::types::ToolResult;
 use async_trait::async_trait;
 use serde_json::Value;
+use serde_json::json;
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::conversation::ConversationManager;
+
+fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {
+    let payload = Value::Object(
+        [
+            (
+                "tool_call_id".to_string(),
+                Value::String(result.tool_call_id.clone()),
+            ),
+            ("output".to_string(), result.output.clone()),
+        ]
+        .into_iter()
+        .collect(),
+    );
+
+    ChatMessage {
+        role: Role::Tool,
+        content: payload.to_string(),
+        name: Some(tool_name.to_string()),
+    }
+}
 
 /// MCP 服务器配置
 ///
@@ -594,26 +616,32 @@ where
                     if !response.tool_calls.is_empty() {
                         // 执行工具调用
                         for tool_call in response.tool_calls {
-                            if let Some(tool) = self.tools.get(&tool_call.name) {
-                                // 执行工具
-                                let result =
-                                    tool.call(tool_call.input.clone()).await.map_err(|e| {
-                                        AgentError::Message(format!("工具执行错误：{}", e))
-                                    })?;
+                            let output_value = if let Some(tool) = self.tools.get(&tool_call.name) {
+                                match tool.call(tool_call.input.clone()).await {
+                                    Ok(v) => json!({"ok": true, "output": v}),
+                                    Err(e) => json!({
+                                        "ok": false,
+                                        "error": {"kind": "tool_error", "message": e.to_string()}
+                                    }),
+                                }
+                            } else {
+                                json!({
+                                    "ok": false,
+                                    "error": {"kind": "not_found", "message": format!("未找到工具：{}", tool_call.name)}
+                                })
+                            };
 
-                                // 记录工具调用
-                                tool_call_records.push(agentkit_core::agent::ToolCallRecord {
-                                    name: tool_call.name.clone(),
-                                    input: tool_call.input.clone(),
-                                    result: result.clone(),
-                                });
+                            tool_call_records.push(agentkit_core::agent::ToolCallRecord {
+                                name: tool_call.name.clone(),
+                                input: tool_call.input.clone(),
+                                result: output_value.clone(),
+                            });
 
-                                // 添加工具结果到消息
-                                messages.push(ChatMessage::tool(
-                                    tool_call.name.clone(),
-                                    result.to_string(),
-                                ));
-                            }
+                            let result = ToolResult {
+                                tool_call_id: tool_call.id.clone(),
+                                output: output_value,
+                            };
+                            messages.push(tool_result_to_message(&result, &tool_call.name));
                         }
 
                         // 继续循环，让 LLM 生成最终回复
@@ -644,18 +672,26 @@ where
                 AgentDecision::ToolCall { name, input } => {
                     // 直接工具调用（来自 think 方法的决策）
                     if let Some(tool) = self.tools.get(&name) {
-                        let result = tool
-                            .call(input.clone())
-                            .await
-                            .map_err(|e| AgentError::Message(format!("工具执行错误：{}", e)))?;
+                        let tool_call_id = format!("local_call_{}_{}", step, name);
+                        let output_value = match tool.call(input.clone()).await {
+                            Ok(v) => json!({"ok": true, "output": v}),
+                            Err(e) => json!({
+                                "ok": false,
+                                "error": {"kind": "tool_error", "message": e.to_string()}
+                            }),
+                        };
 
                         tool_call_records.push(agentkit_core::agent::ToolCallRecord {
                             name: name.clone(),
                             input: input.clone(),
-                            result: result.clone(),
+                            result: output_value.clone(),
                         });
 
-                        messages.push(ChatMessage::tool(name.clone(), result.to_string()));
+                        let result = ToolResult {
+                            tool_call_id,
+                            output: output_value,
+                        };
+                        messages.push(tool_result_to_message(&result, &name));
 
                         step += 1;
                     } else {
