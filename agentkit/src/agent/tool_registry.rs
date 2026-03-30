@@ -2,7 +2,7 @@
 //!
 //! # 概述
 //!
-//! `ToolRegistry` 是 Agentkit 运行时中管理所有可用工具的核心组件。
+//! `ToolRegistry` 是 Agent 中管理所有可用工具的核心组件。
 //! 它支持从多种来源注册工具，并提供丰富的查询和过滤功能。
 //!
 //! # 主要特性
@@ -18,7 +18,7 @@
 //! ## 基本使用
 //!
 //! ```rust
-//! use agentkit_runtime::{ToolRegistry, ToolSource};
+//! use agentkit::agent::ToolRegistry;
 //! use agentkit::tools::ShellTool;
 //!
 //! // 创建注册表

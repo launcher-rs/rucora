@@ -1,14 +1,18 @@
+//! 工具执行模块
+//!
+//! 负责执行工具调用，包括策略检查、观测器通知等。
+
 use std::sync::Arc;
 
+use agentkit_core::channel::ChannelObserver;
 use agentkit_core::error::{AgentError, ToolError};
 use agentkit_core::provider::types::{ChatMessage, Role};
-use agentkit_core::runtime::RuntimeObserver;
 use agentkit_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolResult};
 use serde_json::{Value, json};
 use tracing::{debug, info};
 
-use crate::runtime::policy::{ToolCallContext, ToolPolicy};
-use crate::runtime::tool_registry::ToolRegistry;
+use crate::agent::policy::{ToolCallContext, ToolPolicy};
+use crate::agent::tool_registry::ToolRegistry;
 
 // ========== 工具函数 ==========
 
@@ -49,7 +53,7 @@ fn apply_output_limit(payload: Value, max_bytes: usize) -> Value {
 pub(crate) async fn execute_tool_call_with_policy_and_observer(
     tools: &ToolRegistry,
     policy: &Arc<dyn ToolPolicy>,
-    observer: &Arc<dyn RuntimeObserver>,
+    observer: &Arc<dyn ChannelObserver>,
     call: &ToolCall,
 ) -> Result<ToolResult, AgentError> {
     let input_str = call.input.to_string();

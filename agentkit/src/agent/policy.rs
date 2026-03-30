@@ -1,3 +1,7 @@
+//! 工具调用策略（Policy）模块
+//!
+//! 用于在执行工具前进行 allow/deny 安全检查。
+
 use async_trait::async_trait;
 use serde_json::Value;
 

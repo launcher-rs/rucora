@@ -1,13 +1,15 @@
-//! AgentKit 基础对话示例
+//! AgentKit Hello World 示例
 //!
-//! 这个示例展示如何创建一个支持多轮对话的 Agent
+//! 这是最简单的 AgentKit 示例，展示如何快速创建一个能对话的 Agent。
+//!
 //! ## 运行方法
 //! ```bash
 //! export OPENAI_API_KEY=sk-your-key
-//! cargo run --example chat_basic
+//! cargo run --example 01_hello_world
 //! ```
 
-use agentkit::agent::DefaultAgent;
+use agentkit::agent::SimpleAgent;
+use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -22,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     info!("╔════════════════════════════════════════╗");
-    info!("║   AgentKit 基础对话示例               ║");
+    info!("║   AgentKit Hello World                ║");
     info!("╚════════════════════════════════════════╝\n");
 
     // 检查配置
@@ -38,43 +40,34 @@ async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
     info!("✓ Provider 创建成功\n");
 
-    // 创建 Agent（启用对话历史）
-    info!("2. 创建 Agent（启用对话历史）...");
-    let agent = DefaultAgent::builder()
+    // 创建 SimpleAgent
+    info!("2. 创建 SimpleAgent...");
+    let agent = SimpleAgent::builder()
         .provider(provider)
         .model("gpt-4o-mini")
-        .system_prompt("你是友好的智能助手。记住对话历史，提供连贯的回复。")
-        .with_conversation(true) // 启用对话历史
-        .with_max_messages(20) // 保留最近 20 条消息
+        .system_prompt("你是友好的 AI 助手。请简洁地回答用户的问题。")
+        .temperature(0.7)
         .build();
-    info!("✓ Agent 创建成功\n");
+    info!("✓ SimpleAgent 创建成功\n");
 
-    // 多轮对话测试
-    info!("3. 多轮对话测试...\n");
+    // 运行对话
+    info!("3. 运行对话...\n");
 
-    let queries = vec![
-        "你好，我叫小明",
-        "我今年 25 岁",
-        "我喜欢编程",
-        "你能记住我刚才说的吗？",
-    ];
+    let input = "你好，请介绍一下你自己";
+    info!("用户：{}", input);
 
-    for query in queries {
-        info!("用户：{}", query);
-
-        match agent.run(query).await {
-            Ok(output) => {
-                if let Some(text) = output.text() {
-                    info!("助手：{}\n", text);
-                }
+    match agent.run(input.into()).await {
+        Ok(output) => {
+            if let Some(text) = output.text() {
+                info!("助手：{}\n", text);
             }
-            Err(e) => {
-                info!("错误：{}\n", e);
-            }
+        }
+        Err(e) => {
+            info!("错误：{}\n", e);
         }
     }
 
-    info!("示例完成");
+    info!("示例完成！");
 
     Ok(())
 }

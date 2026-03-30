@@ -6,15 +6,20 @@
 //!
 //! # 核心概念
 //!
-//! ## Agent vs Runtime
+//! ## 决策与执行分离
 //!
-//! - **Agent**: 负责思考、决策、规划（大脑）
-//! - **Runtime**: 负责执行、调用、编排（身体）
+//! - **Agent trait**: 负责思考、决策、规划（大脑）
+//! - **AgentExecutor trait**: 负责执行、调用、编排（身体）
+//!
+//! Agent 通过 `think()` 方法返回决策，`AgentExecutor` 或其他执行器负责执行。
 
 pub mod types;
 
 use async_trait::async_trait;
+use futures_util::stream::BoxStream;
 use serde_json::Value;
+
+use crate::channel::types::ChannelEvent;
 
 /// Agent 决策结果。
 ///
@@ -314,24 +319,94 @@ pub struct ToolCallRecord {
 ///
 /// Agent 负责思考、决策和规划。它可以：
 /// - 独立运行（处理简单任务）
-/// - 嵌入 Runtime 中（处理复杂任务）
+/// - 使用内置执行能力（处理复杂任务）
 /// - 调用 Tool/MCP/Skill/A2A 等外部能力
+///
+/// # 设计原则
+///
+/// Agent trait 只定义决策接口（`think`），执行能力（`run`/`run_stream`）由具体实现提供。
+///
+/// ## 决策与执行分离
+///
+/// - **决策层** (`think`): 每个 Agent 类型有不同的思考策略
+/// - **执行层** (`run`/`run_stream`): 所有 Agent 共享相同的执行能力
+///
+/// ## 使用方式
+///
+/// ```rust,no_run
+/// use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+/// use async_trait::async_trait;
+///
+/// struct MyAgent;
+///
+/// #[async_trait]
+/// impl Agent for MyAgent {
+///     async fn think(&self, context: &AgentContext) -> AgentDecision {
+///         // 自定义决策逻辑
+///         AgentDecision::Return(serde_json::json!({"content": "Hello"}))
+///     }
+///
+///     fn name(&self) -> &str { "my_agent" }
+/// }
+/// ```
+///
+/// # 内置执行能力
+///
+/// 如果 Agent 需要工具调用、流式输出等能力，可以组合 `DefaultExecution`：
+///
+/// ```rust,no_run
+/// use agentkit::agent::execution::DefaultExecution;
+/// use agentkit_core::agent::Agent;
+///
+/// struct MyAgent {
+///     execution: DefaultExecution,
+///     // ... 其他字段
+/// }
+///
+/// impl Agent for MyAgent {
+///     // ... 实现 think 方法
+///     
+///     // DefaultExecution 提供默认的 run/run_stream 实现
+/// }
+/// ```
 #[async_trait]
 pub trait Agent: Send + Sync {
     /// 思考：分析当前情况，决定下一步行动。
+    ///
+    /// 这是 Agent 的核心方法，返回决策结果。
     async fn think(&self, context: &AgentContext) -> AgentDecision;
 
     /// 获取 Agent 名称。
     fn name(&self) -> &str;
 
-    /// 获取 Agent 描述。
+    /// 获取 Agent 描述（可选）。
+    ///
+    /// 返回 Agent 的简短描述，用于调试和日志。
     fn description(&self) -> Option<&str> {
         None
     }
 
-    /// 运行 Agent（独立模式）。
-    async fn run(&self, input: impl Into<AgentInput> + Send) -> Result<AgentOutput, AgentError> {
-        let input = input.into();
+    /// 运行 Agent（非流式）。
+    ///
+    /// 默认实现适用于简单场景（直接返回结果）。
+    /// 需要工具调用等复杂能力的 Agent 应该重写此方法。
+    ///
+    /// # 默认行为
+    ///
+    /// 默认实现会循环调用 `think()` 直到返回 `Return` 或 `Stop`。
+    /// 如果返回 `Chat` 或 `ToolCall`，会报错（需要 Runtime 支持）。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit_core::agent::{Agent, AgentInput};
+    ///
+    /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
+    /// let output = agent.run(AgentInput::new("你好")).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         let mut context = AgentContext::new(input.clone(), 10);
 
         loop {
@@ -364,6 +439,87 @@ pub trait Agent: Send + Sync {
             }
         }
     }
+
+    /// 运行 Agent（流式）。
+    ///
+    /// 默认实现返回错误（需要具体实现提供流式能力）。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit_core::agent::{Agent, AgentInput};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
+    /// let mut stream = agent.run_stream(AgentInput::new("你好"));
+    /// while let Some(event) = stream.next().await {
+    ///     match event? {
+    ///         agentkit_core::channel::types::ChannelEvent::TokenDelta(delta) => {
+    ///             print!("{}", delta.delta);
+    ///         }
+    ///         _ => {}
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    fn run_stream(
+        &self,
+        _input: AgentInput,
+    ) -> BoxStream<'static, Result<ChannelEvent, AgentError>> {
+        use futures_util::stream;
+        Box::pin(stream::once(async {
+            Err(AgentError::Message("此 Agent 不支持流式输出".to_string()))
+        }))
+    }
+
+    /// 运行 Agent（使用执行器）。
+    ///
+    /// 此方法允许使用外部执行器来运行 Agent。
+    /// 这是实现 dyn 兼容的关键方法。
+    ///
+    /// # 参数
+    ///
+    /// - `executor`: 执行器，负责实际的运行逻辑
+    /// - `input`: 用户输入
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit_core::agent::{Agent, AgentInput, AgentExecutor};
+    ///
+    /// # async fn example(agent: &impl Agent, executor: &dyn AgentExecutor) -> Result<(), Box<dyn std::error::Error>> {
+    /// let output = agent.run_with(executor, AgentInput::new("你好")).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn run_with(
+        &self,
+        executor: &dyn AgentExecutor,
+        input: AgentInput,
+    ) -> Result<AgentOutput, AgentError>
+    where
+        Self: Sized,
+    {
+        executor.run(self, input).await
+    }
+}
+
+/// Agent 执行器 trait
+///
+/// 用于执行 Agent 的运行逻辑，支持工具调用、流式输出等。
+/// 这是实现 dyn 兼容的关键。
+#[async_trait]
+pub trait AgentExecutor: Send + Sync {
+    /// 运行 Agent
+    async fn run(&self, agent: &dyn Agent, input: AgentInput) -> Result<AgentOutput, AgentError>;
+
+    /// 流式运行 Agent
+    ///
+    /// 注意：由于生命周期限制，此方法不支持 Agent 决策。
+    /// 它只执行简单的工具调用循环。
+    fn run_stream(&self, input: AgentInput)
+    -> BoxStream<'static, Result<ChannelEvent, AgentError>>;
 }
 
 /// Agent 错误类型。

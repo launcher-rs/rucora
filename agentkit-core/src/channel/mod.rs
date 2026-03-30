@@ -26,6 +26,22 @@
 //! - `Error`: 错误事件
 //! - `Raw`: 原始事件（用于透传自定义数据）
 //!
+//! ## ChannelObserver trait
+//!
+//! [`ChannelObserver`] trait 用于观测渠道中的事件：
+//!
+//! ```rust
+//! use agentkit_core::channel::{ChannelObserver, ChannelEvent};
+//!
+//! struct LoggingObserver;
+//!
+//! impl ChannelObserver for LoggingObserver {
+//!     fn on_event(&self, event: ChannelEvent) {
+//!         println!("收到事件：{:?}", event);
+//!     }
+//! }
+//! ```
+//!
 //! ## Channel trait
 //!
 //! [`Channel`] trait 定义了事件发送和订阅的接口（可选实现）。
@@ -39,7 +55,7 @@
 //!        │
 //!        ▼
 //! ┌─────────────────────────────────────────┐
-//! │           Runtime                       │
+//! │           Agent                         │
 //! │                                         │
 //! │  ┌─────────────────────────────────┐   │
 //! │  │  Provider (LLM API)             │   │
@@ -179,6 +195,54 @@ pub mod r#trait;
 
 /// Channel 事件类型定义
 pub mod types;
+
+/// Channel 观测器 trait
+///
+/// 用于观测 Agent 执行过程中的事件。
+///
+/// # 说明
+///
+/// - 统一复用 [`ChannelEvent`] 作为事件载体
+/// - 采用同步方法，便于在热路径上最小开销调用
+/// - 需要异步处理时，建议实现方自行把事件投递到队列/channel
+#[async_trait::async_trait]
+pub trait ChannelObserver: Send + Sync {
+    /// 接收事件
+    ///
+    /// # 参数
+    ///
+    /// - `event`: 事件内容
+    ///
+    /// # 说明
+    ///
+    /// 该方法在热路径上被调用，应该：
+    /// - 快速返回
+    /// - 避免阻塞
+    /// - 避免抛出异常
+    fn on_event(&self, event: ChannelEvent);
+}
+
+/// 默认空实现（丢弃所有观测事件）
+///
+/// 用于不需要观测功能的场景。
+#[derive(Debug, Default, Clone)]
+pub struct NoopChannelObserver;
+
+impl ChannelObserver for NoopChannelObserver {
+    fn on_event(&self, _event: ChannelEvent) {}
+}
+
+// 为了向后兼容，将 RuntimeObserver 作为 ChannelObserver 的别名
+// 注意：这是一个类型别名，实际使用时应该使用 dyn ChannelObserver
+#[deprecated(since = "0.2.0", note = "使用 ChannelObserver 代替")]
+pub trait RuntimeObserver: ChannelObserver {}
+
+// 为所有实现 ChannelObserver 的类型自动实现 RuntimeObserver
+#[allow(deprecated)]
+impl<T: ChannelObserver> RuntimeObserver for T {}
+
+#[deprecated(since = "0.2.0", note = "使用 NoopChannelObserver 代替")]
+pub type NoopRuntimeObserver = NoopChannelObserver;
 
 /// 重新导出 channel 相关 trait，方便 `agentkit_core::channel::*` 使用
 pub use r#trait::*;

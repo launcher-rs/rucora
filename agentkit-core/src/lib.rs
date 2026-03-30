@@ -15,14 +15,16 @@
 //!
 //! ## Agent（智能体）
 //!
-//! Agent 是运行时编排的入口，负责：
+//! Agent 是智能体的核心，负责：
+//! - 思考、决策、规划
 //! - 接收输入（消息、任务、上下文）
-//! - 调用 Provider/Tool/Memory/Skill
-//! - 输出最终结果或事件流
+//! - 返回决策结果
 //!
 //! 相关类型：
 //! - [`agent::types::AgentInput`]: Agent 输入类型
 //! - [`agent::types::AgentOutput`]: Agent 输出类型
+//! - [`agent::Agent`]: Agent trait
+//! - [`agent::AgentExecutor`]: Agent 执行器 trait
 //!
 //! ## Channel（通信渠道）
 //!
@@ -70,14 +72,6 @@
 //! 相关类型：
 //! - [`skill::types::SkillContext`]: 技能上下文
 //! - [`skill::types::SkillOutput`]: 技能输出
-//!
-//! ## Runtime（运行时）
-//!
-//! 运行时编排抽象，定义如何调用 Provider、如何循环、如何调用工具等。
-//!
-//! 相关 trait：
-//! - [`runtime::Runtime`]: Runtime trait
-//! - [`runtime::RuntimeObserver`]: 运行时观测器
 //!
 //! ## Memory（记忆）
 //!
@@ -185,25 +179,6 @@
 //! }
 //! ```
 //!
-//! ## 实现自定义 Runtime
-//!
-//! ```rust,no_run
-//! use agentkit_core::runtime::{Runtime, RuntimeObserver};
-//! use agentkit_core::agent::types::{AgentInput, AgentOutput};
-//! use agentkit_core::error::AgentError;
-//! use async_trait::async_trait;
-//!
-//! struct MyRuntime;
-//!
-//! #[async_trait]
-//! impl Runtime for MyRuntime {
-//!     async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
-//!         // 实现运行时逻辑
-//!         unimplemented!()
-//!     }
-//! }
-//! ```
-//!
 //! # 错误处理
 //!
 //! 统一的错误类型定义：
@@ -249,9 +224,6 @@ pub mod provider;
 /// 语义检索抽象（向量存储与相似度搜索）
 pub mod retrieval;
 
-/// Runtime 抽象（运行时编排规范）
-pub mod runtime;
-
 /// 技能抽象（更高层的可复用能力单元）
 pub mod skill;
 
@@ -266,5 +238,4 @@ pub use agent::types::{AgentInput, AgentOutput};
 pub use channel::types::ChannelEvent;
 pub use error::{AgentError, ChannelError, MemoryError, ProviderError, SkillError, ToolError};
 pub use provider::LlmProvider;
-pub use runtime::Runtime;
 pub use tool::Tool;

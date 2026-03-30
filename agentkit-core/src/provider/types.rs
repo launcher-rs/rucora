@@ -120,7 +120,7 @@ pub enum FinishReason {
 }
 
 /// Provider 的对话请求。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ChatRequest {
     /// 对话历史。
     pub messages: Vec<ChatMessage>,

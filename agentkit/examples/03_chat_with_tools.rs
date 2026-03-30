@@ -1,23 +1,17 @@
-//! AgentKit Hello World 示例
+//! AgentKit 带工具聊天示例
 //!
-//! 这个示例展示如何用最少的代码创建一个 Agent 应用。
+//! 展示如何让 Agent 使用工具完成具体任务。
 //!
 //! ## 运行方法
-//!
-//! ### 使用 OpenAI
 //! ```bash
 //! export OPENAI_API_KEY=sk-your-key
-//! cargo run --example hello_world
-//! ```
-//!
-//! ### 使用 Ollama（本地）
-//! ```bash
-//! export OPENAI_BASE_URL=http://localhost:11434
-//! cargo run --example hello_world
+//! cargo run --example 03_chat_with_tools
 //! ```
 
-use agentkit::agent::DefaultAgent;
+use agentkit::agent::ToolAgent;
+use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
+use agentkit::tools::{DatetimeTool, EchoTool};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -31,42 +25,48 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     info!("╔════════════════════════════════════════╗");
-    info!("║   AgentKit Hello World 示例           ║");
+    info!("║   AgentKit 带工具聊天示例             ║");
     info!("╚════════════════════════════════════════╝\n");
 
-    // 1. 检查 API Key
-    info!("1. 检查配置...");
+    // 检查配置
     if std::env::var("OPENAI_API_KEY").is_err() && std::env::var("OPENAI_BASE_URL").is_err() {
         info!("⚠ 未设置 API 配置");
         info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         return Ok(());
     }
-    info!("✓ 配置检查通过\n");
 
-    // 2. 创建 Provider
-    info!("2. 创建 Provider...");
+    // 创建 Provider
+    info!("1. 创建 Provider...");
     let provider = OpenAiProvider::from_env()?;
     info!("✓ Provider 创建成功\n");
 
-    // 3. 创建 Agent
-    info!("3. 创建 Agent...");
-    let agent = DefaultAgent::builder()
+    // 创建 ToolAgent（注册工具）
+    info!("2. 创建 ToolAgent（注册工具）...");
+    let agent = ToolAgent::builder()
         .provider(provider)
         .model("gpt-4o-mini")
-        .system_prompt("你是友好的智能助手，简洁地回答用户问题。")
+        .system_prompt("你是有用的智能助手。当用户询问时间或需要回显时，使用相应的工具。")
+        .tool(DatetimeTool) // 注册日期时间工具
+        .tool(EchoTool) // 注册回显工具
+        .max_steps(10)
         .build();
-    info!("✓ Agent 创建成功\n");
 
-    // 4. 测试对话
-    info!("4. 测试对话...\n");
+    info!("✓ ToolAgent 创建成功\n");
 
-    let queries = vec!["你好，请介绍一下自己", "1+1 等于多少？"];
+    info!("已注册工具：");
+    info!("  - DatetimeTool: 获取当前日期和时间");
+    info!("  - EchoTool: 回显用户输入\n");
+
+    // 工具调用测试
+    info!("3. 工具调用测试...\n");
+
+    let queries = vec!["现在几点了？", "请重复这句话：你好世界", "今天是什么日期？"];
 
     for query in queries {
         info!("用户：{}", query);
 
-        match agent.run(query).await {
+        match agent.run(query.into()).await {
             Ok(output) => {
                 if let Some(text) = output.text() {
                     info!("助手：{}\n", text);

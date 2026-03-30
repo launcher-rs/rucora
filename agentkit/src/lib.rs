@@ -209,9 +209,6 @@ pub mod mcp;
 #[cfg(feature = "a2a")]
 pub mod a2a;
 
-#[cfg(feature = "runtime")]
-pub mod runtime;
-
 // ===== 便捷导出 =====
 
 /// 常用类型和 trait 的快速访问

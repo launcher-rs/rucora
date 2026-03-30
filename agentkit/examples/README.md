@@ -1,212 +1,538 @@
-# AgentKit 示例
+# AgentKit 示例代码集合
 
-本目录包含 AgentKit 的使用示例，展示各个模块的功能和综合应用。
+本目录包含 AgentKit 各个模块的使用示例和综合应用，帮助你快速上手和深入理解框架。
 
-## 运行示例
+## 📋 示例列表
 
-大多数示例需要设置 API Key 环境变量：
+### 入门系列（01-05）
 
+| 编号 | 示例名称 | 文件 | 功能 | 难度 |
+|------|----------|------|------|------|
+| `01` | Hello World | `hello_world.rs` | 最简对话 | ⭐ |
+| `02` | Basic Chat | `basic_chat.rs` | 交互式聊天 | ⭐ |
+| `03` | Chat with Tools | `chat_with_tools.rs` | 带工具对话 | ⭐⭐ |
+| `04` | Extractor | `extractor.rs` | 结构化数据提取 | ⭐⭐ |
+| `05` | Conversation | `conversation.rs` | 对话管理 | ⭐⭐ |
+
+### 核心模块（06-10）
+
+| 编号 | 示例名称 | 文件 | 功能 | 难度 |
+|------|----------|------|------|------|
+| `06` | Memory | `memory.rs` | 记忆系统 | ⭐⭐ |
+| `07` | RAG | `rag.rs` | 检索增强生成 | ⭐⭐⭐ |
+| `08` | Middleware | `middleware.rs` | 中间件系统 | ⭐⭐⭐ |
+| `09` | Prompt | `prompt.rs` | Prompt 模板 | ⭐⭐ |
+| `10` | Custom Provider | `custom_provider.rs` | 自定义 Provider | ⭐⭐⭐ |
+
+### 高级特性（11-14）
+
+| 编号 | 示例名称 | 文件 | 功能 | 难度 | Feature |
+|------|----------|------|------|------|---------|
+| `11` | Resilient Provider | `resilient_provider.rs` | 带重试 Provider | ⭐⭐⭐ | - |
+| `12` | MCP | `mcp.rs` | MCP 协议 | ⭐⭐⭐⭐ | `mcp` |
+| `13` | A2A | `a2a.rs` | A2A 协议 | ⭐⭐⭐⭐ | `a2a` |
+| `14` | Skills | `skills.rs` | 技能系统 | ⭐⭐⭐ | `skills` |
+
+### Agent 类型（15-17）
+
+| 编号 | 示例名称 | 文件 | 功能 | 难度 |
+|------|----------|------|------|------|
+| `15` | ReAct Agent | `react_agent.rs` | ReAct 模式 | ⭐⭐⭐⭐ |
+| `16` | Reflect Agent | `reflect_agent.rs` | 反思迭代 | ⭐⭐⭐⭐ |
+| `17` | Supervisor Agent | `supervisor_agent.rs` | 主管模式 | ⭐⭐⭐⭐⭐ |
+
+### 综合应用（18-19）
+
+| 编号 | 示例名称 | 文件 | 功能 | 难度 |
+|------|----------|------|------|------|
+| `18` | Research Assistant | `research_assistant.rs` | 研究助手 | ⭐⭐⭐⭐⭐ |
+| `19` | Code Assistant | `code_assistant.rs` | 代码助手 | ⭐⭐⭐⭐⭐ |
+
+---
+
+## 🚀 快速开始
+
+### 环境准备
+
+1. **设置 API Key**
 ```bash
-# 使用 OpenAI
-export OPENAI_API_KEY=sk-xxx
+# OpenAI
+export OPENAI_API_KEY=sk-your-key
 
-# 或使用 Anthropic
-export ANTHROPIC_API_KEY=sk-ant-xxx
-
-# 或使用 Google Gemini
-export GOOGLE_API_KEY=xxx
-
-# 或使用 OpenRouter
-export OPENROUTER_API_KEY=xxx
+# 或 Ollama（本地）
+export OPENAI_BASE_URL=http://localhost:11434
 ```
 
-## 基础示例
-
-### ✅ 01_basic_chat - 基础聊天
-
-最简单的对话示例，适合快速上手。
-
+2. **运行示例**
 ```bash
-cargo run --example 01_basic_chat -p agentkit
+# 运行 Hello World
+cargo run --example 01_hello_world
+
+# 运行基础聊天
+cargo run --example 02_basic_chat
+
+# 运行带工具聊天
+cargo run --example 03_chat_with_tools
 ```
 
-**功能**：
-- ✅ 自动检测可用的 Provider
-- ✅ 交互式对话
-- ✅ 支持多轮对话
-
-### ✅ 02_provider - Provider 使用
-
-展示如何使用不同的 LLM Provider。
+### 运行带 Feature 的示例
 
 ```bash
-cargo run --example 02_provider -p agentkit
+# MCP 示例
+cargo run --example 12_mcp --features mcp
+
+# A2A 示例
+cargo run --example 13_a2a --features a2a
+
+# Skills 示例
+cargo run --example 14_skills --features skills
 ```
 
-**支持的 Provider**：
-- OpenAI
-- Anthropic
-- Google Gemini
-- OpenRouter
+---
 
-### ✅ 03_tools - Tool 使用
+## 📖 示例详解
 
-展示如何使用各种内置工具。
+### 01 Hello World
 
+**文件**: `hello_world.rs`
+
+**作用**: 最简化的 AgentKit 示例，展示如何快速创建一个能对话的 Agent。
+
+**运行**:
 ```bash
-cargo run --example 03_tools -p agentkit
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 01_hello_world
 ```
 
-**工具**：
-- EchoTool - 回显工具
-- FileReadTool - 文件读取
-- GitTool - Git 操作
-- ShellTool - Shell 命令
+**学习要点**:
+- 如何创建 Provider
+- 如何创建 SimpleAgent
+- 如何运行一次对话
 
-### ✅ 04_memory - Memory 使用
+---
 
-展示如何使用记忆系统存储和检索信息。
+### 02 Basic Chat
 
+**文件**: `basic_chat.rs`
+
+**作用**: 基础聊天示例，展示交互式多轮对话。
+
+**运行**:
 ```bash
-cargo run --example 04_memory -p agentkit
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 02_basic_chat
 ```
 
-**功能**：
-- InMemoryMemory - 进程内记忆
-- FileMemory - 文件记忆
-- 记忆查询
+**学习要点**:
+- 如何创建 ChatAgent
+- 如何管理对话历史
+- 交互式输入输出
 
-### ✅ 05_conversation - Conversation 使用
+---
 
-展示如何管理对话历史。
+### 03 Chat with Tools
 
+**文件**: `chat_with_tools.rs`
+
+**作用**: 展示如何让 Agent 使用工具完成具体任务。
+
+**运行**:
 ```bash
-cargo run --example 05_conversation -p agentkit
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 03_chat_with_tools
 ```
 
-**功能**：
-- 多轮对话管理
-- 消息窗口限制
+**学习要点**:
+- 如何注册工具
+- ToolAgent 的自动工具调用
+- 工具执行循环
+
+---
+
+### 04 Extractor
+
+**文件**: `extractor.rs`
+
+**作用**: 展示如何从非结构化文本中提取结构化数据。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 04_extractor
+```
+
+**学习要点**:
+- 定义目标结构体
+- 创建 Extractor
+- 提取结构化数据
+- Usage 追踪
+
+---
+
+### 05 Conversation
+
+**文件**: `conversation.rs`
+
+**作用**: 展示如何管理多轮对话历史。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 05_conversation
+```
+
+**学习要点**:
+- 对话历史管理
 - 系统提示词
+- 最大消息数限制
 
-### ✅ 06_cost - Cost 使用
+---
 
-展示如何使用 Token 计数和成本管理。
+### 06 Memory
 
+**文件**: `memory.rs`
+
+**作用**: 展示如何使用记忆系统存储和检索信息。
+
+**运行**:
 ```bash
-cargo run --example 06_cost -p agentkit
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 06_memory
 ```
 
-**功能**：
-- TokenCounter - Token 计数
-- 成本追踪
+**学习要点**:
+- 添加记忆
+- 语义检索
+- 记忆相似度搜索
 
-## Provider 扩展示例
+---
 
-### ✅ 07_router_provider - Router Provider
+### 07 RAG
 
-展示如何在多个 Provider 之间路由请求。
+**文件**: `rag.rs`
 
+**作用**: 展示 RAG（检索增强生成）的完整流程。
+
+**运行**:
 ```bash
-export OPENAI_API_KEY=sk-xxx
-export ANTHROPIC_API_KEY=sk-ant-xxx
-cargo run --example 07_router_provider -p agentkit
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 07_rag
 ```
 
-**功能**：
-- ✅ 自动路由（默认策略）
-- ✅ 指定 Provider
-- ✅ 多 Provider 注册
+**学习要点**:
+- RAG 完整流程
+- 向量数据库使用
+- 文档分块策略
 
-### ✅ 08_resilient_provider - Resilient Provider
+---
 
-展示如何使用带重试机制的 Provider。
+### 08 Middleware
 
+**文件**: `middleware.rs`
+
+**作用**: 展示如何使用中间件系统增强 Agent 功能。
+
+**运行**:
 ```bash
-export OPENAI_API_KEY=sk-xxx
-cargo run --example 08_resilient_provider -p agentkit
+cargo run --example 08_middleware
 ```
 
-**功能**：
-- ✅ 自动重试
-- ✅ 指数退避延迟
-- ✅ 可配置的重试策略
+**学习要点**:
+- 创建自定义中间件
+- 中间件链式调用
+- 请求/响应拦截
 
-### ✅ 09_mcp - MCP 使用
+---
 
-展示如何连接 MCP 服务器并使用其提供的工具。
+### 09 Prompt
 
+**文件**: `prompt.rs`
+
+**作用**: 展示如何使用 Prompt 模板系统。
+
+**运行**:
 ```bash
-# 启用 mcp feature
-cargo run --example 09_mcp -p agentkit --features mcp
+cargo run --example 09_prompt
 ```
 
-**功能**：
-- ✅ 连接 MCP 服务器
-- ✅ 获取 MCP 工具列表
-- ✅ 将 MCP 工具注册到 ToolRegistry
-- ✅ 与 Ollama Provider 结合使用
+**学习要点**:
+- 创建模板
+- 变量替换
+- 模板组合
 
-**MCP 服务器配置**：
-- URL: `http://127.0.0.1:8000/mcp`
-- Token: Bearer Token 认证
+---
 
-## 综合示例
+### 10 Custom Provider
 
-### ✅ 10_research_assistant - 智能研究助手
+**文件**: `custom_provider.rs`
 
-结合 Provider、Tools、Memory、Conversation 等多个模块，创建一个完整的智能研究助手。
+**作用**: 展示如何实现自定义 LLM Provider。
 
+**运行**:
 ```bash
-export OPENAI_API_KEY=sk-xxx
-cargo run --example 10_research_assistant -p agentkit
+cargo run --example 10_custom_provider
 ```
 
-**集成功能**：
-- ✅ Provider（OpenAI）
-- ✅ Tools（Echo、FileRead、Git、Shell）
-- ✅ Memory（信息存储）
-- ✅ Conversation（对话管理）
+**学习要点**:
+- Provider 接口设计
+- 流式聊天实现
+- 错误处理
 
-## 示例分类
+---
 
-| 分类 | 示例 | 说明 |
-|------|------|------|
-| **Provider** | 02_provider, 07_router_provider, 08_resilient_provider | LLM Provider 使用 |
-| **Tools** | 03_tools, 09_mcp | 工具使用 |
-| **Memory** | 04_memory | 记忆系统 |
-| **Conversation** | 05_conversation | 对话管理 |
-| **Cost** | 06_cost | 成本管理 |
-| **综合** | 01_basic_chat, 10_research_assistant | 完整应用 |
+### 11 Resilient Provider
 
-## 故障排除
+**文件**: `resilient_provider.rs`
 
-### 未找到 API Key
+**作用**: 展示如何使用带重试机制的 Provider。
 
-```
-❌ 未找到 API Key
-
-请设置环境变量：
-  export OPENAI_API_KEY=sk-xxx
-```
-
-**解决方案**：设置相应的环境变量。
-
-### 编译错误
-
-确保启用了必要的 features：
-
+**运行**:
 ```bash
-# Runtime 支持
-cargo run --example 01_basic_chat -p agentkit --features runtime
-
-# MCP 支持
-cargo run --example 09_mcp -p agentkit --features mcp
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 11_resilient_provider
 ```
 
-## 更多资源
+**学习要点**:
+- 重试策略配置
+- 错误恢复
+- 延迟计算
 
-- [用户指南](../../docs/user_guide.md)
-- [快速入门](../../docs/quick_start.md)
-- [API 文档](https://docs.rs/agentkit)
-- [GitHub](https://github.com/agentkit-rs/agentkit)
+---
+
+### 12 MCP
+
+**文件**: `mcp.rs`
+
+**作用**: 展示如何集成 MCP（Model Context Protocol）服务器。
+
+**运行**:
+```bash
+cargo run --example 12_mcp --features mcp
+```
+
+**学习要点**:
+- MCP 协议理解
+- 远程工具调用
+- 错误处理
+
+---
+
+### 13 A2A
+
+**文件**: `a2a.rs`
+
+**作用**: 展示 A2A（Agent-to-Agent）协议集成。
+
+**运行**:
+```bash
+cargo run --example 13_a2a --features a2a
+```
+
+**学习要点**:
+- A2A 协议
+- 多 Agent 协作
+- 任务分发
+
+---
+
+### 14 Skills
+
+**文件**: `skills.rs`
+
+**作用**: 展示如何使用技能系统。
+
+**运行**:
+```bash
+cargo run --example 14_skills --features skills
+```
+
+**学习要点**:
+- 技能配置
+- Rhai 脚本编写
+- 技能注册
+
+---
+
+### 15 ReAct Agent
+
+**文件**: `react_agent.rs`
+
+**作用**: 展示 ReAct（Reason + Act）模式的 Agent。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 15_react_agent
+```
+
+**学习要点**:
+- ReAct 模式理解
+- 思考 - 行动循环
+- 多步推理
+
+---
+
+### 16 Reflect Agent
+
+**文件**: `reflect_agent.rs`
+
+**作用**: 展示反思迭代模式的 Agent。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 16_reflect_agent
+```
+
+**学习要点**:
+- 反思迭代模式
+- 自我批评
+- 持续改进
+
+---
+
+### 17 Supervisor Agent
+
+**文件**: `supervisor_agent.rs`
+
+**作用**: 展示主管模式的 Agent，协调多个专家 Agent。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 17_supervisor_agent
+```
+
+**学习要点**:
+- 多 Agent 协作
+- 任务分配
+- 结果聚合
+
+---
+
+### 18 Research Assistant
+
+**文件**: `research_assistant.rs`
+
+**作用**: 综合示例，创建一个智能研究助手。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 18_research_assistant
+```
+
+**学习要点**:
+- 模块集成
+- 完整应用架构
+- 最佳实践
+
+---
+
+### 19 Code Assistant
+
+**文件**: `code_assistant.rs`
+
+**作用**: 综合示例，创建一个代码助手。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 19_code_assistant
+```
+
+**学习要点**:
+- 专业领域 Agent
+- 代码理解
+- 质量保证
+
+---
+
+## 📚 学习路径
+
+### 新手路线
+1. `01_hello_world` - 了解基本概念
+2. `02_basic_chat` - 学习对话管理
+3. `03_chat_with_tools` - 学习工具使用
+4. `04_extractor` - 学习结构化数据提取
+5. `18_research_assistant` - 综合应用
+
+### 开发者路线
+1. `10_custom_provider` - 自定义 Provider
+2. `08_middleware` - 中间件系统
+3. `07_rag` - RAG 系统
+4. `15_react_agent` - 自定义 Agent
+5. `17_supervisor_agent` - 多 Agent 系统
+
+### 专家路线
+1. `12_mcp` - MCP 协议
+2. `13_a2a` - A2A 协议
+3. `14_skills` - 技能系统
+4. `16_reflect_agent` - 高级 Agent 模式
+5. 实现自己的 Agent 类型
+
+---
+
+## 🔧 故障排除
+
+### 常见问题
+
+#### 1. 未找到 API Key
+```
+错误：未设置 API 配置
+```
+**解决方案**: 设置相应的环境变量
+
+#### 2. 编译错误
+```bash
+# 清理并重新构建
+cargo clean
+cargo build --workspace
+
+# 更新依赖
+cargo update
+```
+
+#### 3. Feature 未启用
+```
+error: target `12_mcp` in package `agentkit` requires the features: `mcp`
+```
+**解决方案**: 添加 `--features mcp` 参数
+
+---
+
+## 📝 贡献示例
+
+欢迎贡献新的示例！请遵循以下规范：
+
+### 示例结构
+
+```rust
+//! 示例名称 - 简短描述
+//!
+//! ## 运行方法
+//! ```bash
+//! export OPENAI_API_KEY=sk-your-key
+//! cargo run --example XX_example_name
+//! ```
+
+use agentkit::agent::ToolAgent;
+use agentkit::provider::OpenAiProvider;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    // 你的代码
+    Ok(())
+}
+```
+
+### 提交要求
+
+1. 代码有详细注释
+2. 包含运行说明
+3. 更新本 README.md
+4. 通过 `cargo clippy` 检查
+
+---
+
+*最后更新：2026 年 3 月 31 日*

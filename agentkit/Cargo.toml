@@ -30,6 +30,7 @@ ra2a = { version = "0.8.1", default-features = false, features = ["client", "ser
 async-trait = "0.1"
 reqwest = { version = "0.13", features = ["json", "stream","query", "gzip", "brotli", "deflate", "zstd"] }
 futures-util = "0.3"
+futures-executor = "0.3"
 async-stream = "0.3"
 bytes = "1"
 serde = { version = "1", features = ["derive"] }
@@ -46,6 +47,7 @@ thiserror = "2"
 chrono = "0.4"
 scraper = "0.22"
 backon = "1.5"
+schemars = "0.8"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
@@ -61,58 +63,88 @@ harness = false
 name = "vector_store_search"
 harness = false
 
-# 示例配置
+# ===== 示例配置 =====
+
+# 入门系列（01-05）
 [[example]]
-name = "chat_basic"
-path = "examples/chat_basic.rs"
-required-features = ["runtime"]
+name = "01_hello_world"
+path = "examples/01_hello_world.rs"
 
 [[example]]
-name = "chat_with_tools"
-path = "examples/chat_with_tools.rs"
-
-
-[[example]]
-name = "provider"
-path = "examples/provider.rs"
+name = "02_basic_chat"
+path = "examples/02_basic_chat.rs"
 
 [[example]]
-name = "tools"
-path = "examples/tools.rs"
+name = "03_chat_with_tools"
+path = "examples/03_chat_with_tools.rs"
 
 [[example]]
-name = "memory"
-path = "examples/memory.rs"
-required-features = ["runtime"]
+name = "04_extractor"
+path = "examples/04_extractor.rs"
 
 [[example]]
-name = "conversation"
-path = "examples/conversation.rs"
-required-features = ["runtime"]
+name = "05_conversation"
+path = "examples/05_conversation.rs"
+
+# 核心模块（06-10）
+[[example]]
+name = "06_memory"
+path = "examples/06_memory.rs"
 
 [[example]]
-name = "agent_conversation"
-path = "examples/agent_conversation.rs"
-required-features = ["runtime"]
+name = "07_rag"
+path = "examples/07_rag.rs"
 
 [[example]]
-name = "resilient_provider"
-path = "examples/resilient_provider.rs"
+name = "08_middleware"
+path = "examples/08_middleware.rs"
 
 [[example]]
-name = "middleware"
-path = "examples/middleware.rs"
-required-features = ["runtime"]
+name = "09_prompt"
+path = "examples/09_prompt.rs"
 
 [[example]]
-name = "mcp"
-path = "examples/mcp.rs"
+name = "10_custom_provider"
+path = "examples/10_custom_provider.rs"
+
+# 高级特性（11-14）
+[[example]]
+name = "11_resilient_provider"
+path = "examples/11_resilient_provider.rs"
+
+[[example]]
+name = "12_mcp"
+path = "examples/12_mcp.rs"
 required-features = ["mcp"]
 
 [[example]]
-name = "hello_world"
-path = "examples/hello_world.rs"
+name = "13_a2a"
+path = "examples/13_a2a.rs"
+required-features = ["a2a"]
 
 [[example]]
-name = "custom_provider"
-path = "examples/custom_provider.rs"
+name = "14_skills"
+path = "examples/14_skills.rs"
+required-features = ["skills"]
+
+# Agent 类型（15-17）
+[[example]]
+name = "15_react_agent"
+path = "examples/15_react_agent.rs"
+
+[[example]]
+name = "16_reflect_agent"
+path = "examples/16_reflect_agent.rs"
+
+[[example]]
+name = "17_supervisor_agent"
+path = "examples/17_supervisor_agent.rs"
+
+# 综合应用（18-19）
+[[example]]
+name = "18_research_assistant"
+path = "examples/18_research_assistant.rs"
+
+[[example]]
+name = "19_code_assistant"
+path = "examples/19_code_assistant.rs"
