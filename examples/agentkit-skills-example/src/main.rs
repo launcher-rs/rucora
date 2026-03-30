@@ -186,25 +186,6 @@ async fn run_compact_mode(skills_dir: &std::path::Path, skills: &[agentkit::skil
     
     let system_prompt = format!(
         "你是智能助手，可以使用工具帮助用户解决问题。\n\n\
-         可用技能：\n\
-         - calculator: 执行数学表达式计算\n\
-         - datetime: 获取当前日期和时间信息\n\
-         - weather-query: 查询指定城市的当前天气情况\n\
-         - read_skill: 读取技能的详细说明\n\n\
-         使用流程：\n\
-         1. 分析用户需求，确定需要哪个技能\n\
-         2. 如果不清楚技能的使用方法，先调用 read_skill 工具读取该技能的详细说明\n\
-         3. 根据技能说明，调用相应的技能工具\n\
-         4. 将结果返回给用户\n\n\
-         示例：\n\
-         用户：北京天气怎么样？\n\
-         助手思考：用户想查询天气，需要使用 weather-query 技能。让我先读取该技能的说明。\n\
-         助手：[调用 read_skill 工具，参数：skill_name=\"weather-query\"]\n\
-         工具返回：weather-query 需要 city 参数...\n\
-         助手：[调用 weather-query 工具，参数：city=\"Beijing\"]\n\
-         工具返回：北京的天气：Sunny +25°C\n\
-         助手：北京现在晴朗，气温 25 摄氏度。\n\n\
-         请记住：先读取技能说明，再调用技能工具！\n\n\
          {}",
         skills_prompt
     );
@@ -220,7 +201,7 @@ async fn run_compact_mode(skills_dir: &std::path::Path, skills: &[agentkit::skil
     info!("3. 测试对话 (Compact 模式)...");
     
     let queries = vec![
-        "你好",
+        "现在几点了",
         "北京天气怎么样？",
     ];
     

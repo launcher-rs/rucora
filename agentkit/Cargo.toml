@@ -1,4 +1,4 @@
-[package]
+﻿[package]
 name = "agentkit"
 version.workspace = true
 edition = "2024"
@@ -14,9 +14,7 @@ mcp = ["dep:rmcp"]
 # A2A 协议支持
 a2a = ["dep:ra2a"]
 # Skills 技能系统
-skills = ["dep:rhai", "dep:serde_yaml"]
-# Rhai 脚本技能支持
-rhai-skills = ["skills"]
+skills = ["dep:serde_yaml"]
 # MCP 完整功能
 mcp-full = ["mcp"]
 # A2A 完整功能
@@ -25,9 +23,9 @@ a2a-full = ["a2a", "ra2a/full"]
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
 # 直接依赖外部库，不再通过独立 crate
-rmcp = { version = "1.2.0", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], optional = true }
+rmcp = { version = "1.2.0", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], 
+optional = true }
 ra2a = { version = "0.8.1", default-features = false, features = ["client", "server"], optional = true }
-rhai = { version = "1", features = ["serde", "sync"], optional = true }
 
 # 核心依赖
 async-trait = "0.1"
@@ -49,7 +47,6 @@ thiserror = "2"
 chrono = "0.4"
 scraper = "0.22"
 backon = "1.5"
-# tyme4rs = "1.4"  # API 有重大变化，暂时使用 chrono 实现
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt"] }
@@ -90,8 +87,6 @@ path = "examples/conversation.rs"
 [[example]]
 name = "agent_conversation"
 path = "examples/agent_conversation.rs"
-
-
 
 [[example]]
 name = "resilient_provider"
