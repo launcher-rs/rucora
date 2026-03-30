@@ -1,172 +1,137 @@
-# AgentKit 文档索引
+# AgentKit 文档中心
 
-欢迎使用 AgentKit 文档！本索引帮助您快速找到所需信息。
+> AgentKit 是一个用 Rust 编写的高性能、类型安全的 LLM 应用开发框架
 
-## 📖 文档导航
+## 📚 文档导航
 
 ### 新手入门
 
-| 文档 | 说明 | 预计时间 |
-|------|------|---------|
-| [快速入门](./quick_start.md) | 10 分钟创建第一个 Agent | 10 分钟 |
-| [用户指南](./user_guide.md) | 完整使用教程 | 1 小时 |
-| [示例集合](./cookbook.md) | 实用代码示例 | 随时查阅 |
-
-### 深入学习
-
 | 文档 | 说明 | 适合人群 |
-|------|------|---------|
-| [API 参考](https://docs.rs/agentkit) | 完整 API 文档 | 开发者 |
-| [设计文档](./design.md) | 架构设计理念 | 高级用户 |
-| [快速参考](./QUICK_REFERENCE.md) | 常用代码片段 | 所有用户 |
-| [最佳实践](./user_guide.md#最佳实践) | 使用建议和模式 | 所有用户 |
+|------|------|----------|
+| [快速开始](quick_start.md) | 5 分钟上手 AgentKit | 新用户 |
+| [用户指南](user_guide.md) | 完整的使用指南 | 所有用户 |
+| [示例集合](cookbook.md) | 实际使用示例 | 实践者 |
+| [常见问题](faq.md) | 常见问题解答 | 所有人 |
 
-### 项目报告
-
-| 文档 | 说明 |
-|------|------|
-| [Crate 合并报告](./MERGE_COMPLETE.md) | 项目结构合并说明 |
-
-### 问题解答
+### 核心概念
 
 | 文档 | 说明 |
 |------|------|
-| [常见问题](./faq.md) | 常见问题解答 |
-| [故障排除](./faq.md#故障排除) | 问题诊断和解决 |
-| [GitHub Issues](https://github.com/agentkit-rs/agentkit/issues) | 报告和追踪问题 |
+| [Agent 与 Runtime](agent_runtime_relationship.md) | 理解核心架构 |
+| [设计文档](design.md) | 系统设计理念 |
+| [快速参考](QUICK_REFERENCE.md) | API 快速查询 |
 
----
+### 技能系统
 
-## 📚 完整文档列表
+| 文档 | 说明 |
+|------|------|
+| [Skill 配置规范](skill_yaml_spec.md) | 配置文件完整说明 |
+| [Skill 配置示例](skill_yaml_examples.md) | 实际使用示例 |
 
-### 入门文档
+### 开发指南
 
-1. **[快速入门](./quick_start.md)**
-   - 5 分钟快速开始
-   - 10 分钟进阶示例
-   - 常见问题解答
+| 文档 | 说明 |
+|------|------|
+| [对话设计](conversation_guide.md) | 对话系统指南 |
+| [Provider 设计](provider_default_model.md) | LLM Provider 实现 |
 
-2. **[用户指南](./user_guide.md)**
-   - 简介和核心概念
-   - 快速开始教程
-   - 核心功能详解
-   - 进阶使用
-   - 最佳实践
+## 🚀 快速开始
 
-3. **[示例集合](./cookbook.md)**
-   - 基础示例
-   - 对话管理
-   - 工具使用
-   - 成本管理
-   - 高级用法
+### 安装
 
-### 参考文档
+```bash
+cargo add agentkit
+```
 
-4. **[常见问题](./faq.md)**
-   - 安装和配置
-   - 使用问题
-   - 性能和成本
-   - 故障排除
-   - 最佳实践
+### 基本使用
 
-5. **[设计文档](./design.md)**
-   - 设计目标
-   - 模块职责
-   - 关键数据流
+```rust
+use agentkit::provider::OpenAiProvider;
+use agentkit::agent::DefaultAgent;
 
-6. **[配置指南](./cookbook_config.md)**
-   - 配置文件格式
-   - Profile 切换
-   - 环境变量覆盖
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let provider = OpenAiProvider::from_env()?;
+    
+    let agent = DefaultAgent::builder()
+        .provider(provider)
+        .model("gpt-4o-mini")
+        .system_prompt("你是有用的助手")
+        .build();
+    
+    let output = agent.run("你好").await?;
+    println!("{}", output.text().unwrap_or("无回复"));
+    
+    Ok(())
+}
+```
 
-### 技术文档
+### 使用 Skills
 
-7. **[功能完整性报告](./FINAL_REPORT_100.md)**
-   - 功能清单
-   - 测试结果
-   - 性能指标
+```rust
+use agentkit::skills::{SkillLoader, skills_to_tools, SkillExecutor};
 
-8. **[分析报告](./analysis_report.md)**
-   - 功能完整性分析
-   - 缺失功能识别
-   - 设计改进建议
+// 加载 Skills
+let mut loader = SkillLoader::new("skills/");
+let skills = loader.load_from_dir().await?;
 
----
+// 转换为 Tools
+let executor = Arc::new(SkillExecutor::new());
+let tools = skills_to_tools(&skills, executor, skills_dir);
 
-## 🎯 按主题查找
+// 注册到 Agent
+let agent = DefaultAgent::builder()
+    .provider(provider)
+    .model("gpt-4o-mini")
+    .system_prompt("你是有用的助手")
+    .tools(tools)
+    .build();
+```
 
-### 安装和配置
+## 📖 文档说明
 
-- [快速入门 - 安装](./quick_start.md#步骤-1创建项目)
-- [常见问题 - 安装](./faq.md#安装和配置)
-- [配置指南](./cookbook_config.md)
+### 新手入门路径
 
-### 核心功能
+1. **阅读 [快速开始](quick_start.md)** - 5 分钟了解基本用法
+2. **查看 [用户指南](user_guide.md)** - 深入学习各项功能
+3. **参考 [示例集合](cookbook.md)** - 实际应用场景
+4. **查阅 [常见问题](faq.md)** - 解决问题
 
-- [对话管理](./user_guide.md#核心功能 -1-对话管理)
-- [Prompt 模板](./user_guide.md#核心功能 -2-prompt-模板)
-- [Token 计数](./user_guide.md#核心功能 -3-token-计数和成本管理)
-- [中间件系统](./user_guide.md#核心功能 -4-中间件系统)
-- [错误处理](./user_guide.md#核心功能 -5-错误处理)
+### 开发者路径
 
-### 工具使用
+1. **阅读 [设计文档](design.md)** - 理解系统架构
+2. **查看 [Agent 与 Runtime](agent_runtime_relationship.md)** - 核心概念
+3. **参考 [快速参考](QUICK_REFERENCE.md)** - API 查询
+4. **学习 [Skill 配置规范](skill_yaml_spec.md)** - 技能开发
 
-- [内置工具](./user_guide.md#2-tool 工具)
-- [自定义工具](./user_guide.md#1-自定义工具)
-- [示例集合 - 工具使用](./cookbook.md#工具使用)
+## 🔧 资源配置
 
-### 成本管理
+### 环境变量
 
-- [Token 计数](./user_guide.md#3-token-计数和成本管理)
-- [成本追踪](./cookbook.md#成本管理)
-- [预算控制](./cookbook.md#12-预算控制)
+| 变量 | 说明 | 示例 |
+|------|------|------|
+| `OPENAI_API_KEY` | OpenAI API 密钥 | `sk-...` |
+| `ANTHROPIC_API_KEY` | Anthropic API 密钥 | `sk-ant-...` |
+| `GOOGLE_API_KEY` | Google Gemini API 密钥 | `...` |
+| `OPENAI_BASE_URL` | 自定义 API 地址 | `http://localhost:11434` |
 
-### 故障排除
+### 支持的 Provider
 
-- [常见问题 - 故障排除](./faq.md#故障排除)
-- [错误处理指南](./user_guide.md#5-错误处理)
+| Provider | 环境变量 | 文档 |
+|----------|----------|------|
+| OpenAI | `OPENAI_API_KEY` | [用户指南](user_guide.md) |
+| Anthropic | `ANTHROPIC_API_KEY` | [用户指南](user_guide.md) |
+| Google Gemini | `GOOGLE_API_KEY` | [用户指南](user_guide.md) |
+| Ollama | `OPENAI_BASE_URL` | [快速开始](quick_start.md) |
 
----
+## 📝 更新日志
 
-## 🆘 获取帮助
+查看 [CHANGELOG.md](../CHANGELOG.md) 了解最新版本和变更。
 
-### 文档没找到答案？
+## 🤝 贡献
 
-1. 查看 [常见问题](./faq.md)
-2. 搜索 [GitHub Issues](https://github.com/agentkit-rs/agentkit/issues)
-3. 提交新的 [Issue](https://github.com/agentkit-rs/agentkit/issues/new)
+欢迎贡献代码、文档或建议！
 
-### 学习路径建议
+## 📄 许可证
 
-**新手**：
-1. 阅读 [快速入门](./quick_start.md)
-2. 浏览 [示例集合](./cookbook.md)
-3. 参考 [常见问题](./faq.md)
-
-**进阶用户**：
-1. 阅读 [用户指南](./user_guide.md)
-2. 学习 [最佳实践](./user_guide.md#最佳实践)
-3. 查看 [设计文档](./design.md)
-
-**贡献者**：
-1. 阅读 [设计文档](./design.md)
-2. 查看 [功能完整性报告](./FINAL_REPORT_100.md)
-3. 参考 [分析报告](./analysis_report.md)
-
----
-
-## 📊 文档状态
-
-| 文档 | 状态 | 最后更新 |
-|------|------|---------|
-| 快速入门 | ✅ 完成 | 2024 |
-| 用户指南 | ✅ 完成 | 2024 |
-| 示例集合 | ✅ 完成 | 2024 |
-| 常见问题 | ✅ 完成 | 2024 |
-| API 参考 | ✅ 完成 | 持续更新 |
-| 设计文档 | ✅ 完成 | 2024 |
-| 配置指南 | ✅ 完成 | 2024 |
-
----
-
-**祝您使用愉快！** 🎉
+AgentKit 使用 MIT 许可证。

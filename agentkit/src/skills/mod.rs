@@ -13,7 +13,7 @@ pub mod integrator;
 pub mod tool_adapter;
 pub mod cache;
 
-pub use config::{SkillConfig, SkillMeta, SkillToolConfig};
+pub use config::{SkillConfig, SkillMeta};
 pub use loader::{SkillLoader, SkillExecutor, SkillImplementation};
 pub use integrator::SkillsAutoIntegrator;
 pub use tool_adapter::{SkillTool, skills_to_tools, skills_to_prompt_with_mode, read_skill, ReadSkillTool};
