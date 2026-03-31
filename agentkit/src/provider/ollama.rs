@@ -11,7 +11,7 @@ use agentkit_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat, Role, Usage},
     },
 };
 use async_trait::async_trait;
@@ -250,6 +250,36 @@ impl LlmProvider for OllamaProvider {
             "provider.chat.parsed"
         );
 
+        // 解析 usage 字段（Ollama 某些版本支持）
+        let usage = data.get("usage").map(|u| Usage {
+            prompt_tokens: u
+                .get("prompt_tokens")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32)
+                .unwrap_or(0),
+            completion_tokens: u
+                .get("completion_tokens")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32)
+                .unwrap_or(0),
+            total_tokens: u
+                .get("total_tokens")
+                .and_then(|v| v.as_u64())
+                .map(|v| v as u32)
+                .unwrap_or(0),
+        });
+
+        // 解析 finish_reason 字段
+        let finish_reason = data
+            .get("done_reason")
+            .and_then(|v| v.as_str())
+            .map(|fr| match fr {
+                "stop" => FinishReason::Stop,
+                "length" => FinishReason::Length,
+                "tool_calls" => FinishReason::ToolCall,
+                _ => FinishReason::Other,
+            });
+
         Ok(ChatResponse {
             message: ChatMessage {
                 role: Role::Assistant,
@@ -257,8 +287,8 @@ impl LlmProvider for OllamaProvider {
                 name: None,
             },
             tool_calls,
-            usage: None,
-            finish_reason: None,
+            usage,
+            finish_reason,
         })
     }
 

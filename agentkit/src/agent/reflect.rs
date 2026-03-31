@@ -269,6 +269,7 @@ pub struct ReflectAgentBuilder<P> {
     max_iterations: usize,
     quality_threshold: f32,
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    middleware_chain: crate::middleware::MiddlewareChain,
 }
 
 impl<P> ReflectAgentBuilder<P> {
@@ -282,6 +283,7 @@ impl<P> ReflectAgentBuilder<P> {
             max_iterations: 3,
             quality_threshold: 0.9,
             conversation_manager: None,
+            middleware_chain: crate::middleware::MiddlewareChain::new(),
         }
     }
 }
@@ -354,6 +356,18 @@ where
         self
     }
 
+    /// 设置中间件链
+    pub fn with_middleware_chain(mut self, middleware_chain: crate::middleware::MiddlewareChain) -> Self {
+        self.middleware_chain = middleware_chain;
+        self
+    }
+
+    /// 添加中间件
+    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(mut self, middleware: M) -> Self {
+        self.middleware_chain = self.middleware_chain.with(middleware);
+        self
+    }
+
     /// 构建 Agent
     ///
     /// # Panics
@@ -369,7 +383,8 @@ where
             DefaultExecution::new(provider_arc.clone(), model.clone(), self.tools.clone())
                 .with_system_prompt_opt(self.system_prompt.clone())
                 .with_max_steps(self.max_iterations * 2) // 每次迭代需要 2 步
-                .with_conversation_manager(self.conversation_manager.clone());
+                .with_conversation_manager(self.conversation_manager.clone())
+                .with_middleware_chain(self.middleware_chain);
 
         ReflectAgent {
             provider: provider_arc,

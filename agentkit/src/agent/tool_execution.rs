@@ -13,6 +13,7 @@ use tracing::{debug, info};
 
 use crate::agent::policy::{ToolCallContext, ToolPolicy};
 use crate::agent::tool_registry::ToolRegistry;
+use crate::middleware::MiddlewareChain;
 
 // ========== 工具函数 ==========
 
@@ -56,7 +57,33 @@ pub(crate) async fn execute_tool_call_with_policy_and_observer(
     observer: &Arc<dyn ChannelObserver>,
     call: &ToolCall,
 ) -> Result<ToolResult, AgentError> {
-    let input_str = call.input.to_string();
+    // 调用带中间件的版本（无中间件）
+    execute_tool_call_with_middleware(
+        tools,
+        policy,
+        observer,
+        call,
+        &MiddlewareChain::new(),
+    )
+    .await
+}
+
+pub(crate) async fn execute_tool_call_with_middleware(
+    tools: &ToolRegistry,
+    policy: &Arc<dyn ToolPolicy>,
+    observer: &Arc<dyn ChannelObserver>,
+    call: &ToolCall,
+    middleware_chain: &MiddlewareChain,
+) -> Result<ToolResult, AgentError> {
+    // 创建可变副本用于中间件处理
+    let mut call_mut = call.clone();
+    
+    // 执行工具调用前中间件钩子
+    middleware_chain.process_tool_call_before(&mut call_mut).await.map_err(|e| {
+        AgentError::Message(format!("工具调用前中间件处理失败：{}", e))
+    })?;
+    
+    let input_str = call_mut.input.to_string();
     let input_len = input_str.len();
     let input_preview = if input_len <= 800 {
         input_str.clone()
@@ -68,28 +95,28 @@ pub(crate) async fn execute_tool_call_with_policy_and_observer(
         agentkit_core::channel::types::DebugEvent {
             message: "tool_call.start".to_string(),
             data: Some(json!({
-                "tool_name": call.name.clone(),
-                "tool_call_id": call.id.clone(),
+                "tool_name": call_mut.name.clone(),
+                "tool_call_id": call_mut.id.clone(),
                 "input_len": input_len
             })),
         },
     ));
 
     info!(
-        tool.name = %call.name,
-        tool.call_id = %call.id,
+        tool.name = %call_mut.name,
+        tool.call_id = %call_mut.id,
         tool.input_len = input_len,
         "tool_call.execute.start"
     );
     debug!(
-        tool.name = %call.name,
-        tool.call_id = %call.id,
+        tool.name = %call_mut.name,
+        tool.call_id = %call_mut.id,
         tool.input = %input_preview,
         "tool_call.execute.input"
     );
 
     let ctx = ToolCallContext {
-        tool_call: call.clone(),
+        tool_call: call_mut.clone(),
     };
 
     if let Err(e) = policy.check(&ctx).await {
@@ -217,7 +244,12 @@ pub(crate) async fn execute_tool_call_with_policy_and_observer(
         if s.len() <= MAX {
             s
         } else {
-            format!("{}...<truncated:{}>", &s[..MAX], s.len())
+            // 在字符边界处截断，避免 UTF-8 错误
+            let truncation_point = s.char_indices()
+                .nth(MAX.min(s.chars().count()))
+                .map(|(i, _)| i)
+                .unwrap_or(MAX);
+            format!("{}...<truncated:{}>", &s[..truncation_point], s.len())
         }
     };
 
@@ -251,10 +283,18 @@ pub(crate) async fn execute_tool_call_with_policy_and_observer(
         "tool_call.execute.output"
     );
 
-    Ok(ToolResult {
+    // 构建结果
+    let mut result = ToolResult {
         tool_call_id: call.id.clone(),
         output: tool_output,
-    })
+    };
+    
+    // 执行工具调用后中间件钩子
+    middleware_chain.process_tool_call_after(&mut result).await.map_err(|e| {
+        AgentError::Message(format!("工具调用后中间件处理失败：{}", e))
+    })?;
+
+    Ok(result)
 }
 
 pub(crate) fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {

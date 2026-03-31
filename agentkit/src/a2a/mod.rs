@@ -253,7 +253,7 @@ impl crate::core::tool::Tool for A2AToolAdapter {
         &self,
         input: Value,
     ) -> std::result::Result<Value, crate::core::error::ToolError> {
-        use ra2a::types::{Message, MessageSendParams, Part};
+        use ra2a::types::{Message, Part, SendMessageRequest};
 
         // 从输入中提取 message 字段
         let message_text = input.get("message").and_then(|v| v.as_str()).unwrap_or("");
@@ -265,27 +265,40 @@ impl crate::core::tool::Tool for A2AToolAdapter {
 
         // 构建消息
         let msg = Message::user(vec![Part::text(message_text.to_string())]);
+        
+        // 创建请求
+        let req = SendMessageRequest::new(msg);
 
         // 发送到 A2A server
         let result = self
             .client
-            .send_message(&MessageSendParams::new(msg))
+            .send_message(&req)
             .await
             .map_err(|e| crate::core::error::ToolError::Message(format!("A2A 调用失败：{}", e)))?;
 
-        // 解析响应
-        let response = match result {
-            ra2a::types::SendMessageResult::Task(task) => task
-                .status
-                .message
-                .as_ref()
-                .and_then(|m| m.text_content())
-                .unwrap_or_default()
-                .to_string(),
-            ra2a::types::SendMessageResult::Message(msg) => {
-                msg.text_content().unwrap_or_default().to_string()
-            }
-        };
+        // 解析响应 - 将 SendMessageResponse 转换为 JSON 然后解析
+        let result_json = serde_json::to_value(&result)
+            .map_err(|e| crate::core::error::ToolError::Message(format!("序列化失败：{}", e)))?;
+        
+        let response = result_json
+            .get("result")
+            .or_else(|| result_json.get("status"))
+            .or_else(|| result_json.get("message"))
+            .and_then(|v| v.get("message"))
+            .or_else(|| result_json.get("message"))
+            .and_then(|m| m.get("parts"))
+            .and_then(|parts| parts.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|p| p.get("text"))
+            .and_then(|t| t.as_str())
+            .unwrap_or_else(|| {
+                // 如果上述路径都失败，尝试直接获取文本
+                result_json
+                    .get("text")
+                    .and_then(|t| t.as_str())
+                    .unwrap_or("无响应")
+            })
+            .to_string();
 
         eprintln!("[A2AToolAdapter] 收到响应：{}", response);
 

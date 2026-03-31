@@ -16,6 +16,9 @@ use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
+
+
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -35,6 +38,8 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
+    let model_name = std::env::var("MODEL_NAME").expect("没有设置环境变量MODEL_NAME");
+
     // 创建 Provider
     info!("1. 创建 Provider...");
     let provider = OpenAiProvider::from_env()?;
@@ -44,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
     info!("2. 创建 SimpleAgent...");
     let agent = SimpleAgent::builder()
         .provider(provider)
-        .model("gpt-4o-mini")
+        .model(model_name)
         .system_prompt("你是友好的 AI 助手。请简洁地回答用户的问题。")
         .temperature(0.7)
         .build();

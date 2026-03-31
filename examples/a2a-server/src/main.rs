@@ -116,7 +116,11 @@ async fn main() -> anyhow::Result<()> {
     println!("╚════════════════════════════════════════════════════════╝\n");
 
     // 创建 AgentCard
-    let card = AgentCard::new("时间助手 Agent", "http://localhost:8080");
+    let card = AgentCard::new(
+        "时间助手 Agent",
+        "http://localhost:8080",
+        vec![], // AgentInterface 列表，空表示使用默认接口
+    );
 
     // 创建 ServerState
     let state = ServerState::from_executor(TimeAgent, card);

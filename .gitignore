@@ -2,3 +2,5 @@
 .idea
 temp
 .qwen
+memory_test.json
+.env

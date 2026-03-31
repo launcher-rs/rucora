@@ -162,6 +162,7 @@ pub struct ChatAgentBuilder<P> {
     temperature: f32,
     with_conversation: bool,
     max_history_messages: usize,
+    middleware_chain: crate::middleware::MiddlewareChain,
 }
 
 impl<P> ChatAgentBuilder<P> {
@@ -174,6 +175,7 @@ impl<P> ChatAgentBuilder<P> {
             temperature: 0.7,
             with_conversation: false,
             max_history_messages: 0, // 0 表示无限制
+            middleware_chain: crate::middleware::MiddlewareChain::new(),
         }
     }
 }
@@ -226,6 +228,18 @@ where
         self
     }
 
+    /// 设置中间件链
+    pub fn with_middleware_chain(mut self, middleware_chain: crate::middleware::MiddlewareChain) -> Self {
+        self.middleware_chain = middleware_chain;
+        self
+    }
+
+    /// 添加中间件
+    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(mut self, middleware: M) -> Self {
+        self.middleware_chain = self.middleware_chain.with(middleware);
+        self
+    }
+
     /// 构建 Agent
     ///
     /// # Panics
@@ -257,7 +271,8 @@ where
             crate::agent::ToolRegistry::new(),
         )
         .with_system_prompt_opt(self.system_prompt.clone())
-        .with_conversation_manager(conversation_manager.clone());
+        .with_conversation_manager(conversation_manager.clone())
+        .with_middleware_chain(self.middleware_chain);
 
         ChatAgent {
             provider: provider_arc,

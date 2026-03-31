@@ -2,58 +2,53 @@
 //!
 //! 展示：
 //! 1. Skills 加载
-//! 2. Full/Compact 两种提示词模式
-//! 3. read_skill 工具的使用
-//! 4. Agent 自动调用 Skills
+//! 2. Skills 转 Tools
+//! 3. Agent 自动调用 Skills
 
+use agentkit::agent::ToolAgent;
+use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry, ToolSource};
-use agentkit::runtime::tool_registry::ToolWrapper;
-use agentkit::skills::{SkillExecutor, SkillLoader, ReadSkillTool, SkillsPromptMode, skills_to_prompt_with_mode, skills_to_tools};
-use agentkit::tools::{CmdExecTool, HttpRequestTool, ShellTool};
-use agentkit_core::agent::AgentInput;
-use agentkit_core::runtime::Runtime;
-use agentkit_core::tool::Tool;
+use agentkit::skills::{SkillLoader, SkillExecutor};
+use agentkit::tools::ShellTool;
+use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
+
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::INFO)
         .with_target(false)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    info!("╔═══════════════════════════════════════════════════════════╗");
-    info!("║         Agent + Skills 完整示例                           ║");
-    info!("╚═══════════════════════════════════════════════════════════╝\n");
+    info!("╔════════════════════════════════════════╗");
+    info!("║   AgentKit Skills 示例                ║");
+    info!("╚════════════════════════════════════════╝\n");
 
-    // 1. 加载 Skills（使用当前目录的 skills 文件夹）
+    // 1. 加载 Skills
     info!("1. 加载 Skills...");
-    // 使用相对于可执行文件的 skills 目录
-    let skills_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
-        .join("skills");
-
-    // 如果当前目录没有 skills，尝试上级目录
-    if !skills_dir.exists() {
-        info!("   当前目录未找到 skills，尝试上级目录...");
-    }
-    
+    let skills_dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("skills");
     info!("   Skills 目录：{:?}", skills_dir);
-    
+
+    if !skills_dir.exists() {
+        info!("⚠ Skills 目录不存在");
+        return Ok(());
+    }
+
     let mut loader = SkillLoader::new(&skills_dir);
     let skills = loader.load_from_dir().await?;
-    
+
     if skills.is_empty() {
         info!("⚠ 没有加载到 Skills");
         return Ok(());
     }
-    
+
     info!("✓ 加载了 {} 个 Skills\n", skills.len());
-    
+
     // 显示加载的 Skills
     info!("已加载的 Skills:");
     for skill in &skills {
@@ -62,194 +57,103 @@ async fn main() -> anyhow::Result<()> {
     info!("");
 
     // 2. 检查 API Key
-    if std::env::var("OPENAI_API_KEY").is_err() {
-        info!("⚠ 未设置 OPENAI_API_KEY");
-        info!("   请设置：export OPENAI_API_KEY=sk-your-key");
-        info!("   或者使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
+    if std::env::var("OPENAI_API_KEY").is_err() && std::env::var("OPENAI_BASE_URL").is_err() {
+        info!("⚠ 未设置 API 配置");
+        info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
+        info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         return Ok(());
     }
 
-    // 3. 演示 Full 模式
-    info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    info!("示例 A: Full 模式（包含所有详细信息）");
-    info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-    run_full_mode(&skills_dir, &skills).await?;
+    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "qwen3.5:9b".to_string());
 
-    // 4. 演示 Compact 模式
+    // 3. 创建 Skill Executor
+    info!("2. 创建 Skill Executor...");
+    let skill_executor = Arc::new(SkillExecutor::new());
+    info!("✓ Skill Executor 创建成功\n");
+
+    // 4. 将 Skills 转换为 Tools 并注册
+    info!("3. 注册 Skills 为 Tools...");
+    let mut tool_registry = agentkit::agent::ToolRegistry::new();
+    
+    // 注册内置工具
+    tool_registry = tool_registry.register(ShellTool);
+    
+    // 注册 Skills 转换的 Tools
+    for skill in &skills {
+        let skill_path = skills_dir.join(&skill.name);
+        let skill_tool = agentkit::skills::SkillTool::new(
+            skill.clone(),
+            skill_executor.clone(),
+            skill_path,
+        );
+        tool_registry = tool_registry.register_arc(Arc::new(skill_tool));
+        info!("  ✓ 注册技能：{}", skill.name);
+    }
     info!("");
-    info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-    info!("示例 B: Compact 模式（简洁模式 + read_skill 工具）");
-    info!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
-    run_compact_mode(&skills_dir, &skills).await?;
 
-    info!("");
-    info!("╔═══════════════════════════════════════════════════════════╗");
-    info!("║              所有示例运行完成！                            ║");
-    info!("╚═══════════════════════════════════════════════════════════╝");
-
-    Ok(())
-}
-
-/// 运行 Full 模式示例
-async fn run_full_mode(skills_dir: &std::path::Path, skills: &[agentkit::skills::SkillDefinition]) -> anyhow::Result<()> {
-    info!("1. 构建 Full 模式系统提示词...");
-    let workspace_dir = std::env::current_dir().unwrap_or_default();
-    let skills_prompt = skills_to_prompt_with_mode(skills, &workspace_dir, SkillsPromptMode::Full);
-    info!("✓ 提示词长度：{} 字符\n", skills_prompt.len());
-    
-    // 显示提示词预览
-    info!("提示词预览:");
-    for line in skills_prompt.lines().take(15) {
-        info!("  {}", line);
-    }
-    info!("  ...\n");
-
-    // 创建 Runtime
-    info!("2. 创建 Runtime (Full 模式)...");
+    // 5. 创建 Agent
+    info!("4. 创建带 Skills 的 Agent...");
     let provider = OpenAiProvider::from_env()?;
-    let executor = Arc::new(SkillExecutor::new());
-    let skill_tools = skills_to_tools(skills, executor, skills_dir);
-
-    let mut registry = ToolRegistry::new();
-    registry = registry.register_wrapper(ToolWrapper::new(CmdExecTool::new()).with_source(ToolSource::BuiltIn));
-    registry = registry.register_wrapper(ToolWrapper::new(ShellTool::new()).with_source(ToolSource::BuiltIn));
-    registry = registry.register_wrapper(ToolWrapper::new(HttpRequestTool::new()).with_source(ToolSource::BuiltIn));
-    for tool in skill_tools {
-        registry = registry.register_wrapper(ToolWrapper::new_arc(tool).with_source(ToolSource::Skill));
-    }
     
-    let system_prompt = format!(
-        "你是智能助手，可以使用工具帮助用户解决问题。\n\n\
-         可用技能已预加载在系统提示词中，请直接使用这些技能。\
-         {}",
-        skills_prompt
-    );
+    let agent = ToolAgent::builder()
+        .provider(provider)
+        .model(&model_name)
+        .system_prompt(
+            "你是一个有用的助手，可以使用各种技能帮助用户解决问题。\n\
+             可用技能包括：\n\
+             - datetime: 获取当前日期和时间\n\
+             - calculator: 执行数学计算\n\
+             - weather-query: 查询天气（需要提供城市英文名，如 Beijing）\n\n\
+             请根据用户需求自动选择合适的技能，每个技能只调用一次即可。"
+        )
+        .tool_registry(tool_registry)
+        .max_steps(15)
+        .build();
     
-    let runtime = DefaultRuntime::new(Arc::new(provider), registry, "qwen3.5:9b")
-        .with_system_prompt(system_prompt)
-        .with_max_steps(10)
-        .with_max_tool_concurrency(2);
+    info!("✓ Agent 创建成功\n");
 
-    info!("✓ Runtime 创建成功\n");
+    // 6. 测试对话
+    info!("═══════════════════════════════════════");
+    info!("测试 Skills");
+    info!("═══════════════════════════════════════\n");
 
-    // 测试对话
-    info!("3. 测试对话 (Full 模式)...");
-    let query = "你好，请介绍一下自己";
-    info!("用户：{}\n", query);
-    
-    let input = AgentInput::new(query);
-    match runtime.run(input).await {
-        Ok(output) => {
-            if let Some(text) = output.text() {
-                info!("助手：{}\n", text);
-            }
-        }
-        Err(e) => {
-            info!("错误：{}\n", e);
-        }
-    }
-
-    Ok(())
-}
-
-/// 运行 Compact 模式示例
-async fn run_compact_mode(skills_dir: &std::path::Path, skills: &[agentkit::skills::SkillDefinition]) -> anyhow::Result<()> {
-    info!("1. 构建 Compact 模式系统提示词...");
-    let workspace_dir = std::env::current_dir().unwrap_or_default();
-    let skills_prompt = skills_to_prompt_with_mode(skills, &workspace_dir, SkillsPromptMode::Compact);
-    info!("✓ 提示词长度：{} 字符\n", skills_prompt.len());
-    
-    // 显示提示词预览
-    info!("提示词预览:");
-    for line in skills_prompt.lines().take(10) {
-        info!("  {}", line);
-    }
-    info!("  ...\n");
-
-    // 创建 Runtime
-    info!("2. 创建 Runtime (Compact 模式)...");
-    let provider = OpenAiProvider::from_env()?;
-    let executor = Arc::new(SkillExecutor::new());
-    let skill_tools = skills_to_tools(skills, executor, skills_dir);
-
-    let mut registry = ToolRegistry::new();
-    registry = registry.register_wrapper(ToolWrapper::new(CmdExecTool::new()).with_source(ToolSource::BuiltIn));
-    registry = registry.register_wrapper(ToolWrapper::new(ShellTool::new()).with_source(ToolSource::BuiltIn));
-    registry = registry.register_wrapper(ToolWrapper::new(HttpRequestTool::new()).with_source(ToolSource::BuiltIn));
-    for tool in skill_tools {
-        registry = registry.register_wrapper(ToolWrapper::new_arc(tool).with_source(ToolSource::Skill));
-    }
-    registry = registry.register_wrapper(
-        ToolWrapper::new(ReadSkillTool::new(skills_dir.to_path_buf())).with_source(ToolSource::Skill)
-    );
-    info!("   注册了 {} 个 Tools (包括 read_skill)", registry.enabled_len());
-    
-    let system_prompt = format!(
-        "你是智能助手，可以使用工具帮助用户解决问题。\n\n\
-         {}",
-        skills_prompt
-    );
-    
-    let runtime = DefaultRuntime::new(Arc::new(provider), registry, "qwen3.5:9b")
-        .with_system_prompt(system_prompt)
-        .with_max_steps(10)
-        .with_max_tool_concurrency(2);
-
-    info!("✓ Runtime 创建成功\n");
-
-    // 测试对话
-    info!("3. 测试对话 (Compact 模式)...");
-    
     let queries = vec![
-        "现在几点了",
-        "北京天气怎么样？",
+        ("现在几点了？", "测试时间技能"),
+        ("计算 10 + 20 * 3", "测试计算器技能"),
+        ("北京天气怎么样？", "测试天气查询技能"),
     ];
-    
-    for query in queries {
-        info!("用户：{}", query);
+
+    for (query, description) in queries {
+        info!("测试：{} ({})", query, description);
         
-        let input = AgentInput::new(query);
-        match runtime.run(input).await {
+        match agent.run(query.into()).await {
             Ok(output) => {
                 if let Some(text) = output.text() {
-                    info!("助手：{}", text);
+                    info!("  助手：{}\n", text);
                 }
             }
             Err(e) => {
-                info!("错误：{}", e);
+                info!("  错误：{}\n", e);
             }
         }
-        info!("");
     }
 
-    // 演示 read_skill 工具
-    info!("4. 演示 read_skill 工具...");
-    if let Some(first_skill) = skills.first() {
-        info!("读取 '{}' 技能的详细信息...\n", first_skill.name);
-        
-        let read_skill_tool = ReadSkillTool::new(skills_dir.to_path_buf());
-        let input = serde_json::json!({
-            "skill_name": first_skill.name
-        });
-        
-        let result: Result<serde_json::Value, _> = read_skill_tool.call(input).await;
-        match result {
-            Ok(result) => {
-                info!("✓ 读取成功:");
-                if let Some(content) = result.get("content").and_then(|v: &serde_json::Value| v.as_str()) {
-                    // 显示前 500 字符
-                    let preview: String = content.chars().take(500).collect();
-                    info!("  内容预览:\n  {}", preview);
-                    if content.len() > 500 {
-                        info!("  ... (内容过长，已截断)");
-                    }
-                }
-            }
-            Err(e) => {
-                info!("✗ 读取失败：{}", e);
-            }
-        }
-    }
+    info!("═══════════════════════════════════════");
+    info!("示例完成！");
+    info!("═══════════════════════════════════════\n");
+
+    info!("📝 Skills 使用总结：\n");
+    info!("1. Skills 加载:");
+    info!("   - 使用 SkillLoader 从目录加载");
+    info!("   - 自动识别 SKILL.md 配置文件\n");
+
+    info!("2. Skills 转 Tools:");
+    info!("   - 使用 SkillExecutor 创建工具");
+    info!("   - 注册到 ToolRegistry\n");
+
+    info!("3. Agent 使用:");
+    info!("   - Agent 自动选择合适的技能");
+    info!("   - 支持多步推理和技能组合\n");
 
     Ok(())
 }

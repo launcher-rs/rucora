@@ -17,6 +17,8 @@ use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
+    
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -35,6 +37,7 @@ async fn main() -> anyhow::Result<()> {
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         return Ok(());
     }
+    let model_name = std::env::var("MODEL_NAME").expect("没有设置环境变量MODEL_NAME");
 
     // 创建 Provider
     info!("1. 创建 Provider...");
@@ -45,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
     info!("2. 创建 ToolAgent（注册工具）...");
     let agent = ToolAgent::builder()
         .provider(provider)
-        .model("gpt-4o-mini")
+        .model(model_name)
         .system_prompt("你是有用的智能助手。当用户询问时间或需要回显时，使用相应的工具。")
         .tool(DatetimeTool) // 注册日期时间工具
         .tool(EchoTool) // 注册回显工具

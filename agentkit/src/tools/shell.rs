@@ -11,6 +11,19 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use tokio::time::timeout;
 
+/// 获取 Shell 工具描述
+fn get_shell_description() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "执行系统命令。当前平台：Windows。请使用 Windows 命令：dir (列表), cd (切换目录), type (查看文件), findstr (搜索), copy (复制), move (移动), del (删除), mkdir (创建目录)。命令必须与当前操作系统兼容。"
+    } else if cfg!(target_os = "macos") {
+        "执行系统命令。当前平台：macOS。请使用 macOS 命令：ls (列表), cd (切换目录), cat (查看文件), grep (搜索), cp (复制), mv (移动), rm (删除), mkdir (创建目录)。命令必须与当前操作系统兼容。"
+    } else if cfg!(target_os = "linux") {
+        "执行系统命令。当前平台：Linux。请使用 Linux 命令：ls (列表), cd (切换目录), cat (查看文件), grep (搜索), cp (复制), mv (移动), rm (删除), mkdir (创建目录)。命令必须与当前操作系统兼容。"
+    } else {
+        "执行系统命令。请使用适合当前平台的命令。"
+    }
+}
+
 /// Shell 命令执行的超时时间（秒）
 pub const SHELL_TIMEOUT_SECS: u64 = 60;
 /// 最大输出大小（1MB），防止内存溢出
@@ -56,7 +69,7 @@ impl Tool for ShellTool {
 
     /// 返回工具描述。
     fn description(&self) -> Option<&str> {
-        Some("执行系统命令")
+        Some(get_shell_description())
     }
 
     /// 返回工具分类。
@@ -71,7 +84,7 @@ impl Tool for ShellTool {
             "properties": {
                 "command": {
                     "type": "string",
-                    "description": "要执行的命令"
+                    "description": "要执行的命令（注意：必须与当前操作系统兼容。Windows 使用 dir/findstr/type 等命令，Linux/Mac 使用 ls/grep/cat 等命令）"
                 },
                 "args": {
                     "type": "array",
@@ -82,7 +95,7 @@ impl Tool for ShellTool {
                 },
                 "timeout": {
                     "type": "integer",
-                    "description": "超时时间（秒）"
+                    "description": "超时时间（秒），默认 60 秒"
                 }
             },
             "required": ["command"]
@@ -156,8 +169,27 @@ pub async fn execute_shell_command(
     command: &str,
     args: &[String],
 ) -> Result<std::process::Output, std::io::Error> {
-    let mut cmd = std::process::Command::new(command);
-    cmd.args(args);
+    let mut cmd = if cfg!(target_os = "windows") {
+        // Windows 上使用 cmd /c 执行命令，支持 dir 等内置命令
+        let mut c = std::process::Command::new("cmd");
+        c.arg("/C");
+        c.arg(command);
+        c
+    } else if cfg!(any(target_os = "linux", target_os = "macos")) {
+        // Linux/macOS 使用 sh -c 执行命令
+        let mut c = std::process::Command::new("sh");
+        c.arg("-c");
+        c.arg(command);
+        c
+    } else {
+        // 其他系统直接执行命令
+        std::process::Command::new(command)
+    };
+    
+    // 添加参数（如果有）
+    if !args.is_empty() {
+        cmd.args(args);
+    }
 
     // 只保留安全的环境变量，防止敏感信息泄露
     cmd.env_clear();

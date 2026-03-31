@@ -6,7 +6,7 @@ description = "AgentKit A2A 客户端示例 - 使用 agentkit 调用 A2A server"
 publish = false
 
 [dependencies]
-ra2a = { version = "0.8.1", default-features = false, features = ["client"] }
+ra2a = { version = "0.9", default-features = false, features = ["client"] }
 agentkit = { path = "../../agentkit", features = ["a2a", "runtime"] }
 agentkit-core = { path = "../../agentkit-core" }
 tokio = { version = "1", features = ["full"] }

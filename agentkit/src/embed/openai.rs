@@ -28,7 +28,10 @@ impl OpenAiEmbeddingProvider {
         let base_url =
             env::var("OPENAI_BASE_URL").unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
 
-        Ok(Self::new(base_url, api_key, "text-embedding-ada-002"))
+        let embedding_model =
+            env::var("EMBEDDING_MODEL").map_err(|_| ProviderError::Message("缺少环境变量 EMBEDDING_MODEL".to_string()))?;
+
+        Ok(Self::new(base_url, api_key, embedding_model))
     }
 
     /// 创建 Provider。

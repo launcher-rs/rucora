@@ -17,6 +17,7 @@ use tracing_subscriber::FmtSubscriber;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -35,6 +36,7 @@ async fn main() -> anyhow::Result<()> {
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         return Ok(());
     }
+    let model_name = std::env::var("MODEL_NAME").expect("没有设置环境变量MODEL_NAME");
 
     // 创建 Provider
     info!("1. 创建 Provider...");
@@ -45,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
     info!("2. 创建 ChatAgent（带对话历史）...");
     let agent = ChatAgent::builder()
         .provider(provider)
-        .model("gpt-4o-mini")
+        .model(model_name)
         .system_prompt("你是友好的 AI 助手。请记住对话历史，以便进行连贯的多轮对话。")
         .with_conversation(true) // 启用对话历史
         .max_history_messages(20) // 保留最近 20 条消息

@@ -2,30 +2,167 @@
 //!
 //! # 概述
 //!
-//! 本模块提供中间件机制，支持在请求和响应处理过程中插入自定义逻辑：
-//! - 日志记录
-//! - 缓存
-//! - 限流
-//! - 认证
-//! - 指标收集
+//! 本模块提供中间件机制，支持在 Agent 执行流程中插入自定义逻辑。
+//! 中间件可以在以下时机执行：
+//!
+//! - **请求前** - 用户输入进入 Agent 之前
+//! - **响应后** - Agent 输出返回给用户之前
+//! - **错误处理** - Agent 执行出错时
+//! - **工具调用前** - 工具执行之前
+//! - **工具调用后** - 工具执行之后
+//!
+//! # 核心组件
+//!
+//! ## Middleware Trait
+//!
+//! 所有中间件必须实现此 trait：
+//!
+//! ```rust,no_run
+//! use agentkit::middleware::Middleware;
+//! use agentkit_core::agent::{AgentError, AgentInput, AgentOutput};
+//! use agentkit_core::tool::types::{ToolCall, ToolResult};
+//! use async_trait::async_trait;
+//!
+//! #[async_trait]
+//! pub trait MyMiddleware: Send + Sync {
+//!     fn name(&self) -> &str;
+//!     async fn on_request(&self, input: &mut AgentInput) -> Result<(), AgentError>;
+//!     async fn on_response(&self, output: &mut AgentOutput) -> Result<(), AgentError>;
+//!     async fn on_tool_call_before(&self, call: &mut ToolCall) -> Result<(), AgentError>;
+//!     async fn on_tool_call_after(&self, result: &mut ToolResult) -> Result<(), AgentError>;
+//! }
+//! ```
+//!
+//! ## MiddlewareChain
+//!
+//! 中间件链按顺序管理多个中间件：
+//!
+//! ```rust,no_run
+//! use agentkit::middleware::MiddlewareChain;
+//!
+//! let chain = MiddlewareChain::new()
+//!     .with(LoggingMiddleware::new())
+//!     .with(RateLimitMiddleware::new(60));
+//! ```
+//!
+//! # 内置中间件
+//!
+//! | 中间件 | 功能 | 使用场景 |
+//! |--------|------|----------|
+//! | [`LoggingMiddleware`] | 日志记录 | 调试、审计 |
+//! | [`RateLimitMiddleware`] | 请求限流 | 防止滥用 |
+//! | [`CacheMiddleware`] | 响应缓存 | 提高性能 |
+//! | [`MetricsMiddleware`] | 指标收集 | 监控、统计 |
 //!
 //! # 使用示例
 //!
+//! ## 方式 1：使用 with_middleware_chain()
+//!
 //! ```rust,no_run
-//! use agentkit::middleware::{Middleware, MiddlewareChain, Request, Response};
+//! use agentkit::agent::ToolAgent;
+//! use agentkit::middleware::MiddlewareChain;
 //!
-//! // 创建中间件链
-//! let chain = MiddlewareChain::new()
-//!     .with(LoggingMiddleware::new())
-//!     .with(CacheMiddleware::new(cache))
-//!     .with(RateLimitMiddleware::new(100));
-//!
-//! // 处理请求
-//! let response = chain.process(request).await?;
+//! let agent = ToolAgent::builder()
+//!     .provider(provider)
+//!     .with_middleware_chain(
+//!         MiddlewareChain::new()
+//!             .with(LoggingMiddleware::new())
+//!             .with(RateLimitMiddleware::new(60))
+//!     )
+//!     .build();
 //! ```
+//!
+//! ## 方式 2：使用 with_middleware()
+//!
+//! ```rust,no_run
+//! use agentkit::agent::ToolAgent;
+//!
+//! let agent = ToolAgent::builder()
+//!     .provider(provider)
+//!     .with_middleware(LoggingMiddleware::new())
+//!     .with_middleware(CacheMiddleware::new())
+//!     .build();
+//! ```
+//!
+//! # 自定义中间件
+//!
+//! ```rust,no_run
+//! use agentkit::middleware::Middleware;
+//! use agentkit_core::agent::{AgentError, AgentInput};
+//! use async_trait::async_trait;
+//!
+//! #[derive(Clone)]
+//! struct AuthMiddleware {
+//!     api_key: String,
+//! }
+//!
+//! #[async_trait]
+//! impl Middleware for AuthMiddleware {
+//!     fn name(&self) -> &str { "auth" }
+//!
+//!     async fn on_request(&self, input: &mut AgentInput) -> Result<(), AgentError> {
+//!         if input.text.contains("UNAUTHORIZED") {
+//!             return Err(AgentError::Message("认证失败".to_string()));
+//!         }
+//!         Ok(())
+//!     }
+//! }
+//! ```
+//!
+//! # 执行流程
+//!
+//! ```text
+//! 用户输入
+//!     ↓
+//! ┌─────────────────────────────────┐
+//! │ Middleware Chain (请求前)        │
+//! │ → LoggingMiddleware              │
+//! │ → RateLimitMiddleware            │
+//! │ → AuthMiddleware                 │
+//! └─────────────────────────────────┘
+//!     ↓
+//! ┌─────────────────────────────────┐
+//! │ Agent 处理                       │
+//! │ → 工具执行（带工具调用中间件）    │
+//! └─────────────────────────────────┘
+//!     ↓
+//! ┌─────────────────────────────────┐
+//! │ Middleware Chain (响应后，逆序)  │
+//! │ ← AuthMiddleware                 │
+//! │ ← RateLimitMiddleware            │
+//! │ ← LoggingMiddleware              │
+//! └─────────────────────────────────┘
+//!     ↓
+//! 返回给用户
+//! ```
+//!
+//! # 支持的 Agent 类型
+//!
+//! 所有 Agent 类型都支持中间件：
+//!
+//! - [`SimpleAgent`](crate::agent::SimpleAgent)
+//! - [`ChatAgent`](crate::agent::ChatAgent)
+//! - [`ToolAgent`](crate::agent::ToolAgent)
+//! - [`ReActAgent`](crate::agent::ReActAgent)
+//! - [`ReflectAgent`](crate::agent::ReflectAgent)
+//!
+//! # 最佳实践
+//!
+//! 1. **单一职责** - 每个中间件只负责一个功能
+//! 2. **错误处理** - 优雅处理错误，不影响其他中间件
+//! 3. **性能** - 避免在中间件中进行耗时操作
+//! 4. **命名** - 使用有意义的名称
+//! 5. **配置** - 提供合理的配置选项
+//!
+//! # 更多信息
+//!
+//! 详细使用指南请参考：`docs/middleware_guide.md`
 
-use agentkit_core::agent::types::{AgentInput, AgentOutput};
-use agentkit_core::error::AgentError;
+use agentkit_core::agent::AgentError;
+use agentkit_core::agent::AgentInput;
+use agentkit_core::agent::AgentOutput;
+use agentkit_core::tool::types::ToolCall;
+use agentkit_core::tool::types::ToolResult;
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -52,6 +189,24 @@ pub trait Middleware: Send + Sync {
     /// 错误处理钩子
     async fn on_error(&self, error: &mut AgentError) -> Result<(), AgentError> {
         let _ = error;
+        Ok(())
+    }
+
+    /// 工具调用前钩子
+    async fn on_tool_call_before(
+        &self,
+        call: &mut ToolCall,
+    ) -> Result<(), AgentError> {
+        let _ = call;
+        Ok(())
+    }
+
+    /// 工具调用后钩子
+    async fn on_tool_call_after(
+        &self,
+        result: &mut ToolResult,
+    ) -> Result<(), AgentError> {
+        let _ = result;
         Ok(())
     }
 }
@@ -116,6 +271,26 @@ impl MiddlewareChain {
     pub async fn process_error(&self, error: &mut AgentError) -> Result<(), AgentError> {
         for middleware in self.middlewares.iter().rev() {
             middleware.on_error(error).await?;
+        }
+        Ok(())
+    }
+
+    /// 处理工具调用前
+    ///
+    /// 按顺序执行所有中间件的 on_tool_call_before 钩子。
+    pub async fn process_tool_call_before(&self, call: &mut ToolCall) -> Result<(), AgentError> {
+        for middleware in &self.middlewares {
+            middleware.on_tool_call_before(call).await?;
+        }
+        Ok(())
+    }
+
+    /// 处理工具调用后
+    ///
+    /// 按逆序执行所有中间件的 on_tool_call_after 钩子。
+    pub async fn process_tool_call_after(&self, result: &mut ToolResult) -> Result<(), AgentError> {
+        for middleware in self.middlewares.iter().rev() {
+            middleware.on_tool_call_after(result).await?;
         }
         Ok(())
     }

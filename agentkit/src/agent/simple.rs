@@ -123,6 +123,7 @@ pub struct SimpleAgentBuilder<P> {
     system_prompt: Option<String>,
     model: Option<String>,
     temperature: f32,
+    middleware_chain: crate::middleware::MiddlewareChain,
 }
 
 impl<P> SimpleAgentBuilder<P> {
@@ -133,6 +134,7 @@ impl<P> SimpleAgentBuilder<P> {
             system_prompt: None,
             model: None,
             temperature: 0.7,
+            middleware_chain: crate::middleware::MiddlewareChain::new(),
         }
     }
 }
@@ -168,6 +170,18 @@ where
         self
     }
 
+    /// 设置中间件链
+    pub fn with_middleware_chain(mut self, middleware_chain: crate::middleware::MiddlewareChain) -> Self {
+        self.middleware_chain = middleware_chain;
+        self
+    }
+
+    /// 添加中间件
+    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(mut self, middleware: M) -> Self {
+        self.middleware_chain = self.middleware_chain.with(middleware);
+        self
+    }
+
     /// 构建 Agent
     ///
     /// # Panics
@@ -185,7 +199,8 @@ where
             crate::agent::ToolRegistry::new(),
         )
         .with_system_prompt_opt(self.system_prompt.clone())
-        .with_max_steps(1); // SimpleAgent 只需要 1 步
+        .with_max_steps(1) // SimpleAgent 只需要 1 步
+        .with_middleware_chain(self.middleware_chain);
 
         SimpleAgent {
             provider: provider_arc,

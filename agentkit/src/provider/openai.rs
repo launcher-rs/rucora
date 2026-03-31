@@ -12,7 +12,7 @@ use agentkit_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role},
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat, Role},
     },
     tool::types::{ToolCall, ToolDefinition},
 };
@@ -449,6 +449,42 @@ impl LlmProvider for OpenAiProvider {
             );
         }
 
+        // 解析 usage 字段
+        let usage = data
+            .get("usage")
+            .and_then(|u| u.as_object())
+            .map(|usage_obj| agentkit_core::provider::types::Usage {
+                prompt_tokens: usage_obj
+                    .get("prompt_tokens")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32)
+                    .unwrap_or(0),
+                completion_tokens: usage_obj
+                    .get("completion_tokens")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32)
+                    .unwrap_or(0),
+                total_tokens: usage_obj
+                    .get("total_tokens")
+                    .and_then(|v| v.as_u64())
+                    .map(|v| v as u32)
+                    .unwrap_or(0),
+            });
+
+        // 解析 finish_reason 字段
+        let finish_reason = data
+            .get("choices")
+            .and_then(|v| v.as_array())
+            .and_then(|arr| arr.first())
+            .and_then(|c| c.get("finish_reason"))
+            .and_then(|fr| fr.as_str())
+            .map(|fr| match fr {
+                "stop" => FinishReason::Stop,
+                "length" => FinishReason::Length,
+                "tool_calls" => FinishReason::ToolCall,
+                _ => FinishReason::Other,
+            });
+
         debug!(
             provider = "openai",
             assistant_content_len = content.len(),
@@ -462,8 +498,8 @@ impl LlmProvider for OpenAiProvider {
                 name: None,
             },
             tool_calls,
-            usage: None,
-            finish_reason: None,
+            usage,
+            finish_reason,
         })
     }
 

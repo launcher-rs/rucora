@@ -34,6 +34,8 @@ struct Person {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    dotenv::dotenv().ok();
+    
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
@@ -52,6 +54,7 @@ async fn main() -> anyhow::Result<()> {
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         return Ok(());
     }
+    let model_name = std::env::var("MODEL_NAME").expect("没有设置环境变量MODEL_NAME");
 
     // 创建 Provider
     info!("1. 创建 Provider...");
@@ -63,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     info!("示例 1: 提取人物信息");
     info!("═══════════════════════════════════════\n");
 
-    let person_extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini")
+    let person_extractor = Extractor::<_, Person>::builder(provider, model_name)
         .preamble("只提取明确提到的信息，不要推测。")
         .retries(2)
         .build();

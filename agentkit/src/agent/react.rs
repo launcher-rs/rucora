@@ -217,6 +217,7 @@ pub struct ReActAgentBuilder<P> {
     tools: ToolRegistry,
     max_steps: usize,
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    middleware_chain: crate::middleware::MiddlewareChain,
 }
 
 impl<P> ReActAgentBuilder<P> {
@@ -229,6 +230,7 @@ impl<P> ReActAgentBuilder<P> {
             tools: ToolRegistry::new(),
             max_steps: 15, // ReAct 通常需要更多步骤
             conversation_manager: None,
+            middleware_chain: crate::middleware::MiddlewareChain::new(),
         }
     }
 }
@@ -293,6 +295,18 @@ where
         self
     }
 
+    /// 设置中间件链
+    pub fn with_middleware_chain(mut self, middleware_chain: crate::middleware::MiddlewareChain) -> Self {
+        self.middleware_chain = middleware_chain;
+        self
+    }
+
+    /// 添加中间件
+    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(mut self, middleware: M) -> Self {
+        self.middleware_chain = self.middleware_chain.with(middleware);
+        self
+    }
+
     /// 构建 Agent
     ///
     /// # Panics
@@ -308,7 +322,8 @@ where
             DefaultExecution::new(provider_arc.clone(), model.clone(), self.tools.clone())
                 .with_system_prompt_opt(self.system_prompt.clone())
                 .with_max_steps(self.max_steps)
-                .with_conversation_manager(self.conversation_manager.clone());
+                .with_conversation_manager(self.conversation_manager.clone())
+                .with_middleware_chain(self.middleware_chain);
 
         ReActAgent {
             provider: provider_arc,
