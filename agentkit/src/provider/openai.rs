@@ -376,10 +376,24 @@ impl LlmProvider for OpenAiProvider {
         );
 
         if !status.is_success() {
-            return Err(ProviderError::Message(format!(
-                "OpenAI 请求失败：status={} body={} ",
-                status, text
-            )));
+            // 提供更友好的错误信息
+            let error_msg = if status == reqwest::StatusCode::NOT_FOUND {
+                format!(
+                    "OpenAI 请求失败：status={} body={} \n\n\
+                     提示：404 错误可能是因为：\n\
+                     1. Base URL 不正确，请检查是否为有效的 API 端点\n\
+                     2. 模型名称不正确，请确认模型在该平台可用\n\
+                     3. API 路径不正确，某些平台可能需要特定的路径格式\n\n\
+                     当前配置:\n\
+                     - Base URL: {}\n\
+                     - Model: {}",
+                    status, text, self.base_url, model
+                )
+            } else {
+                format!("OpenAI 请求失败：status={} body={}", status, text)
+            };
+
+            return Err(ProviderError::Message(error_msg));
         }
 
         // 尝试解析 JSON，提供更友好的错误信息

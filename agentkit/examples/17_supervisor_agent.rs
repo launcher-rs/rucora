@@ -29,7 +29,9 @@ use tracing_subscriber::FmtSubscriber;
 
 /// 主管 Agent - 负责任务分析和分配
 struct SupervisorAgent<P> {
+    #[allow(dead_code)]
     provider: Arc<P>,
+    #[allow(dead_code)]
     model: String,
     experts: Vec<ExpertInfo>,
 }

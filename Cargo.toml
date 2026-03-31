@@ -5,7 +5,8 @@ members = [
     "agentkit-core",
     "examples/a2a-client",
     "examples/a2a-server",
-    "examples/agentkit-skills-example"
+    "examples/agentkit-skills-example",
+    "examples/agentkit-deep-research"
 ]
 
 [workspace.package]
