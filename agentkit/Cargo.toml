@@ -125,7 +125,7 @@ path = "examples/16_reflect_agent.rs"
 name = "17_supervisor_agent"
 path = "examples/17_supervisor_agent.rs"
 
-# 综合应用（18-19）
+# 综合应用（18-21）
 [[example]]
 name = "18_research_assistant"
 path = "examples/18_research_assistant.rs"
@@ -133,3 +133,7 @@ path = "examples/18_research_assistant.rs"
 [[example]]
 name = "19_code_assistant"
 path = "examples/19_code_assistant.rs"
+
+[[example]]
+name = "21_task_decomposition"
+path = "examples/21_task_decomposition.rs"
