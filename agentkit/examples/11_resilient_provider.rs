@@ -15,10 +15,10 @@
 //! 3. **错误恢复** - 处理临时错误
 //! 4. **实际使用** - 与 OpenAI Provider 集成
 
-use agentkit::provider::OpenAiProvider;
-use agentkit::provider::resilient::ResilientProvider;
 use agentkit::agent::SimpleAgent;
 use agentkit::prelude::Agent;
+use agentkit::provider::OpenAiProvider;
+use agentkit::provider::resilient::ResilientProvider;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -76,32 +76,42 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ OpenAI Provider 创建成功\n");
 
         info!("1.2 包装为 ResilientProvider...");
-        let resilient_provider = ResilientProvider::new(Arc::new(openai_provider))
-            .with_config(agentkit::provider::resilient::RetryConfig {
+        let resilient_provider = ResilientProvider::new(Arc::new(openai_provider)).with_config(
+            agentkit::provider::resilient::RetryConfig {
                 max_retries: 3,
                 base_delay_ms: 500,
                 max_delay_ms: 10000,
                 timeout_ms: None,
                 retry_non_retriable_once: false,
-            });
+            },
+        );
         info!("✓ ResilientProvider 创建成功\n");
 
         info!("1.3 测试 ResilientProvider...");
-        let model_name = std::env::var("MODEL_NAME")
-            .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
         use agentkit_core::provider::{LlmProvider, types::ChatRequest};
 
-        let request = ChatRequest::from_user_text("你好，请简单介绍一下自己。")
-            .with_model(&model_name);
+        let request =
+            ChatRequest::from_user_text("你好，请简单介绍一下自己。").with_model(&model_name);
 
         match resilient_provider.chat(request).await {
             Ok(response) => {
                 info!("✓ 请求成功");
-                info!("  响应：{}", response.message.content.chars().take(50).collect::<String>());
+                info!(
+                    "  响应：{}",
+                    response
+                        .message
+                        .content
+                        .chars()
+                        .take(50)
+                        .collect::<String>()
+                );
                 if let Some(usage) = response.usage {
-                    info!("  Token 使用：输入={}, 输出={}, 总计={}",
-                        usage.prompt_tokens, usage.completion_tokens, usage.total_tokens);
+                    info!(
+                        "  Token 使用：输入={}, 输出={}, 总计={}",
+                        usage.prompt_tokens, usage.completion_tokens, usage.total_tokens
+                    );
                 }
             }
             Err(e) => {
@@ -127,8 +137,7 @@ async fn main() -> anyhow::Result<()> {
         let resilient_provider = ResilientProvider::new(Arc::new(openai_provider))
             .with_config(agentkit::provider::resilient::RetryConfig::default());
 
-        let model_name = std::env::var("MODEL_NAME")
-            .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
         let agent = SimpleAgent::builder()
             .provider(resilient_provider)

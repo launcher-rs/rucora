@@ -11,7 +11,10 @@ use agentkit_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat, Role, Usage},
+        types::{
+            ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat,
+            Role, Usage,
+        },
     },
 };
 use async_trait::async_trait;

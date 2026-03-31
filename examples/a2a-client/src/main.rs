@@ -14,9 +14,9 @@
 //! ```
 
 use agentkit::a2a::A2AToolAdapter;
+use agentkit::agent::ToolRegistry;
 use agentkit::core::tool::Tool;
 use agentkit::provider::OllamaProvider;
-use agentkit::agent::ToolRegistry;
 use ra2a::client::Client;
 use std::sync::Arc;
 use tracing::Level;

@@ -8,7 +8,7 @@
 use agentkit::agent::ToolAgent;
 use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
-use agentkit::skills::{SkillLoader, SkillExecutor};
+use agentkit::skills::{SkillExecutor, SkillLoader};
 use agentkit::tools::ShellTool;
 use std::sync::Arc;
 use tracing::{Level, info};
@@ -74,18 +74,15 @@ async fn main() -> anyhow::Result<()> {
     // 4. 将 Skills 转换为 Tools 并注册
     info!("3. 注册 Skills 为 Tools...");
     let mut tool_registry = agentkit::agent::ToolRegistry::new();
-    
+
     // 注册内置工具
     tool_registry = tool_registry.register(ShellTool);
-    
+
     // 注册 Skills 转换的 Tools
     for skill in &skills {
         let skill_path = skills_dir.join(&skill.name);
-        let skill_tool = agentkit::skills::SkillTool::new(
-            skill.clone(),
-            skill_executor.clone(),
-            skill_path,
-        );
+        let skill_tool =
+            agentkit::skills::SkillTool::new(skill.clone(), skill_executor.clone(), skill_path);
         tool_registry = tool_registry.register_arc(Arc::new(skill_tool));
         info!("  ✓ 注册技能：{}", skill.name);
     }
@@ -94,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
     // 5. 创建 Agent
     info!("4. 创建带 Skills 的 Agent...");
     let provider = OpenAiProvider::from_env()?;
-    
+
     let agent = ToolAgent::builder()
         .provider(provider)
         .model(&model_name)
@@ -104,12 +101,12 @@ async fn main() -> anyhow::Result<()> {
              - datetime: 获取当前日期和时间\n\
              - calculator: 执行数学计算\n\
              - weather-query: 查询天气（需要提供城市英文名，如 Beijing）\n\n\
-             请根据用户需求自动选择合适的技能，每个技能只调用一次即可。"
+             请根据用户需求自动选择合适的技能，每个技能只调用一次即可。",
         )
         .tool_registry(tool_registry)
         .max_steps(15)
         .build();
-    
+
     info!("✓ Agent 创建成功\n");
 
     // 6. 测试对话
@@ -125,7 +122,7 @@ async fn main() -> anyhow::Result<()> {
 
     for (query, description) in queries {
         info!("测试：{} ({})", query, description);
-        
+
         match agent.run(query.into()).await {
             Ok(output) => {
                 if let Some(text) = output.text() {

@@ -81,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
              1. 生成初始版本的答案\n\
              2. 反思答案的不足之处\n\
              3. 改进答案\n\
-             4. 重复直到达到高质量标准"
+             4. 重复直到达到高质量标准",
         )
         .max_iterations(3)
         .build();

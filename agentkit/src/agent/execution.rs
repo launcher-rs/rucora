@@ -29,7 +29,8 @@ use crate::conversation::ConversationManager;
 // 直接导入 agent 模块中的类型
 use crate::agent::policy::{DefaultToolPolicy, ToolPolicy};
 use crate::agent::tool_execution::{
-    execute_tool_call_with_middleware, execute_tool_call_with_policy_and_observer, tool_result_to_message,
+    execute_tool_call_with_middleware, execute_tool_call_with_policy_and_observer,
+    tool_result_to_message,
 };
 use crate::agent::tool_registry::ToolRegistry;
 use crate::middleware::MiddlewareChain;
@@ -197,7 +198,10 @@ impl DefaultExecution {
     }
 
     /// 添加中间件
-    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(mut self, middleware: M) -> Self {
+    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(
+        mut self,
+        middleware: M,
+    ) -> Self {
         self.middleware_chain = self.middleware_chain.with(middleware);
         self
     }
@@ -251,13 +255,13 @@ impl DefaultExecution {
         input: AgentInput,
     ) -> Result<AgentOutput, AgentError> {
         let result = self._run_loop(agent, input).await;
-        
+
         // 处理错误情况的中间件钩子
         match result {
             Ok(output) => Ok(output),
             Err(mut e) => {
                 let middleware_result = self.middleware_chain.process_error(&mut e).await;
-                
+
                 // 如果中间件处理成功，返回修改后的错误
                 // 如果中间件处理失败，返回原始错误
                 match middleware_result {
@@ -275,9 +279,10 @@ impl DefaultExecution {
         mut input: AgentInput,
     ) -> Result<AgentOutput, AgentError> {
         // 执行请求前中间件钩子
-        self.middleware_chain.process_request(&mut input).await.map_err(|e| {
-            AgentError::Message(format!("中间件处理失败：{}", e))
-        })?;
+        self.middleware_chain
+            .process_request(&mut input)
+            .await
+            .map_err(|e| AgentError::Message(format!("中间件处理失败：{}", e)))?;
 
         let mut messages = self.build_messages(&input);
         let mut tool_call_records = Vec::new();
@@ -332,9 +337,12 @@ impl DefaultExecution {
 
                         // 执行响应后中间件钩子
                         if let Ok(ref mut out) = output {
-                            self.middleware_chain.process_response(out).await.map_err(|e| {
-                                AgentError::Message(format!("中间件响应处理失败：{}", e))
-                            })?;
+                            self.middleware_chain
+                                .process_response(out)
+                                .await
+                                .map_err(|e| {
+                                    AgentError::Message(format!("中间件响应处理失败：{}", e))
+                                })?;
                         }
 
                         // 如果启用了对话历史，保存消息
@@ -380,14 +388,17 @@ impl DefaultExecution {
                         messages,
                         tool_call_records,
                     ));
-                    
+
                     // 执行响应后中间件钩子
                     if let Ok(ref mut out) = output {
-                        self.middleware_chain.process_response(out).await.map_err(|e| {
-                            AgentError::Message(format!("中间件响应处理失败：{}", e))
-                        })?;
+                        self.middleware_chain
+                            .process_response(out)
+                            .await
+                            .map_err(|e| {
+                                AgentError::Message(format!("中间件响应处理失败：{}", e))
+                            })?;
                     }
-                    
+
                     return output;
                 }
                 AgentDecision::Stop => {
@@ -397,14 +408,17 @@ impl DefaultExecution {
                         messages,
                         tool_call_records,
                     ));
-                    
+
                     // 执行响应后中间件钩子
                     if let Ok(ref mut out) = output {
-                        self.middleware_chain.process_response(out).await.map_err(|e| {
-                            AgentError::Message(format!("中间件响应处理失败：{}", e))
-                        })?;
+                        self.middleware_chain
+                            .process_response(out)
+                            .await
+                            .map_err(|e| {
+                                AgentError::Message(format!("中间件响应处理失败：{}", e))
+                            })?;
                     }
-                    
+
                     return output;
                 }
                 AgentDecision::ThinkAgain => {
@@ -460,7 +474,11 @@ impl DefaultExecution {
                 let middleware_chain = self.middleware_chain.clone();
                 async move {
                     let r = execute_tool_call_with_middleware(
-                        &tools, &policy, &observer, &call, &middleware_chain,
+                        &tools,
+                        &policy,
+                        &observer,
+                        &call,
+                        &middleware_chain,
                     )
                     .await
                     .map_err(|e| AgentError::Message(format!("工具执行失败：{}", e)))?;

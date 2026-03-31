@@ -265,21 +265,20 @@ impl crate::core::tool::Tool for A2AToolAdapter {
 
         // 构建消息
         let msg = Message::user(vec![Part::text(message_text.to_string())]);
-        
+
         // 创建请求
         let req = SendMessageRequest::new(msg);
 
         // 发送到 A2A server
-        let result = self
-            .client
-            .send_message(&req)
-            .await
-            .map_err(|e| crate::core::error::ToolError::Message(format!("A2A 调用失败：{}", e)))?;
+        let result =
+            self.client.send_message(&req).await.map_err(|e| {
+                crate::core::error::ToolError::Message(format!("A2A 调用失败：{}", e))
+            })?;
 
         // 解析响应 - 将 SendMessageResponse 转换为 JSON 然后解析
         let result_json = serde_json::to_value(&result)
             .map_err(|e| crate::core::error::ToolError::Message(format!("序列化失败：{}", e)))?;
-        
+
         let response = result_json
             .get("result")
             .or_else(|| result_json.get("status"))

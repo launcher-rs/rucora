@@ -67,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
 - {{duty}}
 {% endfor %}
 
-请专业、友好地回答用户问题。"
+请专业、友好地回答用户问题。",
     );
 
     info!("模板：\n系统提示词模板包含变量和循环\n");
@@ -98,7 +98,7 @@ async fn main() -> anyhow::Result<()> {
 {% endfor %}
 示例 {{last_index}}:
 中文：{{input}}
-英文："
+英文：",
     );
 
     let few_shot_prompt = few_shot_template.render(&json!({
@@ -132,7 +132,7 @@ async fn main() -> anyhow::Result<()> {
 {% if bio %}
 个人简介：{{bio}}
 {% endif %}
-请告诉我如何帮助您？"
+请告诉我如何帮助您？",
     );
 
     info!("模板：\n条件渲染模板\n");
@@ -171,7 +171,7 @@ async fn main() -> anyhow::Result<()> {
    截止时间：{{task.deadline}}
 {% endfor %}
 
-共 {{loop.length}} 项任务。"
+共 {{loop.length}} 项任务。",
     );
 
     let loop_prompt = loop_template.render(&json!({
@@ -207,22 +207,21 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     // 角色定义模板
-    let role_template = PromptTemplate::from_string(
-        "你是{{role_name}}，一名{{role_description}}。"
-    );
+    let role_template =
+        PromptTemplate::from_string("你是{{role_name}}，一名{{role_description}}。");
 
     // 约束条件模板
     let constraint_template = PromptTemplate::from_string(
         "请遵循以下约束：
 {% for constraint in constraints %}
 - {{constraint}}
-{% endfor %}"
+{% endfor %}",
     );
 
     // 输出格式模板
     let format_template = PromptTemplate::from_string(
         "请按以下格式输出：
-{{format_description}}"
+{{format_description}}",
     );
 
     // 组合使用
@@ -283,7 +282,7 @@ async fn main() -> anyhow::Result<()> {
         let agent_template = PromptTemplate::from_string(
             "你是{{role}}，专注于{{specialty}}。
 你的目标是帮助用户{{goal}}。
-请用{{tone}}的语气回答。"
+请用{{tone}}的语气回答。",
         );
 
         let system_prompt = agent_template.render(&json!({

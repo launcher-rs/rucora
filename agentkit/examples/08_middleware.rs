@@ -102,7 +102,10 @@ impl Middleware for SensitiveWordFilterMiddleware {
         let mut filtered = input.text.clone();
         for word in &self.sensitive_words {
             if filtered.contains(word.as_str()) {
-                info!("middleware.sensitive_word_filter: 检测到敏感词 \"{}\"", word);
+                info!(
+                    "middleware.sensitive_word_filter: 检测到敏感词 \"{}\"",
+                    word
+                );
                 filtered = filtered.replace(word.as_str(), "***");
             }
         }
@@ -126,12 +129,12 @@ impl Middleware for ResponseFormatMiddleware {
     async fn on_response(&self, output: &mut AgentOutput) -> Result<(), AgentError> {
         // 在响应中添加格式化标记
         info!("middleware.response_format: 格式化响应");
-        
+
         // 修改输出内容，添加标记
         if let Some(content) = output.value.as_object_mut() {
             content.insert("formatted".to_string(), json!(true));
         }
-        
+
         Ok(())
     }
 }
@@ -181,8 +184,8 @@ async fn main() -> anyhow::Result<()> {
     info!("╚════════════════════════════════════════╝\n");
 
     // 检查配置
-    let has_api_config = std::env::var("OPENAI_API_KEY").is_ok()
-        || std::env::var("OPENAI_BASE_URL").is_ok();
+    let has_api_config =
+        std::env::var("OPENAI_API_KEY").is_ok() || std::env::var("OPENAI_BASE_URL").is_ok();
 
     if !has_api_config {
         info!("⚠ 未设置 API 配置");
@@ -311,7 +314,7 @@ async fn main() -> anyhow::Result<()> {
                 MiddlewareChain::new()
                     .with(LoggingMiddleware::new())
                     .with(CacheMiddleware::new())
-                    .with(auth_middleware.clone())
+                    .with(auth_middleware.clone()),
             )
             .build();
         info!("✓ ChatAgent 创建成功（带日志、缓存、认证中间件）\n");
@@ -436,7 +439,7 @@ async fn main() -> anyhow::Result<()> {
             .with_middleware_chain(
                 MiddlewareChain::new()
                     .with(LoggingMiddleware::new())
-                    .with(RateLimitMiddleware::new(30))
+                    .with(RateLimitMiddleware::new(30)),
             )
             .max_steps(15)
             .build();

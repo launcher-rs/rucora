@@ -12,7 +12,10 @@ use agentkit_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat, Role},
+        types::{
+            ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat,
+            Role,
+        },
     },
     tool::types::{ToolCall, ToolDefinition},
 };

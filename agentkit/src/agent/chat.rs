@@ -229,13 +229,19 @@ where
     }
 
     /// 设置中间件链
-    pub fn with_middleware_chain(mut self, middleware_chain: crate::middleware::MiddlewareChain) -> Self {
+    pub fn with_middleware_chain(
+        mut self,
+        middleware_chain: crate::middleware::MiddlewareChain,
+    ) -> Self {
         self.middleware_chain = middleware_chain;
         self
     }
 
     /// 添加中间件
-    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(mut self, middleware: M) -> Self {
+    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(
+        mut self,
+        middleware: M,
+    ) -> Self {
         self.middleware_chain = self.middleware_chain.with(middleware);
         self
     }

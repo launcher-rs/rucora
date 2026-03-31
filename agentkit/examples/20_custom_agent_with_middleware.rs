@@ -90,7 +90,10 @@ impl Middleware for InputValidationMiddleware {
                 input.text.len()
             )));
         }
-        info!("middleware.validation: 输入验证通过，长度 {}", input.text.len());
+        info!(
+            "middleware.validation: 输入验证通过，长度 {}",
+            input.text.len()
+        );
         Ok(())
     }
 }
@@ -102,8 +105,8 @@ impl Middleware for InputValidationMiddleware {
 pub struct TimestampAgent<P> {
     #[allow(dead_code)]
     provider: Arc<P>,
-    #[allow(dead_code)]
     system_prompt: Option<String>,
+    model: String,
     execution: DefaultExecution,
 }
 
@@ -125,7 +128,7 @@ where
         AgentDecision::Chat {
             request: ChatRequest {
                 messages: context.messages.clone(),
-                model: Some("gpt-4o-mini".to_string()),
+                model: Some(self.model.clone()),
                 ..Default::default()
             },
         }
@@ -151,6 +154,7 @@ where
 pub struct TimestampAgentBuilder<P> {
     provider: Option<P>,
     system_prompt: Option<String>,
+    model: String,
     middleware_chain: MiddlewareChain,
 }
 
@@ -162,6 +166,7 @@ where
         Self {
             provider: None,
             system_prompt: None,
+            model: String::new(),
             middleware_chain: MiddlewareChain::new(),
         }
     }
@@ -173,6 +178,11 @@ where
 
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
+        self
+    }
+
+    pub fn model(mut self, model: impl Into<String>) -> Self {
+        self.model = model.into();
         self
     }
 
@@ -189,9 +199,15 @@ where
     pub fn build(self) -> TimestampAgent<P> {
         let provider = Arc::new(self.provider.expect("Provider is required"));
         let system_prompt = self.system_prompt.clone();
+        let model = if self.model.is_empty() {
+            "gpt-4o-mini".to_string()
+        } else {
+            self.model
+        };
+
         let execution = DefaultExecution::new(
             provider.clone(),
-            "gpt-4o-mini",
+            model.clone(),
             agentkit::agent::ToolRegistry::new(),
         )
         .with_system_prompt_opt(self.system_prompt)
@@ -200,6 +216,7 @@ where
         TimestampAgent {
             provider,
             system_prompt,
+            model,
             execution,
         }
     }
@@ -251,8 +268,11 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ Provider 创建成功\n");
 
     info!("1.2 创建自定义 Agent（带中间件）...");
+    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "qwen3.5:9b".to_string());
+
     let agent = TimestampAgent::builder()
         .provider(provider)
+        .model(&model_name)
         .system_prompt("你是一个有用的助手，会在响应中自动添加时间戳。")
         .with_middleware(TimestampMiddleware)
         .with_middleware(LoggingMiddleware::new())
@@ -264,7 +284,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ 自定义 Agent 创建成功");
     info!("  Agent 名称：{}", agent.name());
     info!("  Agent 描述：{:?}", agent.description());
-    info!("");
+    info!("  使用模型：{}\n", model_name);
 
     // ═══════════════════════════════════════════════════════════
     // 示例 2: 测试自定义 Agent

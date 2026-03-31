@@ -193,19 +193,13 @@ pub trait Middleware: Send + Sync {
     }
 
     /// 工具调用前钩子
-    async fn on_tool_call_before(
-        &self,
-        call: &mut ToolCall,
-    ) -> Result<(), AgentError> {
+    async fn on_tool_call_before(&self, call: &mut ToolCall) -> Result<(), AgentError> {
         let _ = call;
         Ok(())
     }
 
     /// 工具调用后钩子
-    async fn on_tool_call_after(
-        &self,
-        result: &mut ToolResult,
-    ) -> Result<(), AgentError> {
+    async fn on_tool_call_after(&self, result: &mut ToolResult) -> Result<(), AgentError> {
         let _ = result;
         Ok(())
     }

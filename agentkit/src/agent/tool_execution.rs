@@ -58,14 +58,7 @@ pub(crate) async fn execute_tool_call_with_policy_and_observer(
     call: &ToolCall,
 ) -> Result<ToolResult, AgentError> {
     // 调用带中间件的版本（无中间件）
-    execute_tool_call_with_middleware(
-        tools,
-        policy,
-        observer,
-        call,
-        &MiddlewareChain::new(),
-    )
-    .await
+    execute_tool_call_with_middleware(tools, policy, observer, call, &MiddlewareChain::new()).await
 }
 
 pub(crate) async fn execute_tool_call_with_middleware(
@@ -77,12 +70,13 @@ pub(crate) async fn execute_tool_call_with_middleware(
 ) -> Result<ToolResult, AgentError> {
     // 创建可变副本用于中间件处理
     let mut call_mut = call.clone();
-    
+
     // 执行工具调用前中间件钩子
-    middleware_chain.process_tool_call_before(&mut call_mut).await.map_err(|e| {
-        AgentError::Message(format!("工具调用前中间件处理失败：{}", e))
-    })?;
-    
+    middleware_chain
+        .process_tool_call_before(&mut call_mut)
+        .await
+        .map_err(|e| AgentError::Message(format!("工具调用前中间件处理失败：{}", e)))?;
+
     let input_str = call_mut.input.to_string();
     let input_len = input_str.len();
     let input_preview = if input_len <= 800 {
@@ -245,7 +239,8 @@ pub(crate) async fn execute_tool_call_with_middleware(
             s
         } else {
             // 在字符边界处截断，避免 UTF-8 错误
-            let truncation_point = s.char_indices()
+            let truncation_point = s
+                .char_indices()
                 .nth(MAX.min(s.chars().count()))
                 .map(|(i, _)| i)
                 .unwrap_or(MAX);
@@ -288,11 +283,12 @@ pub(crate) async fn execute_tool_call_with_middleware(
         tool_call_id: call.id.clone(),
         output: tool_output,
     };
-    
+
     // 执行工具调用后中间件钩子
-    middleware_chain.process_tool_call_after(&mut result).await.map_err(|e| {
-        AgentError::Message(format!("工具调用后中间件处理失败：{}", e))
-    })?;
+    middleware_chain
+        .process_tool_call_after(&mut result)
+        .await
+        .map_err(|e| AgentError::Message(format!("工具调用后中间件处理失败：{}", e)))?;
 
     Ok(result)
 }

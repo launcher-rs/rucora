@@ -18,7 +18,6 @@ use tracing_subscriber::FmtSubscriber;
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
-
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)

@@ -106,16 +106,15 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use agentkit::agent::ToolAgent;
 use agentkit::mcp::{
     ServiceExt,
     protocol::{ClientCapabilities, ClientInfo, Implementation},
     tool::{McpClient, McpTool},
     transport::{
-        StreamableHttpClientTransport,
-        streamable_http_client::StreamableHttpClientTransportConfig,
+        StreamableHttpClientTransport, streamable_http_client::StreamableHttpClientTransportConfig,
     },
 };
-use agentkit::agent::ToolAgent;
 use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
 use reqwest::header::{AUTHORIZATION, HeaderValue};
@@ -190,7 +189,10 @@ async fn main() -> anyhow::Result<()> {
     info!("步骤 2: 获取 MCP 工具列表");
     info!("═══════════════════════════════════════\n");
 
-    let specs = mcp_client.list_tools().await.map_err(|e| anyhow::anyhow!(e))?;
+    let specs = mcp_client
+        .list_tools()
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
     info!("找到 {} 个 MCP 工具:", specs.len());
     for spec in &specs {
         info!(
@@ -243,7 +245,7 @@ async fn main() -> anyhow::Result<()> {
         .system_prompt(
             "你是一个严谨的助手，擅长使用各种工具完成任务。\n\
              回答请使用中文。\n\
-             如果需要获取实时信息或执行操作，请使用可用的工具。"
+             如果需要获取实时信息或执行操作，请使用可用的工具。",
         )
         .tool_registry(tools)
         .max_steps(6)
@@ -302,10 +304,10 @@ async fn main() -> anyhow::Result<()> {
 
     // 显式丢弃客户端以触发清理
     drop(mcp_client);
-    
+
     // 等待一小段时间让 RMCP 优雅关闭连接
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    
+
     info!("✓ MCP 连接已关闭\n");
 
     // ═══════════════════════════════════════════════════════════

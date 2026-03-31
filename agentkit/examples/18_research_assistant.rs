@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
              3. 整理和分类信息\n\
              4. 分析和综合\n\
              5. 生成结构化报告\n\n\
-             请使用可用的工具完成任务。"
+             请使用可用的工具完成任务。",
         )
         .tool(EchoTool)
         .tool(ShellTool)

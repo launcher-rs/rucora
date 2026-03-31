@@ -99,7 +99,10 @@ async fn main() -> anyhow::Result<()> {
 
     for (i, chunk) in chunks.iter().enumerate() {
         info!("  块 {} [{}]:", i + 1, chunk.id);
-        info!("    内容：{}...\n", chunk.text.chars().take(50).collect::<String>());
+        info!(
+            "    内容：{}...\n",
+            chunk.text.chars().take(50).collect::<String>()
+        );
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -152,15 +155,8 @@ async fn main() -> anyhow::Result<()> {
     - 网络爬虫：Scrapy、BeautifulSoup
     ";
 
-    let python_chunks = index_text(
-        &embedder,
-        &vector_store,
-        "python_doc",
-        python_doc,
-        150,
-        20,
-    )
-    .await?;
+    let python_chunks =
+        index_text(&embedder, &vector_store, "python_doc", python_doc, 150, 20).await?;
 
     info!("✓ 已索引 Python 文档，共 {} 个块\n", python_chunks.len());
 
@@ -183,7 +179,13 @@ async fn main() -> anyhow::Result<()> {
                 "    {}. [{}] {} (相似度：{:.3})",
                 i + 1,
                 citation.render(),
-                citation.text.as_ref().unwrap_or(&"无内容".to_string()).chars().take(40).collect::<String>(),
+                citation
+                    .text
+                    .as_ref()
+                    .unwrap_or(&"无内容".to_string())
+                    .chars()
+                    .take(40)
+                    .collect::<String>(),
                 citation.score
             );
         }
@@ -235,7 +237,7 @@ async fn main() -> anyhow::Result<()> {
         .system_prompt(
             "你是一个基于检索结果的问答助手。请根据提供的上下文信息回答问题。\n\
              如果上下文中没有相关信息，请诚实地说明。\n\
-             回答时请引用相关的来源。"
+             回答时请引用相关的来源。",
         )
         .build();
     info!("✓ Agent 创建成功\n");

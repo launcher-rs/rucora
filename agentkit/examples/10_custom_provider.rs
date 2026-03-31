@@ -15,7 +15,7 @@
 //! 4. **集成使用** - 与 Agent 集成使用
 
 use agentkit::agent::SimpleAgent;
-use agentkit::prelude::{Agent};
+use agentkit::prelude::Agent;
 use agentkit_core::error::ProviderError;
 use agentkit_core::provider::{LlmProvider, types::*};
 use async_trait::async_trait;
