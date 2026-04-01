@@ -112,6 +112,10 @@ name = "12_mcp"
 path = "examples/12_mcp.rs"
 required-features = ["mcp"]
 
+[[example]]
+name = "13_task_decomposition"
+path = "examples/13_task_decomposition.rs"
+
 # Agent 类型（15-17）
 [[example]]
 name = "15_react_agent"
@@ -135,5 +139,6 @@ name = "19_code_assistant"
 path = "examples/19_code_assistant.rs"
 
 [[example]]
-name = "21_task_decomposition"
-path = "examples/21_task_decomposition.rs"
+name = "21_unified_conversation"
+path = "examples/21_unified_conversation.rs"
+

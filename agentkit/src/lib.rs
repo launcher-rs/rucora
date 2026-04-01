@@ -192,6 +192,9 @@ pub mod embed;
 // RAG 模块
 pub mod rag;
 
+// 上下文压缩模块
+pub mod compact;
+
 // Conversation 模块
 pub mod conversation;
 
