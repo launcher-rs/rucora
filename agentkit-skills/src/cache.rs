@@ -3,7 +3,7 @@
 //! 缓存已加载的 Skills，避免重复加载
 //! 参考 zeroclaw 的设计
 
-use crate::skills::SkillDefinition;
+use crate::SkillDefinition;
 use std::collections::HashMap;
 use std::path::Path;
 use std::time::{Duration, SystemTime};
@@ -123,7 +123,7 @@ impl SkillCache {
 /// 带缓存的 Skill 加载器包装器
 pub struct CachedSkillLoader {
     cache: SkillCache,
-    loader: crate::skills::SkillLoader,
+    loader: crate::SkillLoader,
 }
 
 impl CachedSkillLoader {
@@ -131,12 +131,12 @@ impl CachedSkillLoader {
     pub fn new(skills_dir: &Path, cache: SkillCache) -> Self {
         Self {
             cache,
-            loader: crate::skills::SkillLoader::new(skills_dir),
+            loader: crate::SkillLoader::new(skills_dir),
         }
     }
 
     /// 获取 Skill（优先从缓存读取）
-    pub async fn get_skill(&mut self, name: &str) -> Option<crate::skills::SkillDefinition> {
+    pub async fn get_skill(&mut self, name: &str) -> Option<crate::SkillDefinition> {
         // 尝试从缓存读取
         if let Some(skill) = self.cache.get(name) {
             return Some(skill.clone());
@@ -147,7 +147,7 @@ impl CachedSkillLoader {
     }
 
     /// 缓存 Skill
-    pub fn cache_skill(&mut self, skill: crate::skills::SkillDefinition) {
+    pub fn cache_skill(&mut self, skill: crate::SkillDefinition) {
         self.cache.insert(skill.name.clone(), skill);
     }
 
@@ -157,7 +157,7 @@ impl CachedSkillLoader {
     }
 
     /// 获取底层 loader
-    pub fn loader(&mut self) -> &mut crate::skills::SkillLoader {
+    pub fn loader(&mut self) -> &mut crate::SkillLoader {
         &mut self.loader
     }
 }
@@ -232,4 +232,5 @@ mod tests {
         assert_eq!(cache.len(), 0);
     }
 }
+
 

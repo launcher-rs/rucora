@@ -8,6 +8,8 @@ version = "0.1.0"
 dependencies = [
  "agentkit",
  "agentkit-core",
+ "agentkit-providers",
+ "agentkit-tools",
  "anyhow",
  "async-trait",
  "ra2a",
@@ -55,30 +57,18 @@ dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
- "backon",
- "bytes",
- "chrono",
  "criterion",
- "dom_smoothie",
  "dotenv",
  "futures-executor",
  "futures-util",
- "html2text",
- "ra2a",
  "regex",
- "reqwest",
- "rmcp",
  "schemars 0.8.22",
- "scraper",
  "serde",
  "serde_json",
- "serde_yaml",
  "thiserror 2.0.18",
  "tokio",
- "toml",
  "tracing",
  "tracing-subscriber",
- "url",
 ]
 
 [[package]]
@@ -115,6 +105,9 @@ version = "0.1.0"
 dependencies = [
  "agentkit",
  "agentkit-core",
+ "agentkit-providers",
+ "agentkit-skills",
+ "agentkit-tools",
  "anyhow",
  "async-trait",
  "chrono",
@@ -203,6 +196,7 @@ dependencies = [
  "serde_yaml",
  "thiserror 2.0.18",
  "tokio",
+ "toml",
  "tracing",
 ]
 

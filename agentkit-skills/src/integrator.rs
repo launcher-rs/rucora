@@ -1,6 +1,6 @@
 ﻿//! Skills 与 Agent 自动集成模块
 
-use crate::skills::loader::SkillLoader;
+use crate::loader::SkillLoader;
 use agentkit_core::skill::SkillDefinition;
 use serde_json::Value;
 use std::collections::HashSet;
@@ -110,4 +110,5 @@ impl SkillToolAdapter {
         &self.description
     }
 }
+
 

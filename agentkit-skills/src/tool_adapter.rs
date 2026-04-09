@@ -1,6 +1,6 @@
 ﻿//! Skill 到 Tool 的适配器
 
-use crate::skills::{SkillDefinition, SkillExecutor, SkillsPromptMode};
+use crate::{SkillDefinition, SkillExecutor, SkillsPromptMode};
 use agentkit_core::error::ToolError;
 use agentkit_core::tool::{Tool, ToolCategory};
 use async_trait::async_trait;
@@ -300,4 +300,5 @@ pub fn read_skill(
 
     Err(format!("No skill file found in {:?}", skill_path).into())
 }
+
 

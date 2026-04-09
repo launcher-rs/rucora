@@ -8,8 +8,7 @@ readme = "README.md"
 
 [features]
 default = []
-yaml = ["serde_yaml"]
-all = ["yaml"]
+all = []
 
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
@@ -17,7 +16,8 @@ agentkit-tools = { path = "../agentkit-tools" }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-serde_yaml = { version = "0.9", optional = true }
+serde_yaml = "0.9"
+toml = "0.8"
 tokio = { version = "1", features = ["fs"] }
 tracing = "0.1"
 thiserror = "2"
