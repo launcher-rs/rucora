@@ -1,4 +1,4 @@
-//! 命令技能实现。
+﻿//! 命令技能实现。
 //!
 //! 本模块提供基于命令模板的技能实现，通过解析 SKILL.md 文件中的命令模板来执行操作。
 
@@ -226,7 +226,7 @@ impl Skill for CommandSkill {
         debug!(skill.name = %self.name, cmd.command = %cmd, "command_skill.exec");
 
         // Skill 内部通过 tool 来执行命令（符合"skills 执行时调用工具执行命令"的约束）。
-        let tool = crate::tools::CmdExecTool::new();
+        let tool = agentkit_tools::CmdExecTool::new();
         let out = tool
             .call(json!({"command": cmd}))
             .await
@@ -308,3 +308,4 @@ pub fn extract_primary_command_template(md: &str) -> Option<String> {
 
     None
 }
+

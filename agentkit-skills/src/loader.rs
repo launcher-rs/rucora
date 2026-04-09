@@ -1,4 +1,4 @@
-//! Skill 加载器和执行器模块
+﻿//! Skill 加载器和执行器模块
 
 use agentkit_core::skill::{SkillDefinition, SkillResult};
 use serde_json::Value;
@@ -576,3 +576,4 @@ pub enum SkillExecuteError {
     #[error("验证失败：{0}")]
     ValidationError(String),
 }
+

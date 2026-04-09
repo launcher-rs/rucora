@@ -12,7 +12,7 @@ default = ["providers", "tools", "embed", "retrieval"]
 mcp = ["dep:agentkit-mcp"]
 a2a = ["dep:agentkit-a2a"]
 # Skills 技能系统
-skills = ["dep:serde_yaml"]
+skills = ["dep:agentkit-skills"]
 # 子模块（可选）
 providers = ["dep:agentkit-providers"]
 tools = ["dep:agentkit-tools"]
@@ -32,6 +32,7 @@ agentkit-providers = { path = "../agentkit-providers", optional = true }
 agentkit-tools = { path = "../agentkit-tools", optional = true }
 agentkit-embed = { path = "../agentkit-embed", optional = true }
 agentkit-retrieval = { path = "../agentkit-retrieval", optional = true }
+agentkit-skills = { path = "../agentkit-skills", optional = true }
 
 # 保留直接依赖以便向后兼容（当子模块未启用时使用）
 rmcp = { version = "1.3", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], optional = true }

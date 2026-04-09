@@ -1,4 +1,4 @@
-//! Skill 缓存模块
+﻿//! Skill 缓存模块
 //!
 //! 缓存已加载的 Skills，避免重复加载
 //! 参考 zeroclaw 的设计
@@ -232,3 +232,4 @@ mod tests {
         assert_eq!(cache.len(), 0);
     }
 }
+

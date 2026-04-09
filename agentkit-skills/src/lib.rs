@@ -1,4 +1,4 @@
-//! Skills锛堟妧鑳斤級妯″潡
+﻿//! Skills锛堟妧鑳斤級妯″潡
 //!
 //! # 姒傝堪
 //!
@@ -37,3 +37,4 @@ impl Default for SkillsPromptMode {
         Self::Compact
     }
 }
+

@@ -182,7 +182,7 @@ pub use agentkit_tools as tools;
 
 // Skills 模块（可选）
 #[cfg(feature = "skills")]
-pub mod skills;
+pub use agentkit_skills as skills;
 
 // Memory 模块
 pub mod memory;

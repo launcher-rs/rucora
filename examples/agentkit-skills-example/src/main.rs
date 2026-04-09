@@ -7,8 +7,8 @@
 
 use agentkit::agent::ToolAgent;
 use agentkit::prelude::Agent;
-use agentkit::skills::{SkillExecutor, SkillLoader, SkillTool};
 use agentkit_providers::OpenAiProvider;
+use agentkit_skills::{SkillExecutor, SkillLoader, SkillTool};
 use agentkit_tools::{ShellTool, ToolRegistry};
 use std::sync::Arc;
 use tracing::{Level, info};

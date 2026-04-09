@@ -8,7 +8,7 @@
 //! cargo run --example skills_usage -p agentkit
 //! ```
 
-use agentkit::skills::{SkillLoader, SkillExecutor};
+use agentkit_skills::{SkillLoader, SkillExecutor};
 use agentkit_providers::OpenAiProvider;
 use agentkit::agent::DefaultAgent;
 use agentkit::prelude::*;

@@ -1,4 +1,4 @@
-//! Skills 与 Agent 自动集成模块
+﻿//! Skills 与 Agent 自动集成模块
 
 use crate::skills::loader::SkillLoader;
 use agentkit_core::skill::SkillDefinition;
@@ -110,3 +110,4 @@ impl SkillToolAdapter {
         &self.description
     }
 }
+

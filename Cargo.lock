@@ -50,6 +50,7 @@ dependencies = [
  "agentkit-mcp",
  "agentkit-providers",
  "agentkit-retrieval",
+ "agentkit-skills",
  "agentkit-tools",
  "anyhow",
  "async-stream",
@@ -190,12 +191,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "agentkit-skills"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "agentkit-tools",
+ "anyhow",
+ "async-trait",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "agentkit-skills-example"
 version = "0.1.0"
 dependencies = [
  "agentkit",
  "agentkit-core",
  "agentkit-providers",
+ "agentkit-skills",
  "agentkit-tools",
  "anyhow",
  "dotenv",

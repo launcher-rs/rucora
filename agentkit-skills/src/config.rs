@@ -1,4 +1,4 @@
-//! Skill 配置模块
+﻿//! Skill 配置模块
 //!
 //! 支持多种配置文件格式：YAML, TOML, JSON
 //! 支持按需加载、配置验证、配置合并等功能
@@ -593,3 +593,4 @@ mod tests {
         assert!(!config.matches_trigger("计算"));
     }
 }
+
