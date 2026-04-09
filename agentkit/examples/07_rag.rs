@@ -1,4 +1,4 @@
-//! AgentKit RAG（检索增强生成）示例
+﻿//! AgentKit RAG（检索增强生成）示例
 //!
 //! 展示 RAG（Retrieval-Augmented Generation）的完整流程。
 //!
@@ -16,9 +16,9 @@
 //! 4. **检索** - 根据查询找到相关文档
 //! 5. **增强生成** - 结合检索结果生成回答
 
-use agentkit::embed::OpenAiEmbedding;
+use agentkit_embed::openai::OpenAiEmbeddingProvider;
 use agentkit::rag::{chunk_text, index_chunks, index_text, retrieve};
-use agentkit::retrieval::InMemoryVectorStore;
+use agentkit_retrieval::in_memory::InMemoryVectorStore;
 use agentkit_core::retrieval::VectorStore;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -117,7 +117,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ 向量存储创建成功\n");
 
     info!("2.2 创建 Embedding Provider...");
-    let embedder = OpenAiEmbedding::from_env()?;
+    let embedder = OpenAiEmbeddingProvider::from_env()?;
     info!("✓ Embedding Provider 创建成功\n");
 
     info!("2.3 索引分块...");
@@ -320,3 +320,6 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+
+

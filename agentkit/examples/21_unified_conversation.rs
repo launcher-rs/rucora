@@ -1,4 +1,4 @@
-//! AgentKit 统一的对话管理器示例
+﻿//! AgentKit 统一的对话管理器示例
 //!
 //! 展示如何使用 ConversationManager 管理对话和自动压缩。
 //!
@@ -341,3 +341,5 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+

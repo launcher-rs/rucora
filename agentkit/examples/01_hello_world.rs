@@ -1,4 +1,4 @@
-//! AgentKit Hello World 示例
+﻿//! AgentKit Hello World 示例
 //!
 //! 这是最简单的 AgentKit 示例，展示如何快速创建一个能对话的 Agent。
 //!
@@ -75,3 +75,5 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+

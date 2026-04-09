@@ -1,4 +1,5 @@
 use agentkit_core::retrieval::{VectorQuery, VectorRecord, VectorStore};
+use agentkit_retrieval::in_memory::InMemoryVectorStore;
 use serde_json::json;
 
 // 说明：VectorStore 的一个最小 contract 测试。
@@ -6,7 +7,7 @@ use serde_json::json;
 
 #[tokio::test]
 async fn vector_store_contract_upsert_get_count_clear_should_work() {
-    let store = agentkit::retrieval::InMemoryVectorStore::new();
+    let store = InMemoryVectorStore::new();
 
     store
         .upsert(vec![VectorRecord::new("a", vec![1.0, 0.0]).with_text("A")])
@@ -27,7 +28,7 @@ async fn vector_store_contract_upsert_get_count_clear_should_work() {
 
 #[tokio::test]
 async fn vector_store_contract_search_should_return_sorted_results() {
-    let store = agentkit::retrieval::InMemoryVectorStore::new();
+    let store = InMemoryVectorStore::new();
 
     store
         .upsert(vec![

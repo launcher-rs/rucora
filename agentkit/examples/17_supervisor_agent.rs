@@ -1,4 +1,4 @@
-//! AgentKit Supervisor Agent 示例
+﻿//! AgentKit Supervisor Agent 示例
 //!
 //! 展示主管模式的 Agent，协调多个专家 Agent 完成复杂任务。
 //!
@@ -188,7 +188,7 @@ async fn main() -> anyhow::Result<()> {
              - 执行具体任务\n\
              请准确选择合适的工具完成任务。",
         )
-        .tool(ShellTool)
+        .tool(ShellTool::new())
         .tool(EchoTool)
         .max_steps(10)
         .build();
@@ -398,3 +398,5 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+

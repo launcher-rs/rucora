@@ -57,11 +57,13 @@ dependencies = [
  "anyhow",
  "async-stream",
  "async-trait",
+ "chrono",
  "criterion",
  "dotenv",
  "futures-executor",
  "futures-util",
  "regex",
+ "reqwest",
  "schemars 0.8.22",
  "serde",
  "serde_json",
@@ -89,7 +91,7 @@ dependencies = [
 name = "agentkit-core"
 version = "0.1.0"
 dependencies = [
- "agentkit",
+ "agentkit-retrieval",
  "anyhow",
  "async-trait",
  "futures-util",

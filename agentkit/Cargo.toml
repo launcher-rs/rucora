@@ -54,6 +54,14 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 criterion = "0.5"
 anyhow = "1"
 dotenv = "0.15.0"
+agentkit-retrieval = { path = "../agentkit-retrieval" }
+agentkit-embed = { path = "../agentkit-embed" }
+agentkit-tools = { path = "../agentkit-tools" }
+agentkit-providers = { path = "../agentkit-providers" }
+agentkit-mcp = { path = "../agentkit-mcp" }
+agentkit-skills = { path = "../agentkit-skills" }
+reqwest = { version = "0.13", features = ["json"] }
+chrono = "0.4"
 
 [[bench]]
 name = "json_serialize"

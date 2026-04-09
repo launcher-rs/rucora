@@ -1,4 +1,4 @@
-//! AgentKit ReAct Agent 示例
+﻿//! AgentKit ReAct Agent 示例
 //!
 //! 展示 ReAct（Reason + Act）模式的 Agent。
 //!
@@ -91,7 +91,7 @@ async fn main() -> anyhow::Result<()> {
              - 如果不确定命令，请先说明当前平台并询问用户"
         )
         .tool(EchoTool)
-        .tool(ShellTool)
+        .tool(ShellTool::new())
         .max_steps(50)
         .build();
     info!("✓ ReAct Agent 创建成功\n");
@@ -187,3 +187,5 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+

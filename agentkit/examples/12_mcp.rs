@@ -1,4 +1,4 @@
-//! MCP (Model Context Protocol) 使用示例
+﻿//! MCP (Model Context Protocol) 使用示例
 //!
 //! 展示如何连接 MCP 服务器并使用 OpenAI Provider 调用 MCP 工具完成实际任务
 //!
@@ -110,13 +110,14 @@ use agentkit::agent::ToolAgent;
 use agentkit::mcp::{
     ServiceExt,
     protocol::{ClientCapabilities, ClientInfo, Implementation},
-    tool::{McpClient, McpTool},
+    tool::McpTool,
     transport::{
         StreamableHttpClientTransport, streamable_http_client::StreamableHttpClientTransportConfig,
     },
 };
 use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
+use agentkit_mcp::McpClient;
 use reqwest::header::{AUTHORIZATION, HeaderValue};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -346,3 +347,5 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+

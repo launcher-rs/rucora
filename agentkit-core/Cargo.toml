@@ -13,4 +13,4 @@ futures-util = "0.3"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt"] }
 
 [dev-dependencies]
-agentkit = { path = "../agentkit" }
+agentkit-retrieval = { path = "../agentkit-retrieval" }
