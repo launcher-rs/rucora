@@ -134,7 +134,7 @@ impl Tool for CmdExecTool {
         let start = std::time::Instant::now();
         let result = timeout(
             Duration::from_secs(timeout_secs),
-            execute_shell_command(command, &[]),
+            execute_shell_command(command, &[], None),
         )
         .await;
 

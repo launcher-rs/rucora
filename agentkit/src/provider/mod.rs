@@ -322,6 +322,7 @@ pub mod azure_openai;
 pub mod deepseek;
 pub mod gemini;
 pub mod helpers;
+pub mod http_config;
 pub mod moonshot;
 pub mod ollama;
 pub mod openai;

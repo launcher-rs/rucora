@@ -67,7 +67,6 @@ impl ErrorCategory {
             ErrorCategory::Network
                 | ErrorCategory::Timeout
                 | ErrorCategory::RateLimit
-                | ErrorCategory::Model
         )
     }
 
@@ -316,19 +315,19 @@ impl DiagnosticError for ProviderError {
                 status_code: Some(429),
                 retry_after: *retry_after,
             },
-            ProviderError::Timeout { message, elapsed } => ErrorDiagnostic {
+            ProviderError::Timeout { message, elapsed: _ } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
                 retriable: true,
                 source: None,
                 category: ErrorCategory::Timeout,
                 status_code: None,
-                retry_after: Some(*elapsed),
+                retry_after: None,  // elapsed 是已消耗时间，不是建议等待时间
             },
             ProviderError::Model { message } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
-                retriable: true,
+                retriable: false,  // 模型错误通常是永久性错误（如模型不存在）
                 source: None,
                 category: ErrorCategory::Model,
                 status_code: None,
@@ -413,7 +412,7 @@ impl DiagnosticError for ToolError {
             ToolError::Timeout { message } => ErrorDiagnostic {
                 kind: "tool",
                 message: format!("工具执行超时：{}", message),
-                retriable: true,
+                retriable: false,  // 工具超时通常不应该重试
                 source: None,
                 category: ErrorCategory::Timeout,
                 status_code: None,
@@ -473,17 +472,24 @@ impl DiagnosticError for SkillError {
 /// Agent 错误
 #[derive(thiserror::Error, Debug)]
 pub enum AgentError {
+    /// 通用错误消息
     #[error("agent error: {0}")]
     Message(String),
 
+    /// 超过最大步数限制
     #[error("超过最大步数限制：{max_steps}")]
     MaxStepsExceeded { max_steps: usize },
 
+    /// Provider 错误
     #[error("Provider 错误：{source}")]
     ProviderError {
         #[source]
         source: ProviderError,
     },
+
+    /// 需要 Runtime 支持（Agent 返回了需要 Runtime 执行的决策）
+    #[error("此决策需要 Runtime 支持，请使用 Runtime 模式运行")]
+    RequiresRuntime,
 }
 
 impl DiagnosticError for AgentError {
@@ -512,6 +518,15 @@ impl DiagnosticError for AgentError {
                 diag.kind = "runtime";
                 diag
             }
+            AgentError::RequiresRuntime => ErrorDiagnostic {
+                kind: "runtime",
+                message: "此决策需要 Runtime 支持，请使用 Runtime 模式运行".to_string(),
+                retriable: false,
+                source: None,
+                category: ErrorCategory::Configuration,
+                status_code: None,
+                retry_after: None,
+            },
         }
     }
 }

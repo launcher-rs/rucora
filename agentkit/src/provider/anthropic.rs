@@ -8,8 +8,7 @@
 
 use std::env;
 
-use crate::provider::helpers::parse_finish_reason;
-use crate::provider::preview;
+use crate::provider::{helpers::parse_finish_reason, http_config::build_client, preview};
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -120,10 +119,7 @@ impl AnthropicProvider {
         // Anthropic 需要版本号
         headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
 
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .expect("reqwest client build failed");
+        let client = build_client(headers);
 
         Self {
             client,

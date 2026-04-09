@@ -8,8 +8,7 @@
 
 use std::env;
 
-use crate::provider::helpers::parse_finish_reason;
-use crate::provider::preview;
+use crate::provider::{helpers::parse_finish_reason, http_config::build_client, preview};
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -103,10 +102,7 @@ impl DeepSeekProvider {
             headers.insert(AUTHORIZATION, v);
         }
 
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .expect("reqwest client build failed");
+        let client = build_client(headers);
 
         Self {
             client,

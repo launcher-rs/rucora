@@ -6,214 +6,124 @@
 
 ## [未发布]
 
-### 架构调整
+### 代码质量与安全改进
 
-#### Crate 合并（破坏性变更）
+#### P0 严重问题修复
 
-**变更内容**：
-- 将 `agentkit-mcp`、`agentkit-a2a`、`agentkit-skills` 三个独立 crate 合并到 `agentkit` 主库中
-- 移除 `agentkit-cli` 和 `agentkit-server` 独立 crate
-- Workspace 成员从 10 个减少到 4 个
+**1. HTTP 超时配置**
+- 为所有 8 个 Provider 添加 HTTP 超时配置
+- 默认请求超时：120 秒
+- 默认连接超时：15 秒
+- 防止请求无限挂起，提高系统可用性
+- 新增 `http_config.rs` 模块统一管理超时配置
 
-**影响**：
-- 用户只需依赖 `agentkit` 一个 crate 即可使用所有功能
-- 导入路径发生变化
+**2. Gemini API Key 安全修复**
+- 修复 API Key 暴露在 URL 查询参数中的安全问题
+- 改用 `x-goog-api-key` 请求头传递 API Key
+- 消除 API Key 泄露到日志和代理服务器的风险
 
-**迁移指南**：
-```rust
-// 旧导入方式
-use agentkit_mcp::McpClient;
-use agentkit_a2a::client::Client;
-use agentkit_skills::load_skills_from_dir;
+**3. ResilientProvider 退避算法修复**
+- 修复抖动计算始终返回 0 的数学 bug
+- 使用基于 attempt 的伪随机算法生成有效抖动
+- 重试策略现在能有效分散请求，避免重试风暴
 
-// 新导入方式
-use agentkit::mcp::McpClient;
-use agentkit::a2a::client::Client;
-use agentkit::skills::load_skills_from_dir;
-```
+**4. AgentError 统一定义**
+- 消除 `agentkit-core` 中两个重复的 `AgentError` 定义
+- 添加 `RequiresRuntime` 变体到统一错误类型
+- 更新所有使用旧变体（`MaxStepsReached`）的代码为新变体（`MaxStepsExceeded`）
+- 接口统一，减少使用困惑
 
-```toml
-# 旧依赖配置
-[dependencies]
-agentkit = "0.1"
-agentkit-mcp = "0.1"
-agentkit-a2a = "0.1"
-agentkit-skills = "0.1"
+**5. ShellTool 安全策略增强**
+- 新增命令白名单/黑名单机制
+- 增强危险操作符检测（管道、重定向、命令替换等）
+- 添加路径遍历攻击防护
+- 添加环境变量泄露检测
+- 支持配置化安全策略
+- 支持工作目录设置
+- 修复 args 参数传递问题
 
-# 新依赖配置
-[dependencies]
-agentkit = { version = "0.1", features = ["mcp", "a2a", "skills"] }
-```
+**6. Agent 默认实现改进**
+- 将默认最大步骤数从 10 增加到 20
+- 改进 Chat/ToolCall 决策的错误提示
+- 完善文档注释，明确说明默认实现的局限性
 
-#### DefaultAgent API 重构（破坏性变更）
+#### P1 高优先级问题修复
 
-**变更内容**：
-- 移除了 `tools` 字段，`DefaultAgent` 现在只持有 `provider`，职责更单一
+**7. 错误可重试性修正**
+- 从 `is_retriable()` 中移除 `ErrorCategory::Model`（模型错误通常是永久性错误）
+- 将 `ToolError::Timeout` 的 `retriable` 标记为 `false`（工具超时不应重试）
+- 将 `ProviderError::Model` 的 `retriable` 标记为 `false`
+- 避免无效重试，提高错误处理效率
 
-**迁移指南**：
-```rust
-// 旧代码
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .tools(tools)  // 不再需要
-    .build();
+**8. ProviderError::Timeout 的 retry_after 映射修复**
+- 修复 `elapsed`（已消耗时间）被错误映射到 `retry_after`（建议等待时间）的问题
+- 将 `retry_after` 设置为 `None`
+- 提供准确的重试建议
 
-// 新代码
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .build();
-```
+#### P2 中优先级问题修复
 
-#### AgentInput API 改进（破坏性变更）
+**9. tokio features 优化**
+- `agentkit-core` 将 `tokio` features 从 `["full"]` 改为 `["sync", "time", "macros", "rt"]`
+- 减少编译时间和二进制大小
 
-**变更内容**：
-- 字段简化，移除 `messages` 和 `metadata` 字段
-- 使用更简洁的构造方式
+**10. AgentInput 初始值统一**
+- 统一 `AgentInput::new()` 和 `AgentInputBuilder::new()` 的初始值
+- 都使用 `Value::Object(serde_json::Map::new())` 作为 context 初始值
+- 消除行为不一致问题
 
-**迁移指南**：
-```rust
-// 旧代码
-let input = AgentInput {
-    messages: vec![ChatMessage::user("你好")],
-    metadata: None,
-};
+### 测试修复
 
-// 新代码
-let input = AgentInput::new("你好");
-```
+#### Compact 模块测试修复
 
-#### AgentOutput API 改进（破坏性变更）
+**修复 3 个失败的测试**：
 
-**变更内容**：
-- 简化输出结构，使用 `Value` 统一返回
-- 新增辅助方法：`text()`, `message_count()`, `tool_call_count()`
+1. **test_group_messages**
+   - 修复消息分组算法逻辑错误
+   - 正确识别用户消息开始的 API 轮次
+   - 支持连续 assistant 消息的分组
 
-**迁移指南**：
-```rust
-// 旧代码
-println!("{}", output.message.content);
+2. **test_generate_partial_compact_prompt**
+   - 更新 `PARTIAL_COMPACT_PROMPT` 常量
+   - 确保提示词包含"最近的消息"关键字
 
-// 新代码
-println!("{}", output.text().unwrap_or("无回复"));
-```
+3. **test_should_compact**
+   - 调整测试参数（使用较小的 buffer 和 gpt-4 模型）
+   - 增加消息长度和数量以确保触发压缩阈值
 
-### 新增功能
+**测试结果**：
+- ✅ 81 个测试全部通过（72 agentkit + 9 agentkit-core）
+- ✅ 0 个测试失败
 
-#### MCP 协议支持（可选）
+### 修改文件清单
 
-**功能说明**：
-- 支持连接 MCP（Model Context Protocol）服务器
-- 将 MCP 工具转换为 agentkit 的 Tool trait
-- 支持多种传输层（Stdio、HTTP）
+#### 新建文件 (5)
+- `agentkit/src/provider/http_config.rs` - HTTP 客户端配置模块
+- `docs/CODE_AUDIT_REPORT.md` - 完整代码审计报告
+- `docs/CODE_IMPROVEMENT_REPORT.md` - 改进实施报告
+- `docs/P0_FIXES_COMPLETE.md` - P0 修复完成报告
+- `docs/COMPACT_TESTS_FIX_REPORT.md` - 测试修复报告
 
-**使用示例**：
-```rust
-use agentkit::mcp::{McpClient, StdioTransport};
-
-// 创建传输层并连接
-let transport = StdioTransport::new("mcp-server");
-let client = McpClient::connect(transport).await?;
-
-// 列出可用工具
-let tools = client.list_tools().await?;
-```
-
-**启用方式**：
-```toml
-[dependencies]
-agentkit = { version = "0.1", features = ["mcp"] }
-```
-
-#### A2A 协议支持（可选）
-
-**功能说明**：
-- 支持 Agent 之间的通信与协作
-- 支持任务委托与结果返回
-- 支持多 Agent 系统编排
-
-**使用示例**：
-```rust
-use agentkit::a2a::client::Client;
-
-// 连接远程 Agent
-let client = Client::connect("http://agent-server:8080").await?;
-
-// 发送任务
-let task = client.send_task("process_data", "input data").await?;
-```
-
-**启用方式**：
-```toml
-[dependencies]
-agentkit = { version = "0.1", features = ["a2a"] }
-```
-
-#### Skills 技能系统（默认启用）
-
-**功能说明**：
-- 支持 Rhai 脚本技能（可选）
-- 支持命令模板技能（基于 SKILL.md）
-- 支持从目录动态加载技能
-
-**使用示例**：
-```rust
-use agentkit::skills::load_skills_from_dir;
-
-// 从目录加载技能
-let skills = load_skills_from_dir("skills").await?;
-
-// 转换为工具列表
-let tools = skills.as_tools();
-```
-
-**启用方式**：
-```toml
-[dependencies]
-agentkit = { version = "0.1", features = ["skills", "rhai-skills"] }
-```
-
-### 改进优化
-
-#### 项目结构优化
-- 简化依赖管理，用户只需依赖一个 crate
-- 统一版本号，所有功能使用同一版本
-- 减少 crate 数量，降低维护成本
-- 改善内部集成，子模块间可直接调用
-
-#### 编译优化
-- 避免多个 crate 间的重复编译
-- 减少链接时间
-- 统一文档，所有功能在一个 crate 的文档中
-
-### 文档更新
-
-#### 新增文档
-- `docs/QUICK_REFERENCE.md` - 快速参考手册
-- `docs/MERGE_COMPLETE.md` - Crate 合并完成报告
-
-#### 更新文档
-- `readme.md` - 更新项目结构和使用示例
-- `docs/README.md` - 添加文档导航
-
-### 删除内容
-
-#### 移除的 Crate
-- `agentkit-cli` - 命令行工具（可参考源码自行实现）
-- `agentkit-server` - HTTP 服务器（可参考源码自行实现）
-
-#### 移除的文档（开发过程文档）
-- `AGENT_BUILDER_OPTIMIZATION.md`
-- `AUTO_FIX_COMPLETE.md`
-- `AUTO_FIX_PROGRESS.md`
-- `FINAL_STATUS.md`
-- `IMPROVEMENTS.md`
-- `PROJECT_SUMMARY.md`
-- `REFACTORING_COMPLETE.md`
-- `REFACTORING.md`
-- `RUNTIME_MIGRATION.md`
-- `STATUS.md`
-- `TODO_FIXES.md`
-- `WARNINGS_FIXED.md`
+#### 修改文件 (20)
+- `agentkit-core/Cargo.toml` - 优化 tokio features
+- `agentkit-core/src/agent/mod.rs` - 统一 AgentError，改进默认实现
+- `agentkit-core/src/error.rs` - 添加 RequiresRuntime，修正可重试性
+- `agentkit/src/agent/execution.rs` - 更新错误变体
+- `agentkit/src/compact/grouping.rs` - 修复消息分组算法
+- `agentkit/src/compact/mod.rs` - 修复测试
+- `agentkit/src/compact/prompt.rs` - 更新提示词常量
+- `agentkit/src/provider/anthropic.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/azure_openai.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/deepseek.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/gemini.rs` - 添加 HTTP 超时，修复 API Key 泄露
+- `agentkit/src/provider/mod.rs` - 添加 http_config 模块导出
+- `agentkit/src/provider/moonshot.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/ollama.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/openai.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/openrouter.rs` - 添加 HTTP 超时
+- `agentkit/src/provider/resilient.rs` - 修复退避算法抖动 bug
+- `agentkit/src/tools/cmd_exec.rs` - 更新函数调用
+- `agentkit/src/tools/shell.rs` - 增强安全策略
+- `examples/agentkit-skills-example/src/main.rs` - 更新 ShellTool 使用
 
 ---
 

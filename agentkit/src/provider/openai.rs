@@ -7,7 +7,7 @@
 
 use std::env;
 
-use crate::provider::preview;
+use crate::provider::{http_config::build_client, preview};
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -106,10 +106,7 @@ impl OpenAiProvider {
             headers.insert(AUTHORIZATION, v);
         }
 
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .expect("reqwest client build failed");
+        let client = build_client(headers);
 
         Self {
             client,

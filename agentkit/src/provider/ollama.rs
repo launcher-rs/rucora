@@ -6,7 +6,7 @@
 
 use std::env;
 
-use crate::provider::preview;
+use crate::provider::{http_config::build_client, preview};
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -19,6 +19,7 @@ use agentkit_core::{
 };
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
+use reqwest::header::HeaderMap;
 use serde_json::{Value, json};
 use tracing::debug;
 
@@ -66,8 +67,11 @@ impl OllamaProvider {
 
     /// 创建 Provider 并指定默认模型。
     pub fn with_model(base_url: impl Into<String>, default_model: impl Into<String>) -> Self {
+        let headers = HeaderMap::new();
+        let client = build_client(headers);
+        
         Self {
-            client: reqwest::Client::new(),
+            client,
             base_url: base_url.into(),
             default_model: default_model.into(),
         }

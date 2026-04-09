@@ -76,7 +76,7 @@ async fn main() -> anyhow::Result<()> {
     let mut tool_registry = agentkit::agent::ToolRegistry::new();
 
     // 注册内置工具
-    tool_registry = tool_registry.register(ShellTool);
+    tool_registry = tool_registry.register(ShellTool::new());
 
     // 注册 Skills 转换的 Tools
     for skill in &skills {

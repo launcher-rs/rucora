@@ -246,14 +246,20 @@ mod tests {
     
     #[test]
     fn test_should_compact() {
-        let mut manager = ContextManager::new(CompactConfig::default());
-        
-        // 添加大量消息以触发压缩
-        for i in 0..1000 {
-            manager.add_message(ChatMessage::user(&format!("消息 {}", i)));
-            manager.add_message(ChatMessage::assistant(&format!("回复 {}", i)));
+        // 使用较小的 buffer 来触发压缩
+        // 使用 gpt-4（8192 上下文窗口）
+        // buffer 设置为 1000，所以阈值是 7192 tokens
+        let config = CompactConfig::default().with_buffer_tokens(1000);
+        let mut manager = ContextManager::new(config);
+
+        // 添加消息直到超过阈值
+        // 每条消息约 50 个字符，约 12-13 tokens + 角色开销 3-4 = 约 16 tokens
+        // 需要约 7192 / 16 = 450 条消息
+        for i in 0..500 {
+            manager.add_message(ChatMessage::user(&format!("这是第 {} 条测试消息，包含一些额外的内容来增加 token 数量", i)));
+            manager.add_message(ChatMessage::assistant(&format!("这是第 {} 条回复，同样包含一些额外的内容来增加 token 数量", i)));
         }
-        
-        assert!(manager.should_compact("gpt-4o"));
+
+        assert!(manager.should_compact("gpt-4"));
     }
 }

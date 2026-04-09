@@ -144,7 +144,7 @@ impl AgentInput {
     pub fn new(text: impl Into<String>) -> Self {
         Self {
             text: text.into(),
-            context: serde_json::Value::Null,
+            context: serde_json::Value::Object(serde_json::Map::new()),
         }
     }
 
@@ -389,12 +389,16 @@ pub trait Agent: Send + Sync {
     /// 运行 Agent（非流式）。
     ///
     /// 默认实现适用于简单场景（直接返回结果）。
-    /// 需要工具调用等复杂能力的 Agent 应该重写此方法。
+    /// 需要工具调用等复杂能力的 Agent 应该使用 `run_with()` 方法配合 `AgentExecutor`。
     ///
     /// # 默认行为
     ///
     /// 默认实现会循环调用 `think()` 直到返回 `Return` 或 `Stop`。
-    /// 如果返回 `Chat` 或 `ToolCall`，会报错（需要 Runtime 支持）。
+    /// 如果返回 `Chat` 或 `ToolCall`，会返回错误（需要 Runtime 支持）。
+    ///
+    /// # 配置
+    ///
+    /// 默认最大步骤数为 20。如果需要自定义，请使用 `run_with()` 方法。
     ///
     /// # 示例
     ///
@@ -407,7 +411,10 @@ pub trait Agent: Send + Sync {
     /// # }
     /// ```
     async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
-        let mut context = AgentContext::new(input.clone(), 10);
+        // 默认最大步骤数：20
+        const DEFAULT_MAX_STEPS: usize = 20;
+        
+        let mut context = AgentContext::new(input.clone(), DEFAULT_MAX_STEPS);
 
         loop {
             let decision = self.think(&context).await;
@@ -430,10 +437,15 @@ pub trait Agent: Send + Sync {
                 AgentDecision::ThinkAgain => {
                     context.step += 1;
                     if context.step >= context.max_steps {
-                        return Err(AgentError::MaxStepsReached);
+                        return Err(AgentError::MaxStepsExceeded { max_steps: context.max_steps });
                     }
                 }
-                AgentDecision::Chat { .. } | AgentDecision::ToolCall { .. } => {
+                AgentDecision::Chat { request: _ } => {
+                    // Chat 决策需要 LLM 调用，默认实现无法处理
+                    return Err(AgentError::RequiresRuntime);
+                }
+                AgentDecision::ToolCall { .. } => {
+                    // ToolCall 决策需要工具执行，默认实现无法处理
                     return Err(AgentError::RequiresRuntime);
                 }
             }
@@ -522,18 +534,5 @@ pub trait AgentExecutor: Send + Sync {
     -> BoxStream<'static, Result<ChannelEvent, AgentError>>;
 }
 
-/// Agent 错误类型。
-#[derive(Debug, thiserror::Error)]
-pub enum AgentError {
-    /// 达到最大步骤数。
-    #[error("达到最大步骤数限制")]
-    MaxStepsReached,
-
-    /// 需要 Runtime 支持。
-    #[error("此决策需要 Runtime 支持，请使用 Runtime 模式运行")]
-    RequiresRuntime,
-
-    /// 通用错误消息。
-    #[error("{0}")]
-    Message(String),
-}
+// 重新导出统一的 AgentError 定义
+pub use crate::error::AgentError;

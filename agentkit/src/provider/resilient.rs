@@ -206,9 +206,10 @@ impl ResilientProvider {
         let pow = 1u64.checked_shl(attempt.min(16) as u32).unwrap_or(u64::MAX);
         let delay = self.cfg.base_delay_ms.saturating_mul(pow);
 
-        // 添加 10% 的抖动
+        // 添加 10% 的抖动，使用 attempt 作为简单种子生成伪随机值
         let jitter = (delay / 10).max(1); // 确保 jitter 不为 0
-        let jitter_offset = (attempt as u64 * jitter) % jitter;
+        // 使用简单的伪随机：基于 attempt 的哈希值
+        let jitter_offset = (jitter * (attempt as u64 * 6364136223846793005 + 1)) % jitter;
 
         delay.min(self.cfg.max_delay_ms) + jitter_offset
     }

@@ -19,26 +19,39 @@ use agentkit_core::provider::types::{ChatMessage, Role};
 pub fn group_messages_by_api_round(messages: &[ChatMessage]) -> Vec<Vec<ChatMessage>> {
     let mut groups: Vec<Vec<ChatMessage>> = Vec::new();
     let mut current_group: Vec<ChatMessage> = Vec::new();
-    
+    let mut last_role: Option<Role> = None;
+
     for msg in messages {
-        // 当遇到新的 assistant 消息且当前组不为空时，创建新组
-        if msg.role == Role::Assistant && !current_group.is_empty() {
-            // 检查是否是新的 assistant 响应（通过内容变化判断）
+        // 当遇到用户消息且当前组不为空时，说明开始了新的 API 轮次
+        // 或者当遇到 assistant 消息且上一条也是 assistant 时，开始新组
+        if msg.role == Role::User && !current_group.is_empty() {
+            // 保存当前组，开始新组
+            groups.push(current_group);
+            current_group = vec![msg.clone()];
+            last_role = Some(msg.role.clone());
+            continue;
+        }
+
+        // 如果是连续的 assistant 消息（工具调用等情况），开始新组
+        if msg.role == Role::Assistant && last_role == Some(Role::Assistant) && !current_group.is_empty() {
+            // 检查是否应该开始新组（不同的 assistant 响应）
             if should_start_new_group(&current_group, msg) {
                 groups.push(current_group);
                 current_group = vec![msg.clone()];
+                last_role = Some(msg.role.clone());
                 continue;
             }
         }
-        
+
         current_group.push(msg.clone());
+        last_role = Some(msg.role.clone());
     }
-    
+
     // 添加最后一组
     if !current_group.is_empty() {
         groups.push(current_group);
     }
-    
+
     groups
 }
 

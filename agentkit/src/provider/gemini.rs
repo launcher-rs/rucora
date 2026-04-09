@@ -15,8 +15,7 @@
 
 use std::env;
 
-use crate::provider::helpers::parse_finish_reason;
-use crate::provider::preview;
+use crate::provider::{helpers::parse_finish_reason, http_config::build_client, preview};
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -77,7 +76,6 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-1.5-flash";
 pub struct GeminiProvider {
     client: reqwest::Client,
     base_url: String,
-    api_key: String,
     default_model: String,
 }
 
@@ -125,16 +123,16 @@ impl GeminiProvider {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        // 使用请求头传递 API Key，避免暴露在 URL 中
+        if let Ok(v) = HeaderValue::from_str(&api_key) {
+            headers.insert("x-goog-api-key", v);
+        }
 
-        let client = reqwest::Client::builder()
-            .default_headers(headers)
-            .build()
-            .expect("reqwest client build failed");
+        let client = build_client(headers);
 
         Self {
             client,
             base_url: base_url.into(),
-            api_key,
             default_model: default_model.into(),
         }
     }
@@ -265,12 +263,12 @@ impl LlmProvider for GeminiProvider {
             .clone()
             .unwrap_or_else(|| self.default_model.clone());
 
-        // Gemini URL 格式：{base_url}/models/{model}:generateContent?key={api_key}
+        // Gemini URL 格式：{base_url}/models/{model}:generateContent
+        // API Key 已通过 x-goog-api-key 请求头传递，避免暴露在 URL 中
         let url = format!(
-            "{}/models/{}:generateContent?key={}",
+            "{}/models/{}:generateContent",
             self.base_url.trim_end_matches('/'),
-            model,
-            self.api_key
+            model
         );
 
         let system_instruction = Self::build_system_instruction(&request.messages);
@@ -437,11 +435,11 @@ impl LlmProvider for GeminiProvider {
             .unwrap_or_else(|| self.default_model.clone());
 
         // Gemini 流式 URL
+        // API Key 已通过 x-goog-api-key 请求头传递，避免暴露在 URL 中
         let url = format!(
-            "{}/models/{}:streamGenerateContent?alt=sse&key={}",
+            "{}/models/{}:streamGenerateContent?alt=sse",
             self.base_url.trim_end_matches('/'),
-            model,
-            self.api_key
+            model
         );
 
         let system_instruction = Self::build_system_instruction(&request.messages);
