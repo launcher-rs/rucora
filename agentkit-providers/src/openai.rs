@@ -144,9 +144,10 @@ impl OpenAiProvider {
                     "content": m.content,
                 });
                 if let Some(name) = &m.name
-                    && let Some(map) = obj.as_object_mut() {
-                        map.insert("name".to_string(), Value::String(name.clone()));
-                    }
+                    && let Some(map) = obj.as_object_mut()
+                {
+                    map.insert("name".to_string(), Value::String(name.clone()));
+                }
                 obj
             })
             .collect()
@@ -169,11 +170,10 @@ impl OpenAiProvider {
                 });
                 if let Some(strict) = strict
                     && let Some(root) = obj.as_object_mut()
-                        && let Some(js) =
-                            root.get_mut("json_schema").and_then(|v| v.as_object_mut())
-                        {
-                            js.insert("strict".to_string(), json!(strict));
-                        }
+                    && let Some(js) = root.get_mut("json_schema").and_then(|v| v.as_object_mut())
+                {
+                    js.insert("strict".to_string(), json!(strict));
+                }
                 obj
             }
         }
@@ -271,54 +271,64 @@ impl LlmProvider for OpenAiProvider {
         });
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+        }
         if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
         if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(max_tokens));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("max_tokens".to_string(), json!(max_tokens));
+        }
         if let Some(fmt) = request.response_format.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert(
-                    "response_format".to_string(),
-                    Self::build_response_format(fmt),
-                );
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert(
+                "response_format".to_string(),
+                Self::build_response_format(fmt),
+            );
+        }
 
         // 支持更多参数
         if let Some(top_p) = request.top_p
-            && let Some(map) = body.as_object_mut() {
-                map.insert("top_p".to_string(), json!(top_p));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("top_p".to_string(), json!(top_p));
+        }
         if let Some(top_k) = request.top_k
-            && let Some(map) = body.as_object_mut() {
-                map.insert("top_k".to_string(), json!(top_k));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("top_k".to_string(), json!(top_k));
+        }
         if let Some(frequency_penalty) = request.frequency_penalty
-            && let Some(map) = body.as_object_mut() {
-                map.insert("frequency_penalty".to_string(), json!(frequency_penalty));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("frequency_penalty".to_string(), json!(frequency_penalty));
+        }
         if let Some(presence_penalty) = request.presence_penalty
-            && let Some(map) = body.as_object_mut() {
-                map.insert("presence_penalty".to_string(), json!(presence_penalty));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("presence_penalty".to_string(), json!(presence_penalty));
+        }
         if let Some(stop) = request.stop.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("stop".to_string(), json!(stop));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("stop".to_string(), json!(stop));
+        }
 
         // 额外参数（用于支持 provider 特定的参数，如 NVIDIA 的 reasoning_budget 等）
         if let Some(extra) = request.extra.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                for (key, value) in extra.as_object().unwrap_or(&serde_json::Map::new()) {
-                    map.insert(key.clone(), value.clone());
-                }
+            && let Some(map) = body.as_object_mut()
+        {
+            for (key, value) in extra.as_object().unwrap_or(&serde_json::Map::new()) {
+                map.insert(key.clone(), value.clone());
             }
+        }
 
         debug!(
             provider = "openai",
@@ -432,11 +442,13 @@ impl LlmProvider for OpenAiProvider {
         let tool_calls = Self::parse_tool_calls(&message);
 
         // 兼容部分第三方 API：把最终回答写进 reasoning 字段而 content 为空。
-        if content.trim().is_empty() && tool_calls.is_empty()
+        if content.trim().is_empty()
+            && tool_calls.is_empty()
             && let Some(r) = message.get("reasoning").and_then(|v| v.as_str())
-                && !r.trim().is_empty() {
-                    content = r.to_string();
-                }
+            && !r.trim().is_empty()
+        {
+            content = r.to_string();
+        }
 
         if !tool_calls.is_empty() {
             let names: Vec<&str> = tool_calls.iter().map(|c| c.name.as_str()).collect();
@@ -541,25 +553,29 @@ impl LlmProvider for OpenAiProvider {
         });
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+        }
         if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
         if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(max_tokens));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("max_tokens".to_string(), json!(max_tokens));
+        }
 
         if let Some(fmt) = request.response_format.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert(
-                    "response_format".to_string(),
-                    Self::build_response_format(fmt),
-                );
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert(
+                "response_format".to_string(),
+                Self::build_response_format(fmt),
+            );
+        }
 
         debug!(
             provider = "openai",

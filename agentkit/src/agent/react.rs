@@ -89,17 +89,17 @@ where
         if context.step == 0 {
             // 第一步：先思考，不工具调用
             AgentDecision::Chat {
-                request: self._build_react_prompt(context, "think"),
+                request: Box::new(self._build_react_prompt(context, "think")),
             }
         } else if !context.tool_results.is_empty() {
             // 有工具结果：观察后继续思考
             AgentDecision::Chat {
-                request: self._build_react_prompt(context, "observe"),
+                request: Box::new(self._build_react_prompt(context, "observe")),
             }
         } else {
             // 正常：决定行动
             AgentDecision::Chat {
-                request: self._build_react_prompt(context, "act"),
+                request: Box::new(self._build_react_prompt(context, "act")),
             }
         }
     }
@@ -182,9 +182,10 @@ where
 
         // 添加系统提示词
         if let Some(ref sys_prompt) = self.system_prompt
-            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System)) {
-                messages.insert(0, ChatMessage::system(sys_prompt.clone()));
-            }
+            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System))
+        {
+            messages.insert(0, ChatMessage::system(sys_prompt.clone()));
+        }
 
         // 添加 ReAct 提示词
         messages.push(ChatMessage::user(prompt));

@@ -1,4 +1,4 @@
-//! AgentKit - LLM 应用开发框架
+﻿//! AgentKit - LLM 应用开发框架
 //!
 //! # 概述
 //!
@@ -69,3 +69,4 @@ pub mod skills;
 
 // 重新导出常用类型
 pub use skills::{SkillLoader, SkillExecutor, SkillDefinition, SkillResult};
+

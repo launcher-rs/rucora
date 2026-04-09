@@ -318,7 +318,7 @@ impl DefaultExecution {
             match decision {
                 AgentDecision::Chat { request } => {
                     // 2. 调用 LLM
-                    let response = self.provider.chat(request).await.map_err(|e| {
+                    let response = self.provider.chat(*request).await.map_err(|e| {
                         let diag = e.diagnostic();
                         AgentError::Message(format!(
                             "provider error ({}): {}",

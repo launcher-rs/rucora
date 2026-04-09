@@ -1,4 +1,4 @@
-﻿//! agentkit-core - Agentkit 核心抽象层
+//! agentkit-core - Agentkit 核心抽象层
 //!
 //! # 概述
 //!
@@ -239,4 +239,3 @@ pub use channel::types::ChannelEvent;
 pub use error::{AgentError, ChannelError, MemoryError, ProviderError, SkillError, ToolError};
 pub use provider::LlmProvider;
 pub use tool::Tool;
-

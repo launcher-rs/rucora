@@ -767,9 +767,10 @@ impl ToolRegistry {
         if let Some(prefix) = &self.namespace_prefix {
             let namespaced = format!("{}::{}", prefix, name);
             if let Some(wrapper) = self.tools.get(&namespaced)
-                && wrapper.metadata.enabled {
-                    return Some(wrapper.tool.clone());
-                }
+                && wrapper.metadata.enabled
+            {
+                return Some(wrapper.tool.clone());
+            }
         }
 
         None

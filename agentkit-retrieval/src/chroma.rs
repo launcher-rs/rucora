@@ -176,11 +176,12 @@ impl VectorStore for ChromaVectorStore {
                     meta["text"] = json!(text);
                 }
                 if let Some(md) = &r.metadata
-                    && let Some(obj) = md.as_object() {
-                        for (k, v) in obj {
-                            meta[k] = v.clone();
-                        }
+                    && let Some(obj) = md.as_object()
+                {
+                    for (k, v) in obj {
+                        meta[k] = v.clone();
                     }
+                }
                 meta
             })
             .collect();
@@ -296,8 +297,8 @@ impl VectorStore for ChromaVectorStore {
             .clone();
 
         let mut records = Vec::new();
-        for i in 0..result_ids.len() {
-            let id = result_ids[i].as_str().unwrap_or("").to_string();
+        for (i, id_value) in result_ids.iter().enumerate() {
+            let id = id_value.as_str().unwrap_or("").to_string();
             let vector = result_embeddings
                 .get(i)
                 .and_then(|e| e.as_array())
@@ -388,8 +389,8 @@ impl VectorStore for ChromaVectorStore {
             .unwrap_or_default();
 
         let mut results = Vec::new();
-        for i in 0..ids_arrays.len() {
-            let id = ids_arrays[i].as_str().unwrap_or("").to_string();
+        for (i, id_value) in ids_arrays.iter().enumerate() {
+            let id = id_value.as_str().unwrap_or("").to_string();
             // Chroma 返回的是距离（越小越相似），转换为相似度分数（越大越好）
             let distance = distances_arrays
                 .get(i)
@@ -406,9 +407,10 @@ impl VectorStore for ChromaVectorStore {
 
             // 应用阈值过滤
             if let Some(threshold) = query.score_threshold
-                && score < threshold {
-                    continue;
-                }
+                && score < threshold
+            {
+                continue;
+            }
 
             results.push(SearchResult {
                 id,

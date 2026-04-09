@@ -127,11 +127,11 @@ where
 {
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         AgentDecision::Chat {
-            request: ChatRequest {
+            request: Box::new(ChatRequest {
                 messages: context.messages.clone(),
                 model: Some(self.model.clone()),
                 ..Default::default()
-            },
+            }),
         }
     }
 

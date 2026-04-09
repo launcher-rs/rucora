@@ -90,13 +90,13 @@ where
         if !context.tool_results.is_empty() {
             // 有工具结果，让 LLM 生成最终回复
             return AgentDecision::Chat {
-                request: self._build_chat_request(context),
+                request: Box::new(self._build_chat_request(context)),
             };
         }
 
         // 默认：让 LLM 决定是否调用工具
         AgentDecision::Chat {
-            request: self._build_chat_request_with_tools(context),
+            request: Box::new(self._build_chat_request_with_tools(context)),
         }
     }
 
@@ -164,11 +164,11 @@ where
         if let Some(ref prompt) = self.system_prompt
             && (request.messages.is_empty()
                 || request.messages.first().map(|m| &m.role) != Some(&Role::System))
-            {
-                request
-                    .messages
-                    .insert(0, ChatMessage::system(prompt.clone()));
-            }
+        {
+            request
+                .messages
+                .insert(0, ChatMessage::system(prompt.clone()));
+        }
 
         request.model = Some(self.model.clone());
     }

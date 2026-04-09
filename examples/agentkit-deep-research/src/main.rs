@@ -30,7 +30,7 @@ struct DummyAgent;
 impl Agent for DummyAgent {
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         AgentDecision::Chat {
-            request: context.default_chat_request(),
+            request: Box::new(context.default_chat_request()),
         }
     }
 
@@ -92,34 +92,35 @@ fn main() -> anyhow::Result<()> {
 fn load_or_create_config() -> anyhow::Result<AppConfig> {
     // 尝试加载现有配置（优先环境变量，其次配置文件）
     if let Some(config) = AppConfig::load()
-        && config.is_complete() {
-            // 如果是从环境变量加载的，直接返回
-            if AppConfig::from_env().is_some() {
-                println!("✓ 已从环境变量加载配置");
-                return Ok(config);
-            }
-
-            // 从配置文件加载的，询问是否使用
-            println!("✓ 已加载现有配置");
-            println!(
-                "  Provider: {}",
-                config.provider.as_ref().unwrap_or(&"未指定".to_string())
-            );
-            println!(
-                "  模型：{}",
-                config.model.as_ref().unwrap_or(&"未指定".to_string())
-            );
-
-            // 询问是否使用现有配置
-            let use_existing = dialoguer::Confirm::new()
-                .with_prompt("是否使用现有配置？")
-                .default(true)
-                .interact()?;
-
-            if use_existing {
-                return Ok(config);
-            }
+        && config.is_complete()
+    {
+        // 如果是从环境变量加载的，直接返回
+        if AppConfig::from_env().is_some() {
+            println!("✓ 已从环境变量加载配置");
+            return Ok(config);
         }
+
+        // 从配置文件加载的，询问是否使用
+        println!("✓ 已加载现有配置");
+        println!(
+            "  Provider: {}",
+            config.provider.as_ref().unwrap_or(&"未指定".to_string())
+        );
+        println!(
+            "  模型：{}",
+            config.model.as_ref().unwrap_or(&"未指定".to_string())
+        );
+
+        // 询问是否使用现有配置
+        let use_existing = dialoguer::Confirm::new()
+            .with_prompt("是否使用现有配置？")
+            .default(true)
+            .interact()?;
+
+        if use_existing {
+            return Ok(config);
+        }
+    }
 
     // 交互式配置
     println!("\n{}", style("━━━ 配置向导 ━━━").blue().bold());
@@ -211,7 +212,8 @@ fn create_provider(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("缺少模型配置"))?;
     let base_url = config
-        .base_url.as_deref()
+        .base_url
+        .as_deref()
         .unwrap_or("https://api.openai.com/v1");
 
     let provider: Arc<dyn agentkit::core::provider::LlmProvider + Send + Sync> =
@@ -248,16 +250,13 @@ async fn run_research(
         .register(FileWriteTool::new());
 
     // 添加 SerpAPI
-    if has_serpapi
-        && let Ok(tool) = SerpapiTool::from_env() {
-            tools = tools.register(tool);
-            info!("✓ SerpAPI 工具已加载");
-        }
+    if has_serpapi && let Ok(tool) = SerpapiTool::from_env() {
+        tools = tools.register(tool);
+        info!("✓ SerpAPI 工具已加载");
+    }
 
     // 创建运行时（必须指定 model）
-    let model = config
-        .model.as_deref()
-        .unwrap_or("gpt-4o-mini");
+    let model = config.model.as_deref().unwrap_or("gpt-4o-mini");
     info!("✓ 使用模型：{}", model);
 
     let execution = DefaultExecution::new(provider.clone(), model.to_string(), tools)

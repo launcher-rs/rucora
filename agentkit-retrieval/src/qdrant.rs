@@ -120,11 +120,12 @@ impl VectorStore for QdrantVectorStore {
                     payload["text"] = json!(text);
                 }
                 if let Some(metadata) = r.metadata
-                    && let Some(obj) = metadata.as_object() {
-                        for (k, v) in obj {
-                            payload[k] = v.clone();
-                        }
+                    && let Some(obj) = metadata.as_object()
+                {
+                    for (k, v) in obj {
+                        payload[k] = v.clone();
                     }
+                }
 
                 json!({
                     "id": r.id,

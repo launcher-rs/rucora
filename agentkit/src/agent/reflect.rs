@@ -95,7 +95,7 @@ where
         if iteration == 0 {
             // 第一次：生成初始版本
             AgentDecision::Chat {
-                request: self._build_generate_request(context),
+                request: Box::new(self._build_generate_request(context)),
             }
         } else if iteration >= self.max_iterations {
             // 达到最大迭代次数，返回当前最佳
@@ -104,12 +104,12 @@ where
             // 奇数步：反思
             if context.step % 2 == 1 {
                 AgentDecision::Chat {
-                    request: self._build_reflect_request(context, iteration),
+                    request: Box::new(self._build_reflect_request(context, iteration)),
                 }
             } else {
                 // 偶数步：根据反思改进
                 AgentDecision::Chat {
-                    request: self._build_improve_request(context, iteration),
+                    request: Box::new(self._build_improve_request(context, iteration)),
                 }
             }
         }
@@ -229,9 +229,10 @@ where
 
         // 添加系统提示词
         if let Some(ref sys_prompt) = self.system_prompt
-            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System)) {
-                messages.insert(0, ChatMessage::system(sys_prompt.clone()));
-            }
+            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System))
+        {
+            messages.insert(0, ChatMessage::system(sys_prompt.clone()));
+        }
 
         // 添加当前提示词
         messages.push(ChatMessage::user(prompt));

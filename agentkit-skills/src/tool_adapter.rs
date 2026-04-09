@@ -143,10 +143,9 @@ fn render_skill_location(
 ) -> String {
     if let Some(ref location) = skill.homepage {
         let location_path = PathBuf::from(location);
-        if prefer_relative
-            && let Ok(relative) = location_path.strip_prefix(workspace_dir) {
-                return relative.display().to_string();
-            }
+        if prefer_relative && let Ok(relative) = location_path.strip_prefix(workspace_dir) {
+            return relative.display().to_string();
+        }
         location_path.display().to_string()
     } else {
         format!("skills/{}/SKILL.md", skill.name)
@@ -189,11 +188,7 @@ pub fn skills_to_prompt_with_mode(
             "    <description>{}</description>",
             xml_escape(&skill.description)
         );
-        let _ = writeln!(
-            prompt,
-            "    <location>{}</location>",
-            xml_escape(&location)
-        );
+        let _ = writeln!(prompt, "    <location>{}</location>", xml_escape(&location));
         let _ = writeln!(prompt, "  </skill>");
     }
 

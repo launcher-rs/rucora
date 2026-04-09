@@ -29,7 +29,7 @@ pub enum AgentDecision {
     /// 调用 LLM 进行对话。
     Chat {
         /// 对话请求。
-        request: crate::provider::types::ChatRequest,
+        request: Box<crate::provider::types::ChatRequest>,
     },
     /// 调用工具。
     ToolCall {

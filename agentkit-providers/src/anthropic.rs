@@ -200,23 +200,24 @@ impl AnthropicProvider {
         if let Some(content_arr) = content.as_array() {
             for item in content_arr {
                 if let Some(tool_type) = item.get("type").and_then(|v| v.as_str())
-                    && tool_type == "tool_use" {
-                        let id = item
-                            .get("id")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let name = item
-                            .get("name")
-                            .and_then(|v| v.as_str())
-                            .unwrap_or("")
-                            .to_string();
-                        let input = item.get("input").cloned().unwrap_or_else(|| json!({}));
+                    && tool_type == "tool_use"
+                {
+                    let id = item
+                        .get("id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let name = item
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("")
+                        .to_string();
+                    let input = item.get("input").cloned().unwrap_or_else(|| json!({}));
 
-                        if !id.is_empty() && !name.is_empty() {
-                            out.push(ToolCall { id, name, input });
-                        }
+                    if !id.is_empty() && !name.is_empty() {
+                        out.push(ToolCall { id, name, input });
                     }
+                }
             }
         }
 
@@ -235,9 +236,10 @@ impl AnthropicProvider {
             for item in content_arr {
                 if let Some(tool_type) = item.get("type").and_then(|v| v.as_str())
                     && tool_type == "text"
-                        && let Some(text) = item.get("text").and_then(|v| v.as_str()) {
-                            texts.push(text);
-                        }
+                    && let Some(text) = item.get("text").and_then(|v| v.as_str())
+                {
+                    texts.push(text);
+                }
             }
             if !texts.is_empty() {
                 return texts.join("\n");
@@ -285,14 +287,16 @@ impl LlmProvider for AnthropicProvider {
 
         // Anthropic 支持 system prompt 作为顶层字段
         if let Some(system) = system_prompt
-            && let Some(map) = body.as_object_mut() {
-                map.insert("system".to_string(), json!(system));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("system".to_string(), json!(system));
+        }
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+        }
         if let Some(max_tokens) = request.max_tokens {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(max_tokens));
@@ -304,9 +308,10 @@ impl LlmProvider for AnthropicProvider {
             }
         }
         if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
 
         debug!(
             provider = "anthropic",
@@ -403,14 +408,16 @@ impl LlmProvider for AnthropicProvider {
         });
 
         if let Some(system) = system_prompt
-            && let Some(map) = body.as_object_mut() {
-                map.insert("system".to_string(), json!(system));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("system".to_string(), json!(system));
+        }
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+        }
         if let Some(max_tokens) = request.max_tokens {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(max_tokens));

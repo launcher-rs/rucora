@@ -43,13 +43,14 @@ impl<P> CachedEmbeddingProvider<P> {
         P: EmbeddingProvider,
     {
         if let Some(dim) = self.inner.embedding_dim()
-            && v.len() != dim {
-                return Err(ProviderError::Message(format!(
-                    "embedding_dim 校验失败：expected={} got={}",
-                    dim,
-                    v.len()
-                )));
-            }
+            && v.len() != dim
+        {
+            return Err(ProviderError::Message(format!(
+                "embedding_dim 校验失败：expected={} got={}",
+                dim,
+                v.len()
+            )));
+        }
         Ok(())
     }
 }
@@ -62,9 +63,10 @@ where
     async fn embed(&self, text: &str) -> Result<Vec<f32>, ProviderError> {
         // 先尝试从缓存读取；如果锁获取失败，则直接跳过缓存读取（保证功能可用）。
         if let Ok(cache) = self.cache.lock()
-            && let Some(v) = cache.get(text) {
-                return Ok(v.clone());
-            }
+            && let Some(v) = cache.get(text)
+        {
+            return Ok(v.clone());
+        }
 
         // 未命中则调用底层 provider 计算
         let v = self.inner.embed(text).await?;

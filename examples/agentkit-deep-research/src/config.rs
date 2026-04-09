@@ -22,7 +22,7 @@ pub enum ProviderType {
     DeepSeek,
     Moonshot,
     Ollama,
-    NVIDIA,
+    Nvidia,
 }
 
 impl ProviderType {
@@ -36,7 +36,7 @@ impl ProviderType {
             ProviderType::DeepSeek,
             ProviderType::Moonshot,
             ProviderType::Ollama,
-            ProviderType::NVIDIA,
+            ProviderType::Nvidia,
         ]
     }
 
@@ -50,7 +50,7 @@ impl ProviderType {
             ProviderType::DeepSeek => "DeepSeek",
             ProviderType::Moonshot => "Moonshot (Kimi)",
             ProviderType::Ollama => "Ollama (本地)",
-            ProviderType::NVIDIA => "NVIDIA (DGX Cloud)",
+            ProviderType::Nvidia => "NVIDIA (DGX Cloud)",
         }
     }
 
@@ -64,7 +64,7 @@ impl ProviderType {
             ProviderType::DeepSeek => "deepseek-chat",
             ProviderType::Moonshot => "moonshot-v1-8k",
             ProviderType::Ollama => "qwen3.5:9b",
-            ProviderType::NVIDIA => "nvidia/nemotron-4-340b-instruct",
+            ProviderType::Nvidia => "nvidia/nemotron-4-340b-instruct",
         }
     }
 
@@ -79,7 +79,7 @@ impl ProviderType {
             ProviderType::DeepSeek => Some("https://api.deepseek.com/v1"),
             ProviderType::Moonshot => Some("https://api.moonshot.cn/v1"),
             ProviderType::Ollama => Some("http://localhost:11434/v1"),
-            ProviderType::NVIDIA => Some("https://integrate.api.nvidia.com/v1"),
+            ProviderType::Nvidia => Some("https://integrate.api.nvidia.com/v1"),
         }
     }
 
@@ -95,7 +95,7 @@ impl ProviderType {
             ProviderType::DeepSeek => "DEEPSEEK",
             ProviderType::Moonshot => "MOONSHOT",
             ProviderType::Ollama => "OLLAMA",
-            ProviderType::NVIDIA => "NVIDIA",
+            ProviderType::Nvidia => "NVIDIA",
         }
     }
 

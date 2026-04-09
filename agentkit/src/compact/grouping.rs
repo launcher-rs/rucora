@@ -63,9 +63,11 @@ fn should_start_new_group(current_group: &[ChatMessage], msg: &ChatMessage) -> b
     // 如果当前组最后一条是 assistant 消息，且新消息也是 assistant 消息
     // 则开始新组
     if let Some(last) = current_group.last()
-        && last.role == Role::Assistant && msg.role == Role::Assistant {
-            return true;
-        }
+        && last.role == Role::Assistant
+        && msg.role == Role::Assistant
+    {
+        return true;
+    }
 
     false
 }

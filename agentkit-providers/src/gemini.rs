@@ -297,32 +297,36 @@ impl LlmProvider for GeminiProvider {
 
         // Gemini 支持 systemInstruction 作为顶层字段
         if let Some(instruction) = system_instruction
-            && let Some(map) = body.as_object_mut() {
-                map.insert(
-                    "systemInstruction".to_string(),
-                    json!({
-                        "parts": [{
-                            "text": instruction
-                        }]
-                    }),
-                );
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert(
+                "systemInstruction".to_string(),
+                json!({
+                    "parts": [{
+                        "text": instruction
+                    }]
+                }),
+            );
+        }
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Self::build_tools(tools));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Self::build_tools(tools));
+        }
 
         // Gemini 配置
         let mut generation_config = json!({});
         if let Some(t) = request.temperature
-            && let Some(map) = generation_config.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
         if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = generation_config.as_object_mut() {
-                map.insert("maxOutputTokens".to_string(), json!(max_tokens));
-            }
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("maxOutputTokens".to_string(), json!(max_tokens));
+        }
         if let Some(map) = body.as_object_mut() {
             map.insert("generationConfig".to_string(), generation_config);
         }
@@ -446,31 +450,35 @@ impl LlmProvider for GeminiProvider {
         });
 
         if let Some(instruction) = system_instruction
-            && let Some(map) = body.as_object_mut() {
-                map.insert(
-                    "systemInstruction".to_string(),
-                    json!({
-                        "parts": [{
-                            "text": instruction
-                        }]
-                    }),
-                );
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert(
+                "systemInstruction".to_string(),
+                json!({
+                    "parts": [{
+                        "text": instruction
+                    }]
+                }),
+            );
+        }
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Self::build_tools(tools));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Self::build_tools(tools));
+        }
 
         let mut generation_config = json!({});
         if let Some(t) = request.temperature
-            && let Some(map) = generation_config.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
         if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = generation_config.as_object_mut() {
-                map.insert("maxOutputTokens".to_string(), json!(max_tokens));
-            }
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("maxOutputTokens".to_string(), json!(max_tokens));
+        }
         if let Some(map) = body.as_object_mut() {
             map.insert("generationConfig".to_string(), generation_config);
         }

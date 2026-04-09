@@ -1,4 +1,4 @@
-﻿//! Skills（技能）模块
+//! Skills（技能）模块
 //!
 //! # 概述
 //!
@@ -102,8 +102,7 @@ pub use tool_adapter::{
 /// Skills 提示词注入模式
 ///
 /// 参考 zeroclaw 的 SkillsPromptInjectionMode
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum SkillsPromptMode {
     /// 完整模式：包含所有 skill 的详细说明和工具
     Full,
@@ -111,5 +110,3 @@ pub enum SkillsPromptMode {
     #[default]
     Compact,
 }
-
-

@@ -106,9 +106,10 @@ impl OllamaProvider {
                     "content": m.content,
                 });
                 if let Some(name) = &m.name
-                    && let Some(map) = obj.as_object_mut() {
-                        map.insert("name".to_string(), Value::String(name.clone()));
-                    }
+                    && let Some(map) = obj.as_object_mut()
+                {
+                    map.insert("name".to_string(), Value::String(name.clone()));
+                }
                 obj
             })
             .collect()
@@ -132,22 +133,23 @@ impl LlmProvider for OllamaProvider {
 
         // 添加工具定义（如果存在）
         if let Some(tools) = &request.tools
-            && let Some(map) = body.as_object_mut() {
-                let tools_array: Vec<Value> = tools
-                    .iter()
-                    .map(|tool_def| {
-                        json!({
-                            "type": "function",
-                            "function": {
-                                "name": tool_def.name,
-                                "description": tool_def.description.as_deref().unwrap_or(""),
-                                "parameters": tool_def.input_schema
-                            }
-                        })
+            && let Some(map) = body.as_object_mut()
+        {
+            let tools_array: Vec<Value> = tools
+                .iter()
+                .map(|tool_def| {
+                    json!({
+                        "type": "function",
+                        "function": {
+                            "name": tool_def.name,
+                            "description": tool_def.description.as_deref().unwrap_or(""),
+                            "parameters": tool_def.input_schema
+                        }
                     })
-                    .collect();
-                map.insert("tools".to_string(), json!(tools_array));
-            }
+                })
+                .collect();
+            map.insert("tools".to_string(), json!(tools_array));
+        }
 
         if let Some(fmt) = request.response_format.as_ref() {
             match fmt {

@@ -150,9 +150,10 @@ impl MoonshotProvider {
                     "content": m.content,
                 });
                 if let Some(name) = &m.name
-                    && let Some(map) = obj.as_object_mut() {
-                        map.insert("name".to_string(), Value::String(name.clone()));
-                    }
+                    && let Some(map) = obj.as_object_mut()
+                {
+                    map.insert("name".to_string(), Value::String(name.clone()));
+                }
                 obj
             })
             .collect()
@@ -175,11 +176,10 @@ impl MoonshotProvider {
                 });
                 if let Some(strict) = strict
                     && let Some(root) = obj.as_object_mut()
-                        && let Some(js) =
-                            root.get_mut("json_schema").and_then(|v| v.as_object_mut())
-                        {
-                            js.insert("strict".to_string(), json!(strict));
-                        }
+                    && let Some(js) = root.get_mut("json_schema").and_then(|v| v.as_object_mut())
+                {
+                    js.insert("strict".to_string(), json!(strict));
+                }
                 obj
             }
         }
@@ -273,24 +273,28 @@ impl LlmProvider for MoonshotProvider {
         });
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+        }
         if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
         if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(max_tokens));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("max_tokens".to_string(), json!(max_tokens));
+        }
         if let Some(fmt) = request.response_format.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert(
-                    "response_format".to_string(),
-                    Self::build_response_format(fmt),
-                );
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert(
+                "response_format".to_string(),
+                Self::build_response_format(fmt),
+            );
+        }
 
         debug!(
             provider = "moonshot",
@@ -401,17 +405,20 @@ impl LlmProvider for MoonshotProvider {
         });
 
         if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut() {
-                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+        }
         if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut() {
-                map.insert("temperature".to_string(), json!(t));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
         if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(max_tokens));
-            }
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("max_tokens".to_string(), json!(max_tokens));
+        }
 
         let client = self.client.clone();
         let stream = async_stream::try_stream! {

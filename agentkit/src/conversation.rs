@@ -162,13 +162,14 @@ impl ConversationManager {
 
         // 如果是第一条消息且没有系统提示词，先添加系统提示词
         if self.messages.is_empty()
-            && let Some(prompt) = &self.system_prompt {
-                self.messages.push(ChatMessage {
-                    role: Role::System,
-                    content: prompt.clone(),
-                    name: None,
-                });
-            }
+            && let Some(prompt) = &self.system_prompt
+        {
+            self.messages.push(ChatMessage {
+                role: Role::System,
+                content: prompt.clone(),
+                name: None,
+            });
+        }
 
         self.messages.push(message);
         self.enforce_limits();

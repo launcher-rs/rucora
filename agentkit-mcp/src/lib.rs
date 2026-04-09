@@ -1,4 +1,4 @@
-﻿//! agentkit-mcp - MCP（Model Context Protocol）集成
+//! agentkit-mcp - MCP（Model Context Protocol）集成
 //!
 //! # 概述
 //!
@@ -149,4 +149,3 @@ pub use tool::*;
 
 /// MCP 传输层（从 `rmcp::transport` 转导出）
 pub use transport::*;
-

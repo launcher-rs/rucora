@@ -52,16 +52,17 @@ impl SkillsAutoIntegrator {
 
         // 从 metadata 中读取需要的工具
         if let Some(metadata) = &skill.metadata
-            && let Some(Value::Object(requires_map)) = metadata.get("requires") {
-                // 检查需要的 bins（命令行工具）
-                if let Some(Value::Array(bins_array)) = requires_map.get("bins") {
-                    for bin in bins_array {
-                        if let Some(bin_name) = bin.as_str() {
-                            required_tools.push(format!("cmd_{}", bin_name));
-                        }
+            && let Some(Value::Object(requires_map)) = metadata.get("requires")
+        {
+            // 检查需要的 bins（命令行工具）
+            if let Some(Value::Array(bins_array)) = requires_map.get("bins") {
+                for bin in bins_array {
+                    if let Some(bin_name) = bin.as_str() {
+                        required_tools.push(format!("cmd_{}", bin_name));
                     }
                 }
             }
+        }
 
         debug!("Skill {} 需要的工具：{:?}", skill.name, required_tools);
 

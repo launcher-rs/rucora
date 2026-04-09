@@ -1,4 +1,4 @@
-//! Skill（技能）trait 定义
+﻿//! Skill（技能）trait 定义
 //!
 //! # 概述
 //!
@@ -294,3 +294,4 @@ pub trait Skill: Send + Sync {
     /// ```
     async fn run_value(&self, input: Value) -> Result<Value, SkillError>;
 }
+

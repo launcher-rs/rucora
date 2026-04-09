@@ -387,9 +387,7 @@ pub async fn execute_shell_command(
 
     tokio::task::spawn_blocking(move || cmd.output())
         .await
-        .map_err(|e| {
-            std::io::Error::other(format!("任务执行失败: {}", e))
-        })?
+        .map_err(|e| std::io::Error::other(format!("任务执行失败: {}", e)))?
 }
 
 /// 截断输出内容，防止内存溢出

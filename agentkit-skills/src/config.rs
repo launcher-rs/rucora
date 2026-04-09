@@ -281,9 +281,10 @@ impl SkillConfig {
         for format in &formats {
             let path = dir.join(format);
             if path.exists()
-                && let Ok(config) = Self::from_file(&path) {
-                    return Some(config);
-                }
+                && let Ok(config) = Self::from_file(&path)
+            {
+                return Some(config);
+            }
         }
         None
     }
@@ -295,10 +296,11 @@ impl SkillConfig {
         for format in &formats {
             let path = dir.join(format);
             if path.exists()
-                && let Ok(mut config) = Self::from_file(&path) {
-                    config.apply_options(options);
-                    return Some(config);
-                }
+                && let Ok(mut config) = Self::from_file(&path)
+            {
+                config.apply_options(options);
+                return Some(config);
+            }
         }
         None
     }

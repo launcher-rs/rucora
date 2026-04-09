@@ -87,13 +87,13 @@ where
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         // 对话策略：直接让 LLM 回答，不调用工具
         AgentDecision::Chat {
-            request: ChatRequest {
+            request: Box::new(ChatRequest {
                 messages: context.messages.clone(),
                 model: Some(self.model.clone()),
                 temperature: Some(self.temperature),
                 tools: None, // 不使用工具
                 ..Default::default()
-            },
+            }),
         }
     }
 
