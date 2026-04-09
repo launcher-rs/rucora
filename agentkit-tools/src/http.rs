@@ -89,14 +89,13 @@ impl HttpRequestTool {
     fn validate_url(&self, url: &str) -> Result<(), ToolError> {
         // 解析 URL
         let parsed =
-            url::Url::parse(url).map_err(|e| ToolError::Message(format!("无效的 URL: {}", e)))?;
+            url::Url::parse(url).map_err(|e| ToolError::Message(format!("无效的 URL: {e}")))?;
 
         // 检查协议
         let scheme = parsed.scheme().to_lowercase();
         if scheme != "http" && scheme != "https" {
             return Err(ToolError::Message(format!(
-                "不支持的协议：{}（仅支持 http/https）",
-                scheme
+                "不支持的协议：{scheme}（仅支持 http/https）"
             )));
         }
 
@@ -111,7 +110,7 @@ impl HttpRequestTool {
         if let Some(blocked) = &self.blocked_domains {
             for domain in blocked {
                 if host_lower.ends_with(domain) || host_lower == *domain {
-                    return Err(ToolError::Message(format!("域名 {} 在黑名单中", host)));
+                    return Err(ToolError::Message(format!("域名 {host} 在黑名单中")));
                 }
             }
         }
@@ -123,8 +122,7 @@ impl HttpRequestTool {
                 .any(|domain| host_lower.ends_with(domain) || host_lower == *domain);
             if !is_allowed {
                 return Err(ToolError::Message(format!(
-                    "域名 {} 不在白名单中（允许的域名：{:?}）",
-                    host, allowed
+                    "域名 {host} 不在白名单中（允许的域名：{allowed:?}）"
                 )));
             }
         }
@@ -132,13 +130,13 @@ impl HttpRequestTool {
         // 检查是否为内网 IP（简单的字符串前缀检查）
         for ip_prefix in FORBIDDEN_IP_RANGES {
             if host_lower.starts_with(ip_prefix) {
-                return Err(ToolError::Message(format!("禁止访问内网资源：{}", host)));
+                return Err(ToolError::Message(format!("禁止访问内网资源：{host}")));
             }
         }
 
         // 检查 localhost
         if host_lower == "localhost" || host_lower.ends_with(".local") {
-            return Err(ToolError::Message(format!("禁止访问本地资源：{}", host)));
+            return Err(ToolError::Message(format!("禁止访问本地资源：{host}")));
         }
 
         Ok(())
@@ -245,8 +243,7 @@ impl Tool for HttpRequestTool {
             "OPTIONS" => reqwest::Method::OPTIONS,
             _ => {
                 return Err(ToolError::Message(format!(
-                    "不支持的 HTTP 方法：{}",
-                    method_str
+                    "不支持的 HTTP 方法：{method_str}"
                 )));
             }
         };
@@ -259,7 +256,7 @@ impl Tool for HttpRequestTool {
             ))
             .user_agent("Mozilla/5.0 (compatible; AgentKit/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败：{e}")))?;
 
         // 构建请求
         let mut request = client.request(method, url);
@@ -287,7 +284,7 @@ impl Tool for HttpRequestTool {
                 error = %e,
                 "http_request.error"
             );
-            ToolError::Message(format!("HTTP 请求失败：{}", e))
+            ToolError::Message(format!("HTTP 请求失败：{e}"))
         })?;
 
         let status = response.status().as_u16();
@@ -296,7 +293,7 @@ impl Tool for HttpRequestTool {
         let body_bytes = response
             .bytes()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应体失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("读取响应体失败：{e}")))?;
 
         if body_bytes.len() > MAX_RESPONSE_SIZE {
             return Err(ToolError::Message(format!(

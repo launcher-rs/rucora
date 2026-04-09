@@ -231,7 +231,7 @@ impl SkillConfig {
             "yaml" | "yml" => Ok(serde_yaml::from_str(&content)?),
             "toml" => Ok(toml::from_str(&content)?),
             "json" => Ok(serde_json::from_str(&content)?),
-            _ => Err(format!("Unsupported config format: {}", ext).into()),
+            _ => Err(format!("Unsupported config format: {ext}").into()),
         }
     }
 

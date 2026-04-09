@@ -129,7 +129,7 @@ impl ShellTool {
             if !self.allowed_commands.contains(cmd_name) {
                 return Err(ToolError::PolicyDenied {
                     rule_id: "shell.whitelist".to_string(),
-                    reason: format!("命令 '{}' 不在白名单中", cmd_name),
+                    reason: format!("命令 '{cmd_name}' 不在白名单中"),
                 });
             }
         }
@@ -139,7 +139,7 @@ impl ShellTool {
             if full_command.contains(forbidden) {
                 return Err(ToolError::PolicyDenied {
                     rule_id: "shell.blacklist".to_string(),
-                    reason: format!("命令包含禁止的操作: {}", forbidden),
+                    reason: format!("命令包含禁止的操作: {forbidden}"),
                 });
             }
         }
@@ -149,7 +149,7 @@ impl ShellTool {
             if command.contains(op) || args.iter().any(|a| a.contains(op)) {
                 return Err(ToolError::PolicyDenied {
                     rule_id: "shell.dangerous_operators".to_string(),
-                    reason: format!("命令包含危险操作符: {}", op),
+                    reason: format!("命令包含危险操作符: {op}"),
                 });
             }
         }
@@ -265,8 +265,7 @@ impl Tool for ShellTool {
             let path = Path::new(dir);
             if !path.exists() || !path.is_dir() {
                 return Err(ToolError::Message(format!(
-                    "工作目录不存在或不是目录: {}",
-                    dir
+                    "工作目录不存在或不是目录: {dir}"
                 )));
             }
             // 检查路径遍历
@@ -297,10 +296,9 @@ impl Tool for ShellTool {
                     "success": output.status.success()
                 }))
             }
-            Ok(Err(e)) => Err(ToolError::Message(format!("命令执行失败: {}", e))),
+            Ok(Err(e)) => Err(ToolError::Message(format!("命令执行失败: {e}"))),
             Err(_) => Err(ToolError::Message(format!(
-                "命令执行超时（超过 {} 秒）",
-                timeout_secs
+                "命令执行超时（超过 {timeout_secs} 秒）"
             ))),
         }
     }
@@ -387,7 +385,7 @@ pub async fn execute_shell_command(
 
     tokio::task::spawn_blocking(move || cmd.output())
         .await
-        .map_err(|e| std::io::Error::other(format!("任务执行失败: {}", e)))?
+        .map_err(|e| std::io::Error::other(format!("任务执行失败: {e}")))?
 }
 
 /// 截断输出内容，防止内存溢出

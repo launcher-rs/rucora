@@ -46,7 +46,7 @@ impl OpenAiEmbeddingProvider {
 
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
             headers.insert(AUTHORIZATION, v);
         }
 
@@ -109,8 +109,7 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "OpenAI embedding 请求失败：status={} body={}",
-                status, data
+                "OpenAI embedding 请求失败：status={status} body={data}"
             )));
         }
 
@@ -157,8 +156,7 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "OpenAI embedding 批量请求失败：status={} body={}",
-                status, data
+                "OpenAI embedding 批量请求失败：status={status} body={data}"
             )));
         }
 

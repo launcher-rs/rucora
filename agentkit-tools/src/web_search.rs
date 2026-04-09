@@ -46,27 +46,27 @@ impl WebSearchTool {
         // 真实实现中可以调用 Google Custom Search API、Bing Search API 等
         let mock_results = vec![
             SearchResult {
-                title: format!("{} - 官方文档", query),
+                title: format!("{query} - 官方文档"),
                 url: "https://example.com/official".to_string(),
-                snippet: format!("{}的官方文档，提供详细的技术说明和 API 参考。", query),
+                snippet: format!("{query}的官方文档，提供详细的技术说明和 API 参考。"),
             },
             SearchResult {
-                title: format!("{} 入门教程", query),
+                title: format!("{query} 入门教程"),
                 url: "https://example.com/tutorial".to_string(),
-                snippet: format!("{}的完整入门教程，适合初学者系统学习。", query),
+                snippet: format!("{query}的完整入门教程，适合初学者系统学习。"),
             },
             SearchResult {
-                title: format!("{} 最佳实践", query),
+                title: format!("{query} 最佳实践"),
                 url: "https://example.com/best-practices".to_string(),
-                snippet: format!("{}的最佳实践指南，包含实际项目中的经验总结。", query),
+                snippet: format!("{query}的最佳实践指南，包含实际项目中的经验总结。"),
             },
             SearchResult {
-                title: format!("{} 技术博客", query),
+                title: format!("{query} 技术博客"),
                 url: "https://example.com/blog".to_string(),
-                snippet: format!("多位专家分享的{}实践经验和技术心得。", query),
+                snippet: format!("多位专家分享的{query}实践经验和技术心得。"),
             },
             SearchResult {
-                title: format!("{} GitHub 项目", query),
+                title: format!("{query} GitHub 项目"),
                 url: "https://github.com/topics/{}".to_string(),
                 snippet: format!("GitHub 上相关的{}开源项目集合。", query.to_lowercase()),
             },
@@ -130,8 +130,7 @@ impl Tool for WebSearchTool {
         let max_results = input
             .get("max_results")
             .and_then(|v| v.as_u64())
-            .map(|v| v as usize)
-            .unwrap_or(self.max_results);
+            .map_or(self.max_results, |v| v as usize);
 
         // 执行搜索
         let results = self.search(query).await?;
@@ -223,11 +222,10 @@ impl Tool for WebScraperTool {
         // 真实实现中可以使用 reqwest 等库抓取网页
         let mock_content = format!(
             r#"网页内容摘要：
-URL: {}
+URL: {url}
 标题：示例网页
 内容：这是一个模拟的网页内容。在实际实现中，这里会显示从网络抓取的真实网页内容。
-可以使用 reqwest 库发送 HTTP 请求，然后解析 HTML 获取所需信息。"#,
-            url
+可以使用 reqwest 库发送 HTTP 请求，然后解析 HTML 获取所需信息。"#
         );
 
         Ok(json!({

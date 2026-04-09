@@ -69,8 +69,7 @@ impl EmbeddingProvider for OllamaEmbeddingProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "Ollama embedding 请求失败：status={} body={}",
-                status, data
+                "Ollama embedding 请求失败：status={status} body={data}"
             )));
         }
 

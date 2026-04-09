@@ -58,8 +58,7 @@ impl BrowserOpenTool {
             || host.starts_with("172.")
         {
             return Err(ToolError::Message(format!(
-                "阻止访问本地/私有主机: {}",
-                host
+                "阻止访问本地/私有主机: {host}"
             )));
         }
 
@@ -120,7 +119,7 @@ impl Tool for BrowserOpenTool {
             tokio::process::Command::new("cmd")
                 .args(["/C", "start", "", &validated_url])
                 .spawn()
-                .map_err(|e| ToolError::Message(format!("打开浏览器失败: {}", e)))?;
+                .map_err(|e| ToolError::Message(format!("打开浏览器失败: {e}")))?;
         }
 
         #[cfg(target_os = "macos")]

@@ -172,7 +172,7 @@ where
     /// 构建反思请求
     fn _build_reflect_request(&self, context: &AgentContext, iteration: usize) -> ChatRequest {
         let prompt = format!(
-            "请反思第 {} 版本的质量：\n\
+            "请反思第 {iteration} 版本的质量：\n\
              \n\
              反思维度：\n\
              1. **正确性**：是否有错误或遗漏？\n\
@@ -180,8 +180,7 @@ where
              3. **清晰度**：是否易于理解？\n\
              4. **优化空间**：哪些地方可以改进？\n\
              \n\
-             请详细列出问题和改进建议。",
-            iteration
+             请详细列出问题和改进建议。"
         );
 
         self._build_request(context, prompt)

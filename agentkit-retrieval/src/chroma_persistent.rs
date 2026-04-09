@@ -60,7 +60,7 @@ impl ChromaPersistentStore {
         // 确保目录存在
         let collection_dir = persist_dir.join(&collection);
         fs::create_dir_all(&collection_dir)
-            .map_err(|e| ProviderError::Message(format!("无法创建目录: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("无法创建目录: {e}")))?;
 
         // 加载已有数据
         let cache = Self::load_from_disk(&collection_dir)?;
@@ -92,14 +92,14 @@ impl ChromaPersistentStore {
         }
 
         let content = fs::read_to_string(&data_file)
-            .map_err(|e| ProviderError::Message(format!("读取数据文件失败: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("读取数据文件失败: {e}")))?;
 
         if content.trim().is_empty() {
             return Ok(HashMap::new());
         }
 
         let records: Vec<PersistedRecord> = serde_json::from_str(&content)
-            .map_err(|e| ProviderError::Message(format!("解析数据文件失败: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("解析数据文件失败: {e}")))?;
 
         let cache: HashMap<String, PersistedRecord> =
             records.into_iter().map(|r| (r.id.clone(), r)).collect();
@@ -116,16 +116,16 @@ impl ChromaPersistentStore {
 
         let records: Vec<&PersistedRecord> = cache.values().collect();
         let json = serde_json::to_string_pretty(&records)
-            .map_err(|e| ProviderError::Message(format!("序列化数据失败: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("序列化数据失败: {e}")))?;
 
         drop(cache);
 
         let data_file = self.data_file();
         let mut file = fs::File::create(&data_file)
-            .map_err(|e| ProviderError::Message(format!("创建数据文件失败: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("创建数据文件失败: {e}")))?;
 
         file.write_all(json.as_bytes())
-            .map_err(|e| ProviderError::Message(format!("写入数据文件失败: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("写入数据文件失败: {e}")))?;
 
         Ok(())
     }
@@ -135,7 +135,7 @@ impl ChromaPersistentStore {
         let collection = collection.into();
         let collection_dir = self.persist_dir.join(&collection);
         fs::create_dir_all(&collection_dir)
-            .map_err(|e| ProviderError::Message(format!("无法创建目录: {}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("无法创建目录: {e}")))?;
 
         let cache = Self::load_from_disk(&collection_dir)?;
 
@@ -169,7 +169,7 @@ impl ChromaPersistentStore {
         let collection_dir = self.collection_dir();
         if collection_dir.exists() {
             fs::remove_dir_all(&collection_dir)
-                .map_err(|e| ProviderError::Message(format!("删除集合失败: {}", e)))?;
+                .map_err(|e| ProviderError::Message(format!("删除集合失败: {e}")))?;
         }
         Ok(())
     }

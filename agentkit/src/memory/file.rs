@@ -40,8 +40,7 @@ impl FileMemory {
             Err(err) if err.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
             Err(err) => {
                 return Err(MemoryError::Message(format!(
-                    "failed to read memory file: {}",
-                    err
+                    "failed to read memory file: {err}"
                 )));
             }
         };
@@ -51,7 +50,7 @@ impl FileMemory {
         }
 
         serde_json::from_slice::<Vec<MemoryItem>>(&bytes)
-            .map_err(|e| MemoryError::Message(format!("failed to parse memory file: {}", e)))
+            .map_err(|e| MemoryError::Message(format!("failed to parse memory file: {e}")))
     }
 
     /// 将全部记忆条目序列化并写回文件。
@@ -59,15 +58,15 @@ impl FileMemory {
         if let Some(parent) = self.path.parent() {
             tokio::fs::create_dir_all(parent)
                 .await
-                .map_err(|e| MemoryError::Message(format!("failed to create dir: {}", e)))?;
+                .map_err(|e| MemoryError::Message(format!("failed to create dir: {e}")))?;
         }
 
         let data = serde_json::to_vec_pretty(items)
-            .map_err(|e| MemoryError::Message(format!("failed to serialize memory: {}", e)))?;
+            .map_err(|e| MemoryError::Message(format!("failed to serialize memory: {e}")))?;
 
         tokio::fs::write(&self.path, data)
             .await
-            .map_err(|e| MemoryError::Message(format!("failed to write memory file: {}", e)))
+            .map_err(|e| MemoryError::Message(format!("failed to write memory file: {e}")))
     }
 }
 

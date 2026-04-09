@@ -284,8 +284,7 @@ impl LlmProvider for ResilientProvider {
                 match timeout(Duration::from_millis(ms), fut).await {
                     Ok(r) => r,
                     Err(_) => Err(ProviderError::Message(format!(
-                        "provider chat timeout after {}ms",
-                        ms
+                        "provider chat timeout after {ms}ms"
                     ))),
                 }
             } else {

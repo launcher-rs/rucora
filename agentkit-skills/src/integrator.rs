@@ -58,7 +58,7 @@ impl SkillsAutoIntegrator {
             if let Some(Value::Array(bins_array)) = requires_map.get("bins") {
                 for bin in bins_array {
                     if let Some(bin_name) = bin.as_str() {
-                        required_tools.push(format!("cmd_{}", bin_name));
+                        required_tools.push(format!("cmd_{bin_name}"));
                     }
                 }
             }

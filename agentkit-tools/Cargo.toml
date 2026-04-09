@@ -23,3 +23,7 @@ html2text = "0.12"
 dom_smoothie = "0.16"
 schemars = "0.8"
 backon = "1.5"
+
+# ?? workspace ??? lint ??
+[lints]
+workspace = true

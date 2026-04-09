@@ -279,7 +279,7 @@ pub fn chunk_text(
     while start < chars.len() {
         let end = (start + max_chars).min(chars.len());
         let chunk_text: String = chars[start..end].iter().collect();
-        let id = format!("{}:{}", doc_id, idx);
+        let id = format!("{doc_id}:{idx}");
 
         out.push(TextChunk {
             id,

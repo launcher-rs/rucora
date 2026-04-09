@@ -130,7 +130,7 @@ impl Tool for MemoryStoreTool {
             .unwrap_or("core");
 
         // 存储
-        let full_key = format!("{}:{}", category, key);
+        let full_key = format!("{category}:{key}");
         self.memory
             .add(MemoryItem {
                 id: full_key,
@@ -236,7 +236,7 @@ impl Tool for MemoryRecallTool {
             .unwrap_or("core");
 
         // 检索
-        let full_key = format!("{}:{}", category, key);
+        let full_key = format!("{category}:{key}");
         let mut results = self
             .memory
             .query(MemoryQuery {

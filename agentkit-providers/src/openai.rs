@@ -102,7 +102,7 @@ impl OpenAiProvider {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
             headers.insert(AUTHORIZATION, v);
         }
 
@@ -260,7 +260,7 @@ impl LlmProvider for OpenAiProvider {
             url = %url,
             model = %model,
             messages_len = request.messages.len(),
-            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            tools_len = request.tools.as_ref().map_or(0, |t| t.len()),
             last_user = last_user_preview.as_deref().unwrap_or(""),
             "provider.chat.start"
         );
@@ -353,7 +353,7 @@ impl LlmProvider for OpenAiProvider {
         let text = resp
             .text()
             .await
-            .map_err(|e| ProviderError::Message(format!("读取响应失败：{}", e)))?;
+            .map_err(|e| ProviderError::Message(format!("读取响应失败：{e}")))?;
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
         debug!(
@@ -384,7 +384,7 @@ impl LlmProvider for OpenAiProvider {
                     status, text, self.base_url, model
                 )
             } else {
-                format!("OpenAI 请求失败：status={} body={}", status, text)
+                format!("OpenAI 请求失败：status={status} body={text}")
             };
 
             return Err(ProviderError::Message(error_msg));
@@ -409,7 +409,7 @@ impl LlmProvider for OpenAiProvider {
         if message.is_none() {
             // 尝试兼容某些第三方 API 的格式
             if let Some(error) = data.get("error") {
-                return Err(ProviderError::Message(format!("API 返回错误：{}", error)));
+                return Err(ProviderError::Message(format!("API 返回错误：{error}")));
             }
 
             return Err(ProviderError::Message(format!(
@@ -468,18 +468,15 @@ impl LlmProvider for OpenAiProvider {
                 prompt_tokens: usage_obj
                     .get("prompt_tokens")
                     .and_then(|v| v.as_u64())
-                    .map(|v| v as u32)
-                    .unwrap_or(0),
+                    .map_or(0, |v| v as u32),
                 completion_tokens: usage_obj
                     .get("completion_tokens")
                     .and_then(|v| v.as_u64())
-                    .map(|v| v as u32)
-                    .unwrap_or(0),
+                    .map_or(0, |v| v as u32),
                 total_tokens: usage_obj
                     .get("total_tokens")
                     .and_then(|v| v.as_u64())
-                    .map(|v| v as u32)
-                    .unwrap_or(0),
+                    .map_or(0, |v| v as u32),
             });
 
         // 解析 finish_reason 字段
@@ -542,7 +539,7 @@ impl LlmProvider for OpenAiProvider {
             url = %url,
             model = %model,
             messages_len = request.messages.len(),
-            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            tools_len = request.tools.as_ref().map_or(0, |t| t.len()),
             "provider.stream_chat.start"
         );
 
@@ -598,8 +595,7 @@ impl LlmProvider for OpenAiProvider {
             let status = resp.status();
             if !status.is_success() {
                 Err(ProviderError::Message(format!(
-                    "OpenAI stream 请求失败：status={}",
-                    status
+                    "OpenAI stream 请求失败：status={status}"
                 )))?;
             }
 
@@ -642,7 +638,7 @@ impl LlmProvider for OpenAiProvider {
                     }
 
                     let v: Value = serde_json::from_str(&data)
-                        .map_err(|e| ProviderError::Message(format!("SSE JSON 解析失败: {} data={}", e, data)))?;
+                        .map_err(|e| ProviderError::Message(format!("SSE JSON 解析失败: {e} data={data}")))?;
 
                     // OpenAI: choices[0].delta.content
                     let delta = v

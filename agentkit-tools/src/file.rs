@@ -84,8 +84,7 @@ impl FileToolConfig {
             for prefix in FORBIDDEN_PATH_PREFIXES {
                 if path_lower.starts_with(&prefix.to_lowercase()) {
                     return Err(ToolError::Message(format!(
-                        "禁止访问系统敏感路径：{}",
-                        path_str
+                        "禁止访问系统敏感路径：{path_str}"
                     )));
                 }
             }
@@ -96,8 +95,7 @@ impl FileToolConfig {
             let ext_lower = ext.to_lowercase();
             if !ALLOWED_EXTENSIONS.contains(&ext_lower.as_str()) {
                 return Err(ToolError::Message(format!(
-                    "不支持的文件类型：{}（允许的类型：{:?}）",
-                    ext, ALLOWED_EXTENSIONS
+                    "不支持的文件类型：{ext}（允许的类型：{ALLOWED_EXTENSIONS:?}）"
                 )));
             }
         } else {
@@ -117,8 +115,7 @@ impl FileToolConfig {
                     .any(|dir| canonical_path.starts_with(dir) || dir.starts_with(&canonical_path));
                 if !is_allowed {
                     return Err(ToolError::Message(format!(
-                        "文件路径不在允许的工作目录内（允许的目录：{:?}）",
-                        allowed_dirs
+                        "文件路径不在允许的工作目录内（允许的目录：{allowed_dirs:?}）"
                     )));
                 }
             } else {
@@ -129,8 +126,7 @@ impl FileToolConfig {
                     .any(|dir| canonical_path.starts_with(dir));
                 if !is_allowed {
                     return Err(ToolError::Message(format!(
-                        "文件路径不在允许的工作目录内（允许的目录：{:?}）",
-                        allowed_dirs
+                        "文件路径不在允许的工作目录内（允许的目录：{allowed_dirs:?}）"
                     )));
                 }
             }
@@ -246,13 +242,13 @@ impl Tool for FileReadTool {
         // 检查文件大小
         let metadata = tokio::fs::metadata(&path)
             .await
-            .map_err(|e| ToolError::Message(format!("无法获取文件信息：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("无法获取文件信息：{e}")))?;
 
         self.config.check_file_size(metadata.len(), "文件")?;
 
         let content = tokio::fs::read_to_string(&path)
             .await
-            .map_err(|e| ToolError::Message(format!("读取文件失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("读取文件失败：{e}")))?;
 
         Ok(json!({
             "path": path_str,
@@ -366,7 +362,7 @@ impl Tool for FileWriteTool {
 
         tokio::fs::write(&path, content)
             .await
-            .map_err(|e| ToolError::Message(format!("写入文件失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("写入文件失败：{e}")))?;
 
         Ok(json!({
             "path": path_str,
@@ -493,20 +489,18 @@ impl Tool for FileEditTool {
         // 读取文件内容
         let content = tokio::fs::read_to_string(&path)
             .await
-            .map_err(|e| ToolError::Message(format!("读取文件失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("读取文件失败：{e}")))?;
 
         // 检查匹配次数
         let matches = content.matches(old_string).count();
         if matches == 0 {
             return Err(ToolError::Message(format!(
-                "未找到匹配文本：{}",
-                old_string
+                "未找到匹配文本：{old_string}"
             )));
         }
         if matches > 1 {
             return Err(ToolError::Message(format!(
-                "找到 {} 处匹配，匹配歧义。请提供更精确的唯一匹配文本",
-                matches
+                "找到 {matches} 处匹配，匹配歧义。请提供更精确的唯一匹配文本"
             )));
         }
 
@@ -520,7 +514,7 @@ impl Tool for FileEditTool {
         // 写回文件
         tokio::fs::write(&path, new_content)
             .await
-            .map_err(|e| ToolError::Message(format!("写入文件失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("写入文件失败：{e}")))?;
 
         Ok(json!({
             "success": true,

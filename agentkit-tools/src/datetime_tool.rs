@@ -37,7 +37,7 @@ impl DatetimeTool {
         let year = now.year();
         let month = now.month();
         let day = now.day();
-        info.push(format!("公历：{}年{}月{}日", year, month, day));
+        info.push(format!("公历：{year}年{month}月{day}日"));
 
         // 农历干支纪年（简化计算）
         let heavenly_stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
@@ -47,18 +47,18 @@ impl DatetimeTool {
         let year_index = ((year - 4) % 60) as usize;
         let stem = heavenly_stems[year_index % 10];
         let branch = earthly_branches[year_index % 12];
-        info.push(format!("农历：{}{}年", stem, branch));
+        info.push(format!("农历：{stem}{branch}年"));
 
         // 生肖
         let zodiacs = [
             "鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪",
         ];
         let zodiac = zodiacs[year_index % 12];
-        info.push(format!("生肖：{}", zodiac));
+        info.push(format!("生肖：{zodiac}"));
 
         // 星座
         let constellation = Self::get_constellation(month, day);
-        info.push(format!("星座：{}", constellation));
+        info.push(format!("星座：{constellation}"));
 
         // 星期
         let weekday = now.weekday();
@@ -113,9 +113,9 @@ impl DatetimeTool {
     /// 获取两个日期之间的天数
     pub fn days_between(&self, date1: &str, date2: &str) -> Result<i32, ToolError> {
         let d1 = NaiveDate::parse_from_str(date1, "%Y-%m-%d")
-            .map_err(|e| ToolError::Message(format!("解析日期失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
         let d2 = NaiveDate::parse_from_str(date2, "%Y-%m-%d")
-            .map_err(|e| ToolError::Message(format!("解析日期失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
 
         Ok((d2 - d1).num_days() as i32)
     }
@@ -123,12 +123,12 @@ impl DatetimeTool {
     /// 获取指定日期的详细信息
     pub fn get_date_detail(&self, date: &str) -> Result<String, ToolError> {
         let naive_date = NaiveDate::parse_from_str(date, "%Y-%m-%d")
-            .map_err(|e| ToolError::Message(format!("解析日期失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
 
         let mut info = Vec::new();
 
         // 公历
-        info.push(format!("公历：{}", naive_date));
+        info.push(format!("公历：{naive_date}"));
 
         // 干支纪年
         let year = naive_date.year();
@@ -139,7 +139,7 @@ impl DatetimeTool {
         let year_index = ((year - 4) % 60) as usize;
         let stem = heavenly_stems[year_index % 10];
         let branch = earthly_branches[year_index % 12];
-        info.push(format!("农历：{}{}年", stem, branch));
+        info.push(format!("农历：{stem}{branch}年"));
 
         // 生肖
         let zodiacs = [
@@ -269,7 +269,7 @@ impl Tool for DatetimeTool {
                     "success": true
                 }))
             }
-            _ => Err(ToolError::Message(format!("未知的操作类型：{}", action))),
+            _ => Err(ToolError::Message(format!("未知的操作类型：{action}"))),
         }
     }
 }

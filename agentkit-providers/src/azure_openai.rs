@@ -300,7 +300,7 @@ impl LlmProvider for AzureOpenAiProvider {
             url = %url,
             deployment_id = %deployment_id,
             messages_len = request.messages.len(),
-            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            tools_len = request.tools.as_ref().map_or(0, |t| t.len()),
             last_user = last_user_preview.as_deref().unwrap_or(""),
             "provider.chat.start"
         );
@@ -372,8 +372,7 @@ impl LlmProvider for AzureOpenAiProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "Azure OpenAI 请求失败：status={} body={}",
-                status, data
+                "Azure OpenAI 请求失败：status={status} body={data}"
             )));
         }
 
@@ -474,8 +473,7 @@ impl LlmProvider for AzureOpenAiProvider {
             let status = resp.status();
             if !status.is_success() {
                 Err(ProviderError::Message(format!(
-                    "Azure OpenAI 流式请求失败：status={}",
-                    status
+                    "Azure OpenAI 流式请求失败：status={status}"
                 )))?;
             }
 
@@ -509,7 +507,7 @@ impl LlmProvider for AzureOpenAiProvider {
                     }
 
                     let v: Value = serde_json::from_str(&data)
-                        .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{} data={}", e, data)))?;
+                        .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{e} data={data}")))?;
 
                     let delta = v
                         .get("choices")

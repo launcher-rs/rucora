@@ -114,16 +114,14 @@ impl GitTool {
         // 检查是否在白名单中
         if !ALLOWED_COMMANDS.contains(&cmd_lower.as_str()) {
             return Err(ToolError::Message(format!(
-                "不支持的 Git 命令：{}（允许的命令：{:?}）",
-                command, ALLOWED_COMMANDS
+                "不支持的 Git 命令：{command}（允许的命令：{ALLOWED_COMMANDS:?}）"
             )));
         }
 
         // 检查是否允许写入操作
         if self.is_write_command(&cmd_lower) && !self.allow_write {
             return Err(ToolError::Message(format!(
-                "Git 写入操作已被禁用：{}",
-                command
+                "Git 写入操作已被禁用：{command}"
             )));
         }
 
@@ -152,8 +150,7 @@ impl GitTool {
                 .any(|root| canonical_path.starts_with(root));
             if !is_allowed {
                 return Err(ToolError::Message(format!(
-                    "Git 仓库路径不在允许的范围内（允许的根目录：{:?}）",
-                    allowed_roots
+                    "Git 仓库路径不在允许的范围内（允许的根目录：{allowed_roots:?}）"
                 )));
             }
         }
@@ -194,8 +191,7 @@ impl GitTool {
             for forbidden in FORBIDDEN_ARGS {
                 if arg_lower.starts_with(&forbidden.to_lowercase()) {
                     return Err(ToolError::Message(format!(
-                        "禁止使用 Git 参数：{}（存在安全风险）",
-                        arg
+                        "禁止使用 Git 参数：{arg}（存在安全风险）"
                     )));
                 }
             }
@@ -213,8 +209,7 @@ impl GitTool {
                 || arg.contains('\r')
             {
                 return Err(ToolError::Message(format!(
-                    "参数包含危险字符，可能存在注入风险：{}",
-                    arg
+                    "参数包含危险字符，可能存在注入风险：{arg}"
                 )));
             }
 
@@ -226,7 +221,7 @@ impl GitTool {
                     || arg.contains("/../")
                     || arg.contains("\\..\\")
                 {
-                    return Err(ToolError::Message(format!("参数包含路径遍历：{}", arg)));
+                    return Err(ToolError::Message(format!("参数包含路径遍历：{arg}")));
                 }
             }
 
@@ -327,7 +322,7 @@ impl Tool for GitTool {
             )
             .output()
             .await
-            .map_err(|e| ToolError::Message(format!("Git 命令执行失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("Git 命令执行失败：{e}")))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

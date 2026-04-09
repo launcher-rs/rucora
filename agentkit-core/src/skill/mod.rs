@@ -73,7 +73,7 @@ impl SkillDefinition {
                 if let Some(field_name) = req_field.as_str()
                     && input.get(field_name).is_none()
                 {
-                    return Err(format!("缺少必需字段：{}", field_name));
+                    return Err(format!("缺少必需字段：{field_name}"));
                 }
             }
         }

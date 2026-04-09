@@ -190,14 +190,14 @@ impl DefaultToolPolicy {
         {
             return Err(ToolError::PolicyDenied {
                 rule_id: "config.denied_command".to_string(),
-                reason: format!("command '{}' is denied", cmd),
+                reason: format!("command '{cmd}' is denied"),
             });
         }
 
         if Self::is_dangerous_command(&cmd) {
             return Err(ToolError::PolicyDenied {
                 rule_id: "default.dangerous_command".to_string(),
-                reason: format!("dangerous command '{}' is blocked by default", cmd),
+                reason: format!("dangerous command '{cmd}' is blocked by default"),
             });
         }
 
@@ -209,7 +209,7 @@ impl DefaultToolPolicy {
         {
             return Err(ToolError::PolicyDenied {
                 rule_id: "config.not_allowed".to_string(),
-                reason: format!("command '{}' is not in allowlist", cmd),
+                reason: format!("command '{cmd}' is not in allowlist"),
             });
         }
 

@@ -127,7 +127,7 @@ impl DefaultExecution {
         let model = model.into();
         Self {
             provider,
-            model: model.clone(),
+            model: model,
             system_prompt: None,
             tools,
             policy: Arc::new(DefaultToolPolicy::new()),
@@ -282,7 +282,7 @@ impl DefaultExecution {
         self.middleware_chain
             .process_request(&mut input)
             .await
-            .map_err(|e| AgentError::Message(format!("中间件处理失败：{}", e)))?;
+            .map_err(|e| AgentError::Message(format!("中间件处理失败：{e}")))?;
 
         let mut messages = self.build_messages(&input);
         let mut tool_call_records = Vec::new();
@@ -343,7 +343,7 @@ impl DefaultExecution {
                                 .process_response(out)
                                 .await
                                 .map_err(|e| {
-                                    AgentError::Message(format!("中间件响应处理失败：{}", e))
+                                    AgentError::Message(format!("中间件响应处理失败：{e}"))
                                 })?;
                         }
 
@@ -397,7 +397,7 @@ impl DefaultExecution {
                             .process_response(out)
                             .await
                             .map_err(|e| {
-                                AgentError::Message(format!("中间件响应处理失败：{}", e))
+                                AgentError::Message(format!("中间件响应处理失败：{e}"))
                             })?;
                     }
 
@@ -417,7 +417,7 @@ impl DefaultExecution {
                             .process_response(out)
                             .await
                             .map_err(|e| {
-                                AgentError::Message(format!("中间件响应处理失败：{}", e))
+                                AgentError::Message(format!("中间件响应处理失败：{e}"))
                             })?;
                     }
 
@@ -451,7 +451,7 @@ impl DefaultExecution {
                     &self.middleware_chain,
                 )
                 .await
-                .map_err(|e| AgentError::Message(format!("工具执行失败：{}", e)))?;
+                .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
                 results.push(result.clone());
 
                 // 添加到记录
@@ -483,7 +483,7 @@ impl DefaultExecution {
                         &middleware_chain,
                     )
                     .await
-                    .map_err(|e| AgentError::Message(format!("工具执行失败：{}", e)))?;
+                    .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
                     Ok((idx, r))
                 }
             }))
@@ -495,7 +495,7 @@ impl DefaultExecution {
         let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
         for r in results {
             let (idx, result) =
-                r.map_err(|e| AgentError::Message(format!("工具执行失败：{}", e)))?;
+                r.map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
             ok.push((idx, result.clone()));
 
             // 添加到记录
@@ -520,7 +520,7 @@ impl DefaultExecution {
         messages: &mut Vec<ChatMessage>,
         records: &mut Vec<ToolCallRecord>,
     ) -> Result<(), AgentError> {
-        let tool_call_id = format!("local_call_{}", name);
+        let tool_call_id = format!("local_call_{name}");
         let call = ToolCall {
             id: tool_call_id.clone(),
             name: name.to_string(),
@@ -535,7 +535,7 @@ impl DefaultExecution {
             &self.middleware_chain,
         )
         .await
-        .map_err(|e| AgentError::Message(format!("工具执行失败：{}", e)))?;
+        .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
 
         records.push(ToolCallRecord {
             name: name.to_string(),
@@ -687,7 +687,7 @@ impl DefaultExecution {
                                     &tools, &policy, &observer, &call,
                                 )
                                 .await
-                                .map_err(|e| AgentError::Message(format!("工具执行失败：{}", e)))?;
+                                .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
                                 Ok((idx, r))
                             }
                         }),
@@ -714,7 +714,7 @@ impl DefaultExecution {
                 }
                 ok.sort_by_key(|(idx, _)| *idx);
 
-                for (idx, result) in ok.into_iter() {
+                for (idx, result) in ok {
                     let call = &tool_calls[idx];
 
                     let ev = ChannelEvent::ToolCall(call.clone());

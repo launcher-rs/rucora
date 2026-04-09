@@ -18,3 +18,71 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
+
+# ===== Workspace 级别的 Lint 配置 =====
+# 这些配置将应用于 workspace 中的所有 crate
+
+[workspace.lints.clippy]
+# ===== 必须修复的警告（视为错误） =====
+# 这些 lint 级别设为 "deny"，违反将导致编译失败
+
+# 错误处理
+unnecessary_wraps = "deny"              # 不需要返回 Result 的函数不应返回 Result
+result_unit_err = "deny"                # Result<(), String> 应使用更具体的错误类型
+
+# 代码质量
+clone_on_copy = "deny"                  # Copy 类型不应使用 clone()
+needless_borrow = "deny"                # 不必要的借用
+needless_borrowed_reference = "deny"    # 不必要的借用引用
+redundant_clone = "deny"                # 冗余的 clone 调用
+redundant_field_names = "deny"          # 冗余的字段名（如 x: x）
+single_match = "deny"                   # 单分支 match 应使用 if let
+unused_async = "deny"                   # 未使用 async 的 async 函数
+manual_strip = "deny"                   # 手动实现 strip_prefix/suffix
+manual_let_else = "deny"                # 应使用 let-else 模式
+
+# 性能
+iter_overeager_cloned = "deny"          # 迭代器中不必要的 cloned()
+needless_collect = "deny"               # 不必要的 collect()
+uninlined_format_args = "deny"          # 应使用内联格式化参数
+
+# 可读性
+explicit_iter_loop = "deny"             # 显式的 iter() 调用
+explicit_into_iter_loop = "deny"        # 显式的 into_iter() 调用
+needless_range_loop = "deny"            # 不必要的范围循环
+same_item_push = "deny"                 # 重复推送相同项
+manual_flatten = "deny"                 # 手动展平 Option/Result
+
+# ===== 建议修复的警告 =====
+# 这些 lint 级别设为 "warn"，会显示警告但不阻止编译
+
+# 代码复杂度
+cognitive_complexity = "warn"           # 认知复杂度过高
+too_many_arguments = "warn"             # 函数参数过多
+type_complexity = "warn"                # 类型过于复杂
+
+# 文档
+missing_errors_doc = "warn"             # 缺少错误文档
+missing_panics_doc = "warn"             # 缺少 panic 文档
+
+# 代码风格
+enum_variant_names = "warn"             # 枚举变体命名不规范
+wrong_self_convention = "warn"         # 错误的 self 约定
+needless_pass_by_value = "warn"        # 可按引用传递却按值传递
+map_unwrap_or = "warn"                 # map().unwrap_or() 可简化
+or_fun_call = "warn"                   # or() 中的函数调用可优化
+
+# 最佳实践
+let_and_return = "warn"                # 不必要的 let 和 return
+needless_return = "warn"               # 不必要的 return
+explicit_counter_loop = "warn"         # 显式计数器循环
+filter_map_identity = "warn"           # filter_map 中的恒等函数
+
+# ===== 允许的特殊情况 =====
+# 这些 lint 级别设为 "allow"，在特定场景下允许
+
+# 测试代码允许某些不规范
+# 通过 #[allow(...)] 在测试模块中处理
+
+# 示例代码允许使用 unwrap()
+# 示例代码中为简洁起见允许 unwrap()

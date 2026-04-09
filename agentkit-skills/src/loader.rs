@@ -52,7 +52,7 @@ fn parse_skill_stdout(stdout: &str) -> SkillResult {
                 SkillResult::success(v)
             }
         }
-        Err(_) => SkillResult::error(format!("输出格式错误：{}", stdout)),
+        Err(_) => SkillResult::error(format!("输出格式错误：{stdout}")),
     }
 }
 
@@ -84,7 +84,7 @@ impl SkillLoader {
         let mut skills = Vec::new();
 
         let entries = std::fs::read_dir(&self.base_dir)
-            .map_err(|e| SkillLoadError::IoError(format!("读取目录失败：{}", e)))?;
+            .map_err(|e| SkillLoadError::IoError(format!("读取目录失败：{e}")))?;
 
         for entry in entries.flatten() {
             let path = entry.path();
@@ -113,33 +113,32 @@ impl SkillLoader {
         let definition = if skill_dir.join("skill.yaml").exists() {
             // 读取 skill.yaml
             let content = std::fs::read_to_string(skill_dir.join("skill.yaml"))
-                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.yaml 失败：{}", e)))?;
+                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.yaml 失败：{e}")))?;
             serde_yaml::from_str(&content)
-                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.yaml 失败：{}", e)))?
+                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.yaml 失败：{e}")))?
         } else if skill_dir.join("skill.toml").exists() {
             // 读取 skill.toml
             let content = std::fs::read_to_string(skill_dir.join("skill.toml"))
-                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.toml 失败：{}", e)))?;
+                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.toml 失败：{e}")))?;
             toml::from_str(&content)
-                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.toml 失败：{}", e)))?
+                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.toml 失败：{e}")))?
         } else if skill_dir.join("skill.json").exists() {
             // 读取 skill.json
             let content = std::fs::read_to_string(skill_dir.join("skill.json"))
-                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.json 失败：{}", e)))?;
+                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.json 失败：{e}")))?;
             serde_json::from_str(&content)
-                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.json 失败：{}", e)))?
+                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.json 失败：{e}")))?
         } else {
             // 读取 SKILL.md
             let md_path = skill_dir.join("SKILL.md");
             if !md_path.exists() {
                 return Err(SkillLoadError::NotFound(format!(
-                    "SKILL.md 不存在：{:?}",
-                    md_path
+                    "SKILL.md 不存在：{md_path:?}"
                 )));
             }
 
             let content = std::fs::read_to_string(&md_path)
-                .map_err(|e| SkillLoadError::IoError(format!("读取 SKILL.md 失败：{}", e)))?;
+                .map_err(|e| SkillLoadError::IoError(format!("读取 SKILL.md 失败：{e}")))?;
 
             parse_skill_md(&content)?
         };
@@ -170,7 +169,7 @@ fn parse_skill_md(content: &str) -> Result<SkillDefinition, SkillLoadError> {
     let frontmatter = extract_frontmatter(content)?;
 
     let definition: SkillDefinition = serde_yaml::from_str(&frontmatter)
-        .map_err(|e| SkillLoadError::ParseError(format!("解析 YAML 失败：{}", e)))?;
+        .map_err(|e| SkillLoadError::ParseError(format!("解析 YAML 失败：{e}")))?;
 
     if definition.name.is_empty() {
         return Err(SkillLoadError::ParseError("缺少必需字段：name".to_string()));
@@ -325,8 +324,7 @@ impl SkillExecutor {
             .spawn()
             .map_err(|e| {
                 SkillExecuteError::IoError(format!(
-                    "启动 Python 失败：{}，请确保 Python 已安装并添加到 PATH",
-                    e
+                    "启动 Python 失败：{e}，请确保 Python 已安装并添加到 PATH"
                 ))
             })?;
 
@@ -335,7 +333,7 @@ impl SkillExecutor {
             stdin
                 .write_all(input_str.as_bytes())
                 .await
-                .map_err(|e| SkillExecuteError::IoError(format!("写入输入失败：{}", e)))?;
+                .map_err(|e| SkillExecuteError::IoError(format!("写入输入失败：{e}")))?;
         }
 
         let output = tokio_timeout(
@@ -344,7 +342,7 @@ impl SkillExecutor {
         )
         .await
         .map_err(|_| SkillExecuteError::Timeout(timeout))?
-        .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{}", e)))?;
+        .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{e}")))?;
 
         let execution_time_ms = start.elapsed().as_millis() as u64;
 
@@ -413,14 +411,14 @@ impl SkillExecutor {
             .stderr(Stdio::piped())
             .current_dir(&self.work_dir)
             .spawn()
-            .map_err(|e| SkillExecuteError::IoError(format!("启动 Node.js 失败：{}", e)))?;
+            .map_err(|e| SkillExecuteError::IoError(format!("启动 Node.js 失败：{e}")))?;
 
         if let Some(mut stdin) = child.stdin.take() {
             let input_str = input.to_string();
             stdin
                 .write_all(input_str.as_bytes())
                 .await
-                .map_err(|e| SkillExecuteError::IoError(format!("写入输入失败：{}", e)))?;
+                .map_err(|e| SkillExecuteError::IoError(format!("写入输入失败：{e}")))?;
         }
 
         let output = tokio_timeout(
@@ -429,7 +427,7 @@ impl SkillExecutor {
         )
         .await
         .map_err(|_| SkillExecuteError::Timeout(timeout))?
-        .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{}", e)))?;
+        .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{e}")))?;
 
         let execution_time_ms = start.elapsed().as_millis() as u64;
 
@@ -494,14 +492,14 @@ impl SkillExecutor {
             .stderr(Stdio::piped())
             .current_dir(&self.work_dir)
             .spawn()
-            .map_err(|e| SkillExecuteError::IoError(format!("启动 Bash 失败：{}", e)))?;
+            .map_err(|e| SkillExecuteError::IoError(format!("启动 Bash 失败：{e}")))?;
 
         if let Some(mut stdin) = child.stdin.take() {
             let input_str = input.to_string();
             stdin
                 .write_all(input_str.as_bytes())
                 .await
-                .map_err(|e| SkillExecuteError::IoError(format!("写入输入失败：{}", e)))?;
+                .map_err(|e| SkillExecuteError::IoError(format!("写入输入失败：{e}")))?;
         }
 
         let output = tokio_timeout(
@@ -510,7 +508,7 @@ impl SkillExecutor {
         )
         .await
         .map_err(|_| SkillExecuteError::Timeout(timeout))?
-        .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{}", e)))?;
+        .map_err(|e| SkillExecuteError::IoError(format!("等待进程失败：{e}")))?;
 
         let execution_time_ms = start.elapsed().as_millis() as u64;
 

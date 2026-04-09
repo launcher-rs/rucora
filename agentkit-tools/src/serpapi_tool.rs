@@ -121,7 +121,7 @@ impl Tool for SerpapiTool {
 
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
         let args: SerpapiArgs = serde_json::from_value(input)
-            .map_err(|e| ToolError::Message(format!("解析参数失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("解析参数失败：{e}")))?;
 
         let config = ExponentialBuilder::default();
         let api_keys = self.api_keys.clone();
@@ -161,12 +161,12 @@ impl Tool for SerpapiTool {
                     .query(&params)
                     .send()
                     .await
-                    .map_err(|e| ToolError::Message(format!("请求失败：{}", e)))?;
+                    .map_err(|e| ToolError::Message(format!("请求失败：{e}")))?;
 
                 let search_result: Value = response
                     .json()
                     .await
-                    .map_err(|e| ToolError::Message(format!("解析 JSON 失败：{}", e)))?;
+                    .map_err(|e| ToolError::Message(format!("解析 JSON 失败：{e}")))?;
 
                 // 提取有机搜索结果
                 let organic_results = search_result

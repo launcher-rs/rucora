@@ -452,7 +452,7 @@ impl ToolRegistry {
     /// 获取带命名空间的工具名称
     fn namespaced_name(&self, name: &str) -> String {
         if let Some(prefix) = &self.namespace_prefix {
-            format!("{}::{}", prefix, name)
+            format!("{prefix}::{name}")
         } else {
             name.to_string()
         }
@@ -599,9 +599,9 @@ impl ToolRegistry {
             // 如果名称冲突，使用对方的命名空间或添加前缀
             if self.tools.contains_key(&name) {
                 let new_name = if let Some(prefix) = &other.namespace_prefix {
-                    format!("{}::{}", prefix, name)
+                    format!("{prefix}::{name}")
                 } else {
-                    format!("merged::{}", name)
+                    format!("merged::{name}")
                 };
                 self.tools.insert(new_name, wrapper);
             } else {
@@ -765,7 +765,7 @@ impl ToolRegistry {
 
         // 尝试带命名空间查找
         if let Some(prefix) = &self.namespace_prefix {
-            let namespaced = format!("{}::{}", prefix, name);
+            let namespaced = format!("{prefix}::{name}");
             if let Some(wrapper) = self.tools.get(&namespaced)
                 && wrapper.metadata.enabled
             {

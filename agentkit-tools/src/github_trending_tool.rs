@@ -45,24 +45,24 @@ impl GithubTrendingTool {
         let client = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 (compatible; AgentKit/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("创建 HTTP 客户端失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("创建 HTTP 客户端失败：{e}")))?;
 
         let resp = client
             .get("https://github.com/trending")
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("网络请求失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("网络请求失败：{e}")))?;
 
         let content = resp
             .text()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("读取响应失败：{e}")))?;
 
         let document = Html::parse_document(&content);
 
         // 选择器：每行一个项目
         let row_selector = Selector::parse(".Box-row")
-            .map_err(|e| ToolError::Message(format!("选择器解析失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("选择器解析失败：{e}")))?;
 
         let mut results = Vec::new();
 
@@ -92,7 +92,7 @@ impl GithubTrendingTool {
                 .select(&Selector::parse("h2 a").unwrap())
                 .next()
                 .and_then(|el| el.value().attr("href"))
-                .map(|href| format!("https://github.com{}", href))
+                .map(|href| format!("https://github.com{href}"))
                 .unwrap_or_default();
 
             // 提取编程语言

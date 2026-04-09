@@ -74,7 +74,7 @@ impl Tool for SkillTool {
                         ))
                     }
                 }
-                Err(e) => Err(ToolError::Message(format!("Skill 执行错误：{}", e))),
+                Err(e) => Err(ToolError::Message(format!("Skill 执行错误：{e}"))),
             }
         } else {
             Err(ToolError::Message(format!(
@@ -273,7 +273,7 @@ pub fn read_skill(
     }
 
     if !skill_path.exists() {
-        return Err(format!("Skill not found: {}", skill_name).into());
+        return Err(format!("Skill not found: {skill_name}").into());
     }
 
     // 优先级：skill.yaml > skill.toml > skill.json > SKILL.md
@@ -281,7 +281,7 @@ pub fn read_skill(
         let path = skill_path.join(config_file);
         if path.exists() {
             let content = std::fs::read_to_string(&path)?;
-            return Ok(format!("=== {} ===\n{}", config_file, content));
+            return Ok(format!("=== {config_file} ===\n{content}"));
         }
     }
 
@@ -289,8 +289,8 @@ pub fn read_skill(
     let md_path = skill_path.join("SKILL.md");
     if md_path.exists() {
         let content = std::fs::read_to_string(&md_path)?;
-        return Ok(format!("=== SKILL.md ===\n{}", content));
+        return Ok(format!("=== SKILL.md ===\n{content}"));
     }
 
-    Err(format!("No skill file found in {:?}", skill_path).into())
+    Err(format!("No skill file found in {skill_path:?}").into())
 }

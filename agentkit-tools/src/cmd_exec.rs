@@ -48,7 +48,7 @@ impl CmdExecTool {
         let prefix_ok = self
             .allowed_prefixes
             .iter()
-            .any(|p| t.starts_with(p) || t.starts_with(&format!("{} ", p)));
+            .any(|p| t.starts_with(p) || t.starts_with(&format!("{p} ")));
 
         if !prefix_ok {
             return Err(ToolError::Message(
@@ -167,7 +167,7 @@ impl Tool for CmdExecTool {
             }
             Ok(Err(e)) => {
                 warn!(tool.name = "cmd_exec", error = %e, "cmd_exec.failed");
-                Err(ToolError::Message(format!("命令执行失败: {}", e)))
+                Err(ToolError::Message(format!("命令执行失败: {e}")))
             }
             Err(_) => {
                 warn!(
@@ -176,8 +176,7 @@ impl Tool for CmdExecTool {
                     "cmd_exec.timeout"
                 );
                 Err(ToolError::Message(format!(
-                    "命令执行超时（超过 {} 秒）",
-                    timeout_secs
+                    "命令执行超时（超过 {timeout_secs} 秒）"
                 )))
             }
         }

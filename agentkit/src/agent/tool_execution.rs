@@ -75,7 +75,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
     middleware_chain
         .process_tool_call_before(&mut call_mut)
         .await
-        .map_err(|e| AgentError::Message(format!("工具调用前中间件处理失败：{}", e)))?;
+        .map_err(|e| AgentError::Message(format!("工具调用前中间件处理失败：{e}")))?;
 
     let input_str = call_mut.input.to_string();
     let input_len = input_str.len();
@@ -242,8 +242,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
             let truncation_point = s
                 .char_indices()
                 .nth(MAX.min(s.chars().count()))
-                .map(|(i, _)| i)
-                .unwrap_or(MAX);
+                .map_or(MAX, |(i, _)| i);
             format!("{}...<truncated:{}>", &s[..truncation_point], s.len())
         }
     };
@@ -288,7 +287,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
     middleware_chain
         .process_tool_call_after(&mut result)
         .await
-        .map_err(|e| AgentError::Message(format!("工具调用后中间件处理失败：{}", e)))?;
+        .map_err(|e| AgentError::Message(format!("工具调用后中间件处理失败：{e}")))?;
 
     Ok(result)
 }

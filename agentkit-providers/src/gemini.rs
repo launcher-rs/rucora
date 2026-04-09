@@ -286,7 +286,7 @@ impl LlmProvider for GeminiProvider {
             url = %url,
             model = %model,
             messages_len = messages.len(),
-            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            tools_len = request.tools.as_ref().map_or(0, |t| t.len()),
             last_user = last_user_preview.as_deref().unwrap_or(""),
             "provider.chat.start"
         );
@@ -370,8 +370,7 @@ impl LlmProvider for GeminiProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "Gemini 请求失败：status={} body={}",
-                status, data
+                "Gemini 请求失败：status={status} body={data}"
             )));
         }
 
@@ -495,8 +494,7 @@ impl LlmProvider for GeminiProvider {
             let status = resp.status();
             if !status.is_success() {
                 Err(ProviderError::Message(format!(
-                    "Gemini 流式请求失败：status={}",
-                    status
+                    "Gemini 流式请求失败：status={status}"
                 )))?;
             }
 
@@ -520,7 +518,7 @@ impl LlmProvider for GeminiProvider {
                         }
 
                         let json: Value = serde_json::from_str(trimmed)
-                            .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{} data={}", e, trimmed)))?;
+                            .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{e} data={trimmed}")))?;
 
                         let content = json
                             .get("candidates")

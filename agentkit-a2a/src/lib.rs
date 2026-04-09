@@ -74,10 +74,10 @@ impl Tool for A2AToolAdapter {
             .client
             .send_message(&req)
             .await
-            .map_err(|e| ToolError::Message(format!("A2A 调用失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("A2A 调用失败：{e}")))?;
 
         let result_json = serde_json::to_value(&result)
-            .map_err(|e| ToolError::Message(format!("序列化失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("序列化失败：{e}")))?;
 
         let response = result_json
             .get("result")

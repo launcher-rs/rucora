@@ -385,7 +385,7 @@ impl DiagnosticError for ToolError {
             },
             ToolError::PolicyDenied { rule_id, reason } => ErrorDiagnostic {
                 kind: "tool",
-                message: format!("policy denied (rule_id={}): {}", rule_id, reason),
+                message: format!("policy denied (rule_id={rule_id}): {reason}"),
                 retriable: false,
                 source: Some(rule_id.clone()),
                 category: ErrorCategory::Policy,
@@ -394,7 +394,7 @@ impl DiagnosticError for ToolError {
             },
             ToolError::NotFound { name } => ErrorDiagnostic {
                 kind: "tool",
-                message: format!("工具不存在：{}", name),
+                message: format!("工具不存在：{name}"),
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Configuration,
@@ -403,7 +403,7 @@ impl DiagnosticError for ToolError {
             },
             ToolError::ValidationError { message } => ErrorDiagnostic {
                 kind: "tool",
-                message: format!("输入验证失败：{}", message),
+                message: format!("输入验证失败：{message}"),
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Configuration,
@@ -412,7 +412,7 @@ impl DiagnosticError for ToolError {
             },
             ToolError::Timeout { message } => ErrorDiagnostic {
                 kind: "tool",
-                message: format!("工具执行超时：{}", message),
+                message: format!("工具执行超时：{message}"),
                 retriable: false, // 工具超时通常不应该重试
                 source: None,
                 category: ErrorCategory::Timeout,
@@ -450,7 +450,7 @@ impl DiagnosticError for SkillError {
             },
             SkillError::NotFound { name } => ErrorDiagnostic {
                 kind: "skill",
-                message: format!("技能不存在：{}", name),
+                message: format!("技能不存在：{name}"),
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Configuration,
@@ -459,7 +459,7 @@ impl DiagnosticError for SkillError {
             },
             SkillError::Timeout { message } => ErrorDiagnostic {
                 kind: "skill",
-                message: format!("技能执行超时：{}", message),
+                message: format!("技能执行超时：{message}"),
                 retriable: true,
                 source: None,
                 category: ErrorCategory::Timeout,
@@ -507,7 +507,7 @@ impl DiagnosticError for AgentError {
             },
             AgentError::MaxStepsExceeded { max_steps } => ErrorDiagnostic {
                 kind: "runtime",
-                message: format!("超过最大步数限制：{}", max_steps),
+                message: format!("超过最大步数限制：{max_steps}"),
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Configuration,
@@ -556,7 +556,7 @@ impl DiagnosticError for MemoryError {
             },
             MemoryError::NotFound { id } => ErrorDiagnostic {
                 kind: "memory",
-                message: format!("记忆不存在：{}", id),
+                message: format!("记忆不存在：{id}"),
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Configuration,

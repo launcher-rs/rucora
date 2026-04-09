@@ -100,8 +100,7 @@ impl QdrantVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "创建 Qdrant 集合失败: {}",
-                text
+                "创建 Qdrant 集合失败: {text}"
             )));
         }
 
@@ -147,8 +146,7 @@ impl VectorStore for QdrantVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Qdrant upsert 失败: {}",
-                text
+                "Qdrant upsert 失败: {text}"
             )));
         }
 
@@ -171,8 +169,7 @@ impl VectorStore for QdrantVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Qdrant delete 失败: {}",
-                text
+                "Qdrant delete 失败: {text}"
             )));
         }
 
@@ -195,7 +192,7 @@ impl VectorStore for QdrantVectorStore {
 
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(ProviderError::Message(format!("Qdrant get 失败: {}", text)));
+            return Err(ProviderError::Message(format!("Qdrant get 失败: {text}")));
         }
 
         let data: Value = resp
@@ -266,8 +263,7 @@ impl VectorStore for QdrantVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Qdrant search 失败: {}",
-                text
+                "Qdrant search 失败: {text}"
             )));
         }
 
@@ -316,8 +312,7 @@ impl VectorStore for QdrantVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Qdrant clear 失败: {}",
-                text
+                "Qdrant clear 失败: {text}"
             )));
         }
 
@@ -334,8 +329,7 @@ impl VectorStore for QdrantVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Qdrant count 失败: {}",
-                text
+                "Qdrant count 失败: {text}"
             )));
         }
 

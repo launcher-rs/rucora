@@ -94,14 +94,14 @@ impl Tool for WebFetchTool {
             .timeout(Duration::from_secs(timeout_secs))
             .user_agent("Mozilla/5.0 (compatible; AgentKit/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {e}")))?;
 
         // 发送 GET 请求
         let response = client
             .get(url)
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("获取网页失败: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("获取网页失败: {e}")))?;
 
         let status = response.status().as_u16();
 
@@ -109,7 +109,7 @@ impl Tool for WebFetchTool {
         let body = response
             .text()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应体失败: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("读取响应体失败: {e}")))?;
 
         Ok(json!({
             "url": url,

@@ -155,3 +155,7 @@ path = "examples/19_code_assistant.rs"
 name = "21_unified_conversation"
 path = "examples/21_unified_conversation.rs"
 
+# 继承 workspace 级别的 lint 配置
+[lints]
+workspace = true
+

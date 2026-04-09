@@ -21,3 +21,7 @@ tokio = { version = "1", features = ["sync"] }
 reqwest = { version = "0.13", features = ["json"] }
 tracing = "0.1"
 thiserror = "2"
+
+# ?? workspace ??? lint ??
+[lints]
+workspace = true

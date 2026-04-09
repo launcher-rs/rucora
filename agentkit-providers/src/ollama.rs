@@ -178,7 +178,7 @@ impl LlmProvider for OllamaProvider {
             url = %url,
             model = %body.get("model").and_then(|v| v.as_str()).unwrap_or(""),
             messages_len = request.messages.len(),
-            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            tools_len = request.tools.as_ref().map_or(0, |t| t.len()),
             last_user = last_user_preview.as_deref().unwrap_or(""),
             "provider.chat.start"
         );
@@ -206,8 +206,7 @@ impl LlmProvider for OllamaProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "Ollama 请求失败：status={} body={}",
-                status, data
+                "Ollama 请求失败：status={status} body={data}"
             )));
         }
 
@@ -262,18 +261,15 @@ impl LlmProvider for OllamaProvider {
             prompt_tokens: u
                 .get("prompt_tokens")
                 .and_then(|v| v.as_u64())
-                .map(|v| v as u32)
-                .unwrap_or(0),
+                .map_or(0, |v| v as u32),
             completion_tokens: u
                 .get("completion_tokens")
                 .and_then(|v| v.as_u64())
-                .map(|v| v as u32)
-                .unwrap_or(0),
+                .map_or(0, |v| v as u32),
             total_tokens: u
                 .get("total_tokens")
                 .and_then(|v| v.as_u64())
-                .map(|v| v as u32)
-                .unwrap_or(0),
+                .map_or(0, |v| v as u32),
         });
 
         // 解析 finish_reason 字段
@@ -353,8 +349,7 @@ impl LlmProvider for OllamaProvider {
             let status = resp.status();
             if !status.is_success() {
                 Err(ProviderError::Message(format!(
-                    "Ollama stream 请求失败：status={}",
-                    status
+                    "Ollama stream 请求失败：status={status}"
                 )))?;
             }
 
@@ -382,7 +377,7 @@ impl LlmProvider for OllamaProvider {
                     }
 
                     let v: Value = serde_json::from_str(&line)
-                        .map_err(|e| ProviderError::Message(format!("NDJSON 解析失败: {} line={}", e, line)))?;
+                        .map_err(|e| ProviderError::Message(format!("NDJSON 解析失败: {e} line={line}")))?;
 
                     let done = v.get("done").and_then(|d| d.as_bool()).unwrap_or(false);
                     let delta = v

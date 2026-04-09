@@ -99,7 +99,7 @@ impl MoonshotProvider {
         let api_key = api_key.into();
         let mut headers = HeaderMap::new();
         headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {}", api_key)) {
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
             headers.insert(AUTHORIZATION, v);
         }
 
@@ -262,7 +262,7 @@ impl LlmProvider for MoonshotProvider {
             url = %url,
             model = %model,
             messages_len = request.messages.len(),
-            tools_len = request.tools.as_ref().map(|t| t.len()).unwrap_or(0),
+            tools_len = request.tools.as_ref().map_or(0, |t| t.len()),
             last_user = last_user_preview.as_deref().unwrap_or(""),
             "provider.chat.start"
         );
@@ -335,8 +335,7 @@ impl LlmProvider for MoonshotProvider {
 
         if !status.is_success() {
             return Err(ProviderError::Message(format!(
-                "Moonshot 请求失败：status={} body={}",
-                status, data
+                "Moonshot 请求失败：status={status} body={data}"
             )));
         }
 
@@ -432,8 +431,7 @@ impl LlmProvider for MoonshotProvider {
             let status = resp.status();
             if !status.is_success() {
                 Err(ProviderError::Message(format!(
-                    "Moonshot 流式请求失败：status={}",
-                    status
+                    "Moonshot 流式请求失败：status={status}"
                 )))?;
             }
 
@@ -467,7 +465,7 @@ impl LlmProvider for MoonshotProvider {
                     }
 
                     let v: Value = serde_json::from_str(&data)
-                        .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{} data={}", e, data)))?;
+                        .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{e} data={data}")))?;
 
                     let delta = v
                         .get("choices")

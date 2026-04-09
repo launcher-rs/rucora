@@ -125,8 +125,7 @@ impl ChromaVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "创建 Chroma 集合失败: {}",
-                text
+                "创建 Chroma 集合失败: {text}"
             )));
         }
 
@@ -150,8 +149,7 @@ impl ChromaVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "删除 Chroma 集合失败: {}",
-                text
+                "删除 Chroma 集合失败: {text}"
             )));
         }
 
@@ -208,8 +206,7 @@ impl VectorStore for ChromaVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Chroma upsert 失败: {}",
-                text
+                "Chroma upsert 失败: {text}"
             )));
         }
 
@@ -239,8 +236,7 @@ impl VectorStore for ChromaVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Chroma delete 失败: {}",
-                text
+                "Chroma delete 失败: {text}"
             )));
         }
 
@@ -272,7 +268,7 @@ impl VectorStore for ChromaVectorStore {
 
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(ProviderError::Message(format!("Chroma get 失败: {}", text)));
+            return Err(ProviderError::Message(format!("Chroma get 失败: {text}")));
         }
 
         let data: Value = resp
@@ -355,8 +351,7 @@ impl VectorStore for ChromaVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Chroma query 失败: {}",
-                text
+                "Chroma query 失败: {text}"
             )));
         }
 
@@ -449,8 +444,7 @@ impl VectorStore for ChromaVectorStore {
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
             return Err(ProviderError::Message(format!(
-                "Chroma count 失败: {}",
-                text
+                "Chroma count 失败: {text}"
             )));
         }
 

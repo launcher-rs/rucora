@@ -169,8 +169,7 @@ impl ContextManager {
         let context_text = groups_to_text(messages);
 
         let request = agentkit_core::provider::types::ChatRequest::from_user_text(format!(
-            "{}\n\n{}",
-            prompt, context_text
+            "{prompt}\n\n{context_text}"
         ));
 
         let response = provider.chat(request).await?;
@@ -180,9 +179,8 @@ impl ContextManager {
     /// 创建压缩边界消息
     fn create_compact_boundary(&self, summary: String) -> ChatMessage {
         ChatMessage::system(format!(
-            "<conversation_summary>\n{}\n</conversation_summary>\n\n\
-             以上是之前对话的摘要。请基于此摘要继续对话。",
-            summary
+            "<conversation_summary>\n{summary}\n</conversation_summary>\n\n\
+             以上是之前对话的摘要。请基于此摘要继续对话。"
         ))
     }
 

@@ -60,7 +60,7 @@ impl BrowseTool {
         if title.is_empty() {
             Ok(text)
         } else {
-            Ok(format!("{}\n\n{}", title, text))
+            Ok(format!("{title}\n\n{text}"))
         }
     }
 
@@ -69,19 +69,19 @@ impl BrowseTool {
             .timeout(Duration::from_millis(timeout_ms))
             .user_agent("Mozilla/5.0 (compatible; AgentKit/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {e}")))?;
 
         let resp = client
             .get(url)
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("请求失败: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("请求失败: {e}")))?;
 
         let status = resp.status();
         let text = resp
             .text()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应体失败: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("读取响应体失败: {e}")))?;
 
         if !status.is_success() {
             return Err(ToolError::Message(format!(
@@ -154,7 +154,7 @@ impl Tool for BrowseTool {
                     }
                 };
 
-                let raw_html = html.clone();
+                let raw_html = html;
 
                 let extracted = match Self::readability_content(&raw_html) {
                     Ok(v) => v,
@@ -189,8 +189,7 @@ impl Tool for BrowseTool {
                 let max_chars = input
                     .get("max_chars")
                     .and_then(|v| v.as_u64())
-                    .map(|v| v as usize)
-                    .unwrap_or(DEFAULT_MAX_CONTENT_CHARS);
+                    .map_or(DEFAULT_MAX_CONTENT_CHARS, |v| v as usize);
 
                 let sessions = self
                     .sessions
@@ -241,7 +240,7 @@ impl Tool for BrowseTool {
                 sessions.remove(&session);
                 Ok(json!({"success": true}))
             }
-            other => Err(ToolError::Message(format!("未知 action: {}", other))),
+            other => Err(ToolError::Message(format!("未知 action: {other}"))),
         }
     }
 }

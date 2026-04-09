@@ -14,3 +14,7 @@ tokio = { version = "1", features = ["sync", "time", "macros", "rt"] }
 
 [dev-dependencies]
 agentkit-retrieval = { path = "../agentkit-retrieval" }
+
+# 继承 workspace 级别的 lint 配置
+[lints]
+workspace = true

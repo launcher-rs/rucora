@@ -159,7 +159,7 @@ impl Tool for TavilyTool {
 
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
         let args: TavilyArgs = serde_json::from_value(input)
-            .map_err(|e| ToolError::Message(format!("解析参数失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("解析参数失败：{e}")))?;
 
         // 选择一个 API Key
         let now = std::time::SystemTime::now()
@@ -185,7 +185,7 @@ impl Tool for TavilyTool {
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("请求失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("请求失败：{e}")))?;
 
         if !response.status().is_success() {
             let error_text = response
@@ -193,15 +193,14 @@ impl Tool for TavilyTool {
                 .await
                 .unwrap_or_else(|_| "未知错误".to_string());
             return Err(ToolError::Message(format!(
-                "Tavily API 错误：{}",
-                error_text
+                "Tavily API 错误：{error_text}"
             )));
         }
 
         let search_result: Value = response
             .json()
             .await
-            .map_err(|e| ToolError::Message(format!("解析 JSON 失败：{}", e)))?;
+            .map_err(|e| ToolError::Message(format!("解析 JSON 失败：{e}")))?;
 
         Ok(json!({
             "success": true,

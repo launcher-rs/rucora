@@ -1,0 +1,41 @@
+# AgentKit Clippy 配置文件
+# 用于规范项目代码质量
+
+# ===== 代码复杂度限制 =====
+
+# 函数认知复杂度上限（建议值：10-15）
+cognitive-complexity-threshold = 15
+
+# 函数类型复杂度上限
+type-complexity-threshold = 250
+
+# ===== 文档规范 =====
+
+# 公开项必须有文档注释
+missing-docs-in-crate-items = true
+
+# 文档链接检查
+doc-valid-idents = [
+    "GitHub", "GitLab", "Bitbucket",
+    "OpenAI", "Anthropic", "Google", "Gemini", "Azure",
+    "Rust", "Tokio", "Serde", "Clippy",
+    "MCP", "A2A", "API", "HTTP", "URL", "JSON", "YAML", "TOML",
+    "LLM", "RAG", "Agent", "Provider", "Tool", "Skill",
+    "ChatGPT", "Claude", "GPT", "Ollama",
+    "Stdio", "WebSocket", "REST",
+    "Vec", "Box", "Arc", "Mutex", "RwLock",
+    "TODO", "FIXME", "NOTE", "HACK", "XXX",
+]
+
+# ===== 命名规范 =====
+
+# 允许的大写缩写词（遵循 Rust 命名约定）
+upper-case-acronyms-aggressive = false
+
+# ===== 代码风格 =====
+
+# 单字符变量名允许列表（循环索引等场景）
+single-char-binding-names-threshold = 3
+
+# 过多参数阈值
+too-many-arguments-threshold = 7

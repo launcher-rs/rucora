@@ -125,7 +125,7 @@ impl PromptTemplate {
         for var in &self.variables {
             if let Some(value) = get_json_value(context, var) {
                 let escaped = escape_prompt(&value);
-                result = result.replace(&format!("{{{{{}}}}}", var), &escaped);
+                result = result.replace(&format!("{{{{{var}}}}}"), &escaped);
             }
         }
 
@@ -152,7 +152,7 @@ impl PromptTemplate {
 
         for var in &self.variables {
             if let Some(value) = get_json_value(context, var) {
-                result = result.replace(&format!("{{{{{}}}}}", var), &value);
+                result = result.replace(&format!("{{{{{var}}}}}"), &value);
             }
         }
 
@@ -289,8 +289,7 @@ fn process_if_blocks(text: &str, context: &Value) -> Result<String, PromptError>
         let block_content = &cap[2];
 
         let should_include = get_json_value(context, var_name)
-            .map(|v| v != "false" && v != "null" && !v.is_empty())
-            .unwrap_or(false);
+            .is_some_and(|v| v != "false" && v != "null" && !v.is_empty());
 
         let replacement = if should_include {
             block_content.to_string()
@@ -399,7 +398,7 @@ impl PromptBuilder {
     pub fn build(&self) -> String {
         self.messages
             .iter()
-            .map(|(role, content)| format!("<{}>{}</{}>", role, content, role))
+            .map(|(role, content)| format!("<{role}>{content}</{role}>"))
             .collect::<Vec<_>>()
             .join("\n")
     }
