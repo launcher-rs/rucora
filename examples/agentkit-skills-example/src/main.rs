@@ -1,4 +1,4 @@
-//! Agent + Skills 完整示例
+﻿//! Agent + Skills 完整示例
 //!
 //! 展示：
 //! 1. Skills 加载
@@ -7,9 +7,9 @@
 
 use agentkit::agent::ToolAgent;
 use agentkit::prelude::Agent;
-use agentkit::provider::OpenAiProvider;
-use agentkit::skills::{SkillExecutor, SkillLoader};
-use agentkit::tools::ShellTool;
+use agentkit::skills::{SkillExecutor, SkillLoader, SkillTool};
+use agentkit_providers::OpenAiProvider;
+use agentkit_tools::{ShellTool, ToolRegistry};
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -73,7 +73,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 4. 将 Skills 转换为 Tools 并注册
     info!("3. 注册 Skills 为 Tools...");
-    let mut tool_registry = agentkit::agent::ToolRegistry::new();
+    let mut tool_registry = ToolRegistry::new();
 
     // 注册内置工具
     tool_registry = tool_registry.register(ShellTool::new());
@@ -81,8 +81,7 @@ async fn main() -> anyhow::Result<()> {
     // 注册 Skills 转换的 Tools
     for skill in &skills {
         let skill_path = skills_dir.join(&skill.name);
-        let skill_tool =
-            agentkit::skills::SkillTool::new(skill.clone(), skill_executor.clone(), skill_path);
+        let skill_tool = SkillTool::new(skill.clone(), skill_executor.clone(), skill_path);
         tool_registry = tool_registry.register_arc(Arc::new(skill_tool));
         info!("  ✓ 注册技能：{}", skill.name);
     }
@@ -154,3 +153,4 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
+

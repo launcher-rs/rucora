@@ -185,6 +185,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
  "tracing",
 ]
 
@@ -194,6 +195,8 @@ version = "0.1.0"
 dependencies = [
  "agentkit",
  "agentkit-core",
+ "agentkit-providers",
+ "agentkit-tools",
  "anyhow",
  "dotenv",
  "serde_json",
@@ -208,6 +211,7 @@ version = "0.1.0"
 dependencies = [
  "agentkit-core",
  "async-trait",
+ "backon",
  "chrono",
  "dom_smoothie",
  "html2text",

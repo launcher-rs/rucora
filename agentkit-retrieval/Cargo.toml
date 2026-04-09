@@ -9,9 +9,8 @@ readme = "README.md"
 [features]
 default = ["in-memory"]
 in-memory = []
-chroma = ["reqwest"]
-persistent = ["serde_json"]
-all = ["in-memory", "chroma", "persistent"]
+chroma = []
+all = ["in-memory", "chroma"]
 
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }

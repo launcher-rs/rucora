@@ -6,19 +6,6 @@ description = "Built-in tools for AgentKit"
 documentation = "https://docs.rs/agentkit-tools"
 readme = "README.md"
 
-[features]
-default = ["basic", "system", "file", "network", "memory"]
-basic = []
-system = ["tokio/process"]
-file = ["tokio/fs"]
-network = ["reqwest"]
-browser = ["network"]
-memory = []
-datetime = []
-github = ["network"]
-web_search = ["network"]
-all = ["basic", "system", "file", "network", "browser", "memory", "datetime", "github", "web_search"]
-
 [dependencies]
 agentkit-core = { path = "../agentkit-core" }
 async-trait = "0.1"

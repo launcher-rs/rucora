@@ -3,13 +3,39 @@
 //! 提供长期记忆存储和检索功能。
 
 use agentkit_core::{
-    error::ToolError,
+    error::{MemoryError, ToolError},
     memory::{Memory, MemoryItem, MemoryQuery},
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
 use serde_json::{Value, json};
-use std::sync::Arc;
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+/// 简单的内存记忆实现
+struct SimpleMemory {
+    records: Mutex<HashMap<String, MemoryItem>>,
+}
+
+impl SimpleMemory {
+    fn new() -> Self {
+        Self {
+            records: Mutex::new(HashMap::new()),
+        }
+    }
+}
+
+#[async_trait]
+impl Memory for SimpleMemory {
+    async fn add(&self, item: MemoryItem) -> Result<(), MemoryError> {
+        self.records.lock().unwrap().insert(item.id.clone(), item);
+        Ok(())
+    }
+
+    async fn query(&self, _query: MemoryQuery) -> Result<Vec<MemoryItem>, MemoryError> {
+        Ok(self.records.lock().unwrap().values().cloned().collect())
+    }
+}
 
 
 /// 记忆存储工具：存储信息到长期记忆。
@@ -32,7 +58,7 @@ pub struct MemoryStoreTool {
 impl MemoryStoreTool {
     /// 创建一个新的 MemoryStoreTool 实例。
     pub fn new() -> Self {
-        Self::from_memory(Arc::new(InMemoryMemory::new()))
+        Self::from_memory(Arc::new(SimpleMemory::new()))
     }
 
     pub fn from_memory(memory: Arc<dyn Memory>) -> Self {
@@ -142,7 +168,7 @@ pub struct MemoryRecallTool {
 impl MemoryRecallTool {
     /// 创建一个新的 MemoryRecallTool 实例。
     pub fn new() -> Self {
-        Self::from_memory(Arc::new(InMemoryMemory::new()))
+        Self::from_memory(Arc::new(SimpleMemory::new()))
     }
 
     /// 从现有 MemoryStoreTool 创建实例以共享存储。
@@ -238,6 +264,7 @@ impl Tool for MemoryRecallTool {
         }
     }
 }
+
 
 
 

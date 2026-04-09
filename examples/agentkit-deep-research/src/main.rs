@@ -1,4 +1,4 @@
-//! 深度研究示例 - 带配置管理和多轮迭代研究
+﻿//! 深度研究示例 - 带配置管理和多轮迭代研究
 //!
 //! 功能：
 //! 1. 配置管理 - 支持多种 LLM Provider
@@ -11,8 +11,8 @@ mod config;
 use agentkit::agent::ToolRegistry;
 use agentkit::agent::execution::DefaultExecution;
 use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::tools::{DatetimeTool, FileWriteTool, SerpapiTool, WebScraperTool, WebSearchTool};
+use agentkit_providers::OpenAiProvider;
+use agentkit_tools::{DatetimeTool, FileWriteTool, SerpapiTool, WebScraperTool, WebSearchTool};
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision};
 use chrono::Local;
 use config::{AppConfig, ProviderType};
@@ -433,3 +433,4 @@ async fn run_research(
 
     Ok(())
 }
+

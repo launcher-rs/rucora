@@ -170,11 +170,15 @@ pub use agentkit_core as core;
 // Agent 模块
 pub mod agent;
 
+// 子模块重新导出（通过 feature 控制）
+
 // Provider 模块
-pub mod provider;
+#[cfg(feature = "providers")]
+pub use agentkit_providers as provider;
 
 // Tools 模块
-pub mod tools;
+#[cfg(feature = "tools")]
+pub use agentkit_tools as tools;
 
 // Skills 模块（可选）
 #[cfg(feature = "skills")]
@@ -184,10 +188,12 @@ pub mod skills;
 pub mod memory;
 
 // Retrieval 模块
-pub mod retrieval;
+#[cfg(feature = "retrieval")]
+pub use agentkit_retrieval as retrieval;
 
 // Embedding 模块
-pub mod embed;
+#[cfg(feature = "embed")]
+pub use agentkit_embed as embed;
 
 // RAG 模块
 pub mod rag;
@@ -206,11 +212,11 @@ pub mod middleware;
 
 // MCP 模块（可选）
 #[cfg(feature = "mcp")]
-pub mod mcp;
+pub use agentkit_mcp as mcp;
 
 // A2A 模块（可选）
 #[cfg(feature = "a2a")]
-pub mod a2a;
+pub use agentkit_a2a as a2a;
 
 // ===== 便捷导出 =====
 

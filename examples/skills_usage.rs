@@ -1,4 +1,4 @@
-//! Skills 使用示例
+﻿//! Skills 使用示例
 //!
 //! 展示如何加载和执行 Skills，以及如何与 Agent/Runtime 集成
 //!
@@ -9,7 +9,7 @@
 //! ```
 
 use agentkit::skills::{SkillLoader, SkillExecutor};
-use agentkit::provider::OpenAiProvider;
+use agentkit_providers::OpenAiProvider;
 use agentkit::agent::DefaultAgent;
 use agentkit::prelude::*;
 use std::sync::Arc;
@@ -219,3 +219,4 @@ async fn test_agent_with_skills() -> anyhow::Result<()> {
     
     Ok(())
 }
+
