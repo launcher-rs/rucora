@@ -7,22 +7,37 @@ edition = "2024"
 doctest = false
 
 [features]
-default = []
-runtime = []  # 空 feature，用于兼容
-# MCP 协议支持
-mcp = ["dep:rmcp"]
-# A2A 协议支持
-a2a = ["dep:ra2a"]
+default = ["providers", "tools", "embed", "retrieval"]
+# 协议支持
+mcp = ["dep:agentkit-mcp"]
+a2a = ["dep:agentkit-a2a"]
 # Skills 技能系统
 skills = ["dep:serde_yaml"]
+# 子模块（可选）
+providers = ["dep:agentkit-providers"]
+tools = ["dep:agentkit-tools"]
+embed = ["dep:agentkit-embed"]
+retrieval = ["dep:agentkit-retrieval"]
+# 全量启用
+full = ["providers", "tools", "embed", "retrieval", "mcp", "a2a", "skills"]
 
 [dependencies]
+# 核心层
 agentkit-core = { path = "../agentkit-core" }
-# 直接依赖外部库，不再通过独立 crate
+
+# 子模块（可选，通过 feature 启用）
+agentkit-mcp = { path = "../agentkit-mcp", optional = true }
+agentkit-a2a = { path = "../agentkit-a2a", optional = true }
+agentkit-providers = { path = "../agentkit-providers", optional = true }
+agentkit-tools = { path = "../agentkit-tools", optional = true }
+agentkit-embed = { path = "../agentkit-embed", optional = true }
+agentkit-retrieval = { path = "../agentkit-retrieval", optional = true }
+
+# 保留直接依赖以便向后兼容（当子模块未启用时使用）
 rmcp = { version = "1.3", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"], optional = true }
 ra2a = { version = "0.9", default-features = false, features = ["client", "server"], optional = true }
 async-trait = "0.1"
-reqwest = { version = "0.13", features = ["json", "stream","query", "gzip", "brotli", "deflate", "zstd"] }
+reqwest = { version = "0.13", features = ["json", "stream", "query", "gzip", "brotli", "deflate", "zstd"] }
 futures-util = "0.3"
 futures-executor = "0.3"
 async-stream = "0.3"

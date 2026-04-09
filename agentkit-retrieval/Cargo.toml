@@ -1,0 +1,24 @@
+[package]
+name = "agentkit-retrieval"
+version.workspace = true
+edition = "2024"
+description = "Vector store retrieval for AgentKit"
+documentation = "https://docs.rs/agentkit-retrieval"
+readme = "README.md"
+
+[features]
+default = ["in-memory"]
+in-memory = []
+chroma = ["reqwest"]
+persistent = ["serde_json"]
+all = ["in-memory", "chroma", "persistent"]
+
+[dependencies]
+agentkit-core = { path = "../agentkit-core" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync"] }
+reqwest = { version = "0.13", features = ["json"] }
+tracing = "0.1"
+thiserror = "2"

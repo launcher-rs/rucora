@@ -44,7 +44,13 @@ checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
 name = "agentkit"
 version = "0.1.0"
 dependencies = [
+ "agentkit-a2a",
  "agentkit-core",
+ "agentkit-embed",
+ "agentkit-mcp",
+ "agentkit-providers",
+ "agentkit-retrieval",
+ "agentkit-tools",
  "anyhow",
  "async-stream",
  "async-trait",
@@ -72,6 +78,20 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "url",
+]
+
+[[package]]
+name = "agentkit-a2a"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "async-trait",
+ "ra2a",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -111,6 +131,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "agentkit-embed"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "agentkit-mcp"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "async-trait",
+ "rmcp",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "agentkit-providers"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "async-stream",
+ "async-trait",
+ "backon",
+ "futures-executor",
+ "futures-util",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "agentkit-retrieval"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "async-trait",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
 name = "agentkit-skills-example"
 version = "0.1.0"
 dependencies = [
@@ -122,6 +200,27 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+]
+
+[[package]]
+name = "agentkit-tools"
+version = "0.1.0"
+dependencies = [
+ "agentkit-core",
+ "async-trait",
+ "chrono",
+ "dom_smoothie",
+ "html2text",
+ "regex",
+ "reqwest",
+ "schemars 0.8.22",
+ "scraper",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
 ]
 
 [[package]]
