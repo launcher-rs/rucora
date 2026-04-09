@@ -1,11 +1,88 @@
-﻿//! Skills锛堟妧鑳斤級妯″潡
+﻿//! Skills（技能）模块
 //!
-//! # 姒傝堪
+//! # 概述
 //!
-//! 鏈ā鍧楁彁渚?Skills 鐨勫姞杞姐€佹墽琛屽拰涓?Agent 鐨勯泦鎴愬姛鑳姐€?//!
-//! 鍙傝€?zeroclaw 椤圭洰鐨勮璁★細
-//! - 鏀寔澶氱閰嶇疆鏂囦欢鏍煎紡锛圱OML/YAML/JSON锛?//! - 鏀寔澶氱鎻愮ず璇嶆敞鍏ユā寮忥紙Full/Compact锛?//! - 鎻愪緵 read_skill 宸ュ叿璇诲彇 skill 璇︾粏淇℃伅
-//! - 鏍规嵁 skill 妯″紡鏋勫缓涓嶅悓鐨勭郴缁熸彁绀鸿瘝
+//! 本模块提供 Skills 的加载、执行和与 Agent 的集成功能。
+//!
+//! 参考 zeroclaw 项目的设计：
+//! - 支持多种配置文件格式（TOML/YAML/JSON）
+//! - 支持多种提示词注入模式（Full/Compact）
+//! - 提供 read_skill 工具读取 skill 详细信息
+//! - 根据 skill 模式构建不同的系统提示词
+//!
+//! # 核心组件
+//!
+//! ## SkillLoader（技能加载器）
+//!
+//! 用于从目录加载技能定义：
+//!
+//! ```rust,no_run
+//! use agentkit_skills::SkillLoader;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let mut loader = SkillLoader::new("skills/");
+//! let skills = loader.load_from_dir().await?;
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## SkillExecutor（技能执行器）
+//!
+//! 用于执行技能：
+//!
+//! ```rust,no_run
+//! use agentkit_skills::{SkillExecutor, SkillContext};
+//! use std::sync::Arc;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let executor = Arc::new(SkillExecutor::new());
+//! let context = SkillContext::new();
+//! // 执行技能...
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## SkillTool（技能工具）
+//!
+//! 将技能转换为 Agent 可使用的工具：
+//!
+//! ```rust,no_run
+//! use agentkit_skills::{SkillTool, SkillExecutor, SkillDefinition};
+//! use std::sync::Arc;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let executor = Arc::new(SkillExecutor::new());
+//! let skill = SkillDefinition {
+//!     name: "my_skill".to_string(),
+//!     description: "My custom skill".to_string(),
+//!     ..Default::default()
+//! };
+//! let tool = SkillTool::new(skill, executor, "skills/");
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! ## SkillsAutoIntegrator（技能自动集成器）
+//!
+//! 自动将技能集成到 Agent 中：
+//!
+//! ```rust,no_run
+//! use agentkit_skills::SkillsAutoIntegrator;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let integrator = SkillsAutoIntegrator::new();
+//! // 集成技能...
+//! # Ok(())
+//! # }
+//! ```
+//!
+//! # 子模块
+//!
+//! - [`cache`]: 技能缓存，用于缓存加载的技能定义
+//! - [`config`]: 技能配置解析，支持 TOML/YAML/JSON 格式
+//! - [`integrator`]: 技能自动集成器
+//! - [`loader`]: 技能加载器和执行器
+//! - [`tool_adapter`]: 技能到工具的适配器
 
 pub mod cache;
 pub mod config;
@@ -22,13 +99,14 @@ pub use tool_adapter::{
     ReadSkillTool, SkillTool, read_skill, skills_to_prompt_with_mode, skills_to_tools,
 };
 
-/// Skills 鎻愮ず璇嶆敞鍏ユā寮?///
-/// 鍙傝€?zeroclaw 鐨?SkillsPromptInjectionMode
+/// Skills 提示词注入模式
+///
+/// 参考 zeroclaw 的 SkillsPromptInjectionMode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SkillsPromptMode {
-    /// 瀹屾暣妯″紡锛氬寘鍚墍鏈?skill 鐨勮缁嗚鏄庡拰宸ュ叿
+    /// 完整模式：包含所有 skill 的详细说明和工具
     Full,
-    /// 绠€娲佹ā寮忥細鍙寘鍚?skill 鎽樿锛岃缁嗕俊鎭€氳繃 read_skill 宸ュ叿鑾峰彇
+    /// 简洁模式：只包含 skill 摘要，详细信息通过 read_skill 工具获取
     Compact,
 }
 
@@ -37,5 +115,3 @@ impl Default for SkillsPromptMode {
         Self::Compact
     }
 }
-
-
