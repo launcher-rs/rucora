@@ -66,17 +66,15 @@ impl SkillDefinition {
             return Ok(());
         }
 
-        if let Some(_props) = self.input_schema.get("properties") {
-            if let Some(required) = self.input_schema.get("required").and_then(|v| v.as_array()) {
+        if let Some(_props) = self.input_schema.get("properties")
+            && let Some(required) = self.input_schema.get("required").and_then(|v| v.as_array()) {
                 for req_field in required {
-                    if let Some(field_name) = req_field.as_str() {
-                        if input.get(field_name).is_none() {
+                    if let Some(field_name) = req_field.as_str()
+                        && input.get(field_name).is_none() {
                             return Err(format!("缺少必需字段：{}", field_name));
                         }
-                    }
                 }
             }
-        }
 
         Ok(())
     }

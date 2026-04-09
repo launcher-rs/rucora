@@ -1,4 +1,4 @@
-﻿//! HTTP 客户端配置的共享常量和工具函数。
+//! HTTP 客户端配置的共享常量和工具函数。
 //!
 //! 该模块提供：
 //! - 默认的请求超时配置
@@ -56,5 +56,3 @@ pub fn build_client_with_timeout(
         .build()
         .expect("reqwest client build failed")
 }
-
-

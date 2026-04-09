@@ -64,9 +64,7 @@ impl ErrorCategory {
     pub fn is_retriable(self) -> bool {
         matches!(
             self,
-            ErrorCategory::Network
-                | ErrorCategory::Timeout
-                | ErrorCategory::RateLimit
+            ErrorCategory::Network | ErrorCategory::Timeout | ErrorCategory::RateLimit
         )
     }
 
@@ -315,19 +313,22 @@ impl DiagnosticError for ProviderError {
                 status_code: Some(429),
                 retry_after: *retry_after,
             },
-            ProviderError::Timeout { message, elapsed: _ } => ErrorDiagnostic {
+            ProviderError::Timeout {
+                message,
+                elapsed: _,
+            } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
                 retriable: true,
                 source: None,
                 category: ErrorCategory::Timeout,
                 status_code: None,
-                retry_after: None,  // elapsed 是已消耗时间，不是建议等待时间
+                retry_after: None, // elapsed 是已消耗时间，不是建议等待时间
             },
             ProviderError::Model { message } => ErrorDiagnostic {
                 kind: "provider",
                 message: message.clone(),
-                retriable: false,  // 模型错误通常是永久性错误（如模型不存在）
+                retriable: false, // 模型错误通常是永久性错误（如模型不存在）
                 source: None,
                 category: ErrorCategory::Model,
                 status_code: None,
@@ -412,7 +413,7 @@ impl DiagnosticError for ToolError {
             ToolError::Timeout { message } => ErrorDiagnostic {
                 kind: "tool",
                 message: format!("工具执行超时：{}", message),
-                retriable: false,  // 工具超时通常不应该重试
+                retriable: false, // 工具超时通常不应该重试
                 source: None,
                 category: ErrorCategory::Timeout,
                 status_code: None,

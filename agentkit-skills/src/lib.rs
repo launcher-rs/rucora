@@ -78,11 +78,11 @@
 //!
 //! # 子模块
 //!
-//! - [`cache`]: 技能缓存，用于缓存加载的技能定义
-//! - [`config`]: 技能配置解析，支持 TOML/YAML/JSON 格式
-//! - [`integrator`]: 技能自动集成器
-//! - [`loader`]: 技能加载器和执行器
-//! - [`tool_adapter`]: 技能到工具的适配器
+//! - [`cache`][]: 技能缓存，用于缓存加载的技能定义
+//! - [`config`][]: 技能配置解析，支持 TOML/YAML/JSON 格式
+//! - [`integrator`][]: 技能自动集成器
+//! - [`loader`][]: 技能加载器和执行器
+//! - [`tool_adapter`][]: 技能到工具的适配器
 
 pub mod cache;
 pub mod config;
@@ -103,15 +103,13 @@ pub use tool_adapter::{
 ///
 /// 参考 zeroclaw 的 SkillsPromptInjectionMode
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum SkillsPromptMode {
     /// 完整模式：包含所有 skill 的详细说明和工具
     Full,
     /// 简洁模式：只包含 skill 摘要，详细信息通过 read_skill 工具获取
+    #[default]
     Compact,
 }
 
-impl Default for SkillsPromptMode {
-    fn default() -> Self {
-        Self::Compact
-    }
-}
+

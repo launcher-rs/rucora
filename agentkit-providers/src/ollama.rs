@@ -1,4 +1,4 @@
-﻿//! Ollama Provider 实现。
+//! Ollama Provider 实现。
 //!
 //! 约定：
 //! - Base URL 默认 `http://localhost:11434`，也可通过 `OLLAMA_BASE_URL` 覆盖
@@ -69,7 +69,7 @@ impl OllamaProvider {
     pub fn with_model(base_url: impl Into<String>, default_model: impl Into<String>) -> Self {
         let headers = HeaderMap::new();
         let client = build_client(headers);
-        
+
         Self {
             client,
             base_url: base_url.into(),
@@ -105,11 +105,10 @@ impl OllamaProvider {
                     "role": Self::map_role(&m.role),
                     "content": m.content,
                 });
-                if let Some(name) = &m.name {
-                    if let Some(map) = obj.as_object_mut() {
+                if let Some(name) = &m.name
+                    && let Some(map) = obj.as_object_mut() {
                         map.insert("name".to_string(), Value::String(name.clone()));
                     }
-                }
                 obj
             })
             .collect()
@@ -132,8 +131,8 @@ impl LlmProvider for OllamaProvider {
         });
 
         // 添加工具定义（如果存在）
-        if let Some(tools) = &request.tools {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(tools) = &request.tools
+            && let Some(map) = body.as_object_mut() {
                 let tools_array: Vec<Value> = tools
                     .iter()
                     .map(|tool_def| {
@@ -149,7 +148,6 @@ impl LlmProvider for OllamaProvider {
                     .collect();
                 map.insert("tools".to_string(), json!(tools_array));
             }
-        }
 
         if let Some(fmt) = request.response_format.as_ref() {
             match fmt {
@@ -410,5 +408,3 @@ impl LlmProvider for OllamaProvider {
         Ok(Box::pin(stream))
     }
 }
-
-

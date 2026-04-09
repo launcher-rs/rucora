@@ -107,7 +107,7 @@ impl Memory for InMemoryMemory {
         let needle = query.text.to_lowercase();
         if needle.is_empty() {
             // 返回最新的 limit 条
-            return Ok(items.iter().rev().cloned().take(limit).collect());
+            return Ok(items.iter().rev().take(limit).cloned().collect());
         }
 
         // 简单子串匹配（在 id/content/metadata 中搜索）

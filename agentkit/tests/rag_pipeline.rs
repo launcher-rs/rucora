@@ -1,6 +1,6 @@
 use agentkit::rag::{index_text, retrieve};
-use agentkit_retrieval::in_memory::InMemoryVectorStore;
 use agentkit_core::{embed::EmbeddingProvider, error::ProviderError};
+use agentkit_retrieval::in_memory::InMemoryVectorStore;
 use async_trait::async_trait;
 
 struct DeterministicEmbeddingProvider {

@@ -1,4 +1,4 @@
-﻿//! AgentKit Supervisor Agent 示例
+//! AgentKit Supervisor Agent 示例
 //!
 //! 展示主管模式的 Agent，协调多个专家 Agent 完成复杂任务。
 //!
@@ -398,5 +398,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

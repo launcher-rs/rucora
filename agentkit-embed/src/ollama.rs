@@ -1,4 +1,4 @@
-﻿//! Ollama Embedding Provider 实现。
+//! Ollama Embedding Provider 实现。
 //!
 //! 约定：
 //! - Base URL 默认 `http://localhost:11434`，也可通过 `OLLAMA_BASE_URL` 覆盖
@@ -109,5 +109,3 @@ impl EmbeddingProvider for OllamaEmbeddingProvider {
         None
     }
 }
-
-

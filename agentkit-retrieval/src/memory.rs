@@ -1,4 +1,4 @@
-﻿//! 内存向量存储实现。
+//! 内存向量存储实现。
 //!
 //! 基于 HashMap 的简单实现，适合开发和测试场景。
 //! 不适用于生产环境（无持久化，无分布式）。
@@ -142,5 +142,3 @@ impl VectorStore for InMemoryVectorStore {
         Ok(data.len())
     }
 }
-
-

@@ -228,11 +228,10 @@ where
         let mut messages = context.messages.clone();
 
         // 添加系统提示词
-        if let Some(ref sys_prompt) = self.system_prompt {
-            if messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System) {
+        if let Some(ref sys_prompt) = self.system_prompt
+            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System)) {
                 messages.insert(0, ChatMessage::system(sys_prompt.clone()));
             }
-        }
 
         // 添加当前提示词
         messages.push(ChatMessage::user(prompt));

@@ -1,4 +1,4 @@
-﻿//! Agent + Skills 完整示例
+//! Agent + Skills 完整示例
 //!
 //! 展示：
 //! 1. Skills 加载
@@ -6,8 +6,8 @@
 //! 3. Agent 自动调用 Skills
 
 use agentkit::agent::ToolAgent;
-use agentkit::prelude::Agent;
 use agentkit::agent::ToolRegistry;
+use agentkit::prelude::Agent;
 use agentkit_providers::OpenAiProvider;
 use agentkit_skills::{SkillExecutor, SkillLoader, SkillTool};
 use agentkit_tools::shell::ShellTool;
@@ -154,4 +154,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-

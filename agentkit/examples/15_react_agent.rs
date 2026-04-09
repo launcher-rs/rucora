@@ -1,4 +1,4 @@
-﻿//! AgentKit ReAct Agent 示例
+//! AgentKit ReAct Agent 示例
 //!
 //! 展示 ReAct（Reason + Act）模式的 Agent。
 //!
@@ -187,5 +187,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

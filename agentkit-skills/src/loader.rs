@@ -1,4 +1,4 @@
-﻿//! Skill 加载器和执行器模块
+//! Skill 加载器和执行器模块
 
 use agentkit_core::skill::{SkillDefinition, SkillResult};
 use serde_json::Value;
@@ -13,9 +13,9 @@ fn parse_skill_stdout(stdout: &str) -> SkillResult {
         // If a script prints {success:true, city:..., weather:...} without `data`,
         // serde will ignore unknown fields and we end up with data=None.
         // In that case, wrap the remaining fields into data.
-        if r.success && r.data.is_none() {
-            if let Ok(v) = serde_json::from_str::<Value>(stdout) {
-                if let Some(obj) = v.as_object() {
+        if r.success && r.data.is_none()
+            && let Ok(v) = serde_json::from_str::<Value>(stdout)
+                && let Some(obj) = v.as_object() {
                     let mut data_obj = serde_json::Map::new();
                     for (k, val) in obj {
                         if k == "success" || k == "error" || k == "execution_time_ms" {
@@ -27,8 +27,6 @@ fn parse_skill_stdout(stdout: &str) -> SkillResult {
                         r.data = Some(Value::Object(data_obj));
                     }
                 }
-            }
-        }
         return r;
     }
 
@@ -576,5 +574,3 @@ pub enum SkillExecuteError {
     #[error("验证失败：{0}")]
     ValidationError(String),
 }
-
-

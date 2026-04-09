@@ -1,4 +1,4 @@
-﻿//! Chroma 本地嵌入式向量存储实现（持久化版）。
+//! Chroma 本地嵌入式向量存储实现（持久化版）。
 //!
 //! 基于本地文件存储（JSON 格式），无需 HTTP 服务器，
 //! 数据持久化到磁盘，重启后数据不丢失。
@@ -323,5 +323,3 @@ impl VectorStore for ChromaPersistentStore {
         Ok(cache.len())
     }
 }
-
-

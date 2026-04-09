@@ -1,4 +1,4 @@
-﻿//! Qdrant 向量数据库实现。
+//! Qdrant 向量数据库实现。
 //!
 //! 使用 Qdrant HTTP API 进行向量存储和检索。
 //! 需要指定 QDRANT_URL 和 QDRANT_API_KEY（可选）环境变量。
@@ -119,13 +119,12 @@ impl VectorStore for QdrantVectorStore {
                 if let Some(text) = r.text {
                     payload["text"] = json!(text);
                 }
-                if let Some(metadata) = r.metadata {
-                    if let Some(obj) = metadata.as_object() {
+                if let Some(metadata) = r.metadata
+                    && let Some(obj) = metadata.as_object() {
                         for (k, v) in obj {
                             payload[k] = v.clone();
                         }
                     }
-                }
 
                 json!({
                     "id": r.id,
@@ -353,5 +352,3 @@ impl VectorStore for QdrantVectorStore {
         Ok(count)
     }
 }
-
-

@@ -1,4 +1,4 @@
-﻿//! AgentKit 研究助手示例
+//! AgentKit 研究助手示例
 //!
 //! 综合示例：结合 Provider、Tools 等模块，创建一个智能研究助手。
 //!
@@ -217,5 +217,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

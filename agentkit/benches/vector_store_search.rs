@@ -1,5 +1,5 @@
-﻿use agentkit_retrieval::in_memory::InMemoryVectorStore;
 use agentkit_core::retrieval::{VectorQuery, VectorRecord, VectorStore};
+use agentkit_retrieval::in_memory::InMemoryVectorStore;
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn bench_inmemory_vector_store_search(c: &mut Criterion) {
@@ -35,4 +35,3 @@ fn bench_inmemory_vector_store_search(c: &mut Criterion) {
 
 criterion_group!(benches, bench_inmemory_vector_store_search);
 criterion_main!(benches);
-

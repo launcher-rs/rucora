@@ -1,4 +1,4 @@
-﻿//! Google Gemini Provider 实现。
+//! Google Gemini Provider 实现。
 //!
 //! 约定：
 //! - API Key 从 `GOOGLE_API_KEY` 或 `GEMINI_API_KEY` 环境变量读取
@@ -296,8 +296,8 @@ impl LlmProvider for GeminiProvider {
         });
 
         // Gemini 支持 systemInstruction 作为顶层字段
-        if let Some(instruction) = system_instruction {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(instruction) = system_instruction
+            && let Some(map) = body.as_object_mut() {
                 map.insert(
                     "systemInstruction".to_string(),
                     json!({
@@ -307,26 +307,22 @@ impl LlmProvider for GeminiProvider {
                     }),
                 );
             }
-        }
 
-        if let Some(tools) = request.tools.as_ref() {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(tools) = request.tools.as_ref()
+            && let Some(map) = body.as_object_mut() {
                 map.insert("tools".to_string(), Self::build_tools(tools));
             }
-        }
 
         // Gemini 配置
         let mut generation_config = json!({});
-        if let Some(t) = request.temperature {
-            if let Some(map) = generation_config.as_object_mut() {
+        if let Some(t) = request.temperature
+            && let Some(map) = generation_config.as_object_mut() {
                 map.insert("temperature".to_string(), json!(t));
             }
-        }
-        if let Some(max_tokens) = request.max_tokens {
-            if let Some(map) = generation_config.as_object_mut() {
+        if let Some(max_tokens) = request.max_tokens
+            && let Some(map) = generation_config.as_object_mut() {
                 map.insert("maxOutputTokens".to_string(), json!(max_tokens));
             }
-        }
         if let Some(map) = body.as_object_mut() {
             map.insert("generationConfig".to_string(), generation_config);
         }
@@ -449,8 +445,8 @@ impl LlmProvider for GeminiProvider {
             "contents": messages,
         });
 
-        if let Some(instruction) = system_instruction {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(instruction) = system_instruction
+            && let Some(map) = body.as_object_mut() {
                 map.insert(
                     "systemInstruction".to_string(),
                     json!({
@@ -460,25 +456,21 @@ impl LlmProvider for GeminiProvider {
                     }),
                 );
             }
-        }
 
-        if let Some(tools) = request.tools.as_ref() {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(tools) = request.tools.as_ref()
+            && let Some(map) = body.as_object_mut() {
                 map.insert("tools".to_string(), Self::build_tools(tools));
             }
-        }
 
         let mut generation_config = json!({});
-        if let Some(t) = request.temperature {
-            if let Some(map) = generation_config.as_object_mut() {
+        if let Some(t) = request.temperature
+            && let Some(map) = generation_config.as_object_mut() {
                 map.insert("temperature".to_string(), json!(t));
             }
-        }
-        if let Some(max_tokens) = request.max_tokens {
-            if let Some(map) = generation_config.as_object_mut() {
+        if let Some(max_tokens) = request.max_tokens
+            && let Some(map) = generation_config.as_object_mut() {
                 map.insert("maxOutputTokens".to_string(), json!(max_tokens));
             }
-        }
         if let Some(map) = body.as_object_mut() {
             map.insert("generationConfig".to_string(), generation_config);
         }
@@ -584,5 +576,3 @@ mod tests {
         assert_eq!(GEMINI_DEFAULT_MODEL, "gemini-1.5-flash");
     }
 }
-
-

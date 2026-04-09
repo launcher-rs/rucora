@@ -161,15 +161,14 @@ where
     /// 应用配置到聊天请求
     fn _apply_config(&self, request: &mut ChatRequest) {
         // 添加系统提示词（如果是第一条消息）
-        if let Some(ref prompt) = self.system_prompt {
-            if request.messages.is_empty()
-                || request.messages.first().map(|m| &m.role) != Some(&Role::System)
+        if let Some(ref prompt) = self.system_prompt
+            && (request.messages.is_empty()
+                || request.messages.first().map(|m| &m.role) != Some(&Role::System))
             {
                 request
                     .messages
                     .insert(0, ChatMessage::system(prompt.clone()));
             }
-        }
 
         request.model = Some(self.model.clone());
     }

@@ -1,4 +1,4 @@
-﻿//! Echo 工具模块。
+//! Echo 工具模块。
 //!
 //! 提供简单的回显功能，用于测试和调试。
 
@@ -61,12 +61,10 @@ impl Tool for EchoTool {
     /// 执行工具的核心逻辑。
     async fn call(&self, input: Value) -> Result<Value, ToolError> {
         // 验证输入是否包含必需的字段
-        if !input.get("text").is_some() {
+        if input.get("text").is_none() {
             return Err(ToolError::Message("缺少必需的 'text' 字段".to_string()));
         }
 
         Ok(input)
     }
 }
-
-

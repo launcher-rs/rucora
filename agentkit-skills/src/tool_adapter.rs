@@ -1,4 +1,4 @@
-﻿//! Skill 到 Tool 的适配器
+//! Skill 到 Tool 的适配器
 
 use crate::{SkillDefinition, SkillExecutor, SkillsPromptMode};
 use agentkit_core::error::ToolError;
@@ -143,11 +143,10 @@ fn render_skill_location(
 ) -> String {
     if let Some(ref location) = skill.homepage {
         let location_path = PathBuf::from(location);
-        if prefer_relative {
-            if let Ok(relative) = location_path.strip_prefix(workspace_dir) {
+        if prefer_relative
+            && let Ok(relative) = location_path.strip_prefix(workspace_dir) {
                 return relative.display().to_string();
             }
-        }
         location_path.display().to_string()
     } else {
         format!("skills/{}/SKILL.md", skill.name)
@@ -183,37 +182,37 @@ pub fn skills_to_prompt_with_mode(
             workspace_dir,
             matches!(mode, SkillsPromptMode::Compact),
         );
-        let _ = write!(prompt, "  <skill>\n");
-        let _ = write!(prompt, "    <name>{}</name>\n", xml_escape(&skill.name));
-        let _ = write!(
+        let _ = writeln!(prompt, "  <skill>");
+        let _ = writeln!(prompt, "    <name>{}</name>", xml_escape(&skill.name));
+        let _ = writeln!(
             prompt,
-            "    <description>{}</description>\n",
+            "    <description>{}</description>",
             xml_escape(&skill.description)
         );
-        let _ = write!(
+        let _ = writeln!(
             prompt,
-            "    <location>{}</location>\n",
+            "    <location>{}</location>",
             xml_escape(&location)
         );
-        let _ = write!(prompt, "  </skill>\n");
+        let _ = writeln!(prompt, "  </skill>");
     }
 
-    let _ = write!(prompt, "</available_skills>\n");
+    let _ = writeln!(prompt, "</available_skills>");
 
     if matches!(mode, SkillsPromptMode::Compact) {
         let _ = write!(prompt, "\n<callable_tools>\n");
-        let _ = write!(prompt, "  <tool>\n");
-        let _ = write!(prompt, "    <name>read_skill</name>\n");
-        let _ = write!(
+        let _ = writeln!(prompt, "  <tool>");
+        let _ = writeln!(prompt, "    <name>read_skill</name>");
+        let _ = writeln!(
             prompt,
-            "    <description>Read full skill file by name</description>\n"
+            "    <description>Read full skill file by name</description>"
         );
-        let _ = write!(prompt, "    <parameters>\n");
-        let _ = write!(prompt, "      <name>skill_name</name>\n");
-        let _ = write!(prompt, "      <type>string</type>\n");
-        let _ = write!(prompt, "    </parameters>\n");
-        let _ = write!(prompt, "  </tool>\n");
-        let _ = write!(prompt, "</callable_tools>\n");
+        let _ = writeln!(prompt, "    <parameters>");
+        let _ = writeln!(prompt, "      <name>skill_name</name>");
+        let _ = writeln!(prompt, "      <type>string</type>");
+        let _ = writeln!(prompt, "    </parameters>");
+        let _ = writeln!(prompt, "  </tool>");
+        let _ = writeln!(prompt, "</callable_tools>");
     }
 
     prompt
@@ -300,5 +299,3 @@ pub fn read_skill(
 
     Err(format!("No skill file found in {:?}", skill_path).into())
 }
-
-

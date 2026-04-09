@@ -766,11 +766,10 @@ impl ToolRegistry {
         // 尝试带命名空间查找
         if let Some(prefix) = &self.namespace_prefix {
             let namespaced = format!("{}::{}", prefix, name);
-            if let Some(wrapper) = self.tools.get(&namespaced) {
-                if wrapper.metadata.enabled {
+            if let Some(wrapper) = self.tools.get(&namespaced)
+                && wrapper.metadata.enabled {
                     return Some(wrapper.tool.clone());
                 }
-            }
         }
 
         None

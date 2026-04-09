@@ -1,4 +1,4 @@
-﻿//! A2A Client 示例 - 使用 agentkit 调用 A2A server
+//! A2A Client 示例 - 使用 agentkit 调用 A2A server
 //!
 //! 此示例演示如何使用 agentkit 通过 A2A 协议与远程 Agent 交互：
 //! 1. 创建一个 A2A 工具，通过 ra2a 客户端调用 A2A server
@@ -129,4 +129,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-

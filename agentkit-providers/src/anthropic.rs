@@ -1,4 +1,4 @@
-﻿//! Anthropic Provider 实现。
+//! Anthropic Provider 实现。
 //!
 //! 约定：
 //! - API Key 从 `ANTHROPIC_API_KEY` 环境变量读取
@@ -199,8 +199,8 @@ impl AnthropicProvider {
         // Anthropic 的 tool_use 在 content 数组中
         if let Some(content_arr) = content.as_array() {
             for item in content_arr {
-                if let Some(tool_type) = item.get("type").and_then(|v| v.as_str()) {
-                    if tool_type == "tool_use" {
+                if let Some(tool_type) = item.get("type").and_then(|v| v.as_str())
+                    && tool_type == "tool_use" {
                         let id = item
                             .get("id")
                             .and_then(|v| v.as_str())
@@ -217,7 +217,6 @@ impl AnthropicProvider {
                             out.push(ToolCall { id, name, input });
                         }
                     }
-                }
             }
         }
 
@@ -234,13 +233,11 @@ impl AnthropicProvider {
         if let Some(content_arr) = content.as_array() {
             let mut texts = Vec::new();
             for item in content_arr {
-                if let Some(tool_type) = item.get("type").and_then(|v| v.as_str()) {
-                    if tool_type == "text" {
-                        if let Some(text) = item.get("text").and_then(|v| v.as_str()) {
+                if let Some(tool_type) = item.get("type").and_then(|v| v.as_str())
+                    && tool_type == "text"
+                        && let Some(text) = item.get("text").and_then(|v| v.as_str()) {
                             texts.push(text);
                         }
-                    }
-                }
             }
             if !texts.is_empty() {
                 return texts.join("\n");
@@ -287,17 +284,15 @@ impl LlmProvider for AnthropicProvider {
         });
 
         // Anthropic 支持 system prompt 作为顶层字段
-        if let Some(system) = system_prompt {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(system) = system_prompt
+            && let Some(map) = body.as_object_mut() {
                 map.insert("system".to_string(), json!(system));
             }
-        }
 
-        if let Some(tools) = request.tools.as_ref() {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(tools) = request.tools.as_ref()
+            && let Some(map) = body.as_object_mut() {
                 map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
             }
-        }
         if let Some(max_tokens) = request.max_tokens {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(max_tokens));
@@ -308,11 +303,10 @@ impl LlmProvider for AnthropicProvider {
                 map.insert("max_tokens".to_string(), json!(4096));
             }
         }
-        if let Some(t) = request.temperature {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(t) = request.temperature
+            && let Some(map) = body.as_object_mut() {
                 map.insert("temperature".to_string(), json!(t));
             }
-        }
 
         debug!(
             provider = "anthropic",
@@ -408,17 +402,15 @@ impl LlmProvider for AnthropicProvider {
             "stream": true,
         });
 
-        if let Some(system) = system_prompt {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(system) = system_prompt
+            && let Some(map) = body.as_object_mut() {
                 map.insert("system".to_string(), json!(system));
             }
-        }
 
-        if let Some(tools) = request.tools.as_ref() {
-            if let Some(map) = body.as_object_mut() {
+        if let Some(tools) = request.tools.as_ref()
+            && let Some(map) = body.as_object_mut() {
                 map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
             }
-        }
         if let Some(max_tokens) = request.max_tokens {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(max_tokens));
@@ -544,5 +536,3 @@ mod tests {
         assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-3-5-sonnet-20241022");
     }
 }
-
-

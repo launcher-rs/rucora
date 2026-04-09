@@ -1,4 +1,4 @@
-﻿use std::sync::Arc;
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 use agentkit_core::error::ProviderError;
@@ -349,5 +349,3 @@ impl LlmProvider for ResilientProvider {
         self.inner.stream_chat(request)
     }
 }
-
-

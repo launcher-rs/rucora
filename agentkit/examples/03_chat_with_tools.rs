@@ -1,4 +1,4 @@
-﻿//! AgentKit 带工具聊天示例
+//! AgentKit 带工具聊天示例
 //!
 //! 展示如何让 Agent 使用工具完成具体任务。
 //!
@@ -85,5 +85,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

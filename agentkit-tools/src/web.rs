@@ -1,4 +1,4 @@
-﻿//! 网页工具模块。
+//! 网页工具模块。
 //!
 //! 提供网页内容获取功能。
 
@@ -115,9 +115,7 @@ impl Tool for WebFetchTool {
             "url": url,
             "status": status,
             "html": body,
-            "success": status >= 200 && status < 300
+            "success": (200..300).contains(&status)
         }))
     }
 }
-
-

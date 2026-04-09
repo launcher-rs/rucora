@@ -1,4 +1,4 @@
-﻿//! Tavily 搜索工具
+//! Tavily 搜索工具
 //!
 //! 使用 Tavily AI 进行搜索
 //!
@@ -244,5 +244,3 @@ mod tests {
         assert_eq!(args.search_depth, "basic");
     }
 }
-
-

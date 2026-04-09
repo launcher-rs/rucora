@@ -1,4 +1,4 @@
-﻿//! A2A Server 示例 - 使用 ra2a 库实现 A2A 协议服务器
+//! A2A Server 示例 - 使用 ra2a 库实现 A2A 协议服务器
 //!
 //! 此服务器提供一个简单的 Agent，可以：
 //! - 回答当前时间
@@ -141,4 +141,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-

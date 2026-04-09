@@ -1,4 +1,4 @@
-﻿//! Skill 配置模块
+//! Skill 配置模块
 //!
 //! 支持多种配置文件格式：YAML, TOML, JSON
 //! 支持按需加载、配置验证、配置合并等功能
@@ -280,11 +280,10 @@ impl SkillConfig {
 
         for format in &formats {
             let path = dir.join(format);
-            if path.exists() {
-                if let Ok(config) = Self::from_file(&path) {
+            if path.exists()
+                && let Ok(config) = Self::from_file(&path) {
                     return Some(config);
                 }
-            }
         }
         None
     }
@@ -295,12 +294,11 @@ impl SkillConfig {
 
         for format in &formats {
             let path = dir.join(format);
-            if path.exists() {
-                if let Ok(mut config) = Self::from_file(&path) {
+            if path.exists()
+                && let Ok(mut config) = Self::from_file(&path) {
                     config.apply_options(options);
                     return Some(config);
                 }
-            }
         }
         None
     }
@@ -593,5 +591,3 @@ mod tests {
         assert!(!config.matches_trigger("计算"));
     }
 }
-
-

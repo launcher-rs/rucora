@@ -1,4 +1,4 @@
-//! agentkit-mcp - MCP（Model Context Protocol）集成
+﻿//! agentkit-mcp - MCP（Model Context Protocol）集成
 //!
 //! # 概述
 //!
@@ -20,8 +20,8 @@
 //!
 //! 支持多种 MCP 传输方式：
 //!
-//! - [`StdioTransport`]: 标准输入输出（用于本地进程）
-//! - [`StreamableHttpTransport`]: HTTP 流式传输
+//! - [`StdioTransport`][]: 标准输入输出（用于本地进程）
+//! - [`StreamableHttpTransport`][]: HTTP 流式传输
 //!
 //! ## 协议层（Protocol）
 //!
@@ -115,9 +115,9 @@
 //!
 //! # 子模块
 //!
-//! - [`protocol`]: MCP 协议模型类型
-//! - [`tool`]: MCP 工具适配器
-//! - [`transport`]: MCP 传输层
+//! - [`protocol`][]: MCP 协议模型类型
+//! - [`tool`][]: MCP 工具适配器
+//! - [`transport`][]: MCP 传输层
 //!
 //! # 依赖
 //!
@@ -149,3 +149,4 @@ pub use tool::*;
 
 /// MCP 传输层（从 `rmcp::transport` 转导出）
 pub use transport::*;
+

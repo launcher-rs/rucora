@@ -1,4 +1,4 @@
-﻿//! HTTP 工具模块。
+//! HTTP 工具模块。
 //!
 //! 提供 HTTP 请求功能，支持多种方法和安全限制。
 
@@ -316,7 +316,7 @@ impl Tool for HttpRequestTool {
             http.method = %method_str,
             http.url = %url,
             http.status = status,
-            http.success = status >= 200 && status < 300,
+            http.success = (200..300).contains(&status),
             http.body_len = body_len,
             http.elapsed_ms = elapsed_ms,
             "http_request.done"
@@ -327,10 +327,8 @@ impl Tool for HttpRequestTool {
             "status": status,
             "body": body,
             "body_len": body_len,
-            "success": status >= 200 && status < 300,
+            "success": (200..300).contains(&status),
             "elapsed_ms": elapsed_ms
         }))
     }
 }
-
-

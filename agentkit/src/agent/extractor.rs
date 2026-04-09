@@ -387,8 +387,8 @@ where
         let usage = response
             .usage
             .map(|u| TokenUsage {
-                input_tokens: u.prompt_tokens as u32,
-                output_tokens: u.completion_tokens as u32,
+                input_tokens: u.prompt_tokens,
+                output_tokens: u.completion_tokens,
                 total_tokens: u.total_tokens,
             })
             .unwrap_or_default();

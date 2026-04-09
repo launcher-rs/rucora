@@ -1,4 +1,4 @@
-﻿//! OpenAI Embedding Provider 实现。
+//! OpenAI Embedding Provider 实现。
 //!
 //! 约定：
 //! - API Key 从 `OPENAI_API_KEY` 环境变量读取
@@ -189,5 +189,3 @@ impl EmbeddingProvider for OpenAiEmbeddingProvider {
         self.embedding_dim
     }
 }
-
-

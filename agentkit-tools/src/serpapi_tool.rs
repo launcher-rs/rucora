@@ -1,4 +1,4 @@
-﻿//! SerpAPI 搜索工具
+//! SerpAPI 搜索工具
 //!
 //! 使用 SerpAPI 进行 Google 搜索
 //!
@@ -210,5 +210,3 @@ mod tests {
         assert_eq!(tool.api_keys.len(), 2);
     }
 }
-
-

@@ -78,6 +78,12 @@ pub struct DefaultToolPolicy {
     cmd_exec: CommandPolicyConfig,
 }
 
+impl Default for DefaultToolPolicy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DefaultToolPolicy {
     pub fn new() -> Self {
         Self {

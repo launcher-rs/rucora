@@ -297,7 +297,9 @@ impl DefaultExecution {
 
         loop {
             if step >= self.max_steps {
-                return Err(AgentError::MaxStepsExceeded { max_steps: self.max_steps });
+                return Err(AgentError::MaxStepsExceeded {
+                    max_steps: self.max_steps,
+                });
             }
 
             // 创建上下文

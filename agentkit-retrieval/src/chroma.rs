@@ -1,4 +1,4 @@
-﻿//! Chroma 向量数据库实现。
+//! Chroma 向量数据库实现。
 //!
 //! 使用 Chroma HTTP API 进行向量存储和检索。
 //! 需要指定 CHROMA_URL 环境变量（默认 http://localhost:8000）。
@@ -175,13 +175,12 @@ impl VectorStore for ChromaVectorStore {
                 if let Some(text) = &r.text {
                     meta["text"] = json!(text);
                 }
-                if let Some(md) = &r.metadata {
-                    if let Some(obj) = md.as_object() {
+                if let Some(md) = &r.metadata
+                    && let Some(obj) = md.as_object() {
                         for (k, v) in obj {
                             meta[k] = v.clone();
                         }
                     }
-                }
                 meta
             })
             .collect();
@@ -406,11 +405,10 @@ impl VectorStore for ChromaVectorStore {
                 .map(|s| s.to_string());
 
             // 应用阈值过滤
-            if let Some(threshold) = query.score_threshold {
-                if score < threshold {
+            if let Some(threshold) = query.score_threshold
+                && score < threshold {
                     continue;
                 }
-            }
 
             results.push(SearchResult {
                 id,
@@ -464,5 +462,3 @@ impl VectorStore for ChromaVectorStore {
         Ok(count)
     }
 }
-
-

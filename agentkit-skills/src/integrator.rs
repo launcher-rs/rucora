@@ -1,4 +1,4 @@
-﻿//! Skills 与 Agent 自动集成模块
+//! Skills 与 Agent 自动集成模块
 
 use crate::loader::SkillLoader;
 use agentkit_core::skill::SkillDefinition;
@@ -51,8 +51,8 @@ impl SkillsAutoIntegrator {
         let mut required_tools = Vec::new();
 
         // 从 metadata 中读取需要的工具
-        if let Some(metadata) = &skill.metadata {
-            if let Some(Value::Object(requires_map)) = metadata.get("requires") {
+        if let Some(metadata) = &skill.metadata
+            && let Some(Value::Object(requires_map)) = metadata.get("requires") {
                 // 检查需要的 bins（命令行工具）
                 if let Some(Value::Array(bins_array)) = requires_map.get("bins") {
                     for bin in bins_array {
@@ -62,7 +62,6 @@ impl SkillsAutoIntegrator {
                     }
                 }
             }
-        }
 
         debug!("Skill {} 需要的工具：{:?}", skill.name, required_tools);
 
@@ -110,5 +109,3 @@ impl SkillToolAdapter {
         &self.description
     }
 }
-
-

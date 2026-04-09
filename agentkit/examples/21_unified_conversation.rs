@@ -1,4 +1,4 @@
-﻿//! AgentKit 统一的对话管理器示例
+//! AgentKit 统一的对话管理器示例
 //!
 //! 展示如何使用 ConversationManager 管理对话和自动压缩。
 //!
@@ -45,7 +45,7 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     info!("1.1 创建压缩配置...\n");
-    
+
     let config = CompactConfig::new()
         .with_auto_compact(true)
         .with_strategy(CompactStrategy::Auto)
@@ -59,7 +59,7 @@ async fn main() -> anyhow::Result<()> {
     info!("");
 
     info!("1.2 创建对话管理器...\n");
-    
+
     let mut manager = ConversationManager::new()
         .with_system_prompt("你是一个友好的助手，擅长编程和技术咨询。")
         .with_max_messages(100)
@@ -79,14 +79,14 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     info!("2.1 添加消息...\n");
-    
+
     // 模拟对话
     manager.add_user_message("你好，我想学习 Rust 编程");
     manager.add_assistant_message("你好！很高兴帮助你学习 Rust。Rust 是一门系统编程语言...");
-    
+
     manager.add_user_message("Rust 的所有权系统是什么？");
     manager.add_assistant_message("所有权是 Rust 的核心特性之一。它包括三个主要概念...");
-    
+
     manager.add_user_message("能举个例子吗？");
     manager.add_assistant_message("当然！比如你有一个 String 变量，当你把它赋值给另一个变量时...");
 
@@ -95,7 +95,7 @@ async fn main() -> anyhow::Result<()> {
     info!("   消息数量：{}\n", manager.len());
 
     info!("2.2 获取最近消息...\n");
-    
+
     let recent = manager.get_recent_messages(4);
     info!("   最近 4 条消息:");
     for (i, msg) in recent.iter().enumerate() {
@@ -118,20 +118,27 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     info!("3.1 模拟长对话...\n");
-    
+
     // 模拟添加更多消息
     for i in 1..=30 {
         manager.add_user_message(format!("这是第 {} 轮对话的用户消息", i));
-        manager.add_assistant_message(format!("这是第 {} 轮对话的助手回复，包含一些详细内容来增加 token 数量。", i));
-        
+        manager.add_assistant_message(format!(
+            "这是第 {} 轮对话的助手回复，包含一些详细内容来增加 token 数量。",
+            i
+        ));
+
         if i % 10 == 0 {
-            info!("   已添加 {} 轮对话，当前 token 数：{}", i * 2, manager.token_count());
+            info!(
+                "   已添加 {} 轮对话，当前 token 数：{}",
+                i * 2,
+                manager.token_count()
+            );
         }
     }
     info!("");
 
     info!("3.2 Token 使用统计:\n");
-    
+
     let total_tokens = manager.token_count();
     let total_messages = manager.len();
     let avg_tokens_per_message = if total_messages > 0 {
@@ -139,7 +146,7 @@ async fn main() -> anyhow::Result<()> {
     } else {
         0
     };
-    
+
     info!("   - 总消息数：{}", total_messages);
     info!("   - 总 token 数：{}", total_tokens);
     info!("   - 平均每条消息：{} tokens\n", avg_tokens_per_message);
@@ -152,21 +159,24 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     info!("4.1 检查不同模型的压缩需求...\n");
-    
+
     let models = vec![
         ("gpt-4o", 128_000),
         ("gpt-4-turbo", 128_000),
         ("claude-3-sonnet", 200_000),
         ("local-model", 32_000),
     ];
-    
+
     for (model, context_window) in &models {
         let should_compact = manager.should_compact(model);
         let usage_percent = (total_tokens as f64 / *context_window as f64) * 100.0;
-        
+
         info!("   模型：{} (上下文：{}K)", model, context_window / 1000);
         info!("   - 使用率：{:.2}%", usage_percent);
-        info!("   - 是否需要压缩：{}\n", if should_compact { "是" } else { "否" });
+        info!(
+            "   - 是否需要压缩：{}\n",
+            if should_compact { "是" } else { "否" }
+        );
     }
 
     // ═══════════════════════════════════════════════════════════
@@ -181,7 +191,7 @@ async fn main() -> anyhow::Result<()> {
         info!("⚠ 未设置 API 配置，跳过实际压缩演示");
         info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434\n");
-        
+
         info!("压缩流程说明:\n");
         info!("   1. 分组消息（按 API 轮次）");
         info!("   2. 选择要压缩的组（保留最近 3 轮）");
@@ -195,23 +205,26 @@ async fn main() -> anyhow::Result<()> {
         let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
         info!("5.1 创建 Provider...\n");
-        
+
         let provider = OpenAiProvider::from_env()?;
         info!("   ✓ Provider 创建成功\n");
 
         info!("5.2 检查是否需要压缩...\n");
-        
+
         if manager.should_compact(&model_name) {
             info!("   ✓ 检测到需要压缩\n");
-            
+
             info!("5.3 执行压缩...\n");
-            
+
             match manager.compact(&provider, &model_name).await {
                 Ok(summary) => {
                     info!("   ✓ 压缩成功");
                     info!("   摘要长度：{} 字符", summary.len());
                     info!("   压缩后 token 数：{}", manager.token_count());
-                    info!("   摘要预览：{}...\n", summary.chars().take(100).collect::<String>());
+                    info!(
+                        "   摘要预览：{}...\n",
+                        summary.chars().take(100).collect::<String>()
+                    );
                 }
                 Err(e) => {
                     info!("   ✗ 压缩失败：{}\n", e);
@@ -246,18 +259,16 @@ async fn main() -> anyhow::Result<()> {
         let agent = ToolAgent::builder()
             .provider(provider)
             .model(&model_name)
-            .with_conversation(true)  // 启用对话历史管理
-            .system_prompt(
-                "你是一个友好的助手。请简洁回答，但要包含必要的信息。"
-            )
+            .with_conversation(true) // 启用对话历史管理
+            .system_prompt("你是一个友好的助手。请简洁回答，但要包含必要的信息。")
             .build();
 
         info!("   ✓ Agent 创建成功\n");
 
         info!("6.2 测试对话...\n");
-        
+
         info!("   用户：你好\n");
-        
+
         match agent.run("你好".into()).await {
             Ok(output) => {
                 if let Some(text) = output.text() {
@@ -280,14 +291,14 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     info!("7.1 不同模型的推荐配置:\n");
-    
+
     let configs = vec![
         ("GPT-4o / GPT-4-Turbo", 128_000, 20_000),
         ("Claude 3 / Claude 3.5", 200_000, 30_000),
         ("本地模型 (4K-8K)", 8_192, 1_000),
         ("本地模型 (16K-32K)", 32_000, 2_000),
     ];
-    
+
     for (model, context, buffer) in configs {
         info!("   {}: ", model);
         info!("   - 上下文窗口：{} tokens", context);
@@ -296,13 +307,13 @@ async fn main() -> anyhow::Result<()> {
     }
 
     info!("7.2 压缩策略选择:\n");
-    
+
     info!("   - Auto（自动）: 接近限制时自动触发");
     info!("     适用场景：长对话、自动化的场景\n");
-    
+
     info!("   - Reactive（响应式）: API 拒绝时触发");
     info!("     适用场景：节省 token、可控的场景\n");
-    
+
     info!("   - Manual（手动）: 用户主动触发");
     info!("     适用场景：需要精确控制的场景\n");
 
@@ -341,5 +352,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

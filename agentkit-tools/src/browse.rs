@@ -1,4 +1,4 @@
-﻿use agentkit_core::{
+use agentkit_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
@@ -245,5 +245,3 @@ impl Tool for BrowseTool {
         }
     }
 }
-
-

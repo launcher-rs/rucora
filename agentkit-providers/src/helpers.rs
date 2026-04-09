@@ -1,4 +1,4 @@
-﻿//! Provider 辅助函数模块
+//! Provider 辅助函数模块
 
 use agentkit_core::provider::types::FinishReason;
 
@@ -11,5 +11,3 @@ pub fn parse_finish_reason(reason: &str) -> FinishReason {
         _ => FinishReason::Other,
     }
 }
-
-

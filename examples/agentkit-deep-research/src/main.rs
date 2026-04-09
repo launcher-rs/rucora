@@ -1,4 +1,4 @@
-﻿//! 深度研究示例 - 带配置管理和多轮迭代研究
+//! 深度研究示例 - 带配置管理和多轮迭代研究
 //!
 //! 功能：
 //! 1. 配置管理 - 支持多种 LLM Provider
@@ -11,9 +11,9 @@ mod config;
 use agentkit::agent::ToolRegistry;
 use agentkit::agent::execution::DefaultExecution;
 use agentkit::prelude::*;
+use agentkit_core::agent::{Agent, AgentContext, AgentDecision};
 use agentkit_providers::OpenAiProvider;
 use agentkit_tools::{DatetimeTool, FileWriteTool, SerpapiTool, WebScraperTool, WebSearchTool};
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision};
 use chrono::Local;
 use config::{AppConfig, ProviderType};
 use console::style;
@@ -91,8 +91,8 @@ fn main() -> anyhow::Result<()> {
 /// 加载或创建配置
 fn load_or_create_config() -> anyhow::Result<AppConfig> {
     // 尝试加载现有配置（优先环境变量，其次配置文件）
-    if let Some(config) = AppConfig::load() {
-        if config.is_complete() {
+    if let Some(config) = AppConfig::load()
+        && config.is_complete() {
             // 如果是从环境变量加载的，直接返回
             if AppConfig::from_env().is_some() {
                 println!("✓ 已从环境变量加载配置");
@@ -120,7 +120,6 @@ fn load_or_create_config() -> anyhow::Result<AppConfig> {
                 return Ok(config);
             }
         }
-    }
 
     // 交互式配置
     println!("\n{}", style("━━━ 配置向导 ━━━").blue().bold());
@@ -212,9 +211,7 @@ fn create_provider(
         .as_ref()
         .ok_or_else(|| anyhow::anyhow!("缺少模型配置"))?;
     let base_url = config
-        .base_url
-        .as_ref()
-        .map(|s| s.as_str())
+        .base_url.as_deref()
         .unwrap_or("https://api.openai.com/v1");
 
     let provider: Arc<dyn agentkit::core::provider::LlmProvider + Send + Sync> =
@@ -251,18 +248,15 @@ async fn run_research(
         .register(FileWriteTool::new());
 
     // 添加 SerpAPI
-    if has_serpapi {
-        if let Ok(tool) = SerpapiTool::from_env() {
+    if has_serpapi
+        && let Ok(tool) = SerpapiTool::from_env() {
             tools = tools.register(tool);
             info!("✓ SerpAPI 工具已加载");
         }
-    }
 
     // 创建运行时（必须指定 model）
     let model = config
-        .model
-        .as_ref()
-        .map(|s| s.as_str())
+        .model.as_deref()
         .unwrap_or("gpt-4o-mini");
     info!("✓ 使用模型：{}", model);
 
@@ -433,4 +427,3 @@ async fn run_research(
 
     Ok(())
 }
-

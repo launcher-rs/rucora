@@ -1,4 +1,4 @@
-﻿//! AgentKit 结构化数据提取示例
+//! AgentKit 结构化数据提取示例
 //!
 //! 展示如何使用 Extractor 从非结构化文本中提取结构化数据。
 //!
@@ -120,5 +120,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

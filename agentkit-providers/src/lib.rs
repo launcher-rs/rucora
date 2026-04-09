@@ -1,4 +1,4 @@
-﻿//! agentkit-providers - LLM Providers for AgentKit
+//! agentkit-providers - LLM Providers for AgentKit
 
 pub mod anthropic;
 pub mod azure_openai;
@@ -31,5 +31,3 @@ pub(crate) fn preview(s: &str, max: usize) -> String {
         format!("{}...<truncated:{}>", truncated, s.len())
     }
 }
-
-

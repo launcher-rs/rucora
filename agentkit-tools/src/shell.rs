@@ -1,4 +1,4 @@
-﻿//! Shell 工具模块。
+//! Shell 工具模块。
 //!
 //! 提供系统命令执行功能，支持超时和安全限制。
 //!
@@ -41,18 +41,25 @@ pub const MAX_OUTPUT_BYTES: usize = 1_048_576;
 
 /// 默认禁止的命令列表
 const FORBIDDEN_COMMANDS: &[&str] = &[
-    "rm -rf", "rm -fr", "del /f/s/q",  // 强制删除
-    "format", "mkfs", "diskpart",       // 磁盘操作
-    "shutdown", "reboot", "halt",       // 系统操作
-    "wget", "curl",                     // 网络下载（可用受限版本替代）
+    "rm -rf",
+    "rm -fr",
+    "del /f/s/q", // 强制删除
+    "format",
+    "mkfs",
+    "diskpart", // 磁盘操作
+    "shutdown",
+    "reboot",
+    "halt", // 系统操作
+    "wget",
+    "curl", // 网络下载（可用受限版本替代）
 ];
 
 /// 默认禁止的危险操作符
 const DANGEROUS_OPERATORS: &[&str] = &[
-    "|", "||", "&&", ";", ">", ">>", "<", "<<<",  // 管道和重定向
-    "`", "$(", "${",                               // 命令替换
-    "\n", "\r",                                    // 多行命令
-    "\\",                                          // 续行符
+    "|", "||", "&&", ";", ">", ">>", "<", "<<<", // 管道和重定向
+    "`", "$(", "${", // 命令替换
+    "\n", "\r", // 多行命令
+    "\\", // 续行符
 ];
 
 /// Shell 工具：执行系统命令。
@@ -257,7 +264,10 @@ impl Tool for ShellTool {
         if let Some(ref dir) = working_dir {
             let path = Path::new(dir);
             if !path.exists() || !path.is_dir() {
-                return Err(ToolError::Message(format!("工作目录不存在或不是目录: {}", dir)));
+                return Err(ToolError::Message(format!(
+                    "工作目录不存在或不是目录: {}",
+                    dir
+                )));
             }
             // 检查路径遍历
             if dir.contains("..") {
@@ -318,7 +328,7 @@ pub async fn execute_shell_command(
         // 注意：args 会被附加到命令后面，作为 $0, $1 等位置参数
         let mut c = std::process::Command::new("cmd");
         c.arg("/C");
-        
+
         // 在 Windows 上，需要正确构建完整命令
         if args.is_empty() {
             c.arg(command);
@@ -333,7 +343,7 @@ pub async fn execute_shell_command(
         // sh -c "command" [args...] - args 会作为 $0, $1 等传递
         let mut c = std::process::Command::new("sh");
         c.arg("-c");
-        
+
         if args.is_empty() {
             c.arg(command);
         } else {
@@ -378,7 +388,7 @@ pub async fn execute_shell_command(
     tokio::task::spawn_blocking(move || cmd.output())
         .await
         .map_err(|e| {
-            std::io::Error::new(std::io::ErrorKind::Other, format!("任务执行失败: {}", e))
+            std::io::Error::other(format!("任务执行失败: {}", e))
         })?
 }
 
@@ -395,5 +405,3 @@ pub fn truncate_output(mut output: String) -> String {
     }
     output
 }
-
-

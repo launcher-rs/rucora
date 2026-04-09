@@ -129,17 +129,17 @@ pub fn generate_partial_compact_prompt(instructions: Option<&str>) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn test_generate_compact_prompt() {
         let prompt = generate_compact_prompt(None);
         assert!(prompt.contains("主要请求和意图"));
         assert!(prompt.contains("关键技术概念"));
-        
+
         let prompt_with_instructions = generate_compact_prompt(Some("只关注 Rust 代码更改"));
         assert!(prompt_with_instructions.contains("只关注 Rust 代码更改"));
     }
-    
+
     #[test]
     fn test_generate_partial_compact_prompt() {
         let prompt = generate_partial_compact_prompt(None);

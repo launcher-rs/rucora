@@ -1,4 +1,4 @@
-﻿//! MCP (Model Context Protocol) 使用示例
+//! MCP (Model Context Protocol) 使用示例
 //!
 //! 展示如何连接 MCP 服务器并使用 OpenAI Provider 调用 MCP 工具完成实际任务
 //!
@@ -347,5 +347,3 @@ async fn main() -> anyhow::Result<()> {
 
     Ok(())
 }
-
-

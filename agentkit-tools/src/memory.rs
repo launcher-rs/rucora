@@ -1,4 +1,4 @@
-﻿//! 记忆工具模块。
+//! 记忆工具模块。
 //!
 //! 提供长期记忆存储和检索功能。
 
@@ -36,7 +36,6 @@ impl Memory for SimpleMemory {
         Ok(self.records.lock().unwrap().values().cloned().collect())
     }
 }
-
 
 /// 记忆存储工具：存储信息到长期记忆。
 ///
@@ -264,7 +263,3 @@ impl Tool for MemoryRecallTool {
         }
     }
 }
-
-
-
-

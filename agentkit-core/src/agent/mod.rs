@@ -413,7 +413,7 @@ pub trait Agent: Send + Sync {
     async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
         // 默认最大步骤数：20
         const DEFAULT_MAX_STEPS: usize = 20;
-        
+
         let mut context = AgentContext::new(input.clone(), DEFAULT_MAX_STEPS);
 
         loop {
@@ -437,7 +437,9 @@ pub trait Agent: Send + Sync {
                 AgentDecision::ThinkAgain => {
                     context.step += 1;
                     if context.step >= context.max_steps {
-                        return Err(AgentError::MaxStepsExceeded { max_steps: context.max_steps });
+                        return Err(AgentError::MaxStepsExceeded {
+                            max_steps: context.max_steps,
+                        });
                     }
                 }
                 AgentDecision::Chat { request: _ } => {
