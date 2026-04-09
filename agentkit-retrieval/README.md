@@ -1,37 +1,37 @@
 # AgentKit Retrieval
 
-Vector store retrieval for AgentKit.
+AgentKit 的向量存储与检索实现。
 
-## Overview
+## 概述
 
-This crate provides VectorStore implementations for AgentKit, enabling vector storage, similarity search, and retrieval for semantic search and RAG applications.
+本 crate 为 AgentKit 提供 VectorStore 实现，用于向量存储、相似度搜索和检索，支持语义搜索和 RAG 应用。
 
-## Supported VectorStores
+## 支持的 VectorStore
 
-| VectorStore | Description |
-|-------------|-------------|
-| InMemoryVectorStore | In-memory vector storage |
-| ChromaVectorStore | ChromaDB integration |
-| ChromaPersistentVectorStore | Persistent ChromaDB storage |
-| QdrantVectorStore | Qdrant integration |
+| VectorStore | 说明 |
+|-------------|------|
+| InMemoryVectorStore | 内存向量存储 |
+| ChromaVectorStore | ChromaDB 集成 |
+| ChromaPersistentVectorStore | 持久化 ChromaDB 存储 |
+| QdrantVectorStore | Qdrant 集成 |
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-retrieval = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["retrieval"] }
 ```
 
-## Usage
+## 使用方式
 
-### In-Memory Vector Store
+### 内存向量存储
 
 ```rust
 use agentkit_retrieval::in_memory::InMemoryVectorStore;
@@ -39,14 +39,14 @@ use agentkit_core::retrieval::{VectorStore, VectorRecord};
 
 let store = InMemoryVectorStore::new();
 
-// Add vectors
+// 添加向量
 store.add(vec![VectorRecord {
     id: "doc1".to_string(),
     embedding: vec![0.1, 0.2, 0.3],
     metadata: serde_json::json!({"source": "file.txt"}),
 }]).await?;
 
-// Search
+// 搜索
 let results = store.search(
     &vec![0.1, 0.2, 0.3],
     5,
@@ -54,22 +54,22 @@ let results = store.search(
 ).await?;
 ```
 
-### Chroma Vector Store
+### Chroma 向量存储
 
 ```rust
 use agentkit_retrieval::chroma::ChromaVectorStore;
 
 let store = ChromaVectorStore::new("http://localhost:8000", "my_collection")?;
 
-// Create collection if not exists
+// 创建集合（如果不存在）
 store.ensure_collection().await?;
 
-// Add and search vectors
+// 添加和搜索向量
 store.add(records).await?;
 let results = store.search(&query_embedding, 10, None).await?;
 ```
 
-### Persistent Chroma Vector Store
+### 持久化 Chroma 向量存储
 
 ```rust
 use agentkit_retrieval::chroma_persistent::ChromaPersistentVectorStore;
@@ -81,7 +81,7 @@ let store = ChromaPersistentVectorStore::new(
 )?;
 ```
 
-### Qdrant Vector Store
+### Qdrant 向量存储
 
 ```rust
 use agentkit_retrieval::qdrant::QdrantVectorStore;
@@ -89,21 +89,20 @@ use agentkit_retrieval::qdrant::QdrantVectorStore;
 let store = QdrantVectorStore::new(
     "http://localhost:6333",
     "my_collection",
-    1536  // vector dimension
+    1536  // 向量维度
 )?;
 
 store.ensure_collection().await?;
 ```
 
-## Features
+## Feature 配置
 
-| Feature | Description |
-|---------|-------------|
-| `in-memory` | In-memory vector store (default) |
-| `chroma` | ChromaDB integration |
-| `persistent` | Persistent storage support |
-| `all` | Enable all vector stores |
+| Feature | 说明 |
+|---------|------|
+| `in-memory` | 内存向量存储（默认） |
+| `chroma` | ChromaDB 集成 |
+| `all` | 启用所有向量存储 |
 
-## License
+## 许可证
 
 MIT

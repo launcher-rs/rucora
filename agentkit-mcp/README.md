@@ -1,50 +1,50 @@
 # AgentKit MCP
 
-MCP (Model Context Protocol) integration for AgentKit.
+AgentKit 的 MCP（Model Context Protocol）集成。
 
-## Overview
+## 概述
 
-This crate provides MCP protocol integration for AgentKit, enabling:
-- Connecting to MCP servers
-- Converting MCP tools to AgentKit's `Tool` trait
-- Unified MCP tool invocation interface
+本 crate 为 AgentKit 提供 MCP 协议集成支持，用于：
+- 连接 MCP 服务器
+- 将 MCP 工具转换为 AgentKit 的 `Tool` trait
+- 统一的 MCP 工具调用接口
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-mcp = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["mcp"] }
 ```
 
-## Usage
+## 使用方式
 
-### Connect to MCP Server
+### 连接 MCP 服务器
 
 ```rust
 use agentkit_mcp::{McpClient, StdioTransport};
 
-// Create transport layer
+// 创建传输层
 let transport = StdioTransport::new("mcp-server");
 
-// Create client
+// 创建客户端
 let client = McpClient::connect(transport).await?;
 
-// List available tools
+// 列出可用工具
 let tools = client.list_tools().await?;
 
 for tool in tools {
-    println!("Tool: {}", tool.name);
+    println!("工具：{}", tool.name);
 }
 ```
 
-### Call MCP Tool
+### 调用 MCP 工具
 
 ```rust
 use agentkit_mcp::{McpClient, StdioTransport};
@@ -58,10 +58,10 @@ let result = client.call_tool(
     json!({"param": "value"})
 ).await?;
 
-println!("Result: {}", result);
+println!("结果：{}", result);
 ```
 
-### Use as AgentKit Tool
+### 作为 AgentKit 工具使用
 
 ```rust
 use agentkit_mcp::{McpClient, McpToolAdapter, StdioTransport};
@@ -75,19 +75,20 @@ let mcp_tool = tools.into_iter().next().unwrap();
 
 let adapter = McpToolAdapter::new(client.clone(), mcp_tool);
 
+// 现在可以作为 AgentKit 工具使用
 let result = adapter.call(serde_json::json!({})).await?;
 ```
 
-## Submodules
+## 子模块
 
-- `protocol`: MCP protocol model types
-- `tool`: MCP tool adapter
-- `transport`: MCP transport layers (Stdio, HTTP)
+- `protocol`：MCP 协议模型类型
+- `tool`：MCP 工具适配器
+- `transport`：MCP 传输层（Stdio、HTTP）
 
-## Dependencies
+## 依赖
 
-Built on [`rmcp`](https://crates.io/crates/rmcp) library.
+基于 [`rmcp`](https://crates.io/crates/rmcp) 库构建。
 
-## License
+## 许可证
 
 MIT

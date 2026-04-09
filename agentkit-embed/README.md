@@ -1,89 +1,89 @@
 # AgentKit Embed
 
-Embedding providers for AgentKit.
+AgentKit 的 Embedding Provider 实现。
 
-## Overview
+## 概述
 
-This crate provides embedding provider implementations for AgentKit, enabling text-to-vector conversion for semantic search and RAG applications.
+本 crate 为 AgentKit 提供 Embedding Provider 实现，用于将文本转换为向量，支持语义搜索和 RAG 应用。
 
-## Supported Providers
+## 支持的 Provider
 
-| Provider | Description |
-|----------|-------------|
-| OpenAiEmbedProvider | OpenAI embedding models |
-| OllamaEmbedProvider | Ollama local embedding models |
+| Provider | 说明 |
+|----------|------|
+| OpenAiEmbeddingProvider | OpenAI Embedding 模型 |
+| OllamaEmbeddingProvider | Ollama 本地 Embedding 模型 |
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-embed = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["embed"] }
 ```
 
-## Usage
+## 使用方式
 
 ### OpenAI Embedding
 
 ```rust
-use agentkit_embed::openai::OpenAiEmbedProvider;
+use agentkit_embed::openai::OpenAiEmbeddingProvider;
 use agentkit_core::embed::EmbeddingProvider;
 
-let provider = OpenAiEmbedProvider::from_env()?
+let provider = OpenAiEmbeddingProvider::from_env()?
     .with_model("text-embedding-3-small");
 
-let embeddings = provider.embed(&["Hello, world!", "Rust is great."]).await?;
+let embeddings = provider.embed(&["你好，世界！", "Rust 很棒。"]).await?;
 
-println!("Embedding dimension: {}", embeddings[0].len());
+println!("Embedding 维度：{}", embeddings[0].len());
 ```
 
 ### Ollama Embedding
 
 ```rust
-use agentkit_embed::ollama::OllamaEmbedProvider;
+use agentkit_embed::ollama::OllamaEmbeddingProvider;
 
-let provider = OllamaEmbedProvider::new("http://localhost:11434")
+let provider = OllamaEmbeddingProvider::new("http://localhost:11434")
     .with_model("nomic-embed-text");
 
-let embeddings = provider.embed(&["text to embed"]).await?;
+let embeddings = provider.embed(&["要嵌入的文本"]).await?;
 ```
 
-### Embedding Cache
+### Embedding 缓存
 
 ```rust
 use agentkit_embed::cache::EmbeddingCache;
 
 let mut cache = EmbeddingCache::with_capacity(1000);
 
-// Cache will automatically store and retrieve embeddings
-let embeddings = cache.get_or_compute("Hello, world!", |text| async move {
-    // Compute embedding
+// 缓存会自动存储和检索 Embedding
+let embeddings = cache.get_or_compute("你好，世界！", |text| async move {
+    // 计算 Embedding
     vec![0.1, 0.2, 0.3]
 }).await?;
 ```
 
-## Features
+## Feature 配置
 
-| Feature | Description |
-|---------|-------------|
-| `openai` | OpenAI Embedding Provider (default) |
+| Feature | 说明 |
+|---------|------|
+| `openai` | OpenAI Embedding Provider（默认） |
 | `ollama` | Ollama Embedding Provider |
-| `all` | Enable all embedding providers |
+| `all` | 启用所有 Embedding Provider |
 
-## Environment Variables
+## 环境变量
 
-| Variable | Description |
-|----------|-------------|
+| 变量 | 说明 |
+|------|------|
 | `OPENAI_API_KEY` | OpenAI API Key |
 | `OPENAI_BASE_URL` | OpenAI Base URL |
 | `OLLAMA_BASE_URL` | Ollama Base URL |
 
-## License
+## 许可证
 
 MIT

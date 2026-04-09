@@ -1,46 +1,46 @@
 # AgentKit A2A
 
-A2A (Agent-to-Agent) protocol integration for AgentKit.
+AgentKit 的 A2A（Agent-to-Agent）协议集成。
 
-## Overview
+## 概述
 
-This crate provides A2A protocol support for AgentKit, enabling:
-- Agent-to-agent communication and collaboration
-- Task delegation and result return
-- Multi-agent system orchestration
+本 crate 为 AgentKit 提供 A2A 协议支持，用于：
+- Agent 之间的通信与协作
+- 任务委托与结果返回
+- 多 Agent 系统编排
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-a2a = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["a2a"] }
 ```
 
-## Usage
+## 使用方式
 
-### Client Usage
+### 客户端使用
 
 ```rust
 use agentkit_a2a::client::Client;
 
-// Connect to Agent server
+// 连接到 Agent 服务器
 let client = Client::connect("http://agent-server:8080").await?;
 
-// Send task
+// 发送任务
 let task = client.send_task("process_data", "input data").await?;
 
-// Wait for result
+// 等待结果
 let result = client.wait_for_result(&task.id).await?;
 ```
 
-### Server Usage
+### 服务端使用
 
 ```rust
 use agentkit_a2a::server::Server;
@@ -48,7 +48,7 @@ use agentkit_a2a::server::Server;
 let mut server = Server::new();
 
 server.register_handler("analyze", |task| async move {
-    let result = format!("Analysis of: {}", task.input);
+    let result = format!("分析结果：{}", task.input);
     Ok(TaskResult {
         task_id: task.id,
         output: result,
@@ -59,7 +59,7 @@ server.register_handler("analyze", |task| async move {
 server.bind("127.0.0.1:8080").await?.serve().await?;
 ```
 
-### Multi-Agent Collaboration
+### 多 Agent 协作
 
 ```rust
 use agentkit_a2a::client::Client;
@@ -67,16 +67,16 @@ use agentkit_a2a::client::Client;
 let agent1 = Client::connect("http://agent1:8080").await?;
 let agent2 = Client::connect("http://agent2:8080").await?;
 
-// Delegate task to Agent 1
+// 将任务委托给 Agent 1
 let task1 = agent1.send_task("fetch_data", "").await?;
 let data = agent1.wait_for_result(&task1.id).await?;
 
-// Pass result to Agent 2
+// 将结果传递给 Agent 2 处理
 let task2 = agent2.send_task("process_data", &data.output).await?;
 let result = agent2.wait_for_result(&task2.id).await?;
 ```
 
-### A2A Tool Adapter
+### A2A 工具适配器
 
 ```rust
 use agentkit_a2a::A2AToolAdapter;
@@ -84,24 +84,24 @@ use agentkit_core::tool::Tool;
 
 let adapter = A2AToolAdapter::new(
     "remote_agent".to_string(),
-    "Call remote agent".to_string(),
+    "调用远程 Agent".to_string(),
     serde_json::json!({}),
     client,
 );
 
-let result = adapter.call(serde_json::json!({"message": "Hello"})).await?;
+let result = adapter.call(serde_json::json!({"message": "你好"})).await?;
 ```
 
-## Submodules
+## 子模块
 
-- `protocol`: A2A protocol model definitions
-- `transport`: A2A transport layer
-- `types`: A2A protocol types (from `ra2a::types`)
+- `protocol`：A2A 协议模型定义
+- `transport`：A2A 传输层
+- `types`：A2A 协议类型（来自 `ra2a::types`）
 
-## Dependencies
+## 依赖
 
-Built on [`ra2a`](https://crates.io/crates/ra2a) library.
+基于 [`ra2a`](https://crates.io/crates/ra2a) 库构建。
 
-## License
+## 许可证
 
 MIT

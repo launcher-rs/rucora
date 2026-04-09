@@ -1,48 +1,48 @@
 # AgentKit Skills
 
-Skills system for AgentKit.
+AgentKit 的技能系统。
 
-## Overview
+## 概述
 
-This crate provides the Skills system for AgentKit, enabling:
-- YAML-based skill definitions
-- Command template skills
-- File operation skills
-- Rhai script skills (optional)
-- Skill loading from directories
-- Skill to Tool adapter
+本 crate 为 AgentKit 提供 Skills 系统支持，用于：
+- YAML 格式的技能定义
+- 命令模板技能
+- 文件操作技能
+- Rhai 脚本技能（可选）
+- 从目录动态加载技能
+- 技能到工具的适配器
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-skills = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["skills"] }
 ```
 
-## Usage
+## 使用方式
 
-### Load Skills from Directory
+### 从目录加载技能
 
 ```rust
 use agentkit_skills::{SkillLoader, SkillExecutor, SkillTool};
 use agentkit_tools::ToolRegistry;
 use std::sync::Arc;
 
-// Load skills from directory
+// 从目录加载技能
 let mut loader = SkillLoader::new("skills/");
 let skills = loader.load_from_dir().await?;
 
-// Create executor
+// 创建执行器
 let executor = Arc::new(SkillExecutor::new());
 
-// Register skills as tools
+// 注册技能为工具
 let mut registry = ToolRegistry::new();
 for skill in &skills {
     let tool = SkillTool::new(skill.clone(), executor.clone(), "skills/");
@@ -50,62 +50,60 @@ for skill in &skills {
 }
 ```
 
-### Skill YAML Format
+### 技能 YAML 格式
 
 ```yaml
 name: my_skill
-description: A custom skill for doing something useful
+description: 一个用于执行某项任务的技能
 version: "1.0"
 
 trigger:
   keywords:
-    - "do something"
-    - "help me"
+    - "执行某任务"
+    - "帮我做某事"
 
 parameters:
   - name: input
     type: string
     required: true
-    description: The input to process
+    description: 要处理的输入
 
 execution:
   type: command
   template: "echo {{input}}"
 ```
 
-### Skills to Tools
+### 技能转工具
 
 ```rust
 use agentkit_skills::skills_to_tools;
 
-// Convert all skills to tools
+// 将所有技能转换为工具
 let tools = skills_to_tools(&skills, executor, "skills/");
 
-// Use with agent
+// 在 Agent 中使用
 let agent = ToolAgent::builder()
     .provider(provider)
     .tools(tools)
     .build();
 ```
 
-## Features
+## Feature 配置
 
-| Feature | Description |
-|---------|-------------|
-| `yaml` | YAML skill file support |
-| `all` | Enable all features |
+| Feature | 说明 |
+|---------|------|
+| `default` | 默认配置 |
+| `all` | 启用所有功能 |
 
-## Submodules
+## 子模块
 
-- `cache`: Skill caching
-- `command_skills`: Command-based skills
-- `config`: Skill configuration
-- `file_skills`: File operation skills
-- `integrator`: Skill integration utilities
-- `loader`: Skill loading from directories
-- `rhai_skills`: Rhai script skills
-- `tool_adapter`: Skill to Tool adapter
+- `cache`：技能缓存
+- `config`：技能配置解析
+- `file_skills`：文件操作技能
+- `integrator`：技能集成工具
+- `loader`：技能加载器
+- `tool_adapter`：技能到工具的适配器
 
-## License
+## 许可证
 
 MIT

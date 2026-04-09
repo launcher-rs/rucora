@@ -1,51 +1,51 @@
 # AgentKit Tools
 
-Built-in tools for AgentKit.
+AgentKit 的内置工具实现。
 
-## Overview
+## 概述
 
-This crate contains 16+ concrete tool implementations for AgentKit. Each tool provides a specific capability that can be called by agents during execution.
+本 crate 包含 AgentKit 的 16+ 种工具的具体实现。每个工具提供一种特定能力，可以在 Agent 执行期间被调用。
 
-## Available Tools
+## 可用工具
 
-| Tool | Category | Description |
-|------|----------|-------------|
-| EchoTool | Basic | Echo input content |
-| ShellTool | System | Execute shell commands |
-| CmdExecTool | System | Restricted command execution |
-| GitTool | System | Git operations |
-| FileReadTool | File | Read file contents |
-| FileWriteTool | File | Write to files |
-| FileEditTool | File | Edit file contents |
-| HttpRequestTool | Network | HTTP requests |
-| WebFetchTool | Network | Fetch web content |
-| WebSearchTool | Network | Web search |
-| BrowseTool | Browser | Browse web pages |
-| BrowserOpenTool | Browser | Open browser |
-| MemoryStoreTool | Memory | Store information |
-| MemoryRecallTool | Memory | Recall information |
-| DatetimeTool | Utility | Date and time operations |
-| GithubTrendingTool | GitHub | GitHub trending |
-| SerpAPITool | Search | SerpAPI search |
-| TavilyTool | Search | Tavily search |
+| 工具 | 分类 | 说明 |
+|------|------|------|
+| EchoTool | 基础 | 回显输入内容 |
+| ShellTool | 系统 | 执行 Shell 命令 |
+| CmdExecTool | 系统 | 受限的命令执行 |
+| GitTool | 系统 | Git 操作 |
+| FileReadTool | 文件 | 读取文件内容 |
+| FileWriteTool | 文件 | 写入文件内容 |
+| FileEditTool | 文件 | 编辑文件内容 |
+| HttpRequestTool | 网络 | HTTP 请求 |
+| WebFetchTool | 网络 | 抓取网页内容 |
+| WebSearchTool | 网络 | 网络搜索 |
+| BrowseTool | 浏览器 | 浏览网页 |
+| BrowserOpenTool | 浏览器 | 打开浏览器 |
+| MemoryStoreTool | 记忆 | 存储信息 |
+| MemoryRecallTool | 记忆 | 检索信息 |
+| DatetimeTool | 工具 | 日期时间操作 |
+| GithubTrendingTool | GitHub | GitHub 趋势 |
+| SerpAPITool | 搜索 | SerpAPI 搜索 |
+| TavilyTool | 搜索 | Tavily 搜索 |
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-tools = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["tools"] }
 ```
 
-## Usage
+## 使用方式
 
-### Shell Tool
+### Shell 工具
 
 ```rust
 use agentkit_tools::ShellTool;
@@ -57,7 +57,7 @@ let result = tool.call(serde_json::json!({
 })).await?;
 ```
 
-### File Tools
+### 文件工具
 
 ```rust
 use agentkit_tools::{FileReadTool, FileWriteTool};
@@ -68,7 +68,7 @@ let content = read_tool.call(serde_json::json!({
 })).await?;
 ```
 
-### HTTP Request Tool
+### HTTP 请求工具
 
 ```rust
 use agentkit_tools::HttpRequestTool;
@@ -80,7 +80,7 @@ let response = http_tool.call(serde_json::json!({
 })).await?;
 ```
 
-### Memory Tools
+### 记忆工具
 
 ```rust
 use agentkit_tools::{MemoryStoreTool, MemoryRecallTool};
@@ -92,37 +92,37 @@ let store_tool = MemoryStoreTool::new(memory.clone());
 let recall_tool = MemoryRecallTool::new(memory);
 ```
 
-## Features
+## Feature 配置
 
-| Feature | Description |
-|---------|-------------|
-| `basic` | EchoTool (default) |
-| `system` | Shell, CmdExec, Git tools |
-| `file` | File read/write/edit tools |
-| `network` | HTTP request tools |
-| `browser` | Browse and browser open tools |
-| `memory` | Memory store and recall tools |
-| `datetime` | Datetime tool |
-| `github` | GitHub trending tool |
-| `web_search` | Web search tools |
-| `all` | Enable all tools |
+| Feature | 说明 |
+|---------|------|
+| `basic` | EchoTool（默认） |
+| `system` | Shell、CmdExec、Git 工具 |
+| `file` | 文件读/写/编辑工具 |
+| `network` | HTTP 请求工具 |
+| `browser` | 浏览和打开浏览器工具 |
+| `memory` | 记忆存储和检索工具 |
+| `datetime` | 日期时间工具 |
+| `github` | GitHub 趋势工具 |
+| `web_search` | 网络搜索工具 |
+| `all` | 启用所有工具 |
 
-## Security Notes
+## 安全说明
 
 ### ShellTool
-- Commands are executed through shell (`cmd /C` on Windows, `sh -c` on Linux/macOS)
-- Dangerous shell operators are blocked by default
-- Environment variables are cleared except for safe ones
+- 命令通过 Shell 执行（Windows 使用 `cmd /C`，Linux/macOS 使用 `sh -c`）
+- 默认阻止危险的 Shell 操作符
+- 环境变量会被清除，只保留安全变量
 
-### File Tools
-- Path traversal attacks are detected
-- Path validation against allowed directories (if configured)
+### 文件工具
+- 检测路径遍历攻击
+- 可配置路径验证
 
-### HTTP Tools
-- URL validation (must start with http:// or https://)
-- Configurable max redirects
-- Timeout support
+### HTTP 工具
+- URL 验证（必须以 http:// 或 https:// 开头）
+- 可配置最大重定向次数
+- 支持超时设置
 
-## License
+## 许可证
 
 MIT

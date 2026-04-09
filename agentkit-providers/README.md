@@ -1,40 +1,40 @@
 # AgentKit Providers
 
-LLM Providers for AgentKit.
+AgentKit 的 LLM Provider 实现。
 
-## Overview
+## 概述
 
-This crate contains concrete implementations of various LLM providers for AgentKit, enabling interaction with different large language model services.
+本 crate 包含 AgentKit 的各种 LLM Provider 具体实现，用于与不同的大语言模型服务交互。
 
-## Supported Providers
+## 支持的 Provider
 
-| Provider | Description |
-|----------|-------------|
-| OpenAiProvider | OpenAI GPT series models |
-| AnthropicProvider | Anthropic Claude models |
-| GeminiProvider | Google Gemini models |
-| AzureOpenAiProvider | Azure OpenAI service |
-| OllamaProvider | Ollama local models |
-| OpenRouterProvider | OpenRouter multi-model service |
-| DeepSeekProvider | DeepSeek models |
-| MoonshotProvider | Moonshot (Kimi) models |
-| ResilientProvider | Provider with retry logic |
+| Provider | 说明 |
+|----------|------|
+| OpenAiProvider | OpenAI GPT 系列模型 |
+| AnthropicProvider | Anthropic Claude 模型 |
+| GeminiProvider | Google Gemini 模型 |
+| AzureOpenAiProvider | Azure OpenAI 服务 |
+| OllamaProvider | Ollama 本地模型 |
+| OpenRouterProvider | OpenRouter 多模型服务 |
+| DeepSeekProvider | DeepSeek 模型 |
+| MoonshotProvider | Moonshot（Kimi）模型 |
+| ResilientProvider | 带重试逻辑的 Provider |
 
-## Installation
+## 安装
 
 ```toml
 [dependencies]
 agentkit-providers = "0.1"
 ```
 
-Or via the main AgentKit crate:
+或通过主 AgentKit crate：
 
 ```toml
 [dependencies]
 agentkit = { version = "0.1", features = ["providers"] }
 ```
 
-## Usage
+## 使用方式
 
 ### OpenAI Provider
 
@@ -44,7 +44,7 @@ use agentkit_core::provider::LlmProvider;
 
 let provider = OpenAiProvider::from_env()?;
 
-let request = ChatRequest::from_user_text("Hello");
+let request = ChatRequest::from_user_text("你好");
 let response = provider.chat(request).await?;
 println!("{}", response.message.content);
 ```
@@ -67,7 +67,7 @@ let provider = GeminiProvider::from_env()?
     .with_default_model("gemini-1.5-pro");
 ```
 
-### Resilient Provider (with retry)
+### Resilient Provider（带重试）
 
 ```rust
 use agentkit_providers::{OpenAiProvider, ResilientProvider, RetryConfig};
@@ -80,11 +80,11 @@ let provider = ResilientProvider::new(inner)
         .with_base_delay_ms(200));
 ```
 
-## Features
+## Feature 配置
 
-| Feature | Description |
-|---------|-------------|
-| `openai` | OpenAI Provider (default) |
+| Feature | 说明 |
+|---------|------|
+| `openai` | OpenAI Provider（默认启用） |
 | `anthropic` | Anthropic Provider |
 | `gemini` | Google Gemini Provider |
 | `azure-openai` | Azure OpenAI Provider |
@@ -92,13 +92,13 @@ let provider = ResilientProvider::new(inner)
 | `openrouter` | OpenRouter Provider |
 | `deepseek` | DeepSeek Provider |
 | `moonshot` | Moonshot Provider |
-| `resilient` | Resilient Provider wrapper |
-| `all` | Enable all providers |
+| `resilient` | Resilient Provider 包装器 |
+| `all` | 启用所有 Provider |
 
-## Environment Variables
+## 环境变量
 
-| Variable | Description |
-|----------|-------------|
+| 变量 | 说明 |
+|------|------|
 | `OPENAI_API_KEY` | OpenAI API Key |
 | `OPENAI_BASE_URL` | OpenAI Base URL |
 | `ANTHROPIC_API_KEY` | Anthropic API Key |
@@ -110,6 +110,6 @@ let provider = ResilientProvider::new(inner)
 | `DEEPSEEK_API_KEY` | DeepSeek API Key |
 | `MOONSHOT_API_KEY` | Moonshot API Key |
 
-## License
+## 许可证
 
 MIT
