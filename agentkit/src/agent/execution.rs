@@ -40,7 +40,7 @@ use agentkit_core::channel::types::{ChannelEvent, ErrorEvent, TokenDeltaEvent};
 use agentkit_core::channel::{ChannelObserver, NoopChannelObserver};
 use agentkit_core::error::DiagnosticError;
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role, Usage};
 use agentkit_core::tool::types::{ToolCall, ToolResult};
 
 /// 默认执行实现（内聚所有 Runtime 能力）
@@ -287,6 +287,7 @@ impl DefaultExecution {
         let mut messages = self.build_messages(&input);
         let mut tool_call_records = Vec::new();
         let mut step = 0;
+        let mut total_usage: Option<Usage> = None;
 
         info!(
             agent.name = agent.name(),
@@ -328,13 +329,26 @@ impl DefaultExecution {
 
                     messages.push(response.message.clone());
 
+                    // 累计 usage
+                    if let Some(u) = &response.usage {
+                        total_usage = Some(match &total_usage {
+                            Some(curr) => Usage {
+                                prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
+                                completion_tokens: curr.completion_tokens + u.completion_tokens,
+                                total_tokens: curr.total_tokens + u.total_tokens,
+                            },
+                            None => u.clone(),
+                        });
+                    }
+
                     // 3. 检查工具调用
                     if response.tool_calls.is_empty() {
                         // 无工具调用，返回最终结果
-                        let mut output = Ok(AgentOutput::with_history(
+                        let mut output = Ok(AgentOutput::with_usage(
                             json!({"content": response.message.content}),
                             messages.clone(),
                             tool_call_records.clone(),
+                            total_usage,
                         ));
 
                         // 执行响应后中间件钩子
@@ -385,10 +399,11 @@ impl DefaultExecution {
                 }
                 AgentDecision::Return(value) => {
                     info!("execution.run.done (Return)");
-                    let mut output = Ok(AgentOutput::with_history(
+                    let mut output = Ok(AgentOutput::with_usage(
                         value,
                         messages,
                         tool_call_records,
+                        total_usage,
                     ));
 
                     // 执行响应后中间件钩子
@@ -405,10 +420,11 @@ impl DefaultExecution {
                 }
                 AgentDecision::Stop => {
                     info!("execution.run.done (Stop)");
-                    let mut output = Ok(AgentOutput::with_history(
+                    let mut output = Ok(AgentOutput::with_usage(
                         Value::Null,
                         messages,
                         tool_call_records,
+                        total_usage,
                     ));
 
                     // 执行响应后中间件钩子

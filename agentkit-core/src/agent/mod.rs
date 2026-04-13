@@ -263,6 +263,8 @@ pub struct AgentOutput {
     pub messages: Vec<crate::provider::types::ChatMessage>,
     /// 工具调用记录。
     pub tool_calls: Vec<ToolCallRecord>,
+    /// Token 使用统计（累计所有 LLM 调用的 usage）。
+    pub usage: Option<crate::provider::types::Usage>,
 }
 
 impl AgentOutput {
@@ -272,6 +274,7 @@ impl AgentOutput {
             value,
             messages: Vec::new(),
             tool_calls: Vec::new(),
+            usage: None,
         }
     }
 
@@ -285,12 +288,43 @@ impl AgentOutput {
             value,
             messages,
             tool_calls,
+            usage: None,
+        }
+    }
+
+    /// 创建带 usage 的输出。
+    pub fn with_usage(
+        value: Value,
+        messages: Vec<crate::provider::types::ChatMessage>,
+        tool_calls: Vec<ToolCallRecord>,
+        usage: Option<crate::provider::types::Usage>,
+    ) -> Self {
+        Self {
+            value,
+            messages,
+            tool_calls,
+            usage,
         }
     }
 
     /// 获取文本内容（如果存在）。
     pub fn text(&self) -> Option<&str> {
         self.value.get("content").and_then(|v| v.as_str())
+    }
+
+    /// 获取文本内容，如果不存在则返回空字符串。
+    pub fn text_unwrap(&self) -> &str {
+        self.text().unwrap_or("")
+    }
+
+    /// 获取文本内容，如果不存在则返回默认值。
+    pub fn text_or<'a>(&'a self, default: &'a str) -> &'a str {
+        self.text().unwrap_or(default)
+    }
+
+    /// 消费自身，获取文本内容的所有权。
+    pub fn into_text(self) -> String {
+        self.text().map(String::from).unwrap_or_default()
     }
 
     /// 获取对话历史长度。
@@ -301,6 +335,46 @@ impl AgentOutput {
     /// 获取工具调用次数。
     pub fn tool_call_count(&self) -> usize {
         self.tool_calls.len()
+    }
+
+    /// 获取 Token 使用统计。
+    pub fn usage(&self) -> Option<&crate::provider::types::Usage> {
+        self.usage.as_ref()
+    }
+
+    /// 获取总 Token 数。
+    pub fn total_tokens(&self) -> u32 {
+        self.usage.as_ref().map(|u| u.total_tokens).unwrap_or(0)
+    }
+
+    /// 获取提示词 Token 数。
+    pub fn prompt_tokens(&self) -> u32 {
+        self.usage.as_ref().map(|u| u.prompt_tokens).unwrap_or(0)
+    }
+
+    /// 获取输出 Token 数。
+    pub fn completion_tokens(&self) -> u32 {
+        self.usage.as_ref().map(|u| u.completion_tokens).unwrap_or(0)
+    }
+
+    /// 格式化 Token 使用信息。
+    pub fn usage_summary(&self) -> String {
+        match &self.usage {
+            Some(u) => format!(
+                "Tokens: {} total ({} prompt + {} completion)",
+                u.total_tokens, u.prompt_tokens, u.completion_tokens
+            ),
+            None => "Tokens: N/A".to_string(),
+        }
+    }
+}
+
+impl std::fmt::Display for AgentOutput {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.text() {
+            Some(text) => write!(f, "{}", text),
+            None => Ok(()),
+        }
     }
 }
 
