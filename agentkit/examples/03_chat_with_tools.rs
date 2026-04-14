@@ -21,7 +21,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .with_target(false)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
