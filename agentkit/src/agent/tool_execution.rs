@@ -239,10 +239,12 @@ pub(crate) async fn execute_tool_call_with_middleware(
             s
         } else {
             // 在字符边界处截断，避免 UTF-8 错误
+            // 找到第一个超过 MAX 字节的位置的前一个字符边界
             let truncation_point = s
                 .char_indices()
-                .nth(MAX.min(s.chars().count()))
-                .map_or(MAX, |(i, _)| i);
+                .find(|(idx, _)| *idx >= MAX)
+                .map_or(s.len(), |(idx, _)| idx);
+            
             format!("{}...<truncated:{}>", &s[..truncation_point], s.len())
         }
     };
