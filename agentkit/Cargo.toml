@@ -155,6 +155,19 @@ path = "examples/19_code_assistant.rs"
 name = "21_unified_conversation"
 path = "examples/21_unified_conversation.rs"
 
+# Hermes Agent 特性（22-24）
+[[example]]
+name = "22_error_classification"
+path = "examples/22_error_classification.rs"
+
+[[example]]
+name = "23_prompt_injection_guard"
+path = "examples/23_prompt_injection_guard.rs"
+
+[[example]]
+name = "24_context_compression"
+path = "examples/24_context_compression.rs"
+
 # 继承 workspace 级别的 lint 配置
 [lints]
 workspace = true

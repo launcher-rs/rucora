@@ -201,6 +201,9 @@ pub mod rag;
 // 上下文压缩模块
 pub mod compact;
 
+// 重新导出压缩引擎类型
+pub use compact::{CompressionConfig, CompressionStrategy, LayeredCompressor};
+
 // Conversation 模块
 pub mod conversation;
 

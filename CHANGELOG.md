@@ -71,6 +71,116 @@
 - 都使用 `Value::Object(serde_json::Map::new())` 作为 context 初始值
 - 消除行为不一致问题
 
+### Hermes Agent 高优先级特性集成
+
+**参考项目**: Hermes Agent v0.9.0 (Nous Research)  
+**研究报告**: `docs/HERMES_AGENT_RESEARCH.md`
+
+#### 1. 结构化错误分类器 (`error_classifier.rs`)
+- 新增 `FailoverReason` 枚举，14 种精细错误原因分类
+- 新增 `ClassifiedError` 结构，包含恢复策略的分类结果
+- 新增 `ErrorClassifier` 分类器，优先级排序的分类管线
+- 支持错误类型：认证/计费/速率限制/上下文溢出/模型不存在等
+- 自动判断：是否可重试、是否应压缩、是否应回退、是否应轮换凭证
+- 为每种错误类型推荐退避时间
+- **新增 API**:
+  - `ErrorClassifier::classify(error, context)` - 分类错误
+  - `ProviderError::classify(context)` - 便捷方法
+  - `FailoverReason::is_retryable()` - 判断是否可重试
+  - `FailoverReason::should_compress()` - 判断是否应压缩
+  - `FailoverReason::should_fallback()` - 判断是否应回退
+  - `FailoverReason::recommended_backoff_ms()` - 推荐退避时间
+
+#### 2. Prompt 注入防护扫描器 (`injection_guard.rs`)
+- 新增 `ThreatType` 枚举，8 种威胁类型
+- 新增 `InjectionGuard` 扫描器，基于正则的多模式检测
+- 新增 `ScanResult` 结果，包含威胁详情和清理后内容
+- 检测模式：指令忽略/规则规避/信息隐藏/权限绕过/秘密读取/数据外泄/隐藏 Unicode/角色伪装
+- 威胁等级评估（1-5 级）
+- 支持内容清理（移除或标记危险片段）
+- 提供便捷的扩展方法 `scan_for_injection()`
+- **新增 API**:
+  - `InjectionGuard::scan(content, source)` - 扫描内容
+  - `InjectionGuard::quick_scan(content, source)` - 快速扫描
+  - `ContentScannable::scan_for_injection(source)` - 扩展方法
+
+#### 3. 分层上下文压缩引擎 (`compact/engine.rs`)
+- 新增 `LayeredCompressor` 分层压缩引擎
+- 新增 `CompressionConfig` 压缩配置
+- 新增 `CompressionStrategy` 压缩策略（Aggressive/Balanced/Conservative）
+- 实现智能分层压缩算法：
+  1. 修剪旧工具结果（廉价预压缩）
+  2. 保护头部消息（系统提示 + 首次交互）
+  3. 按 Token 预算保护尾部消息
+  4. 用结构化 LLM 提示摘要中间回合
+  5. 后续压缩时迭代更新先前摘要
+- 结构化摘要模板：Goal/Progress/Decisions/Questions/Files 等
+- 支持冷却期机制，防止频繁压缩
+- **新增 API**:
+  - `LayeredCompressor::should_compress(tokens, window)` - 判断是否需要压缩
+  - `LayeredCompressor::compress(provider, messages, window)` - 执行压缩
+  - `CompressionConfig::aggressive()` - 激进压缩配置
+  - `CompressionConfig::conservative()` - 保守压缩配置
+
+### 新增示例
+
+#### 22. 结构化错误分类器示例 (`22_error_classification.rs`)
+- 展示错误分类器的基础使用
+- 演示 6 种常见错误场景的分类
+- 展示便捷方法和 FailoverReason 判断方法
+- 演示实际 Provider 调用中的错误分类
+- 提供恢复策略决策树说明
+
+#### 23. Prompt 注入防护扫描器示例 (`23_prompt_injection_guard.rs`)
+- 展示 8 种威胁类型的检测
+- 演示各种威胁场景的检测效果
+- 展示内容清理功能
+- 演示安全内容不会被误报
+- 展示便捷扩展方法
+- 提供实际应用场景示例
+
+#### 24. 分层上下文压缩引擎示例 (`24_context_compression.rs`)
+- 展示压缩配置说明
+- 演示三种压缩策略（Aggressive/Balanced/Conservative）
+- 展示判断是否需要压缩
+- 解释消息分层概念
+- 展示结构化摘要模板
+- 提供迭代压缩机制说明
+- 给出实际应用建议
+
+### 新增依赖
+
+- `regex = "1"` - 用于错误分类和注入检测
+- `tracing = "0.1"` - 用于安全扫描日志（agentkit-core）
+
+### 新增导出
+
+**agentkit-core**:
+- `ErrorClassifier`, `ErrorContext`, `ClassifiedError`, `FailoverReason`
+- `InjectionGuard`, `ScanResult`, `Threat`, `ThreatType`, `ContentScannable`
+
+**agentkit**:
+- `CompressionConfig`, `CompressionStrategy`, `LayeredCompressor`
+
+### 修改文件清单
+
+#### 新建文件 (6)
+- `agentkit-core/src/error_classifier.rs` - 结构化错误分类器
+- `agentkit-core/src/injection_guard.rs` - Prompt 注入防护扫描器
+- `agentkit/src/compact/engine.rs` - 分层上下文压缩引擎
+- `agentkit/examples/22_error_classification.rs` - 错误分类器示例
+- `agentkit/examples/23_prompt_injection_guard.rs` - 注入防护示例
+- `agentkit/examples/24_context_compression.rs` - 上下文压缩示例
+
+#### 修改文件 (5)
+- `agentkit-core/src/lib.rs` - 导出新模块和类型
+- `agentkit-core/Cargo.toml` - 添加 regex 和 tracing 依赖
+- `agentkit/src/lib.rs` - 重新导出压缩引擎类型
+- `agentkit/Cargo.toml` - 添加新 example 配置
+- `docs/HERMES_AGENT_RESEARCH.md` - Hermes Agent 研究报告
+
+---
+
 ### 测试修复
 
 #### Compact 模块测试修复
