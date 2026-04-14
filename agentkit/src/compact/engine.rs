@@ -347,7 +347,9 @@ impl LayeredCompressor {
             tail_count += 1;
         }
 
-        let tail_start = messages.len() - tail_count;
+        let tail_start = messages.len().saturating_sub(tail_count);
+        // 确保 tail_start 不小于 head_count
+        let tail_start = tail_start.max(head_count);
         let tail: Vec<ChatMessage> = messages[tail_start..].to_vec();
         let middle: Vec<ChatMessage> = messages[head_count..tail_start].to_vec();
 
@@ -445,13 +447,13 @@ mod tests {
         let messages = vec![
             ChatMessage::user("Hello"),
             ChatMessage::assistant("Hi"),
-            ChatMessage::tool("result1"),
+            ChatMessage::tool("tool1".to_string(), "result1".to_string()),
             ChatMessage::assistant("Done"),
-            ChatMessage::tool("result2"),
+            ChatMessage::tool("tool2".to_string(), "result2".to_string()),
             ChatMessage::assistant("Done2"),
-            ChatMessage::tool("result3"),
-            ChatMessage::tool("result4"),
-            ChatMessage::tool("result5"),
+            ChatMessage::tool("tool3".to_string(), "result3".to_string()),
+            ChatMessage::tool("tool4".to_string(), "result4".to_string()),
+            ChatMessage::tool("tool5".to_string(), "result5".to_string()),
         ];
 
         let trimmed = engine.trim_old_tool_results(messages);
