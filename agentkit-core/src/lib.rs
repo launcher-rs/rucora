@@ -233,9 +233,17 @@ pub mod tool;
 /// 统一错误类型定义
 pub mod error;
 
+/// 结构化错误分类器
+pub mod error_classifier;
+
+/// Prompt 注入防护扫描器
+pub mod injection_guard;
+
 // 重新导出常用类型
 pub use agent::types::{AgentInput, AgentOutput};
 pub use channel::types::ChannelEvent;
 pub use error::{AgentError, ChannelError, MemoryError, ProviderError, SkillError, ToolError};
+pub use error_classifier::{ClassifiedError, ErrorClassifier, ErrorContext, FailoverReason};
+pub use injection_guard::{ContentScannable, InjectionGuard, ScanResult, Threat, ThreatType};
 pub use provider::LlmProvider;
 pub use tool::Tool;

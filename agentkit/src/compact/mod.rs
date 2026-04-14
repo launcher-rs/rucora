@@ -35,11 +35,13 @@
 //! ```
 
 pub mod config;
+pub mod engine;
 pub mod grouping;
 pub mod prompt;
 pub mod token_counter;
 
 pub use config::{CompactConfig, CompactStrategy};
+pub use engine::{CompressionConfig, CompressionStrategy, LayeredCompressor};
 pub use grouping::{group_messages_by_api_round, groups_to_text, select_groups_to_compact};
 pub use prompt::{
     BASE_COMPACT_PROMPT, PARTIAL_COMPACT_PROMPT, generate_compact_prompt,

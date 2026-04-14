@@ -95,10 +95,12 @@ dependencies = [
  "anyhow",
  "async-trait",
  "futures-util",
+ "regex",
  "serde",
  "serde_json",
  "thiserror 2.0.18",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
