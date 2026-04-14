@@ -180,6 +180,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use crate::error::ToolError;
+use crate::tool::types::ToolDefinition; // 引入 ToolDefinition
 
 /// 工具分类枚举
 ///
@@ -452,4 +453,24 @@ pub trait Tool: Send + Sync {
     /// }
     /// ```
     async fn call(&self, input: Value) -> Result<Value, ToolError>;
+
+    /// 获取工具定义 (ToolDefinition)
+    ///
+    /// 该方法将工具的名称、描述和输入 Schema 聚合为一个结构体，
+    /// 通常用于注册到 LLM 的 Function Calling 接口中。
+    ///
+    /// # 返回值
+    ///
+    /// - `ToolDefinition`: 包含工具元数据的结构体
+    ///
+    /// # 默认实现
+    ///
+    /// 默认实现会自动调用 `name()`, `description()`, `input_schema()` 组装。
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: self.name().to_string(),
+            description: self.description().map(String::from),
+            input_schema: self.input_schema(),
+        }
+    }
 }

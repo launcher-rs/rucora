@@ -317,8 +317,21 @@ impl DefaultExecution {
             debug!(decision = ?decision, "agent.think");
 
             match decision {
-                AgentDecision::Chat { request } => {
-                    // 2. 调用 LLM
+                AgentDecision::Chat { mut request } => {
+                    // 2. 自动注入工具定义 (修复库设计缺陷：避免 Agent 必须手动注入)
+                    if request.tools.is_none() && self.tools.enabled_len() > 0 {
+                        let tool_defs = self.tools.definitions();
+                        if !tool_defs.is_empty() {
+                            info!(
+                                tool_count = tool_defs.len(),
+                                "自动向 LLM 注入 {} 个工具定义",
+                                tool_defs.len()
+                            );
+                            request.tools = Some(tool_defs);
+                        }
+                    }
+
+                    // 3. 调用 LLM
                     let response = self.provider.chat(*request).await.map_err(|e| {
                         let diag = e.diagnostic();
                         AgentError::Message(format!(

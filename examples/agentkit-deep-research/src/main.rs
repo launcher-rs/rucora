@@ -1,12 +1,9 @@
-//! AgentKit 深度研究示例 (生产环境版)
+//! AgentKit 深度研究示例 (API 改进验证版)
 //!
-//! 功能：
-//! 1. 多 Provider 支持 - OpenAI/Anthropic/Gemini/Ollama 等
-//! 2. 工具自动调用 - Web 搜索/网页抓取/文件操作等
-//! 3. 结构化报告生成 - 自动保存为 Markdown 文件
-//!
-//! 核心修复：
-//! 在 Agent 的 think 方法中手动注入工具定义，确保 LLM 可以看到并调用工具。
+//! 验证库缺陷修复：
+//! 1. Tool trait 增加了 definition() 方法。
+//! 2. ToolRegistry 提供了 definitions() 方法。
+//! 3. DefaultExecution 现在会自动注入工具定义，Agent 无需手动处理。
 
 mod config;
 
@@ -15,7 +12,6 @@ use agentkit::agent::execution::DefaultExecution;
 use agentkit::prelude::*;
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::tool::ToolDefinition;
 use agentkit::provider::resilient::{ResilientProvider, RetryConfig};
 use agentkit_tools::{
     DatetimeTool, FileWriteTool, ShellTool, WebScraperTool, WebSearchTool,
@@ -31,34 +27,30 @@ use tracing_subscriber::FmtSubscriber;
 
 // ====================== 核心组件 ======================
 
-/// 研究 Agent
+/// 研究 Agent (简化版：不再需要手动管理工具定义)
 struct ResearchAgent {
     name: String,
-    tool_defs: Vec<ToolDefinition>,
 }
 
 impl ResearchAgent {
-    fn new(name: String, tool_defs: Vec<ToolDefinition>) -> Self {
-        Self { name, tool_defs }
+    fn new(name: String) -> Self {
+        Self { name }
     }
 }
 
 #[async_trait::async_trait]
 impl Agent for ResearchAgent {
     async fn think(&self, context: &AgentContext) -> AgentDecision {
-        let mut req = context.default_chat_request();
-        
-        // 🚨 核心逻辑：将工具定义注入请求
-        // 这样 LLM 才能看到工具列表并决定调用它们
-        if !self.tool_defs.is_empty() {
-            req.tools = Some(self.tool_defs.clone());
+        info!("🧠 [ResearchAgent] 正在思考...");
+        // 🚨 改进验证：Agent 不再需要手动注入工具定义！
+        // DefaultExecution 会在执行前自动从 ToolRegistry 获取定义并注入。
+        AgentDecision::Chat {
+            request: Box::new(context.default_chat_request()),
         }
-
-        AgentDecision::Chat { request: Box::new(req) }
     }
 
     fn name(&self) -> &str { &self.name }
-    fn description(&self) -> Option<&str> { Some("深度研究助手") }
+    fn description(&self) -> Option<&str> { Some("深度研究助手 (自动工具注入)") }
 }
 
 // ====================== 主流程 ======================
@@ -74,17 +66,18 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     println!("╔════════════════════════════════════════════════════════╗");
-    println!("║     AgentKit 深度研究助手 (正式版)                    ║");
+    println!("║     AgentKit 深度研究 (API 改进验证版)                ║");
+    println!("║  特性：自动工具注入 / 简化 Agent 实现                 ║");
     println!("╚════════════════════════════════════════════════════════╝\n");
 
-    // 1. 配置加载
+    // 1. 加载配置
     let config = load_or_create_config()?;
     config.display();
 
     // 2. 创建带重试的 Provider
     let provider = create_resilient_provider(&config)?;
 
-    // 3. 获取主题
+    // 3. 获取研究主题
     println!("\n{}", style("━━━ 研究主题 ━━━").green().bold());
     println!("请输入您要研究的主题（输入 'q' 退出）：");
     print!("> ");
@@ -99,14 +92,14 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // 4. 初始化环境与工具
+    // 4. 初始化环境 (验证新 API)
     let (agent, execution) = init_environment(&config, &provider)?;
 
     // 5. 执行研究
     run_research(&execution, &agent, &topic).await
 }
 
-/// 初始化环境
+/// 初始化环境 (展示如何使用 Registry 获取定义)
 fn init_environment(
     config: &AppConfig,
     provider: &Arc<dyn LlmProvider + Send + Sync>,
@@ -119,46 +112,7 @@ fn init_environment(
     let file_write = FileWriteTool::new();
     let shell = ShellTool::new();
 
-    // B. 🚨 关键：在注册前提取工具定义
-    let tool_defs = vec![
-        ToolDefinition {
-            name: web_search.name().to_string(),
-            description: web_search.description().map(String::from),
-            input_schema: web_search.input_schema(),
-        },
-        ToolDefinition {
-            name: web_scraper.name().to_string(),
-            description: web_scraper.description().map(String::from),
-            input_schema: web_scraper.input_schema(),
-        },
-        ToolDefinition {
-            name: datetime.name().to_string(),
-            description: datetime.description().map(String::from),
-            input_schema: datetime.input_schema(),
-        },
-        ToolDefinition {
-            name: file_write.name().to_string(),
-            description: file_write.description().map(String::from),
-            input_schema: file_write.input_schema(),
-        },
-        ToolDefinition {
-            name: shell.name().to_string(),
-            description: shell.description().map(String::from),
-            input_schema: shell.input_schema(),
-        },
-    ];
-
-    // 可选：SerpAPI
-    if config.serpapi_keys.is_some() || std::env::var("SERPAPI_API_KEY").is_ok() {
-        if let Ok(serp_tool) = agentkit_tools::SerpapiTool::from_env() {
-            // 这里需要追加到 tool_defs 和 registry，为保持代码简洁略过
-            info!("✅ SerpAPI 工具已加载 (请在 registry 构建链中添加 .register(tool))");
-        }
-    }
-
-    info!("📦 已注册 {} 个工具", tool_defs.len());
-
-    // C. 构建 Registry (用于实际执行)
+    // B. 注册工具到 Registry (用于实际执行)
     let registry = ToolRegistry::new()
         .register(web_search)
         .register(web_scraper)
@@ -166,20 +120,34 @@ fn init_environment(
         .register(file_write)
         .register(shell);
 
-    // D. 创建携带工具定义的 Agent
-    let agent = ResearchAgent::new("research_agent".to_string(), tool_defs);
+    info!("📦 ToolRegistry 已注册 {} 个工具", registry.len());
 
-    // E. 创建执行器
-    let model = config.model.as_deref().unwrap_or("gpt-4o-mini");
+    // C. 🚨 验证改进 1：使用 definition() 方法
+    // 以前需要手动拼接，现在可以直接调用 tool.definition()
+    // 这里仅做演示，实际执行中 DefaultExecution 会自动处理
+    let sample_tool = registry.get("web_search").unwrap();
+    let def = sample_tool.definition();
+    info!("✅ 验证 Tool.definition() 成功: {}", def.name);
+
+    // D. 🚨 验证改进 2：使用 Registry 获取所有定义
+    // DefaultExecution 内部将调用此方法自动注入
+    let all_defs = registry.definitions();
+    info!("✅ 验证 Registry.definitions() 成功: 共 {} 个工具定义", all_defs.len());
+
+    // E. 创建简化版 Agent (无需传递工具定义)
+    let agent = ResearchAgent::new("research_agent".to_string());
+
+    // F. 创建执行器 (它会自动负责工具注入)
+    let model = config.model.as_deref().unwrap_or("qwen3.5:9b");
     let execution = DefaultExecution::new(provider.clone(), model.to_string(), registry)
         .with_system_prompt(
             "你是一个专业的深度研究助手。\n\
              **强制指令**：\n\
              1. 你必须先使用 'web_search' 等工具搜索最新信息。\n\
              2. 禁止仅凭训练数据回答。\n\
-             3. 输出结构化的 Markdown 报告。",
+             3. 输出结构化的 Markdown 格式。",
         )
-        .with_max_steps(20);
+        .with_max_steps(15);
 
     Ok((agent, execution))
 }
@@ -201,6 +169,7 @@ async fn run_research(
 
     let input = AgentInput::new(prompt);
 
+    // 执行！Agent 将自动获得工具列表
     match execution.run(agent, input).await {
         Ok(output) => {
             info!("\n{}", style("✅ 研究完成").green().bold());
@@ -210,7 +179,6 @@ async fn run_research(
                 println!("\n{}", style("📄 报告摘要:").bold());
                 println!("{}\n", &text.chars().take(500).collect::<String>());
                 
-                // 保存完整报告
                 let filename = format!("research_{}.md", Local::now().format("%Y%m%d_%H%M%S"));
                 std::fs::write(&filename, text)?;
                 info!("💾 完整报告已保存至: {}", filename);
