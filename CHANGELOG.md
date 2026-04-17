@@ -4,6 +4,105 @@
 
 ---
 
+## [未发布] - 2026-04-17
+
+### Zeroclaw 架构 P1/P2 特性实现
+
+#### P1 优先级：健壮性与可维护性
+
+**1. Memory Namespace 高级内存系统 (`advanced_types.rs` / `advanced_trait.rs`)**
+- 新增 `MemoryEntry` 结构，支持命名空间隔离和重要性评分
+- 新增 `MemoryNamespace` 枚举，支持 Session/User/Agent/Team/Org/Global 六级命名空间
+- 新增 `MemoryImportance` 重要性评分（1-10级）
+- 新增 GDPR 合规支持：`gdpr_export` 导出用户数据，`gdpr_delete` 删除用户数据
+- 新增程序记忆存储：`ProceduralMemory` 存储可复用技能
+- **新增 API**:
+  - `AdvancedMemory::store_in_namespace()` - 命名空间存储
+  - `AdvancedMemory::query_with_importance()` - 按重要性查询
+  - `AdvancedMemory::gdpr_export/gdpr_delete()` - GDPR 合规操作
+  - `AdvancedMemory::store_procedure/recall_procedure()` - 程序记忆
+
+**2. Tool Filter Groups 工具过滤组 (`filter.rs`)**
+- 新增 `ToolFilter` 工具过滤器，支持 always/dynamic 可见性组
+- 新增 `ToolGroup` 工具组管理
+- 新增 `ToolFilterConfig` 过滤配置
+- 新增 `ToolGroupManager` 组管理器
+- 支持动态工具可见性控制，优化 LLM 工具选择
+- **新增 API**:
+  - `ToolFilter::new()` - 创建过滤器
+  - `ToolFilter::with_always_tool/with_dynamic_tool()` - 添加工具
+  - `ToolFilter::get_visible_tools()` - 获取可见工具
+  - `ToolGroupManager::create_group()` - 创建工具组
+
+**3. History Atomic Pruning 历史记录原子化裁剪**
+- 已实现于 `emergency_history_trim`，确保 assistant + tool 消息组原子删除
+- 保持消息配对完整性，防止孤儿消息
+
+#### P2 优先级：架构与可扩展性
+
+**4. Hook Priority System 钩子优先级系统 (`hooks.rs`)**
+- 新增 `VoidHook` trait - 无返回值钩子（日志、监控等）
+- 新增 `ModifyingHook` trait - 可修改数据钩子（转换、验证等）
+- 新增 `HookPriority` 优先级枚举（Critical/High/Normal/Low/Background）
+- 新增 `HookRegistry` 钩子注册表，支持优先级排序
+- 支持 before/after 阶段钩子
+- **新增 API**:
+  - `HookRegistry::register_void()` - 注册无返回值钩子
+  - `HookRegistry::register_modifying()` - 注册修改钩子
+  - `HookRegistry::run_void()` - 执行无返回值钩子链
+  - `HookRegistry::run_modifying()` - 执行修改钩子链
+
+**5. RuntimeAdapter 跨平台运行时适配器 (`runtime_adapter.rs`)**
+- 新增 `RuntimeAdapter` trait，抽象跨平台运行时能力
+- 新增 `NativeRuntimeAdapter` 原生运行时（完整功能）
+- 新增 `RestrictedRuntimeAdapter` 受限运行时（安全环境）
+- 支持异步 shell 命令执行（tokio::process::Command）
+- 支持文件系统操作和内存预算查询
+- **新增 API**:
+  - `RuntimeAdapter::execute_shell()` - 执行 shell 命令
+  - `RuntimeAdapter::read_file/write_file()` - 文件操作
+  - `RuntimeAdapter::get_memory_budget()` - 获取内存预算
+  - `NativeRuntimeAdapter::new()` - 创建原生适配器
+  - `RestrictedRuntimeAdapter::new()` - 创建受限适配器
+
+**6. Pure Interface Layer 纯接口层分离 (`error_classifier_trait.rs` / `injection_guard_trait.rs`)**
+- 将 `ErrorClassifier` 和 `InjectionGuard` 的 trait 定义与实现分离
+- trait 层（`agentkit-core`）：纯接口，无重依赖
+- 实现层（`agentkit`）：具体实现，可独立演进
+- 符合接口隔离原则，提高模块可测试性
+- **新增 Trait**:
+  - `ErrorClassifier` - 错误分类接口
+  - `InjectionGuard` - 注入防护接口
+
+**7. Dual-track Metrics 双轨指标系统 (`metrics.rs`)**
+- 新增 `ObserverEvent` 结构化事件枚举（LLM 调用开始/完成、工具调用等）
+- 新增 `ObserverMetric` 数值指标枚举（Token 使用量、延迟等）
+- 新增 `DualTrackObserver` trait，支持事件和指标双轨观察
+- 分离结构化事件和数值指标，优化监控和告警
+- **新增 API**:
+  - `DualTrackObserver::on_event()` - 接收结构化事件
+  - `DualTrackObserver::on_metric()` - 接收数值指标
+  - `ObserverEvent::LlmCallStart/LlmCallComplete/ToolCall/Error` - 事件类型
+  - `ObserverMetric::TokenUsage/Latency/QueueDepth` - 指标类型
+
+#### 修改文件清单
+
+**新建文件 (8)**:
+- `agentkit-core/src/memory/advanced_types.rs` - 高级内存类型
+- `agentkit-core/src/memory/advanced_trait.rs` - 高级内存 trait
+- `agentkit-core/src/tool/filter.rs` - 工具过滤组
+- `agentkit-core/src/channel/hooks.rs` - 钩子优先级系统
+- `agentkit-core/src/channel/metrics.rs` - 双轨指标系统
+- `agentkit-core/src/agent/runtime_adapter.rs` - 运行时适配器
+- `agentkit-core/src/error_classifier_trait.rs` - 错误分类纯接口
+- `agentkit-core/src/injection_guard_trait.rs` - 注入防护纯接口
+
+**修改文件 (2)**:
+- `agentkit-core/Cargo.toml` - 添加 tokio fs/process features
+- `agentkit-core/src/lib.rs` - 导出新模块
+
+---
+
 ## [未发布] - 2026-04-09
 
 ### 代码质量与安全改进

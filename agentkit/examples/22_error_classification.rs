@@ -17,7 +17,9 @@
 
 use agentkit::provider::OpenAiProvider;
 use agentkit_core::error::ProviderError;
-use agentkit_core::{ErrorClassifier, ErrorContext, FailoverReason};
+// 允许使用已弃用的旧实现，直到新实现完成
+#[allow(deprecated)]
+use agentkit_core::error_classifier::{ErrorClassifier, ErrorContext, FailoverReason};
 use agentkit_core::provider::LlmProvider;
 use agentkit_core::provider::types::ChatRequest;
 use std::time::Duration;
@@ -124,6 +126,7 @@ async fn main() -> anyhow::Result<()> {
     ];
 
     for (error, context, description) in &test_cases {
+        #[allow(deprecated)]
         let classified = ErrorClassifier::classify(error, context);
         info!("场景: {}", description);
         info!("  错误: {}", error);
@@ -149,7 +152,8 @@ async fn main() -> anyhow::Result<()> {
         ..Default::default()
     };
 
-    // ProviderError 的 classify 便捷方法
+    // ProviderError 的 classify 便捷方法（使用旧的实现）
+    #[allow(deprecated)]
     let classified = error.classify(&context);
     info!("使用便捷方法 classify():");
     info!("  错误: {}", classified.message);
@@ -215,6 +219,7 @@ async fn main() -> anyhow::Result<()> {
                     provider: Some("openai".to_string()),
                     ..Default::default()
                 };
+                #[allow(deprecated)]
                 let classified = e.classify(&context);
                 info!("  错误分类: {:?}", classified.reason);
                 info!("  恢复策略: {}", classified.summary());

@@ -15,6 +15,9 @@
 
 pub mod types;
 
+/// 运行时适配器抽象
+pub mod runtime_adapter;
+
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use serde_json::Value;
@@ -612,3 +615,9 @@ pub trait AgentExecutor: Send + Sync {
 
 // 重新导出统一的 AgentError 定义
 pub use crate::error::AgentError;
+
+/// 重新导出运行时适配器相关类型
+pub use runtime_adapter::{
+    LogLevel, NativeRuntimeAdapter, RestrictedRuntimeAdapter, RuntimeAdapter, RuntimeCapabilities,
+    RuntimeError, RuntimePlatform, ShellResult,
+};

@@ -196,6 +196,12 @@ pub mod r#trait;
 /// Channel 事件类型定义
 pub mod types;
 
+/// Hook（钩子）优先级系统
+pub mod hooks;
+
+/// 双轨指标系统（ObserverEvent 与 ObserverMetric 分离）
+pub mod metrics;
+
 /// Channel 观测器 trait
 ///
 /// 用于观测 Agent 执行过程中的事件。
@@ -249,3 +255,15 @@ pub use r#trait::*;
 
 /// 重新导出 channel 相关类型，方便使用
 pub use types::*;
+
+/// 重新导出 hook 相关类型
+pub use hooks::{
+    CombinedHook, HookPriority, HookRegistry, HookResult, LoggingVoidHook, ModifyingHook,
+    ValidationModifyingHook, VoidHook,
+};
+
+/// 重新导出双轨指标相关类型
+pub use metrics::{
+    DualTrackObserver, EventBuilder, LogLevel, LoggingObserver, MetricAggregator, MetricLabels,
+    MultiObserver, ObserverEvent, ObserverMetric, VerboseObserver,
+};

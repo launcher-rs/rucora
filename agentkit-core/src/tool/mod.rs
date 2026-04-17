@@ -171,8 +171,16 @@ pub mod r#trait;
 /// Tool 相关类型定义
 pub mod types;
 
+/// 工具过滤分组系统
+pub mod filter;
+
 /// 重新导出 tool 相关 trait，方便 `agentkit_core::tool::*` 使用
 pub use r#trait::*;
 
 /// 重新导出 tool 相关类型，方便使用
 pub use types::*;
+
+/// 重新导出工具过滤相关类型
+pub use filter::{
+    ToolFilter, ToolFilterConfig, ToolFilterStats, ToolGroup, ToolGroupManager, ToolVisibility,
+};

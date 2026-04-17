@@ -99,8 +99,26 @@
 pub mod r#trait;
 pub mod types;
 
+/// 高级 memory 类型（命名空间、重要性评分、GDPR导出等）
+pub mod advanced_types;
+
+/// 高级 memory trait
+pub mod advanced_trait;
+
 /// 重新导出 memory 相关 trait
 pub use r#trait::*;
 
 /// 重新导出 memory 相关类型
 pub use types::*;
+
+/// 重新导出高级 memory 类型
+pub use advanced_types::{
+    AdvancedMemoryEntry, AdvancedMemoryQuery, DecayConfig, ExportFilter, MemoryStats,
+    ProceduralMemory, calculate_decayed_importance,
+};
+
+/// 重新导出高级 memory trait
+pub use advanced_trait::{
+    AdvancedMemory, ConsolidatableMemory, DefaultImportanceScorer, ImportanceScorer,
+    MemoryBackendConfig, MemoryFactory,
+};
