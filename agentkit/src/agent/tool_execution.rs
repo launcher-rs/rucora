@@ -1,6 +1,6 @@
 //! 工具执行模块
 //!
-//! 负责执行工具调用，包括策略检查、观测器通知等。
+//! 负责执行工具调用，包括策略检查、观测器通知、重试、超时、熔断、缓存等。
 
 use std::sync::Arc;
 
@@ -9,9 +9,13 @@ use agentkit_core::error::{AgentError, ToolError};
 use agentkit_core::provider::types::{ChatMessage, Role};
 use agentkit_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolResult};
 use serde_json::{Value, json};
-use tracing::{debug, info};
+use tracing::{debug, info, warn};
 
 use crate::agent::policy::{ToolCallContext, ToolPolicy};
+use crate::agent::tool_call_config::{
+    ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
+    TimeoutConfig,
+};
 use crate::agent::tool_registry::ToolRegistry;
 use crate::middleware::MiddlewareChain;
 
@@ -292,6 +296,279 @@ pub(crate) async fn execute_tool_call_with_middleware(
         .map_err(|e| AgentError::Message(format!("工具调用后中间件处理失败：{e}")))?;
 
     Ok(result)
+}
+
+/// 带增强配置（重试 + 超时 + 熔断 + 缓存）的工具执行函数。
+///
+/// 在现有 `execute_tool_call_with_middleware` 基础上增加可靠性增强。
+/// 所有增强特性默认关闭，通过 `ToolCallEnhancedConfig` 启用。
+pub(crate) async fn execute_tool_call_enhanced(
+    tools: &ToolRegistry,
+    policy: &Arc<dyn ToolPolicy>,
+    observer: &Arc<dyn ChannelObserver>,
+    call: &ToolCall,
+    middleware_chain: &MiddlewareChain,
+    enhanced_config: &ToolCallEnhancedConfig,
+    runtime: &ToolCallEnhancedRuntime,
+) -> Result<ToolResult, AgentError> {
+    let tool_name = call.name.as_str();
+
+    // --- 缓存命中检查 ---
+    if enhanced_config.cache.enabled {
+        if let Some(cached) = runtime.cache.get(tool_name, &call.input).await {
+            observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
+                agentkit_core::channel::types::DebugEvent {
+                    message: "tool_call.cache_hit".to_string(),
+                    data: Some(json!({
+                        "tool_name": tool_name,
+                        "tool_call_id": call.id,
+                    })),
+                },
+            ));
+            debug!(tool.name = %tool_name, tool.call_id = %call.id, "tool_call.cache_hit");
+            return Ok(ToolResult {
+                tool_call_id: call.id.clone(),
+                output: cached,
+            });
+        }
+    }
+
+    // --- 熔断器检查 ---
+    if enhanced_config.circuit_breaker.enabled
+        && !runtime
+            .circuit_breaker
+            .can_pass(tool_name, &enhanced_config.circuit_breaker)
+            .await
+    {
+        let state = runtime.circuit_breaker.get_state(tool_name).await;
+        observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
+            agentkit_core::channel::types::DebugEvent {
+                message: "tool_call.circuit_breaker_open".to_string(),
+                data: Some(json!({
+                    "tool_name": tool_name,
+                    "tool_call_id": call.id,
+                    "circuit_state": format!("{:?}", state),
+                })),
+            },
+        ));
+        warn!(
+            tool.name = %tool_name,
+            tool.call_id = %call.id,
+            "tool_call.circuit_breaker_open"
+        );
+        let out = apply_output_limit(
+            json!({
+                "ok": false,
+                "error": {
+                    "kind": "circuit_breaker_open",
+                    "message": format!("工具 '{tool_name}' 熔断器已开启，调用被拒绝"),
+                    "circuit_state": format!("{:?}", state),
+                }
+            }),
+            DEFAULT_TOOL_OUTPUT_MAX_BYTES,
+        );
+        return Ok(ToolResult {
+            tool_call_id: call.id.clone(),
+            output: out,
+        });
+    }
+
+    // --- 重试循环 ---
+    let max_retries = enhanced_config.retry.max_retries;
+    let mut attempt = 0u32;
+
+    loop {
+        let result = execute_single_with_timeout(
+            tools,
+            policy,
+            observer,
+            call,
+            middleware_chain,
+            &enhanced_config.timeout,
+        )
+        .await;
+
+        match result {
+            Ok(ref tool_result) => {
+                // 判断是否是逻辑上的失败（ok=false）
+                let is_error = tool_result
+                    .output
+                    .get("ok")
+                    .and_then(|v| v.as_bool())
+                    .unwrap_or(true)
+                    == false;
+
+                if is_error
+                    && attempt < max_retries
+                    && enhanced_config.retry.should_retry(&tool_result.output)
+                {
+                    let delay = enhanced_config.retry.delay_for(attempt);
+                    observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
+                        agentkit_core::channel::types::DebugEvent {
+                            message: "tool_call.retry".to_string(),
+                            data: Some(json!({
+                                "tool_name": tool_name,
+                                "tool_call_id": call.id,
+                                "attempt": attempt + 1,
+                                "max_retries": max_retries,
+                                "delay_ms": delay.as_millis(),
+                            })),
+                        },
+                    ));
+                    warn!(
+                        tool.name = %tool_name,
+                        attempt = attempt + 1,
+                        max_retries,
+                        delay_ms = delay.as_millis(),
+                        "tool_call.retry"
+                    );
+                    tokio::time::sleep(delay).await;
+                    attempt += 1;
+                    continue;
+                }
+
+                // 记录熔断器结果
+                if enhanced_config.circuit_breaker.enabled {
+                    if is_error {
+                        runtime
+                            .circuit_breaker
+                            .record_failure(tool_name, &enhanced_config.circuit_breaker)
+                            .await;
+                    } else {
+                        runtime.circuit_breaker.record_success(tool_name).await;
+                    }
+                }
+
+                // 写入缓存（仅成功结果）
+                if enhanced_config.cache.enabled && !is_error {
+                    let ttl = enhanced_config.cache.get_ttl(tool_name);
+                    runtime
+                        .cache
+                        .set(
+                            tool_name,
+                            &call.input,
+                            tool_result.output.clone(),
+                            ttl,
+                            enhanced_config.cache.max_entries,
+                        )
+                        .await;
+                }
+
+                return result;
+            }
+            Err(ref e) => {
+                // 执行框架错误的重试
+                if attempt < max_retries {
+                    let delay = enhanced_config.retry.delay_for(attempt);
+                    observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
+                        agentkit_core::channel::types::DebugEvent {
+                            message: "tool_call.retry".to_string(),
+                            data: Some(json!({
+                                "tool_name": tool_name,
+                                "tool_call_id": call.id,
+                                "attempt": attempt + 1,
+                                "max_retries": max_retries,
+                                "delay_ms": delay.as_millis(),
+                                "error": e.to_string(),
+                            })),
+                        },
+                    ));
+                    warn!(
+                        tool.name = %tool_name,
+                        attempt = attempt + 1,
+                        max_retries,
+                        delay_ms = delay.as_millis(),
+                        error = %e,
+                        "tool_call.retry"
+                    );
+                    tokio::time::sleep(delay).await;
+                    attempt += 1;
+
+                    // 记录熔断器失败
+                    if enhanced_config.circuit_breaker.enabled {
+                        runtime
+                            .circuit_breaker
+                            .record_failure(tool_name, &enhanced_config.circuit_breaker)
+                            .await;
+                    }
+
+                    continue;
+                }
+
+                // 记录最终失败到熔断器
+                if enhanced_config.circuit_breaker.enabled {
+                    runtime
+                        .circuit_breaker
+                        .record_failure(tool_name, &enhanced_config.circuit_breaker)
+                        .await;
+                }
+
+                return result;
+            }
+        }
+    }
+}
+
+/// 执行单次工具调用（含超时控制）
+async fn execute_single_with_timeout(
+    tools: &ToolRegistry,
+    policy: &Arc<dyn ToolPolicy>,
+    observer: &Arc<dyn ChannelObserver>,
+    call: &ToolCall,
+    middleware_chain: &MiddlewareChain,
+    timeout_config: &TimeoutConfig,
+) -> Result<ToolResult, AgentError> {
+    let timeout = timeout_config.get_timeout(call.name.as_str());
+
+    match timeout {
+        Some(duration) => {
+            match tokio::time::timeout(
+                duration,
+                execute_tool_call_with_middleware(tools, policy, observer, call, middleware_chain),
+            )
+            .await
+            {
+                Ok(result) => result,
+                Err(_) => {
+                    let tool_name = call.name.as_str();
+                    observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
+                        agentkit_core::channel::types::DebugEvent {
+                            message: "tool_call.timeout".to_string(),
+                            data: Some(json!({
+                                "tool_name": tool_name,
+                                "tool_call_id": call.id,
+                                "timeout_ms": duration.as_millis(),
+                            })),
+                        },
+                    ));
+                    warn!(
+                        tool.name = %tool_name,
+                        tool.call_id = %call.id,
+                        timeout_ms = duration.as_millis(),
+                        "tool_call.timeout"
+                    );
+                    let out = apply_output_limit(
+                        json!({
+                            "ok": false,
+                            "error": {
+                                "kind": "timeout",
+                                "message": format!("工具 '{tool_name}' 执行超时（{}ms）", duration.as_millis()),
+                                "transient": true,
+                            }
+                        }),
+                        DEFAULT_TOOL_OUTPUT_MAX_BYTES,
+                    );
+                    Ok(ToolResult {
+                        tool_call_id: call.id.clone(),
+                        output: out,
+                    })
+                }
+            }
+        }
+        None => {
+            execute_tool_call_with_middleware(tools, policy, observer, call, middleware_chain).await
+        }
+    }
 }
 
 pub(crate) fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {

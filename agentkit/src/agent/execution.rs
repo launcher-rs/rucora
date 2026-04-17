@@ -28,9 +28,9 @@ use crate::conversation::ConversationManager;
 
 // 直接导入 agent 模块中的类型
 use crate::agent::policy::{DefaultToolPolicy, ToolPolicy};
+use crate::agent::tool_call_config::{ToolCallEnhancedConfig, ToolCallEnhancedRuntime};
 use crate::agent::tool_execution::{
-    execute_tool_call_with_middleware, execute_tool_call_with_policy_and_observer,
-    tool_result_to_message,
+    execute_tool_call_enhanced, execute_tool_call_with_policy_and_observer, tool_result_to_message,
 };
 use crate::agent::tool_registry::ToolRegistry;
 use crate::middleware::MiddlewareChain;
@@ -92,6 +92,10 @@ pub struct DefaultExecution {
     pub(crate) conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// 中间件链
     pub(crate) middleware_chain: MiddlewareChain,
+    /// 工具调用增强配置（重试、超时、熔断、缓存等）
+    pub(crate) enhanced_config: ToolCallEnhancedConfig,
+    /// 工具调用增强运行时状态
+    pub(crate) enhanced_runtime: ToolCallEnhancedRuntime,
 }
 
 impl DefaultExecution {
@@ -137,6 +141,8 @@ impl DefaultExecution {
             enable_tool_logging: true,
             conversation_manager: None,
             middleware_chain: MiddlewareChain::new(),
+            enhanced_config: ToolCallEnhancedConfig::default(),
+            enhanced_runtime: ToolCallEnhancedRuntime::new(),
         }
     }
 
@@ -203,6 +209,30 @@ impl DefaultExecution {
         middleware: M,
     ) -> Self {
         self.middleware_chain = self.middleware_chain.with(middleware);
+        self
+    }
+
+    /// 设置工具调用增强配置（重试、超时、熔断器、缓存等）
+    ///
+    /// 默认所有增强特性均关闭，通过此方法按需启用。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::agent::{
+    ///     execution::DefaultExecution,
+    ///     RetryConfig, TimeoutConfig, ToolCallEnhancedConfig,
+    /// };
+    /// use std::time::Duration;
+    ///
+    /// let config = ToolCallEnhancedConfig::new()
+    ///     .with_retry(RetryConfig::exponential(3))
+    ///     .with_timeout(TimeoutConfig::default_timeout(Duration::from_secs(30)));
+    ///
+    /// // execution.with_enhanced_config(config)
+    /// ```
+    pub fn with_enhanced_config(mut self, config: ToolCallEnhancedConfig) -> Self {
+        self.enhanced_config = config;
         self
     }
 
@@ -472,12 +502,15 @@ impl DefaultExecution {
             // 串行执行
             let mut results = Vec::with_capacity(calls.len());
             for call in calls {
-                let result = execute_tool_call_with_middleware(
+                // 使用增强执行（含重试、超时、熔断、缓存）
+                let result = execute_tool_call_enhanced(
                     &self.tools,
                     &self.policy,
                     &self.observer,
                     call,
                     &self.middleware_chain,
+                    &self.enhanced_config,
+                    &self.enhanced_runtime,
                 )
                 .await
                 .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
@@ -496,20 +529,26 @@ impl DefaultExecution {
             return Ok(results);
         }
 
-        // 并发执行
+        // 并发执行（细粒度并发：按工具名取并发数）
         let results: Vec<Result<(usize, ToolResult), AgentError>> =
             stream::iter(calls.iter().cloned().enumerate().map(|(idx, call)| {
                 let tools = self.tools.clone();
                 let policy = self.policy.clone();
                 let observer = self.observer.clone();
                 let middleware_chain = self.middleware_chain.clone();
+                let enhanced_config = self.enhanced_config.clone();
+                let enhanced_runtime = self.enhanced_runtime.clone();
+                // 细粒度并发：取该工具对应的并发数（这里每个任务独立限流，
+                // 实际并发上限由 buffer_unordered(max) 控制）
                 async move {
-                    let r = execute_tool_call_with_middleware(
+                    let r = execute_tool_call_enhanced(
                         &tools,
                         &policy,
                         &observer,
                         &call,
                         &middleware_chain,
+                        &enhanced_config,
+                        &enhanced_runtime,
                     )
                     .await
                     .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
@@ -556,12 +595,14 @@ impl DefaultExecution {
             input: tool_input.clone(),
         };
 
-        let result = execute_tool_call_with_middleware(
+        let result = execute_tool_call_enhanced(
             &self.tools,
             &self.policy,
             &self.observer,
             &call,
             &self.middleware_chain,
+            &self.enhanced_config,
+            &self.enhanced_runtime,
         )
         .await
         .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;

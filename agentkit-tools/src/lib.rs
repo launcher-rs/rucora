@@ -14,7 +14,6 @@ pub mod serpapi_tool;
 pub mod shell;
 pub mod tavily_tool;
 pub mod web;
-pub mod web_search;
 
 // 重新导出常用工具类型
 pub use browse::BrowseTool;
@@ -31,7 +30,6 @@ pub use serpapi_tool::SerpapiTool;
 pub use shell::ShellTool;
 pub use tavily_tool::TavilyTool;
 pub use web::WebFetchTool;
-pub use web_search::{WebScraperTool, WebSearchTool};
 
 // 重新导出 ToolRegistry
 pub use agentkit_core::tool::ToolRegistry;

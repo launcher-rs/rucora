@@ -214,6 +214,7 @@ pub mod execution;
 
 // 工具相关模块
 pub mod policy;
+pub mod tool_call_config;
 pub mod tool_execution;
 pub mod tool_registry;
 
@@ -232,6 +233,10 @@ pub mod reflect;
 // 重新导出主要类型
 pub use execution::DefaultExecution;
 pub use policy::{DefaultToolPolicy, ToolPolicy};
+pub use tool_call_config::{
+    CacheConfig, CircuitBreakerConfig, ConcurrencyConfig, RetryConfig, RetryStrategy,
+    TimeoutConfig, ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
+};
 pub use tool_registry::{ToolRegistry, ToolSource, ToolWrapper};
 
 // 基础层

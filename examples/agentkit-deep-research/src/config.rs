@@ -99,11 +99,6 @@ impl ProviderType {
         }
     }
 
-    /// 是否显示 base_url 输入（所有 Provider 都显示，让用户选择）
-    pub fn show_base_url_input(&self) -> bool {
-        // 所有 Provider 都允许自定义 base_url
-        true
-    }
 }
 
 /// 用户配置
@@ -113,7 +108,12 @@ pub struct AppConfig {
     pub api_key: Option<String>,
     pub model: Option<String>,
     pub base_url: Option<String>,
-    pub serpapi_keys: Option<String>,
+    /// Tavily 搜索 API Keys（可选，多个轮询使用）
+    #[serde(default)]
+    pub tavily_keys: Option<Vec<String>>,
+    /// 旧字段向后兼容（读取后迁移到 tavily_keys）
+    #[serde(default)]
+    pub serpapi_keys: Option<Vec<String>>,
 }
 
 impl AppConfig {
@@ -204,6 +204,21 @@ impl AppConfig {
         let serpapi_keys = env::var("SERPAPI_API_KEYS")
             .ok()
             .or_else(|| env::var("SERPAPI_API_KEY").ok());
+        let serpapi_keys = serpapi_keys.map(|key| vec![key]);
+
+        // Tavily Key（优先）
+        let tavily_keys = env::var("TAVILY_API_KEYS")
+            .ok()
+            .or_else(|| env::var("TAVILY_API_KEY").ok())
+            .map(|keys| {
+                keys.split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect::<Vec<_>>()
+            })
+            .filter(|v| !v.is_empty());
+
+        println!("api_key: {:?} model: {:?}, base_url: {:?}", api_key, model, base_url);
 
         // 只有当至少有一个配置项时才返回
         if api_key.is_some() || model.is_some() || base_url.is_some() {
@@ -212,6 +227,7 @@ impl AppConfig {
                 api_key,
                 model,
                 base_url,
+                tavily_keys,
                 serpapi_keys,
             })
         } else {
@@ -237,6 +253,7 @@ impl AppConfig {
 
         // 其次从配置文件加载
         let path = Self::config_path()?;
+        println!("读取配置文件 {}....",path.display());
         let content = fs::read_to_string(path).ok()?;
         toml::from_str(&content).ok()
     }
@@ -285,7 +302,13 @@ impl AppConfig {
         }
 
         if self.serpapi_keys.is_some() {
-            println!("  SerpAPI: 已配置");
+            println!("  SerpAPI: 已配置（旧版，建议迁移至 Tavily）");
+        }
+
+        if let Some(ref keys) = self.tavily_keys {
+            println!("  Tavily: 已配置 ({} 个 Key)", keys.len());
+        } else {
+            println!("  Tavily: 未配置（将使用 Browse+DuckDuckGo 降级方案）");
         }
 
         println!();

@@ -48,6 +48,7 @@ use tokio::sync::Mutex;
 
 use crate::agent::ToolRegistry;
 use crate::agent::execution::DefaultExecution;
+use crate::agent::tool_call_config::ToolCallEnhancedConfig;
 use crate::conversation::ConversationManager;
 
 /// ToolAgent - 工具调用 Agent
@@ -236,6 +237,7 @@ pub struct ToolAgentBuilder<P> {
     max_tool_concurrency: usize,
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     middleware_chain: crate::middleware::MiddlewareChain,
+    enhanced_config: ToolCallEnhancedConfig,
 }
 
 impl<P> ToolAgentBuilder<P> {
@@ -250,6 +252,7 @@ impl<P> ToolAgentBuilder<P> {
             max_tool_concurrency: 1,
             conversation_manager: None,
             middleware_chain: crate::middleware::MiddlewareChain::new(),
+            enhanced_config: ToolCallEnhancedConfig::default(),
         }
     }
 }
@@ -344,6 +347,14 @@ where
         self
     }
 
+    /// 设置工具调用增强配置（重试、超时、熔断器、缓存等）
+    ///
+    /// 默认所有增强特性均关闭，通过此方法按需启用。
+    pub fn with_enhanced_config(mut self, config: ToolCallEnhancedConfig) -> Self {
+        self.enhanced_config = config;
+        self
+    }
+
     /// 构建 Agent
     ///
     /// # Panics
@@ -361,7 +372,8 @@ where
                 .with_max_steps(self.max_steps)
                 .with_max_tool_concurrency(self.max_tool_concurrency)
                 .with_conversation_manager(self.conversation_manager.clone())
-                .with_middleware_chain(self.middleware_chain);
+                .with_middleware_chain(self.middleware_chain)
+                .with_enhanced_config(self.enhanced_config);
 
         ToolAgent {
             provider: provider_arc,

@@ -261,7 +261,62 @@ pub struct ToolResult {
 use crate::Tool;
 use crate::error::ToolError;
 use async_trait::async_trait;
+use std::collections::HashMap;
 use std::sync::Arc;
+
+/// 工具调用上下文
+///
+/// 在 `Tool::call` 时由执行器注入，工具可从中获取运行时信息。
+///
+/// # 示例
+///
+/// ```rust
+/// use agentkit_core::tool::types::ToolContext;
+///
+/// let ctx = ToolContext::new()
+///     .with("working_dir", "/tmp/workspace")
+///     .with("session_id", "sess_abc123");
+///
+/// let dir = ctx.get("working_dir"); // Some("/tmp/workspace")
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct ToolContext {
+    /// 键值对上下文数据
+    data: HashMap<String, String>,
+}
+
+impl ToolContext {
+    /// 创建空上下文
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 插入一个键值对（builder 风格）
+    pub fn with(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+        self.data.insert(key.into(), value.into());
+        self
+    }
+
+    /// 插入一个键值对（可变引用风格）
+    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) {
+        self.data.insert(key.into(), value.into());
+    }
+
+    /// 获取值
+    pub fn get(&self, key: &str) -> Option<&str> {
+        self.data.get(key).map(|s| s.as_str())
+    }
+
+    /// 获取工作目录（常用快捷方法）
+    pub fn working_dir(&self) -> Option<&str> {
+        self.get("working_dir")
+    }
+
+    /// 获取会话 ID（常用快捷方法）
+    pub fn session_id(&self) -> Option<&str> {
+        self.get("session_id")
+    }
+}
 
 /// ToolRegistry trait - 工具注册表接口。
 ///
