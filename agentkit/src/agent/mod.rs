@@ -213,6 +213,7 @@
 pub mod execution;
 
 // 工具相关模块
+pub mod loop_detector;
 pub mod policy;
 pub mod tool_call_config;
 pub mod tool_execution;
@@ -238,6 +239,7 @@ pub use tool_call_config::{
     TimeoutConfig, ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
 };
 pub use tool_registry::{ToolRegistry, ToolSource, ToolWrapper};
+pub use loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 
 // 基础层
 pub use chat::{ChatAgent, ChatAgentBuilder};

@@ -27,6 +27,7 @@ use agentkit_core::agent::{
 use crate::conversation::ConversationManager;
 
 // 直接导入 agent 模块中的类型
+use crate::agent::loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 use crate::agent::policy::{DefaultToolPolicy, ToolPolicy};
 use crate::agent::tool_call_config::{ToolCallEnhancedConfig, ToolCallEnhancedRuntime};
 use crate::agent::tool_execution::{
@@ -34,6 +35,217 @@ use crate::agent::tool_execution::{
 };
 use crate::agent::tool_registry::ToolRegistry;
 use crate::middleware::MiddlewareChain;
+
+// ========== 历史消息孤儿清理 ==========
+
+/// 清理消息历史中的孤儿 Tool 消息。
+///
+/// 当 context 压缩或历史截断后，可能出现没有对应 assistant(tool_calls)
+/// 配对的 tool 角色消息。部分 LLM Provider（如 Anthropic、MiniMax）
+/// 会因此返回 400 错误。
+///
+/// 本函数扫描历史消息，删除所有孤儿 tool 消息，并返回删除数量。
+///
+/// 参考实现: zeroclaw `remove_orphaned_tool_messages`
+pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> usize {
+    let mut removed = 0usize;
+
+    // Pass 1: 删除两个连续 assistant 消息中间不合法的 tool_calls + 结果对
+    let mut i = 0;
+    while i < messages.len() {
+        if messages[i].role == Role::Assistant
+            && messages[i].content.contains("tool_calls")
+            && i > 0
+            && messages[i - 1].role == Role::Assistant
+        {
+            // 记录这个 assistant 消息的内容，用于匹配后续 tool 消息
+            let doomed_content = messages[i].content.clone();
+            messages.remove(i);
+            removed += 1;
+            // 删除紧跟着的、引用这个 assistant 的 tool 消息
+            while i < messages.len() && messages[i].role == Role::Tool {
+                let dominated = match extract_tool_call_id_from_content(&messages[i].content) {
+                    Some(id) => doomed_content.contains(&id),
+                    None => true,
+                };
+                if dominated {
+                    messages.remove(i);
+                    removed += 1;
+                } else {
+                    break;
+                }
+            }
+        } else {
+            i += 1;
+        }
+    }
+
+    // Pass 2: 删除没有配对 assistant 的孤儿 tool 消息
+    i = 0;
+    while i < messages.len() {
+        if messages[i].role != Role::Tool {
+            i += 1;
+            continue;
+        }
+
+        // 向前查找最近的 assistant 消息
+        let assistant_idx = (0..i)
+            .rev()
+            .take_while(|&j| {
+                messages[j].role == Role::Assistant || messages[j].role == Role::Tool
+            })
+            .find(|&j| messages[j].role == Role::Assistant);
+
+        let is_orphan = match assistant_idx {
+            None => true,
+            Some(idx) => {
+                let assistant_content = &messages[idx].content;
+                if assistant_content.contains("tool_calls") {
+                    match extract_tool_call_id_from_content(&messages[i].content) {
+                        Some(tool_call_id) => !assistant_content.contains(&tool_call_id),
+                        None => false, // 保守：无法解析 ID 时保留
+                    }
+                } else {
+                    true
+                }
+            }
+        };
+
+        if is_orphan {
+            messages.remove(i);
+            removed += 1;
+        } else {
+            i += 1;
+        }
+    }
+
+    if removed > 0 {
+        tracing::warn!(
+            count = removed,
+            "移除了 {removed} 个孤儿 tool 消息（assistant tool_calls 已被截断）"
+        );
+    }
+
+    removed
+}
+
+/// 从 tool 角色消息的 JSON 内容中提取 tool_call_id
+fn extract_tool_call_id_from_content(content: &str) -> Option<String> {
+    let value: serde_json::Value = serde_json::from_str(content).ok()?;
+    value
+        .get("tool_call_id")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+// ========== Context Overflow 内联恢复 ==========
+
+/// 检测 provider 错误消息是否为 context window 溢出
+///
+/// 参考实现: zeroclaw `reliable::is_context_window_exceeded`
+fn is_context_overflow_error(message: &str) -> bool {
+    let m = message.to_ascii_lowercase();
+    m.contains("context length")
+        || m.contains("context window")
+        || m.contains("maximum context")
+        || m.contains("token limit")
+        || m.contains("too many tokens")
+        || m.contains("input too long")
+        || m.contains("exceeds the limit")
+        || m.contains("reduce the length")
+}
+
+/// 快速裁剪旧 tool 消息内容以释放 context 空间。
+///
+/// 将除最近 `protect_last_n` 条之外的所有 tool 消息内容截断到 2000 字符。
+/// 返回节省的总字符数。
+///
+/// 参考实现: zeroclaw `fast_trim_tool_results`
+fn fast_trim_tool_results(messages: &mut Vec<ChatMessage>, protect_last_n: usize) -> usize {
+    const TRIM_TO: usize = 2000;
+    let mut saved = 0;
+    let cutoff = messages.len().saturating_sub(protect_last_n);
+    for msg in &mut messages[..cutoff] {
+        if msg.role == Role::Tool && msg.content.len() > TRIM_TO {
+            let original_len = msg.content.len();
+            msg.content = truncate_tool_content(&msg.content, TRIM_TO);
+            saved += original_len - msg.content.len();
+        }
+    }
+    saved
+}
+
+/// 紧急删除最旧的非系统消息（约 1/3 历史）。
+///
+/// Tool 组（assistant + 紧跟的 tool 消息）作为原子单元整体删除，
+/// 保证 tool_calls/tool_results 配对完整性。
+/// 返回删除的消息数。
+///
+/// 参考实现: zeroclaw `emergency_history_trim`
+fn emergency_history_trim(messages: &mut Vec<ChatMessage>, keep_recent: usize) -> usize {
+    let mut dropped = 0;
+    let target_drop = (messages.len() / 3).max(1);
+    let mut i = 0;
+    while dropped < target_drop && i < messages.len().saturating_sub(keep_recent) {
+        if messages[i].role == Role::System {
+            i += 1;
+        } else if messages[i].role == Role::Assistant {
+            // 计算紧跟的 tool 消息数，以原子组删除
+            let mut tool_count = 0;
+            while i + 1 + tool_count < messages.len().saturating_sub(keep_recent)
+                && messages[i + 1 + tool_count].role == Role::Tool
+            {
+                tool_count += 1;
+            }
+            for _ in 0..=tool_count {
+                messages.remove(i);
+                dropped += 1;
+            }
+        } else {
+            messages.remove(i);
+            dropped += 1;
+        }
+    }
+    dropped += remove_orphaned_tool_messages(messages);
+    dropped
+}
+
+/// 裁剪 tool 消息内容，保留头部 2/3 + 尾部 1/3，中间插入省略标记
+fn truncate_tool_content(content: &str, max_chars: usize) -> String {
+    if content.len() <= max_chars {
+        return content.to_string();
+    }
+    let head_len = max_chars * 2 / 3;
+    let tail_len = max_chars.saturating_sub(head_len);
+    // 找安全 char boundary
+    let head_end = floor_char_boundary(content, head_len);
+    let tail_start_raw = content.len().saturating_sub(tail_len);
+    let mut tail_start = tail_start_raw;
+    while tail_start < content.len() && !content.is_char_boundary(tail_start) {
+        tail_start += 1;
+    }
+    if head_end >= tail_start {
+        return content[..floor_char_boundary(content, max_chars)].to_string();
+    }
+    let truncated = tail_start - head_end;
+    format!(
+        "{}\n\n[... {truncated} 字符已截断 ...]\n\n{}",
+        &content[..head_end],
+        &content[tail_start..]
+    )
+}
+
+/// 找 `<= i` 处最近的 char boundary（MSRV 兼容替代 `str::floor_char_boundary`）
+fn floor_char_boundary(s: &str, i: usize) -> usize {
+    if i >= s.len() {
+        return s.len();
+    }
+    let mut pos = i;
+    while pos > 0 && !s.is_char_boundary(pos) {
+        pos -= 1;
+    }
+    pos
+}
 
 // 导入 agentkit_core 类型
 use agentkit_core::channel::types::{ChannelEvent, ErrorEvent, TokenDeltaEvent};
@@ -96,6 +308,8 @@ pub struct DefaultExecution {
     pub(crate) enhanced_config: ToolCallEnhancedConfig,
     /// 工具调用增强运行时状态
     pub(crate) enhanced_runtime: ToolCallEnhancedRuntime,
+    /// 循环检测器配置
+    pub(crate) loop_detector_config: LoopDetectorConfig,
 }
 
 impl DefaultExecution {
@@ -143,7 +357,14 @@ impl DefaultExecution {
             middleware_chain: MiddlewareChain::new(),
             enhanced_config: ToolCallEnhancedConfig::default(),
             enhanced_runtime: ToolCallEnhancedRuntime::new(),
+            loop_detector_config: LoopDetectorConfig::default(),
         }
+    }
+
+    /// 设置循环检测器配置
+    pub fn with_loop_detector_config(mut self, config: LoopDetectorConfig) -> Self {
+        self.loop_detector_config = config;
+        self
     }
 
     /// 设置系统提示词
@@ -318,6 +539,8 @@ impl DefaultExecution {
         let mut tool_call_records = Vec::new();
         let mut step = 0;
         let mut total_usage: Option<Usage> = None;
+        // 循环检测器（防止 Agent 陷入无限重复调用同一工具）
+        let mut loop_detector = LoopDetector::new(self.loop_detector_config.clone());
 
         info!(
             agent.name = agent.name(),
@@ -332,6 +555,9 @@ impl DefaultExecution {
                     max_steps: self.max_steps,
                 });
             }
+
+            // 每次迭代前清理孤儿 tool 消息，防止 provider 返回 400 错误
+            remove_orphaned_tool_messages(&mut messages);
 
             // 创建上下文
             let context = AgentContext {
@@ -361,14 +587,44 @@ impl DefaultExecution {
                         }
                     }
 
-                    // 3. 调用 LLM
-                    let response = self.provider.chat(*request).await.map_err(|e| {
-                        let diag = e.diagnostic();
-                        AgentError::Message(format!(
-                            "provider error ({}): {}",
-                            diag.kind, diag.message
-                        ))
-                    })?;
+                    // 3. 调用 LLM（含 context overflow 内联恢复）
+                    let response = match self.provider.chat(*request).await {
+                        Ok(r) => r,
+                        Err(e) => {
+                            let diag = e.diagnostic();
+                            // 检测 context window 溢出错误
+                            if is_context_overflow_error(&diag.message) {
+                                tracing::warn!(
+                                    step,
+                                    "Context window exceeded, attempting in-loop recovery"
+                                );
+                                // Step 1: 快速裁剪旧 tool 消息（廉价操作）
+                                let saved = fast_trim_tool_results(&mut messages, 4);
+                                if saved > 0 {
+                                    tracing::info!(
+                                        chars_saved = saved,
+                                        "Context recovery: trimmed old tool results, retrying"
+                                    );
+                                    continue;
+                                }
+                                // Step 2: 紧急丢弃最旧的非系统消息
+                                let dropped = emergency_history_trim(&mut messages, 4);
+                                if dropped > 0 {
+                                    tracing::info!(
+                                        dropped,
+                                        "Context recovery: dropped old messages, retrying"
+                                    );
+                                    continue;
+                                }
+                                // 无法恢复
+                                tracing::error!("Context overflow unrecoverable: no trimmable messages");
+                            }
+                            return Err(AgentError::Message(format!(
+                                "provider error ({}): {}",
+                                diag.kind, diag.message
+                            )));
+                        }
+                    };
 
                     messages.push(response.message.clone());
 
@@ -421,6 +677,7 @@ impl DefaultExecution {
                             &response.tool_calls,
                             &mut messages,
                             &mut tool_call_records,
+                            &mut loop_detector,
                         )
                         .await?;
 
@@ -436,6 +693,7 @@ impl DefaultExecution {
                         tool_input,
                         &mut messages,
                         &mut tool_call_records,
+                        &mut loop_detector,
                     )
                     .await?;
                     step += 1;
@@ -495,6 +753,7 @@ impl DefaultExecution {
         calls: &[ToolCall],
         messages: &mut Vec<ChatMessage>,
         records: &mut Vec<ToolCallRecord>,
+        loop_detector: &mut LoopDetector,
     ) -> Result<Vec<ToolResult>, AgentError> {
         let max = self.max_tool_concurrency.max(1);
 
@@ -514,6 +773,42 @@ impl DefaultExecution {
                 )
                 .await
                 .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
+
+                // 循环检测
+                let detection = loop_detector.record(
+                    &call.name,
+                    &call.input,
+                    &result.output.to_string(),
+                );
+                match detection {
+                    LoopDetectionResult::Ok => {}
+                    LoopDetectionResult::Warning(msg) => {
+                        // 注入系统消息提示 LLM 调整策略
+                        tracing::warn!(tool = %call.name, "{}", msg);
+                        messages.push(ChatMessage::system(msg));
+                    }
+                    LoopDetectionResult::Block(msg) => {
+                        // 用阻止消息替换工具输出，并注入消息
+                        tracing::warn!(tool = %call.name, "{}", msg);
+                        let blocked_result = ToolResult {
+                            tool_call_id: result.tool_call_id.clone(),
+                            output: serde_json::Value::String(msg.clone()),
+                        };
+                        results.push(blocked_result.clone());
+                        records.push(ToolCallRecord {
+                            name: call.name.clone(),
+                            input: call.input.clone(),
+                            result: blocked_result.output.clone(),
+                        });
+                        messages.push(tool_result_to_message(&blocked_result, &call.name));
+                        continue;
+                    }
+                    LoopDetectionResult::Break(msg) => {
+                        tracing::error!(tool = %call.name, "{}", msg);
+                        return Err(AgentError::Message(format!("[LoopDetector] {msg}")));
+                    }
+                }
+
                 results.push(result.clone());
 
                 // 添加到记录
@@ -564,17 +859,52 @@ impl DefaultExecution {
         for r in results {
             let (idx, result) =
                 r.map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
-            ok.push((idx, result.clone()));
 
-            // 添加到记录
-            records.push(ToolCallRecord {
-                name: calls[idx].name.clone(),
-                input: calls[idx].input.clone(),
-                result: result.output.clone(),
-            });
-
-            // 添加到消息历史
-            messages.push(tool_result_to_message(&result, &calls[idx].name));
+            // 循环检测（并发路径：串行处理检测结果）
+            let detection = loop_detector.record(
+                &calls[idx].name,
+                &calls[idx].input,
+                &result.output.to_string(),
+            );
+            match detection {
+                LoopDetectionResult::Ok => {
+                    ok.push((idx, result.clone()));
+                    records.push(ToolCallRecord {
+                        name: calls[idx].name.clone(),
+                        input: calls[idx].input.clone(),
+                        result: result.output.clone(),
+                    });
+                    messages.push(tool_result_to_message(&result, &calls[idx].name));
+                }
+                LoopDetectionResult::Warning(ref msg) => {
+                    tracing::warn!(tool = %calls[idx].name, "{}", msg);
+                    ok.push((idx, result.clone()));
+                    records.push(ToolCallRecord {
+                        name: calls[idx].name.clone(),
+                        input: calls[idx].input.clone(),
+                        result: result.output.clone(),
+                    });
+                    messages.push(tool_result_to_message(&result, &calls[idx].name));
+                }
+                LoopDetectionResult::Block(msg) => {
+                    tracing::warn!(tool = %calls[idx].name, "{}", msg);
+                    let blocked = ToolResult {
+                        tool_call_id: result.tool_call_id.clone(),
+                        output: serde_json::Value::String(msg),
+                    };
+                    ok.push((idx, blocked.clone()));
+                    records.push(ToolCallRecord {
+                        name: calls[idx].name.clone(),
+                        input: calls[idx].input.clone(),
+                        result: blocked.output.clone(),
+                    });
+                    messages.push(tool_result_to_message(&blocked, &calls[idx].name));
+                }
+                LoopDetectionResult::Break(msg) => {
+                    tracing::error!(tool = %calls[idx].name, "{}", msg);
+                    return Err(AgentError::Message(format!("[LoopDetector] {msg}")));
+                }
+            }
         }
         ok.sort_by_key(|(idx, _)| *idx);
         Ok(ok.into_iter().map(|(_, v)| v).collect())
@@ -587,6 +917,7 @@ impl DefaultExecution {
         tool_input: Value,
         messages: &mut Vec<ChatMessage>,
         records: &mut Vec<ToolCallRecord>,
+        loop_detector: &mut LoopDetector,
     ) -> Result<(), AgentError> {
         let tool_call_id = format!("local_call_{name}");
         let call = ToolCall {
@@ -606,6 +937,34 @@ impl DefaultExecution {
         )
         .await
         .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
+
+        // 循环检测
+        let detection = loop_detector.record(name, &tool_input, &result.output.to_string());
+        match detection {
+            LoopDetectionResult::Ok => {}
+            LoopDetectionResult::Warning(msg) => {
+                tracing::warn!(tool = %name, "{}", msg);
+                messages.push(ChatMessage::system(msg));
+            }
+            LoopDetectionResult::Block(msg) => {
+                tracing::warn!(tool = %name, "{}", msg);
+                let blocked = ToolResult {
+                    tool_call_id: result.tool_call_id.clone(),
+                    output: serde_json::Value::String(msg),
+                };
+                records.push(ToolCallRecord {
+                    name: name.to_string(),
+                    input: tool_input,
+                    result: blocked.output.clone(),
+                });
+                messages.push(tool_result_to_message(&blocked, name));
+                return Ok(());
+            }
+            LoopDetectionResult::Break(msg) => {
+                tracing::error!(tool = %name, "{}", msg);
+                return Err(AgentError::Message(format!("[LoopDetector] {msg}")));
+            }
+        }
 
         records.push(ToolCallRecord {
             name: name.to_string(),

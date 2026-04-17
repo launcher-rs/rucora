@@ -235,6 +235,62 @@
 - `agentkit/src/tools/shell.rs` - 增强安全策略
 - `examples/agentkit-skills-example/src/main.rs` - 更新 ShellTool 使用
 
+### Agent 执行能力增强（参考 Zeroclaw 架构）
+
+**参考项目**: Zeroclaw 最新代码  
+**研究报告**: `docs/ZEROCLAW_ARCHITECTURE_ANALYSIS.md`
+
+#### P0 优先级：安全性与稳定性
+
+**1. Credential 清洗 (`scrub_credentials`)**
+- 新增 `scrub_credentials()` 函数，基于正则表达式检测并脱敏敏感 KV 对
+- 匹配模式：token、api_key、password、secret、user_key、bearer、credential 等
+- 在工具输出返回给 LLM 前自动执行清洗
+- 防止 API Key / Token 等敏感信息泄露到 LLM 上下文
+- 新增模块：`agentkit/src/agent/tool_execution.rs` 新增 `SENSITIVE_KV_REGEX`
+
+**2. 孤儿 Tool 消息清理 (`remove_orphaned_tool_messages`)**
+- 新增 `remove_orphaned_tool_messages()` 函数，修复 context 截断后的孤儿 tool 消息问题
+- 两阶段算法：第一遍删除连续 assistant+tool_calls 之间的非法对，第二遍清理剩余孤儿
+- 每次 Agent Loop 迭代前自动执行，防止 Anthropic / MiniMax 等 Provider 返回 400 错误
+- 新增模块：`agentkit/src/agent/execution.rs` 新增 `remove_orphaned_tool_messages`、`extract_tool_call_id_from_content`
+
+#### P1 优先级：健壮性与可维护性
+
+**3. Loop Detector 循环检测 (`loop_detector.rs`)**
+- 新增 `loop_detector.rs` 模块，防止 Agent 陷入无限循环
+- 使用滑动窗口 + 哈希签名检测重复工具调用
+- 四级响应：Ok（正常）→ Warning（注入系统消息）→ Block（替换输出）→ Break（终止循环）
+- 支持 `LoopDetectorConfig` 配置（enabled、window_size、max_repeats）
+- Builder 方法 `with_loop_detector_config()` 支持自定义配置
+- 串行路径和并发路径均集成检测
+- 新增 4 个单元测试
+- **新增 API**:
+  - `LoopDetectorConfig` - 循环检测器配置
+  - `LoopDetector::new(config)` - 创建检测器
+  - `LoopDetector::record(tool_name, args, output)` - 记录调用并返回检测结果
+  - `LoopDetectionResult` - 枚举：Ok / Warning / Block / Break
+
+**4. Context Overflow 内联恢复 (`fast_trim_tool_results` / `emergency_history_trim`)**
+- LLM 调用失败时自动检测 context window 溢出并尝试恢复
+- 两阶段恢复策略：
+  - Stage 1：快速裁剪旧 tool 消息到 2000 字符（保留首 2/3 + 尾 1/3）
+  - Stage 2：紧急删除最旧 1/3 消息（assistant + tool 组原子删除，保持配对完整）
+- 恢复成功后 `continue` 重试 LLM 调用，避免任务直接失败
+- 支持多种 Provider 错误消息模式检测（context length、context window、token limit 等）
+- 新增工具函数：`truncate_tool_content`、`floor_char_boundary`
+- **新增 API**:
+  - `fast_trim_tool_results(messages, protect_last_n)` - 快速裁剪 tool 消息
+  - `emergency_history_trim(messages, keep_recent)` - 紧急删除历史消息
+  - `is_context_overflow_error(message)` - 检测 context 溢出错误
+
+#### 修改文件
+- `agentkit/src/agent/mod.rs` - 注册 `loop_detector` 模块
+- `agentkit/src/agent/loop_detector.rs` - 新增循环检测器模块
+- `agentkit/src/agent/execution.rs` - 集成 loop detector、孤儿清理、context 恢复
+- `agentkit/src/agent/tool_execution.rs` - 新增 credential 清洗
+- `docs/ZEROCLAW_ARCHITECTURE_ANALYSIS.md` - 新增架构分析报告
+
 ---
 
 ## [0.1.0] - 2024-01-XX

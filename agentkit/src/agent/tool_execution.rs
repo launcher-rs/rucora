@@ -2,14 +2,69 @@
 //!
 //! 负责执行工具调用，包括策略检查、观测器通知、重试、超时、熔断、缓存等。
 
-use std::sync::Arc;
+use std::sync::{Arc, LazyLock};
 
 use agentkit_core::channel::ChannelObserver;
 use agentkit_core::error::{AgentError, ToolError};
 use agentkit_core::provider::types::{ChatMessage, Role};
 use agentkit_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolResult};
+use regex::Regex;
 use serde_json::{Value, json};
 use tracing::{debug, info, warn};
+
+// ========== Credential 清洗 ==========
+
+/// 敏感凭据匹配正则（参考 zeroclaw scrub_credentials）
+static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(
+        r#"(?i)(token|api[_-]?key|password|secret|user[_-]?key|bearer|credential)["']?\s*[:=]\s*(?:"([^"]{8,})"|'([^']{8,})'|([a-zA-Z0-9_\-\.]{8,}))"#,
+    )
+    .expect("credential regex must compile")
+});
+
+/// 清洗工具输出中的敏感凭据，防止 API key、token 等通过 LLM 上下文泄露。
+///
+/// 保留凭据值前 4 个字符作为调试上下文，剩余部分替换为 `[REDACTED]`。
+pub(crate) fn scrub_credentials(input: &str) -> String {
+    SENSITIVE_KV_REGEX
+        .replace_all(input, |caps: &regex::Captures| {
+            let full_match = &caps[0];
+            let key = &caps[1];
+            let val = caps
+                .get(2)
+                .or_else(|| caps.get(3))
+                .or_else(|| caps.get(4))
+                .map(|m| m.as_str())
+                .unwrap_or("");
+
+            // 保留前 4 个字符作为调试上下文，截断时不破坏 UTF-8 边界
+            let prefix = if val.len() > 4 {
+                val.char_indices()
+                    .nth(4)
+                    .map(|(byte_idx, _)| &val[..byte_idx])
+                    .unwrap_or(val)
+            } else {
+                ""
+            };
+
+            if full_match.contains(':') {
+                if full_match.contains('"') {
+                    format!("\"{}\": \"{}*[REDACTED]\"", key, prefix)
+                } else {
+                    format!("{}: {}*[REDACTED]", key, prefix)
+                }
+            } else if full_match.contains('=') {
+                if full_match.contains('"') {
+                    format!("{}=\"{}*[REDACTED]\"", key, prefix)
+                } else {
+                    format!("{}={}*[REDACTED]", key, prefix)
+                }
+            } else {
+                format!("{}: {}*[REDACTED]", key, prefix)
+            }
+        })
+        .to_string()
+}
 
 use crate::agent::policy::{ToolCallContext, ToolPolicy};
 use crate::agent::tool_call_config::{
@@ -198,7 +253,19 @@ pub(crate) async fn execute_tool_call_with_middleware(
     })?;
 
     let tool_output = match tool.call(call.input.clone()).await {
-        Ok(v) => json!({"ok": true, "output": v}),
+        Ok(v) => {
+            // 对字符串输出进行凭据清洗
+            let cleaned_v = match &v {
+                Value::String(s) => Value::String(scrub_credentials(s)),
+                other => {
+                    // 对序列化后的 JSON 字符串清洗，再反序列化回来
+                    let serialized = other.to_string();
+                    let cleaned = scrub_credentials(&serialized);
+                    serde_json::from_str::<Value>(&cleaned).unwrap_or_else(|_| Value::String(cleaned))
+                }
+            };
+            json!({"ok": true, "output": cleaned_v})
+        }
         Err(ToolError::PolicyDenied { rule_id, reason }) => {
             observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
                 agentkit_core::channel::types::DebugEvent {
