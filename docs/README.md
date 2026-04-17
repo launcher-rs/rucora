@@ -20,6 +20,7 @@
 | [设计文档](design.md) | 系统设计理念 |
 | [Agent 与 Runtime](agent_runtime_relationship.md) | 理解核心架构 |
 | [快速参考](QUICK_REFERENCE.md) | API 快速查询 |
+| [架构改进](ARCHITECTURE_IMPROVEMENT.md) | 架构演进方案 |
 
 ### 技能系统
 
@@ -27,7 +28,6 @@
 |------|------|
 | [Skill 配置规范](skill_yaml_spec.md) | 配置文件完整说明 |
 | [Skill 配置示例](skill_yaml_examples.md) | 实际使用示例 |
-| [配置优化总结](SKILL_CONFIG_COMPLETE.md) | 完整优化说明 |
 
 ### 开发指南
 
@@ -36,14 +36,16 @@
 | [对话设计](conversation_guide.md) | 对话系统指南 |
 | [Provider 设计](provider_default_model.md) | LLM Provider 实现 |
 | [运行时设计](runtime_agent_model_design.md) | Runtime 实现细节 |
+| [内存指南](memory_guide.md) | 内存系统使用 |
+| [中间件指南](middleware_guide.md) | 中间件开发 |
+| [自动对话](agent_auto_conversation.md) | 自动对话功能 |
 
-### 项目文档
+### 其他
 
 | 文档 | 说明 |
 |------|------|
-| [INDEX.md](INDEX.md) | 完整文档索引 |
-| [CHANGELOG.md](CHANGELOG.md) | 版本更新记录 |
-| [DOCUMENTATION_OPTIMIZATION.md](DOCUMENTATION_OPTIMIZATION.md) | 文档优化说明 |
+| [示例说明](examples.md) | 示例项目说明 |
+| [故障排查](TROUBLESHOOTING.md) | 常见问题解决 |
 
 ## 🚀 快速开始
 
@@ -76,31 +78,7 @@ async fn main() -> anyhow::Result<()> {
 }
 ```
 
-### 使用 Skills
-
-```rust
-use agentkit::skills::{SkillLoader, skills_to_tools, SkillExecutor};
-
-// 加载 Skills
-let mut loader = SkillLoader::new("skills/");
-let skills = loader.load_from_dir().await?;
-
-// 转换为 Tools
-let executor = Arc::new(SkillExecutor::new());
-let tools = skills_to_tools(&skills, executor, skills_dir);
-
-// 注册到 Agent
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .model("gpt-4o-mini")
-    .system_prompt("你是有用的助手")
-    .tools(tools)
-    .build();
-```
-
-## 🔧 资源配置
-
-### 环境变量
+## 🔧 环境变量
 
 | 变量 | 说明 | 示例 |
 |------|------|------|
@@ -109,22 +87,9 @@ let agent = DefaultAgent::builder()
 | `GOOGLE_API_KEY` | Google Gemini API 密钥 | `...` |
 | `OPENAI_BASE_URL` | 自定义 API 地址 | `http://localhost:11434` |
 
-### 支持的 Provider
-
-| Provider | 环境变量 | 文档 |
-|----------|----------|------|
-| OpenAI | `OPENAI_API_KEY` | [用户指南](user_guide.md) |
-| Anthropic | `ANTHROPIC_API_KEY` | [用户指南](user_guide.md) |
-| Google Gemini | `GOOGLE_API_KEY` | [用户指南](user_guide.md) |
-| Ollama | `OPENAI_BASE_URL` | [快速开始](quick_start.md) |
-
 ## 📝 更新日志
 
-查看 [CHANGELOG.md](CHANGELOG.md) 了解最新版本和变更。
-
-## 🤝 贡献
-
-欢迎贡献代码、文档或建议！
+查看 [CHANGELOG.md](../CHANGELOG.md) 了解最新版本和变更。
 
 ## 📄 许可证
 
