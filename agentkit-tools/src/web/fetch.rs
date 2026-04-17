@@ -1,6 +1,6 @@
-//! 网页工具模块。
+//! 网页获取工具
 //!
-//! 提供网页内容获取功能。
+//! 获取网页的 HTML 内容
 
 use agentkit_core::{
     error::ToolError,

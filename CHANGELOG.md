@@ -4,6 +4,81 @@
 
 ---
 
+## [未发布] - 2026-04-18
+
+### 代码清理与架构优化
+
+#### 删除已弃用代码
+
+**1. 移除已弃用的错误分类器实现**
+- 删除 `agentkit-core/src/error_classifier.rs`
+- 该模块已被标记为弃用，由 `error_classifier_trait.rs` 替代
+- 实现已迁移至 `agentkit` crate
+
+**2. 移除已弃用的注入防护实现**
+- 删除 `agentkit-core/src/injection_guard.rs`
+- 该模块已被标记为弃用，由 `injection_guard_trait.rs` 替代
+- 实现已迁移至 `agentkit` crate
+
+**3. 移除使用已弃用 API 的示例**
+- 删除 `agentkit/examples/22_error_classification.rs`
+- 删除 `agentkit/examples/23_prompt_injection_guard.rs`
+- 更新 `agentkit/Cargo.toml` 移除对应示例配置
+
+**4. 清理模块导出**
+- 更新 `agentkit-core/src/lib.rs`
+- 移除对已弃用模块的导出
+- 移除向后兼容的 `ErrorClassifierImpl` 和 `InjectionGuardImpl` 导出
+
+#### 工具模块重构
+
+**5. 工具分类管理优化**
+- 将 `agentkit-tools` 从扁平结构重构为模块化结构
+- 新增分类：
+  - `file/` - 文件操作工具（read/write/edit）
+  - `system/` - 系统工具（shell/datetime/cmd_exec）
+  - `web/` - Web 工具（fetch/browse/http/search）
+  - `search/` - 搜索工具（glob/content_search）
+  - `math/` - 数学工具（calculator）
+  - `media/` - 媒体工具（image_info）
+
+**6. 新增工具实现**
+- `CalculatorTool` - 支持 25+ 数学函数（算术、对数、统计、聚合）
+- `GlobSearchTool` - 支持通配符文件搜索
+- `ContentSearchTool` - 支持正则表达式内容搜索
+- `ImageInfoTool` - 支持图片元数据读取（PNG/JPEG/GIF/WebP/BMP）
+
+**删除文件清单**
+- `agentkit-core/src/error_classifier.rs`
+- `agentkit-core/src/injection_guard.rs`
+- `agentkit/examples/22_error_classification.rs`
+- `agentkit/examples/23_prompt_injection_guard.rs`
+
+**新建文件清单**
+- `agentkit-tools/src/file/mod.rs`
+- `agentkit-tools/src/file/config.rs`
+- `agentkit-tools/src/file/read.rs`
+- `agentkit-tools/src/file/write.rs`
+- `agentkit-tools/src/file/edit.rs`
+- `agentkit-tools/src/system/mod.rs`
+- `agentkit-tools/src/system/shell.rs`
+- `agentkit-tools/src/system/datetime.rs`
+- `agentkit-tools/src/system/cmd_exec.rs`
+- `agentkit-tools/src/web/mod.rs`
+- `agentkit-tools/src/web/fetch.rs`
+- `agentkit-tools/src/web/browse.rs`
+- `agentkit-tools/src/web/http.rs`
+- `agentkit-tools/src/web/search.rs`
+- `agentkit-tools/src/search/mod.rs`
+- `agentkit-tools/src/search/glob_search.rs`
+- `agentkit-tools/src/search/content_search.rs`
+- `agentkit-tools/src/math/mod.rs`
+- `agentkit-tools/src/math/calculator.rs`
+- `agentkit-tools/src/media/mod.rs`
+- `agentkit-tools/src/media/image_info.rs`
+
+---
+
 ## [未发布] - 2026-04-17
 
 ### Zeroclaw 架构 P1/P2 特性实现

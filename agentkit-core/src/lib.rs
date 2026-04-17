@@ -239,14 +239,6 @@ pub mod error_classifier_trait;
 /// Prompt 注入防护扫描器 trait（纯接口）
 pub mod injection_guard_trait;
 
-/// 结构化错误分类器实现（保留向后兼容）
-#[deprecated(since = "0.3.0", note = "使用 error_classifier_trait 代替，实现移至 agentkit crate")]
-pub mod error_classifier;
-
-/// Prompt 注入防护扫描器实现（保留向后兼容）
-#[deprecated(since = "0.3.0", note = "使用 injection_guard_trait 代替，实现移至 agentkit crate")]
-pub mod injection_guard;
-
 // 重新导出常用类型
 pub use agent::types::{AgentInput, AgentOutput};
 pub use channel::types::ChannelEvent;
@@ -261,12 +253,6 @@ pub use error_classifier_trait::{
 pub use injection_guard_trait::{
     ContentScannable, InjectionGuard, ScanResult, Threat, ThreatType,
 };
-
-// 向后兼容：导出旧的实现
-#[allow(deprecated)]
-pub use error_classifier::ErrorClassifier as ErrorClassifierImpl;
-#[allow(deprecated)]
-pub use injection_guard::InjectionGuard as InjectionGuardImpl;
 
 pub use provider::LlmProvider;
 pub use tool::Tool;

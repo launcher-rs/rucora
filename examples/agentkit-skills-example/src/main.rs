@@ -10,7 +10,7 @@ use agentkit::agent::ToolRegistry;
 use agentkit::prelude::Agent;
 use agentkit_providers::OpenAiProvider;
 use agentkit_skills::{SkillExecutor, SkillLoader, SkillTool};
-use agentkit_tools::shell::ShellTool;
+use agentkit_tools::system::ShellTool;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;

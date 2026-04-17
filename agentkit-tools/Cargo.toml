@@ -23,7 +23,8 @@ html2text = "0.12"
 dom_smoothie = "0.16"
 schemars = "0.8"
 backon = "1.5"
+glob = "0.3"
 
-# ?? workspace ??? lint ??
+# 继承 workspace 级别的 lint 配置
 [lints]
 workspace = true

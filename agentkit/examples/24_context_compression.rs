@@ -240,9 +240,9 @@ async fn main() -> anyhow::Result<()> {
 
     info!("不同策略保留的工具结果数量:\n");
 
-    let aggressive_engine = LayeredCompressor::new(CompressionConfig::aggressive());
-    let balanced_engine = LayeredCompressor::default_engine();
-    let conservative_engine = LayeredCompressor::new(CompressionConfig::conservative());
+    let _aggressive_engine = LayeredCompressor::new(CompressionConfig::aggressive());
+    let _balanced_engine = LayeredCompressor::default_engine();
+    let _conservative_engine = LayeredCompressor::new(CompressionConfig::conservative());
 
     info!("  Aggressive: 最多保留 2 个工具结果");
     info!("  Balanced: 最多保留 4 个工具结果");
