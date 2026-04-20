@@ -58,22 +58,16 @@ use crate::conversation::ConversationManager;
 /// - 适合对话场景
 pub struct ChatAgent<P> {
     /// LLM Provider
-    #[allow(dead_code)]
     provider: Arc<P>,
     /// 默认使用的模型
-    #[allow(dead_code)]
     model: String,
     /// 系统提示词
-    #[allow(dead_code)]
     system_prompt: Option<String>,
     /// 温度参数
-    #[allow(dead_code)]
     temperature: f32,
     /// 对话管理器
-    #[allow(dead_code)]
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// 最大历史消息数
-    #[allow(dead_code)]
     max_history_messages: usize,
     /// 执行能力（内聚）
     execution: DefaultExecution,
