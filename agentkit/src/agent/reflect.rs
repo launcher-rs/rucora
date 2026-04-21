@@ -41,7 +41,7 @@
 
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
 use agentkit_core::tool::Tool;
 use async_trait::async_trait;
 use serde_json::{Value, json};
@@ -80,6 +80,8 @@ pub struct ReflectAgent<P> {
     /// 对话管理器（可选）
     #[allow(dead_code)]
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    /// LLM 请求参数
+    llm_params: LlmParams,
     /// 执行能力（内聚）
     execution: DefaultExecution,
 }
@@ -236,7 +238,7 @@ where
         // 添加当前提示词
         messages.push(ChatMessage::user(prompt));
 
-        ChatRequest {
+        let mut request = ChatRequest {
             messages,
             model: Some(self.model.clone()),
             tools: if !self.tools.definitions().is_empty() {
@@ -244,9 +246,10 @@ where
             } else {
                 None
             },
-            temperature: Some(0.7),
             ..Default::default()
-        }
+        };
+        self.llm_params.apply_to(&mut request);
+        request
     }
 
     /// 获取工具列表
@@ -269,6 +272,7 @@ pub struct ReflectAgentBuilder<P> {
     quality_threshold: f32,
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     middleware_chain: crate::middleware::MiddlewareChain,
+    llm_params: LlmParams,
 }
 
 impl<P> ReflectAgentBuilder<P> {
@@ -283,6 +287,7 @@ impl<P> ReflectAgentBuilder<P> {
             quality_threshold: 0.9,
             conversation_manager: None,
             middleware_chain: crate::middleware::MiddlewareChain::new(),
+            llm_params: LlmParams::default(),
         }
     }
 }
@@ -341,6 +346,60 @@ where
         self
     }
 
+    /// 设置温度参数（控制随机性，0.0-1.0）
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.llm_params.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.llm_params.top_p = Some(value);
+        self
+    }
+
+    /// 设置 top_k
+    pub fn top_k(mut self, value: u32) -> Self {
+        self.llm_params.top_k = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.llm_params.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.llm_params.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.llm_params.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.llm_params.stop = Some(value);
+        self
+    }
+
+    /// 设置额外参数（provider 特定）
+    pub fn extra_params(mut self, value: serde_json::Value) -> Self {
+        self.llm_params.extra = Some(value);
+        self
+    }
+
+    /// 设置 LLM 请求参数
+    pub fn llm_params(mut self, params: LlmParams) -> Self {
+        self.llm_params = params;
+        self
+    }
+
     /// 启用对话历史管理
     pub fn with_conversation(mut self, enabled: bool) -> Self {
         if enabled {
@@ -389,7 +448,8 @@ where
                 .with_system_prompt_opt(self.system_prompt.clone())
                 .with_max_steps(self.max_iterations * 2) // 每次迭代需要 2 步
                 .with_conversation_manager(self.conversation_manager.clone())
-                .with_middleware_chain(self.middleware_chain);
+                .with_middleware_chain(self.middleware_chain)
+                .with_llm_params(self.llm_params.clone());
 
         ReflectAgent {
             provider: provider_arc,
@@ -399,6 +459,7 @@ where
             max_iterations: self.max_iterations,
             quality_threshold: self.quality_threshold,
             conversation_manager: self.conversation_manager,
+            llm_params: self.llm_params,
             execution,
         }
     }

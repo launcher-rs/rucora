@@ -119,6 +119,183 @@ pub enum FinishReason {
     Other,
 }
 
+/// LLM 请求参数集合。
+///
+/// 统一管理所有 LLM 采样和生成参数，便于在 Agent 层面配置并传递到 ChatRequest。
+/// 所有字段均为 `Option`，`None` 表示使用模型默认值。
+///
+/// # 使用示例
+///
+/// ```rust
+/// use agentkit_core::provider::types::LlmParams;
+///
+/// // 创建默认参数
+/// let params = LlmParams::default();
+///
+/// // 使用 builder 方法
+/// let params = LlmParams::new()
+///     .temperature(0.5)
+///     .top_p(0.9)
+///     .max_tokens(4096);
+///
+/// // 应用到 ChatRequest
+/// let mut request = ChatRequest::new(vec![]);
+/// params.apply_to(&mut request);
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct LlmParams {
+    /// 温度参数（0.0 - 2.0）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub temperature: Option<f32>,
+    /// Top P（核采样参数）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_p: Option<f32>,
+    /// Top K（某些 provider 支持）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub top_k: Option<u32>,
+    /// 最大输出 token 数。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_tokens: Option<u32>,
+    /// 频率惩罚。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub frequency_penalty: Option<f32>,
+    /// 存在惩罚。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub presence_penalty: Option<f32>,
+    /// Stop 序列。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop: Option<Vec<String>>,
+    /// 结构化输出格式。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub response_format: Option<ResponseFormat>,
+    /// 额外参数（provider 特定）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub extra: Option<Value>,
+}
+
+impl LlmParams {
+    /// 创建空的参数集合（所有字段为 None，使用模型默认值）。
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    /// 设置 temperature。
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p。
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.top_p = Some(value);
+        self
+    }
+
+    /// 设置 top_k。
+    pub fn top_k(mut self, value: u32) -> Self {
+        self.top_k = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens。
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty。
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty。
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列。
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.stop = Some(value);
+        self
+    }
+
+    /// 设置 response_format。
+    pub fn response_format(mut self, value: ResponseFormat) -> Self {
+        self.response_format = Some(value);
+        self
+    }
+
+    /// 设置 extra 参数。
+    pub fn extra(mut self, value: Value) -> Self {
+        self.extra = Some(value);
+        self
+    }
+
+    /// 将参数合并到 ChatRequest 中（仅覆盖非 None 的字段）。
+    pub fn apply_to(&self, request: &mut ChatRequest) {
+        if let Some(v) = self.temperature {
+            request.temperature = Some(v);
+        }
+        if let Some(v) = self.top_p {
+            request.top_p = Some(v);
+        }
+        if let Some(v) = self.top_k {
+            request.top_k = Some(v);
+        }
+        if let Some(v) = self.max_tokens {
+            request.max_tokens = Some(v);
+        }
+        if let Some(v) = self.frequency_penalty {
+            request.frequency_penalty = Some(v);
+        }
+        if let Some(v) = self.presence_penalty {
+            request.presence_penalty = Some(v);
+        }
+        if let Some(ref v) = self.stop {
+            request.stop = Some(v.clone());
+        }
+        if let Some(ref v) = self.response_format {
+            request.response_format = Some(v.clone());
+        }
+        if let Some(ref v) = self.extra {
+            request.extra = Some(v.clone());
+        }
+    }
+
+    /// 从 ChatRequest 中提取参数。
+    pub fn from_request(request: &ChatRequest) -> Self {
+        Self {
+            temperature: request.temperature,
+            top_p: request.top_p,
+            top_k: request.top_k,
+            max_tokens: request.max_tokens,
+            frequency_penalty: request.frequency_penalty,
+            presence_penalty: request.presence_penalty,
+            stop: request.stop.clone(),
+            response_format: request.response_format.clone(),
+            extra: request.extra.clone(),
+        }
+    }
+}
+
+impl Default for LlmParams {
+    fn default() -> Self {
+        Self {
+            temperature: None,
+            top_p: None,
+            top_k: None,
+            max_tokens: None,
+            frequency_penalty: None,
+            presence_penalty: None,
+            stop: None,
+            response_format: None,
+            extra: None,
+        }
+    }
+}
+
 /// Provider 的对话请求。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 pub struct ChatRequest {

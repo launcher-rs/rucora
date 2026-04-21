@@ -40,7 +40,7 @@
 
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
 use agentkit_core::tool::Tool;
 use async_trait::async_trait;
 use std::sync::Arc;
@@ -75,6 +75,8 @@ pub struct ReActAgent<P> {
     /// 对话管理器（可选）
     #[allow(dead_code)]
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    /// LLM 请求参数
+    llm_params: LlmParams,
     /// 执行能力（内聚）
     execution: DefaultExecution,
 }
@@ -190,13 +192,14 @@ where
         // 添加 ReAct 提示词
         messages.push(ChatMessage::user(prompt));
 
-        ChatRequest {
+        let mut request = ChatRequest {
             messages,
             model: Some(self.model.clone()),
             tools: Some(self.tools.definitions()),
-            temperature: Some(0.7),
             ..Default::default()
-        }
+        };
+        self.llm_params.apply_to(&mut request);
+        request
     }
 
     /// 获取工具列表
@@ -218,6 +221,7 @@ pub struct ReActAgentBuilder<P> {
     max_steps: usize,
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     middleware_chain: crate::middleware::MiddlewareChain,
+    llm_params: LlmParams,
 }
 
 impl<P> ReActAgentBuilder<P> {
@@ -231,6 +235,7 @@ impl<P> ReActAgentBuilder<P> {
             max_steps: 15, // ReAct 通常需要更多步骤
             conversation_manager: None,
             middleware_chain: crate::middleware::MiddlewareChain::new(),
+            llm_params: LlmParams::default(),
         }
     }
 }
@@ -278,6 +283,60 @@ where
     /// 设置最大步骤数
     pub fn max_steps(mut self, max: usize) -> Self {
         self.max_steps = max;
+        self
+    }
+
+    /// 设置温度参数（控制随机性，0.0-1.0）
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.llm_params.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.llm_params.top_p = Some(value);
+        self
+    }
+
+    /// 设置 top_k
+    pub fn top_k(mut self, value: u32) -> Self {
+        self.llm_params.top_k = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.llm_params.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.llm_params.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.llm_params.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.llm_params.stop = Some(value);
+        self
+    }
+
+    /// 设置额外参数（provider 特定）
+    pub fn extra_params(mut self, value: serde_json::Value) -> Self {
+        self.llm_params.extra = Some(value);
+        self
+    }
+
+    /// 设置 LLM 请求参数
+    pub fn llm_params(mut self, params: LlmParams) -> Self {
+        self.llm_params = params;
         self
     }
 
@@ -329,7 +388,8 @@ where
                 .with_system_prompt_opt(self.system_prompt.clone())
                 .with_max_steps(self.max_steps)
                 .with_conversation_manager(self.conversation_manager.clone())
-                .with_middleware_chain(self.middleware_chain);
+                .with_middleware_chain(self.middleware_chain)
+                .with_llm_params(self.llm_params.clone());
 
         ReActAgent {
             provider: provider_arc,
@@ -338,6 +398,7 @@ where
             tools: self.tools,
             max_steps: self.max_steps,
             conversation_manager: self.conversation_manager,
+            llm_params: self.llm_params,
             execution,
         }
     }

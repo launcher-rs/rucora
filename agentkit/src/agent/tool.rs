@@ -39,7 +39,7 @@
 
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
 use agentkit_core::tool::Tool;
 use agentkit_core::tool::types::ToolDefinition;
 use async_trait::async_trait;
@@ -77,6 +77,8 @@ pub struct ToolAgent<P> {
     /// 对话管理器（可选）
     #[allow(dead_code)]
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    /// LLM 请求参数
+    llm_params: LlmParams,
     /// 执行能力（内聚）
     execution: DefaultExecution,
 }
@@ -140,14 +142,14 @@ where
 
     /// 构建聊天请求（不带工具）
     fn _build_chat_request(&self, context: &AgentContext) -> ChatRequest {
-        let mut request = context.default_chat_request();
+        let mut request = context.default_chat_request_with(&self.llm_params);
         self._apply_config(&mut request);
         request
     }
 
     /// 构建聊天请求（带工具定义）
     fn _build_chat_request_with_tools(&self, context: &AgentContext) -> ChatRequest {
-        let mut request = context.default_chat_request();
+        let mut request = context.default_chat_request_with(&self.llm_params);
 
         // 如果有工具，添加到请求中供 LLM 选择
         let tool_defs = self._get_tool_definitions();
@@ -238,6 +240,7 @@ pub struct ToolAgentBuilder<P> {
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     middleware_chain: crate::middleware::MiddlewareChain,
     enhanced_config: ToolCallEnhancedConfig,
+    llm_params: LlmParams,
 }
 
 impl<P> ToolAgentBuilder<P> {
@@ -253,6 +256,7 @@ impl<P> ToolAgentBuilder<P> {
             conversation_manager: None,
             middleware_chain: crate::middleware::MiddlewareChain::new(),
             enhanced_config: ToolCallEnhancedConfig::default(),
+            llm_params: LlmParams::default(),
         }
     }
 }
@@ -355,6 +359,60 @@ where
         self
     }
 
+    /// 设置 LLM 请求参数
+    pub fn llm_params(mut self, params: LlmParams) -> Self {
+        self.llm_params = params;
+        self
+    }
+
+    /// 设置 temperature
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.llm_params.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.llm_params.top_p = Some(value);
+        self
+    }
+
+    /// 设置 top_k
+    pub fn top_k(mut self, value: u32) -> Self {
+        self.llm_params.top_k = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.llm_params.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.llm_params.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.llm_params.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.llm_params.stop = Some(value);
+        self
+    }
+
+    /// 设置额外参数（provider 特定）
+    pub fn extra_params(mut self, value: serde_json::Value) -> Self {
+        self.llm_params.extra = Some(value);
+        self
+    }
+
     /// 构建 Agent
     ///
     /// # Panics
@@ -373,7 +431,8 @@ where
                 .with_max_tool_concurrency(self.max_tool_concurrency)
                 .with_conversation_manager(self.conversation_manager.clone())
                 .with_middleware_chain(self.middleware_chain)
-                .with_enhanced_config(self.enhanced_config);
+                .with_enhanced_config(self.enhanced_config)
+                .with_llm_params(self.llm_params.clone());
 
         ToolAgent {
             provider: provider_arc,
@@ -382,6 +441,7 @@ where
             tools: self.tools,
             max_steps: self.max_steps,
             conversation_manager: self.conversation_manager,
+            llm_params: self.llm_params,
             execution,
         }
     }

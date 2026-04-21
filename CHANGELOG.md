@@ -4,6 +4,89 @@
 
 ---
 
+## [未发布] - 2026-04-21
+
+### Agent LLM 请求参数统一配置
+
+**问题**: Agent 无法配置 LLM 请求参数（temperature、top_p、top_k、max_tokens 等）
+
+- 原有设计中 `AgentContext::default_chat_request()` 硬编码 `temperature: Some(0.7)`
+- 所有 Agent 类型无法自定义采样参数
+- 仅 SimpleAgent/ChatAgent 有 temperature builder，其他 Agent 完全没有
+
+**解决方案**: 引入 `LlmParams` 类型统一配置
+
+#### 新增 `LlmParams` 类型
+
+- **位置**: `agentkit-core/src/provider/types.rs`
+- **功能**: 统一所有 LLM 采样参数（temperature、top_p、top_k、max_tokens、frequency_penalty、presence_penalty、stop、response_format、extra）
+- **默认行为**: 所有字段默认 `None`（使用模型默认值），不再硬编码 temperature
+- **Builder 模式**: 支持链式调用配置参数
+- **核心方法**:
+  - `apply_to(&self, request: &mut ChatRequest)` - 将参数合并到 ChatRequest
+  - `from_request(request: &ChatRequest)` - 从现有 ChatRequest 提取参数
+
+#### 更新所有 Agent 类型
+
+**5 种 Agent 全部支持**:
+- `SimpleAgent` - 添加 `llm_params` 字段和 9 个 builder 方法
+- `ChatAgent` - 添加 `llm_params` 字段和 9 个 builder 方法
+- `ToolAgent` - 添加 `llm_params` 字段和 9 个 builder 方法
+- `ReActAgent` - 添加 `llm_params` 字段和 9 个 builder 方法
+- `ReflectAgent` - 添加 `llm_params` 字段和 9 个 builder 方法
+
+**统一的 Builder 方法** (每个 Agent 均支持):
+```rust
+.temperature(0.7)
+.top_p(0.9)
+.top_k(50)
+.max_tokens(2048)
+.frequency_penalty(0.0)
+.presence_penalty(0.0)
+.stop(vec!["\n".into()])
+.response_format(ResponseFormat::Json)
+.extra_params(serde_json::json!({"custom": "value"}))
+.llm_params(LlmParams::new().temperature(0.7).top_p(0.9))
+```
+
+#### 架构改进
+
+**1. AgentContext 增强**
+- `default_chat_request()` - 返回无硬编码参数的请求
+- `default_chat_request_with(&LlmParams)` - 新增方法，接受自定义参数
+
+**2. DefaultExecution 更新**
+- 添加 `llm_params` 字段，传播到流式和非流式执行路径
+- 移除流式路径中硬编码的 `temperature: Some(0.7)`
+
+**3. 导出更新**
+- `agentkit::LlmParams` - 从 agentkit crate 直接导出
+- `agentkit_core::LlmParams` - 从 core crate 导出
+
+#### 破坏性变更
+
+- `SimpleAgent`/`ChatAgent` 的 `temperature` 字段替换为 `llm_params`
+- 使用旧 builder `.temperature(0.7)` 的代码仍然兼容
+- 如需配置其他参数，使用新增的 builder 方法
+
+#### 新增文件
+- `docs/LLM_PARAMS_IMPROVEMENT.md` - 研究报告（问题分析与实现方案）
+
+#### 修改文件
+- `agentkit-core/src/provider/types.rs` - 新增 LlmParams 结构
+- `agentkit-core/src/agent/mod.rs` - 更新 AgentContext 方法
+- `agentkit-core/src/lib.rs` - 导出 LlmParams
+- `agentkit/src/agent/execution.rs` - 添加 llm_params 字段
+- `agentkit/src/agent/simple.rs` - 更新 SimpleAgent
+- `agentkit/src/agent/chat.rs` - 更新 ChatAgent
+- `agentkit/src/agent/tool.rs` - 更新 ToolAgent
+- `agentkit/src/agent/react.rs` - 更新 ReActAgent
+- `agentkit/src/agent/reflect.rs` - 更新 ReflectAgent
+- `agentkit/src/lib.rs` - 导出 LlmParams
+- `examples/agentkit-skills-example/src/main.rs` - 示例展示 LlmParams 用法
+
+---
+
 ## [未发布] - 2026-04-18
 
 ### 代码清理与架构优化

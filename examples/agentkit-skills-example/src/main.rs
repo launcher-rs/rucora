@@ -105,6 +105,10 @@ async fn main() -> anyhow::Result<()> {
         )
         .tool_registry(tool_registry)
         .max_steps(15)
+        // 配置 LLM 请求参数
+        .temperature(0.7)
+        .top_p(0.9)
+        .max_tokens(2048)
         .build();
 
     info!("✓ Agent 创建成功\n");

@@ -310,6 +310,8 @@ pub struct DefaultExecution {
     pub(crate) enhanced_runtime: ToolCallEnhancedRuntime,
     /// 循环检测器配置
     pub(crate) loop_detector_config: LoopDetectorConfig,
+    /// LLM 请求参数（temperature、top_p 等）
+    pub(crate) llm_params: agentkit_core::provider::types::LlmParams,
 }
 
 impl DefaultExecution {
@@ -358,6 +360,7 @@ impl DefaultExecution {
             enhanced_config: ToolCallEnhancedConfig::default(),
             enhanced_runtime: ToolCallEnhancedRuntime::new(),
             loop_detector_config: LoopDetectorConfig::default(),
+            llm_params: agentkit_core::provider::types::LlmParams::default(),
         }
     }
 
@@ -454,6 +457,12 @@ impl DefaultExecution {
     /// ```
     pub fn with_enhanced_config(mut self, config: ToolCallEnhancedConfig) -> Self {
         self.enhanced_config = config;
+        self
+    }
+
+    /// 设置 LLM 请求参数（temperature、top_p、max_tokens 等）
+    pub fn with_llm_params(mut self, params: agentkit_core::provider::types::LlmParams) -> Self {
+        self.llm_params = params;
         self
     }
 
@@ -1001,6 +1010,7 @@ impl DefaultExecution {
         let max_tool_concurrency = self.max_tool_concurrency;
         let model = self.model.clone();
         let system_prompt = self.system_prompt.clone();
+        let llm_params = self.llm_params.clone();
 
         let stream = try_stream! {
             let mut messages = Vec::new();
@@ -1023,13 +1033,13 @@ impl DefaultExecution {
             );
 
             for step in 0..max_steps {
-                let request = ChatRequest {
+                let mut request = ChatRequest {
                     messages: messages.clone(),
                     model: Some(model.clone()),
                     tools: if !tool_defs.is_empty() { Some(tool_defs.clone()) } else { None },
-                    temperature: Some(0.7),
                     ..Default::default()
                 };
+                llm_params.apply_to(&mut request);
 
                 let mut assistant_text = String::new();
                 let mut tool_calls: Vec<ToolCall> = Vec::new();

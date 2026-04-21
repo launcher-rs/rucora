@@ -233,5 +233,6 @@ pub mod prelude {
     pub use agentkit_core::channel::types::{ChannelEvent, TokenDeltaEvent};
     pub use agentkit_core::error::{AgentError, ProviderError, ToolError};
     pub use agentkit_core::provider::LlmProvider;
+    pub use agentkit_core::provider::types::LlmParams;
     pub use agentkit_core::tool::Tool;
 }

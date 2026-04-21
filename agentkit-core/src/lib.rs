@@ -255,4 +255,5 @@ pub use injection_guard_trait::{
 };
 
 pub use provider::LlmProvider;
+pub use provider::types::LlmParams;
 pub use tool::Tool;

@@ -35,7 +35,7 @@
 
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::ChatRequest;
+use agentkit_core::provider::types::LlmParams;
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -58,9 +58,8 @@ pub struct SimpleAgent<P> {
     /// 系统提示词
     #[allow(dead_code)]
     system_prompt: Option<String>,
-    /// 温度参数（控制随机性）
-    #[allow(dead_code)]
-    temperature: f32,
+    /// LLM 请求参数
+    llm_params: LlmParams,
     /// 执行能力（内聚）
     execution: DefaultExecution,
 }
@@ -73,12 +72,11 @@ where
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         // 简单策略：直接让 LLM 回答，不调用工具
         AgentDecision::Chat {
-            request: Box::new(ChatRequest {
-                messages: context.messages.clone(),
-                model: Some(self.model.clone()),
-                temperature: Some(self.temperature),
-                tools: None, // 不使用工具
-                ..Default::default()
+            request: Box::new({
+                let mut request = context.default_chat_request_with(&self.llm_params);
+                request.model = Some(self.model.clone());
+                request.tools = None; // 不使用工具
+                request
             }),
         }
     }
@@ -122,7 +120,7 @@ pub struct SimpleAgentBuilder<P> {
     provider: Option<P>,
     system_prompt: Option<String>,
     model: Option<String>,
-    temperature: f32,
+    llm_params: LlmParams,
     middleware_chain: crate::middleware::MiddlewareChain,
 }
 
@@ -133,7 +131,7 @@ impl<P> SimpleAgentBuilder<P> {
             provider: None,
             system_prompt: None,
             model: None,
-            temperature: 0.7,
+            llm_params: LlmParams::default(),
             middleware_chain: crate::middleware::MiddlewareChain::new(),
         }
     }
@@ -165,8 +163,56 @@ where
     ///
     /// - 较低值（0.2-0.5）：更确定、保守
     /// - 较高值（0.7-1.0）：更随机、创造性
-    pub fn temperature(mut self, temperature: f32) -> Self {
-        self.temperature = temperature.clamp(0.0, 1.0);
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.llm_params.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.llm_params.top_p = Some(value);
+        self
+    }
+
+    /// 设置 top_k
+    pub fn top_k(mut self, value: u32) -> Self {
+        self.llm_params.top_k = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.llm_params.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.llm_params.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.llm_params.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.llm_params.stop = Some(value);
+        self
+    }
+
+    /// 设置额外参数（provider 特定）
+    pub fn extra_params(mut self, value: serde_json::Value) -> Self {
+        self.llm_params.extra = Some(value);
+        self
+    }
+
+    /// 设置 LLM 请求参数
+    pub fn llm_params(mut self, params: LlmParams) -> Self {
+        self.llm_params = params;
         self
     }
 
@@ -206,13 +252,14 @@ where
         )
         .with_system_prompt_opt(self.system_prompt.clone())
         .with_max_steps(1) // SimpleAgent 只需要 1 步
-        .with_middleware_chain(self.middleware_chain);
+        .with_middleware_chain(self.middleware_chain)
+        .with_llm_params(self.llm_params.clone());
 
         SimpleAgent {
             provider: provider_arc,
             model,
             system_prompt: self.system_prompt,
-            temperature: self.temperature,
+            llm_params: self.llm_params,
             execution,
         }
     }
@@ -228,7 +275,7 @@ impl<P> Default for SimpleAgentBuilder<P> {
 mod tests {
     use super::*;
     use agentkit_core::error::ProviderError;
-    use agentkit_core::provider::types::{ChatResponse, ChatStreamChunk};
+    use agentkit_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
     use agentkit_core::provider::{ChatMessage, Role};
     use futures_util::stream;
     use futures_util::stream::BoxStream;

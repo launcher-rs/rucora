@@ -89,12 +89,15 @@ impl AgentContext {
     }
 
     /// 创建默认的对话请求。
+    ///
+    /// 所有 LLM 参数（temperature 等）默认为 None，使用模型默认值。
+    /// 可通过 `default_chat_request_with()` 传入自定义参数。
     pub fn default_chat_request(&self) -> crate::provider::types::ChatRequest {
         crate::provider::types::ChatRequest {
             messages: self.messages.clone(),
             model: None,
             tools: None,
-            temperature: Some(0.7),
+            temperature: None,
             max_tokens: None,
             response_format: None,
             metadata: None,
@@ -105,6 +108,16 @@ impl AgentContext {
             stop: None,
             extra: None,
         }
+    }
+
+    /// 创建带 LLM 参数的对话请求。
+    pub fn default_chat_request_with(
+        &self,
+        params: &crate::provider::types::LlmParams,
+    ) -> crate::provider::types::ChatRequest {
+        let mut request = self.default_chat_request();
+        params.apply_to(&mut request);
+        request
     }
 }
 

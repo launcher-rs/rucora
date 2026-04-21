@@ -42,7 +42,7 @@
 
 use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest};
+use agentkit_core::provider::types::{ChatMessage, LlmParams};
 use async_trait::async_trait;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -63,8 +63,8 @@ pub struct ChatAgent<P> {
     model: String,
     /// 系统提示词
     system_prompt: Option<String>,
-    /// 温度参数
-    temperature: f32,
+    /// LLM 请求参数
+    llm_params: LlmParams,
     /// 对话管理器
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// 最大历史消息数
@@ -81,12 +81,11 @@ where
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         // 对话策略：直接让 LLM 回答，不调用工具
         AgentDecision::Chat {
-            request: Box::new(ChatRequest {
-                messages: context.messages.clone(),
-                model: Some(self.model.clone()),
-                temperature: Some(self.temperature),
-                tools: None, // 不使用工具
-                ..Default::default()
+            request: Box::new({
+                let mut request = context.default_chat_request_with(&self.llm_params);
+                request.model = Some(self.model.clone());
+                request.tools = None; // 不使用工具
+                request
             }),
         }
     }
@@ -153,7 +152,7 @@ pub struct ChatAgentBuilder<P> {
     provider: Option<P>,
     system_prompt: Option<String>,
     model: Option<String>,
-    temperature: f32,
+    llm_params: LlmParams,
     with_conversation: bool,
     max_history_messages: usize,
     middleware_chain: crate::middleware::MiddlewareChain,
@@ -166,7 +165,7 @@ impl<P> ChatAgentBuilder<P> {
             provider: None,
             system_prompt: None,
             model: None,
-            temperature: 0.7,
+            llm_params: LlmParams::default(),
             with_conversation: false,
             max_history_messages: 0, // 0 表示无限制
             middleware_chain: crate::middleware::MiddlewareChain::new(),
@@ -197,8 +196,56 @@ where
     }
 
     /// 设置温度参数（控制随机性，0.0-1.0）
-    pub fn temperature(mut self, temperature: f32) -> Self {
-        self.temperature = temperature.clamp(0.0, 1.0);
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.llm_params.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.llm_params.top_p = Some(value);
+        self
+    }
+
+    /// 设置 top_k
+    pub fn top_k(mut self, value: u32) -> Self {
+        self.llm_params.top_k = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.llm_params.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.llm_params.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.llm_params.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.llm_params.stop = Some(value);
+        self
+    }
+
+    /// 设置额外参数（provider 特定）
+    pub fn extra_params(mut self, value: serde_json::Value) -> Self {
+        self.llm_params.extra = Some(value);
+        self
+    }
+
+    /// 设置 LLM 请求参数
+    pub fn llm_params(mut self, params: LlmParams) -> Self {
+        self.llm_params = params;
         self
     }
 
@@ -272,13 +319,14 @@ where
         )
         .with_system_prompt_opt(self.system_prompt.clone())
         .with_conversation_manager(conversation_manager.clone())
-        .with_middleware_chain(self.middleware_chain);
+        .with_middleware_chain(self.middleware_chain)
+        .with_llm_params(self.llm_params.clone());
 
         ChatAgent {
             provider: provider_arc,
             model,
             system_prompt: self.system_prompt,
-            temperature: self.temperature,
+            llm_params: self.llm_params,
             conversation_manager,
             max_history_messages: self.max_history_messages,
             execution,
@@ -297,7 +345,7 @@ mod tests {
     use super::*;
     use agentkit_core::error::ProviderError;
     use agentkit_core::provider::Role;
-    use agentkit_core::provider::types::{ChatResponse, ChatStreamChunk};
+    use agentkit_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
     use futures_util::stream;
     use futures_util::stream::BoxStream;
 
