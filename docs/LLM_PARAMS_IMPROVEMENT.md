@@ -20,7 +20,7 @@ AgentKit 的 Agent 设计缺少 LLM 请求参数配置能力：
 | ToolAgent | 硬编码 0.7 | 无 | 完全不可配置 |
 | ReActAgent | 硬编码 0.7 | 无 | 完全不可配置 |
 | ReflectAgent | 硬编码 0.7 | 无 | 完全不可配置 |
-| Extractor | 硬编码 0.0 | 无 | 设计如此（需确定性） |
+| Extractor | 硬编码 0.0 | 无 | **需要支持 llm_params**（开源模型可能需要调整参数） |
 
 ## 解决方案
 
@@ -73,14 +73,29 @@ pub struct LlmParams {
 - 9 个 builder 方法（temperature、top_p、top_k、max_tokens 等）
 - `_build_chat_request()` 中使用 `context.default_chat_request_with(&self.llm_params)`
 
-#### 4. 更新 DefaultExecution
+#### 4. 更新 Extractor
+
+位置: `agentkit/src/agent/extractor.rs`
+
+Extractor 内部的 `_extract_json_with_usage()` 方法硬编码了 `temperature: Some(0.0)`。
+虽然 Extractor 需要确定性输出，但对于能力较弱的开源模型，用户可能需要：
+- 调整 temperature（不一定为 0.0，某些模型 0.0 反而效果不好）
+- 增加 max_tokens（复杂 schema 可能需要更多输出）
+- 调整其他参数以提高提取成功率
+
+因此 Extractor 也需要支持 `llm_params` 配置：
+- `Extractor` 结构体添加 `llm_params: LlmParams` 字段
+- `ExtractorBuilder` 添加 `llm_params()` 和便捷 builder 方法
+- `_extract_json_with_usage()` 中使用 `self.llm_params.apply_to(&mut request)` 替代硬编码
+
+#### 5. 更新 DefaultExecution
 
 位置: `agentkit/src/agent/execution.rs`
 
 - 添加 `llm_params` 字段
 - 流式执行路径使用 llm_params 而非硬编码值
 
-#### 5. 更新导出
+#### 6. 更新导出
 
 - `agentkit-core/src/lib.rs`: 导出 `LlmParams`
 - `agentkit/src/lib.rs`: 重新导出 `LlmParams`
@@ -127,8 +142,14 @@ let agent = ToolAgent::builder()
 - 旧代码使用 `.temperature(0.7)` 仍然有效（builder 方法兼容）
 - 仅内部字段结构变更，不影响使用体验
 
-### Extractor 为何不改？
+### Extractor 为何要改？
 
-- Extractor 需要确定性输出（temperature=0.0）
-- 这是设计意图，不应允许用户修改
-- 保持Extractor的硬编码 temperature 0.0 是正确的
+原设计认为 Extractor 需要确定性输出（temperature=0.0），不应允许用户修改。
+但实际使用中：
+- 对于能力较弱的开源模型（如某些本地部署的小模型），temperature=0.0 反而可能导致输出质量下降
+- 复杂 schema 可能需要更大的 max_tokens 才能完整输出
+- 用户可能需要多次调整参数以提高提取成功率（如调整 top_p、增加重试等）
+- 某些模型对 temperature 的实现不同，0.0 不一定是最确定的
+
+因此 Extractor 也应当支持 `llm_params` 配置，让用户根据具体模型调整参数。
+默认仍然使用 temperature=0.0（通过 `LlmParams::new().temperature(0.0)`），但用户可自定义。

@@ -82,8 +82,44 @@
 - `agentkit/src/agent/tool.rs` - 更新 ToolAgent
 - `agentkit/src/agent/react.rs` - 更新 ReActAgent
 - `agentkit/src/agent/reflect.rs` - 更新 ReflectAgent
+- `agentkit/src/agent/extractor.rs` - **新增** Extractor 支持 llm_params
 - `agentkit/src/lib.rs` - 导出 LlmParams
 - `examples/agentkit-skills-example/src/main.rs` - 示例展示 LlmParams 用法
+
+#### Extractor 支持 LLM 参数配置
+
+**问题**: Extractor 硬编码 `temperature: Some(0.0)`，对于能力较弱的开源模型可能无法获得最佳提取效果。
+
+**解决方案**: Extractor 现支持 `llm_params` 配置，用户可根据具体模型调整参数。
+
+- `Extractor` 结构体添加 `llm_params: LlmParams` 字段
+- `ExtractorBuilder` 新增以下 builder 方法:
+  - `llm_params(LlmParams)` - 设置完整参数集合
+  - `temperature(f32)` - 设置 temperature（默认 0.0）
+  - `top_p(f32)` - 设置 top_p
+  - `max_tokens(u32)` - 设置 max_tokens
+  - `frequency_penalty(f32)` - 设置 frequency_penalty
+  - `presence_penalty(f32)` - 设置 presence_penalty
+  - `stop(Vec<String>)` - 设置 stop 序列
+- `_extract_json_with_usage()` 使用 `llm_params.apply_to()` 替代硬编码值
+
+**使用示例**:
+```rust
+// 为开源模型调整参数
+let extractor = Extractor::<_, Person>::builder(provider, "llama-3")
+    .temperature(0.1)      // 非 0.0，某些模型效果更好
+    .max_tokens(2048)      // 复杂 schema 需要更多输出
+    .retries(3)            // 配合重试提高成功率
+    .build();
+
+// 使用完整 LlmParams
+let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
+    .llm_params(LlmParams::new()
+        .temperature(0.2)
+        .top_p(0.9)
+        .max_tokens(1024))
+    .build();
+```
 
 ---
 

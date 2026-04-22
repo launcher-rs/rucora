@@ -117,7 +117,7 @@ use serde_json::json;
 use std::marker::PhantomData;
 
 use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest};
+use agentkit_core::provider::types::{ChatMessage, ChatRequest, LlmParams};
 use agentkit_core::tool::Tool;
 
 use crate::agent::ToolAgent;
@@ -172,6 +172,8 @@ where
     agent: ToolAgent<P>,
     _t: PhantomData<T>,
     retries: u32,
+    /// LLM 请求参数
+    llm_params: LlmParams,
 }
 
 impl<P, T> Extractor<P, T>
@@ -343,11 +345,11 @@ where
         messages.push(ChatMessage::user(text));
 
         // 构建请求
-        let request = ChatRequest {
+        let mut request = ChatRequest {
             messages,
             model: Some(self.agent.model().to_string()),
             tools: Some(self.agent.tool_registry().definitions()),
-            temperature: Some(0.0), // 低温度以保证输出稳定
+            temperature: None,
             max_tokens: None,
             response_format: None,
             metadata: None,
@@ -358,6 +360,9 @@ where
             stop: None,
             extra: None,
         };
+
+        // 应用 llm_params
+        self.llm_params.apply_to(&mut request);
 
         // 调用 LLM
         let response = self
@@ -413,6 +418,8 @@ where
     _t: PhantomData<T>,
     retries: u32,
     preamble: Option<String>,
+    /// LLM 请求参数
+    llm_params: LlmParams,
 }
 
 impl<P, T> ExtractorBuilder<P, T>
@@ -427,6 +434,7 @@ where
             model: model.into(),
             preamble: None,
             retries: 0,
+            llm_params: LlmParams::new().temperature(0.0), // 默认 temperature=0.0 以保证输出稳定
             _t: PhantomData,
         }
     }
@@ -448,6 +456,76 @@ where
     /// - `retries`: 重试次数
     pub fn retries(mut self, retries: u32) -> Self {
         self.retries = retries;
+        self
+    }
+
+    /// 设置 LLM 请求参数
+    ///
+    /// # 参数
+    ///
+    /// - `params`: LLM 参数集合
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::LlmParams;
+    /// use agentkit::agent::extractor::Extractor;
+    /// # use agentkit::provider::OpenAiProvider;
+    /// # use serde::{Deserialize, Serialize};
+    /// # use schemars::JsonSchema;
+    /// # #[derive(Debug, Deserialize, Serialize, JsonSchema)]
+    /// # struct Person { name: Option<String> }
+    /// # #[tokio::main]
+    /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    /// let provider = OpenAiProvider::from_env()?;
+    /// let extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini")
+    ///     .llm_params(LlmParams::new().temperature(0.1).max_tokens(1024))
+    ///     .build();
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub fn llm_params(mut self, params: LlmParams) -> Self {
+        self.llm_params = params;
+        self
+    }
+
+    /// 设置 temperature
+    ///
+    /// # 参数
+    ///
+    /// - `value`: 温度值（0.0 - 2.0）
+    pub fn temperature(mut self, value: f32) -> Self {
+        self.llm_params.temperature = Some(value);
+        self
+    }
+
+    /// 设置 top_p
+    pub fn top_p(mut self, value: f32) -> Self {
+        self.llm_params.top_p = Some(value);
+        self
+    }
+
+    /// 设置 max_tokens
+    pub fn max_tokens(mut self, value: u32) -> Self {
+        self.llm_params.max_tokens = Some(value);
+        self
+    }
+
+    /// 设置 frequency_penalty
+    pub fn frequency_penalty(mut self, value: f32) -> Self {
+        self.llm_params.frequency_penalty = Some(value);
+        self
+    }
+
+    /// 设置 presence_penalty
+    pub fn presence_penalty(mut self, value: f32) -> Self {
+        self.llm_params.presence_penalty = Some(value);
+        self
+    }
+
+    /// 设置 stop 序列
+    pub fn stop(mut self, value: Vec<String>) -> Self {
+        self.llm_params.stop = Some(value);
         self
     }
 
@@ -482,6 +560,7 @@ where
             agent,
             _t: PhantomData,
             retries: self.retries,
+            llm_params: self.llm_params,
         }
     }
 }
