@@ -30,8 +30,8 @@ const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
 
 /// OpenAI Chat Completions Provider。
 ///
-/// 说明：
-/// - 目前仅实现 `chat`（非流式）
+/// 功能：
+/// - 支持 `chat`（非流式）和 `stream_chat`（流式）两种调用模式
 /// - `tools` 会按 OpenAI 的 function tools 格式传入
 ///
 /// # 默认模型

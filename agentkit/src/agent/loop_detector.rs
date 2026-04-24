@@ -7,11 +7,11 @@
 //! # 工作原理
 //!
 //! 每次工具调用后，记录 `(tool_name, args_hash, output_hash)` 三元组。
-//! 当同一组合在滑动窗口内重复出现达到 `max_repeats` 次时，触发响应：
+//! 当同一组合重复出现时，根据重复次数触发不同级别的响应：
 //!
-//! - `Warning`：注入系统消息提示 LLM 调整策略（小于 max_repeats/2）
-//! - `Block`：用块消息替换工具输出（等于 max_repeats/2）
-//! - `Break`：终止整个 agent loop（超过 max_repeats）
+//! - `Warning`：重复次数超过 `max_repeats/2` 但小于 `max_repeats`，注入系统消息提示 LLM 调整策略
+//! - `Block`：重复次数等于 `max_repeats`，用块消息替换工具输出
+//! - `Break`：重复次数超过 `max_repeats`，终止整个 agent loop
 
 use std::collections::HashMap;
 use std::hash::{Hash, Hasher};

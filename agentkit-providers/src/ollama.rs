@@ -28,8 +28,8 @@ pub const OLLAMA_DEFAULT_MODEL: &str = "llama3.1:8b";
 
 /// Ollama Chat Provider。
 ///
-/// 说明：
-/// - 目前仅实现 `chat`（非流式）
+/// 功能：
+/// - 支持 `chat`（非流式）和 `stream_chat`（流式）两种调用模式
 /// - tools 暂不做强保证（不同 Ollama 版本对 tools 支持存在差异）
 ///
 /// # 环境变量

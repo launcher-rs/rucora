@@ -48,9 +48,11 @@ cargo clippy --fix --all-targets
 
 ### Running Examples
 ```bash
-# Run a specific example
+# Run a specific example (examples are in agentkit/examples/)
 cargo run --example 01_hello_world
 cargo run --example 03_chat_with_tools
+cargo run --example 07_rag
+cargo run --example 15_react_agent
 
 # Run example with all features
 cargo run --example 12_mcp --all-features
@@ -62,16 +64,17 @@ cargo run --example 12_mcp --all-features
 
 This is a Rust workspace with multiple crates:
 
-- **`agentkit-core/`** - Core abstractions (traits, types, errors). No implementations, minimal dependencies.
-- **`agentkit/`** - Aggregator crate providing "batteries-included" implementations (providers, tools, skills, memory, retrieval).
+- **`agentkit-core/`** - Core abstractions (traits, types, errors). No implementations, minimal dependencies. Defines the stable minimal kernel.
+- **`agentkit/`** - Aggregator crate providing "batteries-included" implementations (providers, tools, skills, memory, retrieval). This is the main entry point for users.
 - **`agentkit-providers/`** - LLM provider implementations (OpenAI, Anthropic, Gemini, Ollama, etc.)
-- **`agentkit-tools/`** - Tool implementations (Shell, File, HTTP, Git, etc.)
+- **`agentkit-tools/`** - Tool implementations (Shell, File, HTTP, Git, browser scraping, etc.)
 - **`agentkit-mcp/`** - MCP (Model Context Protocol) integration
 - **`agentkit-a2a/`** - A2A (Agent-to-Agent) protocol integration
-- **`agentkit-skills/`** - Skill system (Rhai scripts, command templates)
+- **`agentkit-skills/`** - Skill system (Rhai scripts, YAML command templates)
 - **`agentkit-embed/`** - Embedding providers
 - **`agentkit-retrieval/`** - Vector store implementations
-- **`examples/`** - Example applications
+- **`examples/`** - Example applications (a2a-client, a2a-server, agentkit-skills-example, agentkit-deep-research)
+- **`agentkit/examples/`** - 20+ example files demonstrating various features (01_hello_world.rs through 24_context_compression.rs)
 
 ### Key Design Principles
 
@@ -90,6 +93,8 @@ This is a Rust workspace with multiple crates:
 
 4. **Pure Interface Layer**: Error classifier and injection guard traits are separated from their implementations (in `error_classifier_trait.rs` and `injection_guard_trait.rs`). The old implementations in `error_classifier.rs` and `injection_guard.rs` are deprecated.
 
+5. **No Agent Trait in Core**: The core does not define an `Agent` trait. `AgentInput/AgentOutput` types exist in `agent::types` as stable input/output types for the runtime.
+
 ### Core Traits (agentkit-core)
 
 - **`LlmProvider`** - LLM provider abstraction (chat, stream_chat)
@@ -97,9 +102,20 @@ This is a Rust workspace with multiple crates:
 - **`VectorStore`** - Vector store abstraction (upsert, search, delete)
 - **`Memory`** - Memory abstraction (store, retrieve)
 - **`Skill`** - Skill abstraction (higher-level reusable capabilities)
-- **`Runtime`** - Runtime execution abstraction
+- **`Runtime`** - Runtime execution abstraction (unique execution entry point)
+- **`RuntimeObserver`** - Unified observation protocol
 - **`ErrorClassifier`** - Error classification trait (pure interface)
 - **`InjectionGuard`** - Prompt injection detection trait (pure interface)
+
+### Core Modules (agentkit-core)
+
+- `provider` - LlmProvider, Chat types
+- `tool` - Tool, ToolCall, ToolResult, ToolDefinition
+- `retrieval` - VectorStore, vector query/search result types
+- `channel` - ChannelEvent (unified event model)
+- `runtime` - Runtime + RuntimeObserver
+- `error` - Unified error type + DiagnosticError
+- `agent::types` - AgentInput/AgentOutput (stable I/O types)
 
 ### Lint Configuration
 
@@ -129,3 +145,51 @@ The `agentkit-core` crate contains contract tests that validate trait behavior e
 - `tests/contract_vector_store.rs` - Validates VectorStore implementations
 
 These tests ensure third-party implementations meet the expected behavioral contracts.
+
+### Agentkit Crate Modules (agentkit/)
+
+The main aggregator crate exposes these modules:
+- `agentkit::provider::*` - Provider implementations (OpenAI-compatible, Ollama, Router)
+- `agentkit::tools::*` - Tool implementations (HTTP, browser scraping, command execution, etc.)
+- `agentkit::skills::*` - Skill loaders (Rhai/Command skill, skills-to-tools adapter)
+- `agentkit::retrieval::*` - Retrieval implementations (including `InMemoryVectorStore`)
+- `agentkit::embed::*` - Embedding providers
+- `agentkit::memory::*` - Memory implementations
+- `agentkit::config::*` - Unified configuration (`AgentkitConfig`)
+
+### Quick Start Pattern
+
+```rust
+use agentkit::provider::OpenAiProvider;
+use agentkit::agent::DefaultAgent;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let provider = OpenAiProvider::from_env()?;
+    
+    let agent = DefaultAgent::builder()
+        .provider(provider)
+        .model("gpt-4o-mini")
+        .system_prompt("你是有用的助手")
+        .build();
+    
+    let output = agent.run("你好").await?;
+    println!("{}", output.text().unwrap_or("无回复"));
+    
+    Ok(())
+}
+```
+
+### Documentation References
+
+Key documentation files in `docs/`:
+- `docs/design.md` - System design overview
+- `docs/quick_start.md` - 5-minute getting started guide
+- `docs/user_guide.md` - Complete usage guide
+- `docs/cookbook.md` - Practical examples
+- `docs/agent_runtime_relationship.md` - Core architecture explanation
+- `docs/skill_yaml_spec.md` - Skill configuration specification
+
+### License
+
+AgentKit uses the MIT license.

@@ -362,9 +362,12 @@ impl Middleware for LoggingMiddleware {
     }
 }
 
-/// 限流中间件
+/// 限流中间件（占位实现）
 ///
-/// 限制请求频率。
+/// 设计用于限制请求频率。
+///
+/// **注意**：当前为简化实现，仅记录配置信息，未实际执行限流逻辑。
+/// 完整实现应使用令牌桶或滑动窗口算法。
 pub struct RateLimitMiddleware {
     /// 最大请求数
     max_requests: usize,
@@ -406,9 +409,12 @@ impl Middleware for RateLimitMiddleware {
     }
 }
 
-/// 缓存中间件
+/// 缓存中间件（占位实现）
 ///
-/// 缓存请求响应。
+/// 设计用于缓存请求响应以减少重复调用。
+///
+/// **注意**：当前为简化实现，仅记录请求信息，未实际执行缓存逻辑。
+/// 完整实现应使用内存或外部缓存存储。
 pub struct CacheMiddleware {
     /// 是否启用缓存
     enabled: bool,

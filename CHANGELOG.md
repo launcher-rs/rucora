@@ -4,6 +4,91 @@
 
 ---
 
+## [未发布] - 2026-04-24
+
+### 注释和文档审计与修复
+
+**问题**: 项目中存在多处注释与代码功能不符、注释缺失、注释不规范等问题。
+
+**解决方案**: 全面审计并修复高优先级注释问题。
+
+#### 过时注释修复
+
+- `agentkit-providers/src/openai.rs` - 更新文档说明已支持流式和非流式聊天
+- `agentkit-providers/src/ollama.rs` - 同样更新支持流式调用的说明
+
+#### 简化实现标注
+
+- `agentkit/src/middleware.rs` - 标注 `RateLimitMiddleware` 和 `CacheMiddleware` 为"占位实现"
+  - 明确说明当前仅记录日志，未实际执行限流/缓存逻辑
+  - 标注完整实现应使用的算法（令牌桶/滑动窗口、内存/外部缓存）
+
+#### 夸大功能修正
+
+- `agentkit/src/prompt.rs` - 移除"模板继承"描述（未实现该功能）
+  - 澄清转义功能为"基础转义"（仅处理 ``` 和 " 等特殊字符）
+  - 对于复杂的 Prompt 注入防护，建议结合 `InjectionGuard`
+- `agentkit/src/agent/mod.rs` - 移除不存在的 Agent 类型引用
+  - 移除 `PlanAgent`、`CodeAgent`、`ResearchAgent`、`SupervisorAgent`、`RouterAgent`
+  - 保留实际存在的 `SimpleAgent`、`ChatAgent`、`ToolAgent`、`ReActAgent`、`ReflectAgent`
+
+#### 逻辑不符修正
+
+- `agentkit/src/agent/loop_detector.rs` - 更新触发条件描述与实际代码逻辑一致
+  - `Warning`: 重复次数超过 `max_repeats/2` 但小于 `max_repeats`
+  - `Block`: 重复次数等于 `max_repeats`
+  - `Break`: 重复次数超过 `max_repeats`
+- `agentkit/src/agent/execution.rs` - 更新注释说明中间件始终返回原始错误
+  - 中间件可用于记录日志或副作用，但不影响错误返回
+
+#### 不准确描述修正
+
+- `agentkit-tools/src/file/mod.rs` - 移除不存在的"搜索"功能描述
+  - 该模块只提供文件读取、写入、编辑功能
+- `agentkit-tools/src/http.rs` - 明确区分 `HttpTool` 和 `WebFetchTool` 的适用场景
+  - `HttpTool`: 通用 HTTP 请求（与 API 服务交互）
+  - `WebFetchTool`: 专门用于网页内容提取
+
+#### 英文注释中文化
+
+- `agentkit-embed/src/lib.rs` - 模块文档改为中文，添加各子模块说明
+- `agentkit-retrieval/src/lib.rs` - 模块文档改为中文，添加各子模块说明
+
+#### 代码质量改进
+
+- `agentkit/src/agent/chat.rs` - 移除 `ChatAgent` 中冗余的 `max_history_messages` 字段
+  - 该值已通过 `ConversationManager` 配置，无需在 `ChatAgent` 中重复存储
+  - 修复 `dead_code` 编译警告
+
+#### 新增文件
+
+- `docs/comment_audit_report.md` - 注释审计报告（包含所有发现的问题和修复状态）
+
+#### 修改文件
+
+- `agentkit-providers/src/openai.rs`
+- `agentkit-providers/src/ollama.rs`
+- `agentkit/src/middleware.rs`
+- `agentkit/src/prompt.rs`
+- `agentkit/src/agent/mod.rs`
+- `agentkit/src/agent/loop_detector.rs`
+- `agentkit/src/agent/execution.rs`
+- `agentkit/src/agent/chat.rs`
+- `agentkit-tools/src/file/mod.rs`
+- `agentkit-tools/src/http.rs`
+- `agentkit-embed/src/lib.rs`
+- `agentkit-retrieval/src/lib.rs`
+- `AGENTS.md` - 更新项目架构和文档说明
+
+### AGENTS.md 更新
+
+- 更新项目架构说明，添加更多模块细节
+- 添加核心模块列表和快速开始代码示例
+- 添加文档参考链接和许可证信息
+- 更正示例文件路径说明
+
+---
+
 ## [未发布] - 2026-04-21
 
 ### Agent LLM 请求参数统一配置

@@ -522,8 +522,8 @@ impl DefaultExecution {
             Err(mut e) => {
                 let middleware_result = self.middleware_chain.process_error(&mut e).await;
 
-                // 如果中间件处理成功，返回修改后的错误
-                // 如果中间件处理失败，返回原始错误
+                // 中间件处理结果不影响返回，始终返回原始错误
+                // 中间件可用于记录日志或副作用
                 match middleware_result {
                     Ok(_) => Err(e),
                     Err(_) => Err(e),

@@ -33,8 +33,11 @@ const FORBIDDEN_IP_RANGES: &[&str] = &[
 /// - 限制响应体大小
 ///
 /// 适用场景：
-/// - 发送 HTTP 请求
-/// - 获取网页内容
+/// - 发送 HTTP 请求（GET/POST/PUT/DELETE 等）
+/// - 与 API 服务进行交互
+/// - 获取 JSON 或文本数据
+///
+/// 注意：如需专门获取网页内容，请使用 `WebFetchTool`，它专门用于网页内容提取。
 ///
 /// 输入格式：
 /// ```json

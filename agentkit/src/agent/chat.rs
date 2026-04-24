@@ -67,8 +67,6 @@ pub struct ChatAgent<P> {
     llm_params: LlmParams,
     /// 对话管理器
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
-    /// 最大历史消息数
-    max_history_messages: usize,
     /// 执行能力（内聚）
     execution: DefaultExecution,
 }
@@ -328,7 +326,6 @@ where
             system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             conversation_manager,
-            max_history_messages: self.max_history_messages,
             execution,
         }
     }
