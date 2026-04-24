@@ -8,7 +8,7 @@
 
 use std::env;
 
-use crate::{helpers::parse_finish_reason, http_config::build_client, preview};
+use crate::{helpers::{parse_finish_reason, apply_sampling_params}, http_config::build_client, preview};
 use agentkit_core::{
     error::ProviderError,
     provider::{
@@ -277,15 +277,18 @@ impl LlmProvider for MoonshotProvider {
         {
             map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
         }
-        if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("temperature".to_string(), json!(t));
-        }
-        if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("max_tokens".to_string(), json!(max_tokens));
+        if let Some(map) = body.as_object_mut() {
+            apply_sampling_params(
+                map,
+                request.temperature,
+                request.top_p,
+                request.top_k,
+                request.max_tokens,
+                request.frequency_penalty,
+                request.presence_penalty,
+                request.stop.as_ref(),
+                request.extra.as_ref(),
+            );
         }
         if let Some(fmt) = request.response_format.as_ref()
             && let Some(map) = body.as_object_mut()
@@ -408,15 +411,18 @@ impl LlmProvider for MoonshotProvider {
         {
             map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
         }
-        if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("temperature".to_string(), json!(t));
-        }
-        if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("max_tokens".to_string(), json!(max_tokens));
+        if let Some(map) = body.as_object_mut() {
+            apply_sampling_params(
+                map,
+                request.temperature,
+                request.top_p,
+                request.top_k,
+                request.max_tokens,
+                request.frequency_penalty,
+                request.presence_penalty,
+                request.stop.as_ref(),
+                request.extra.as_ref(),
+            );
         }
 
         let client = self.client.clone();

@@ -87,6 +87,69 @@
 - 添加文档参考链接和许可证信息
 - 更正示例文件路径说明
 
+### LLM Provider 采样参数修复
+
+**问题**: 所有 LLM Provider 的 `chat` 和 `stream_chat` 方法未处理 `ChatRequest` 中的扩展采样参数。
+
+- 只有 `temperature` 和 `max_tokens` 被处理
+- `top_p`、`top_k`、`frequency_penalty`、`presence_penalty`、`stop`、`extra` 被忽略
+- 用户设置的请求参数无法生效
+
+**解决方案**: 
+
+1. 在 `helpers.rs` 中添加统一的 `apply_sampling_params` 辅助函数
+2. 修复所有 7 个 Provider 的参数处理
+
+#### OpenAI 兼容格式 Provider 修复
+
+使用 `helpers.rs` 中的 `apply_sampling_params` 函数统一处理：
+
+- `deepseek.rs` - `chat` 和 `stream_chat` 方法
+- `moonshot.rs` - `chat` 和 `stream_chat` 方法
+- `openrouter.rs` - `chat` 和 `stream_chat` 方法
+- `azure_openai.rs` - `chat` 和 `stream_chat` 方法
+- `ollama.rs` - `chat` 和 `stream_chat` 方法（已在上次修复中处理）
+
+支持的参数：
+- `temperature` - 温度
+- `top_p` - nucleus 采样
+- `top_k` - top-k 采样
+- `max_tokens` - 最大生成 token 数
+- `frequency_penalty` - 频率惩罚
+- `presence_penalty` - 存在惩罚
+- `stop` - 停止序列
+- `extra` - 额外参数（provider 特定，如 Ollama 的 think、chat_template_kwargs 等）
+
+#### Anthropic Provider 修复
+
+手动添加参数处理（Anthropic API 格式不同）：
+
+- `anthropic.rs` - `chat` 和 `stream_chat` 方法
+- `top_p` - 映射为 `top_p`
+- `stop` - 映射为 `stop_sequences`（Anthropic 特定字段）
+- `extra` - 直接添加到请求体
+
+#### Gemini Provider 修复
+
+手动添加参数处理（Gemini API 格式不同，参数在 `generationConfig` 中）：
+
+- `gemini.rs` - `chat` 和 `stream_chat` 方法
+- `top_p` - 映射为 `topP`
+- `top_k` - 映射为 `topK`
+- `stop` - 映射为 `stopSequences`
+- `extra` - 添加到 `generationConfig` 中
+
+#### 修改文件
+
+- `agentkit-providers/src/helpers.rs` - 添加 `apply_sampling_params` 辅助函数
+- `agentkit-providers/src/deepseek.rs`
+- `agentkit-providers/src/moonshot.rs`
+- `agentkit-providers/src/openrouter.rs`
+- `agentkit-providers/src/azure_openai.rs`
+- `agentkit-providers/src/anthropic.rs`
+- `agentkit-providers/src/gemini.rs`
+- `agentkit-providers/src/ollama.rs`（已修复）
+
 ---
 
 ## [未发布] - 2026-04-21

@@ -312,6 +312,25 @@ impl LlmProvider for AnthropicProvider {
         {
             map.insert("temperature".to_string(), json!(t));
         }
+        if let Some(v) = request.top_p
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("top_p".to_string(), json!(v));
+        }
+        if let Some(stop) = request.stop
+            && !stop.is_empty()
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("stop_sequences".to_string(), json!(stop));
+        }
+        // 添加额外参数（provider 特定参数）
+        if let Some(Value::Object(extra_map)) = request.extra.as_ref()
+            && let Some(map) = body.as_object_mut()
+        {
+            for (key, value) in extra_map {
+                map.insert(key.clone(), value.clone());
+            }
+        }
 
         debug!(
             provider = "anthropic",
@@ -424,6 +443,30 @@ impl LlmProvider for AnthropicProvider {
         } else {
             if let Some(map) = body.as_object_mut() {
                 map.insert("max_tokens".to_string(), json!(4096));
+            }
+        }
+        if let Some(t) = request.temperature
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("temperature".to_string(), json!(t));
+        }
+        if let Some(v) = request.top_p
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("top_p".to_string(), json!(v));
+        }
+        if let Some(stop) = request.stop
+            && !stop.is_empty()
+            && let Some(map) = body.as_object_mut()
+        {
+            map.insert("stop_sequences".to_string(), json!(stop));
+        }
+        // 添加额外参数（provider 特定参数）
+        if let Some(Value::Object(extra_map)) = request.extra.as_ref()
+            && let Some(map) = body.as_object_mut()
+        {
+            for (key, value) in extra_map {
+                map.insert(key.clone(), value.clone());
             }
         }
 

@@ -327,6 +327,30 @@ impl LlmProvider for GeminiProvider {
         {
             map.insert("maxOutputTokens".to_string(), json!(max_tokens));
         }
+        if let Some(v) = request.top_p
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("topP".to_string(), json!(v));
+        }
+        if let Some(v) = request.top_k
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("topK".to_string(), json!(v));
+        }
+        if let Some(stop) = request.stop
+            && !stop.is_empty()
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("stopSequences".to_string(), json!(stop));
+        }
+        // 添加额外参数（provider 特定参数）
+        if let Some(Value::Object(extra_map)) = request.extra.as_ref()
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            for (key, value) in extra_map {
+                map.insert(key.clone(), value.clone());
+            }
+        }
         if let Some(map) = body.as_object_mut() {
             map.insert("generationConfig".to_string(), generation_config);
         }
@@ -477,6 +501,30 @@ impl LlmProvider for GeminiProvider {
             && let Some(map) = generation_config.as_object_mut()
         {
             map.insert("maxOutputTokens".to_string(), json!(max_tokens));
+        }
+        if let Some(v) = request.top_p
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("topP".to_string(), json!(v));
+        }
+        if let Some(v) = request.top_k
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("topK".to_string(), json!(v));
+        }
+        if let Some(stop) = request.stop
+            && !stop.is_empty()
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            map.insert("stopSequences".to_string(), json!(stop));
+        }
+        // 添加额外参数（provider 特定参数）
+        if let Some(Value::Object(extra_map)) = request.extra.as_ref()
+            && let Some(map) = generation_config.as_object_mut()
+        {
+            for (key, value) in extra_map {
+                map.insert(key.clone(), value.clone());
+            }
         }
         if let Some(map) = body.as_object_mut() {
             map.insert("generationConfig".to_string(), generation_config);

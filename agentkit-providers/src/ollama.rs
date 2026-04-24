@@ -131,6 +131,33 @@ impl LlmProvider for OllamaProvider {
             "stream": false
         });
 
+        // 添加 LLM 采样参数
+        if let Some(map) = body.as_object_mut() {
+            if let Some(temperature) = request.temperature {
+                map.insert("temperature".to_string(), json!(temperature));
+            }
+            if let Some(top_p) = request.top_p {
+                map.insert("top_p".to_string(), json!(top_p));
+            }
+            if let Some(top_k) = request.top_k {
+                map.insert("top_k".to_string(), json!(top_k));
+            }
+            if let Some(max_tokens) = request.max_tokens {
+                map.insert("max_tokens".to_string(), json!(max_tokens));
+            }
+            if let Some(frequency_penalty) = request.frequency_penalty {
+                map.insert("frequency_penalty".to_string(), json!(frequency_penalty));
+            }
+            if let Some(presence_penalty) = request.presence_penalty {
+                map.insert("presence_penalty".to_string(), json!(presence_penalty));
+            }
+            if let Some(stop) = request.stop
+                && !stop.is_empty()
+            {
+                map.insert("stop".to_string(), json!(stop));
+            }
+        }
+
         // 添加工具定义（如果存在）
         if let Some(tools) = &request.tools
             && let Some(map) = body.as_object_mut()
@@ -162,6 +189,17 @@ impl LlmProvider for OllamaProvider {
                     return Err(ProviderError::Message(
                         "Ollama provider 暂不支持 JsonSchema 结构化输出".to_string(),
                     ));
+                }
+            }
+        }
+
+        // 添加额外参数（provider 特定参数，如 Ollama 的 think、chat_template_kwargs 等）
+        if let Some(extra) = &request.extra
+            && let Some(map) = body.as_object_mut()
+        {
+            if let Value::Object(extra_map) = extra {
+                for (key, value) in extra_map {
+                    map.insert(key.clone(), value.clone());
                 }
             }
         }
@@ -312,6 +350,33 @@ impl LlmProvider for OllamaProvider {
             "stream": true
         });
 
+        // 添加 LLM 采样参数
+        if let Some(map) = body.as_object_mut() {
+            if let Some(temperature) = request.temperature {
+                map.insert("temperature".to_string(), json!(temperature));
+            }
+            if let Some(top_p) = request.top_p {
+                map.insert("top_p".to_string(), json!(top_p));
+            }
+            if let Some(top_k) = request.top_k {
+                map.insert("top_k".to_string(), json!(top_k));
+            }
+            if let Some(max_tokens) = request.max_tokens {
+                map.insert("max_tokens".to_string(), json!(max_tokens));
+            }
+            if let Some(frequency_penalty) = request.frequency_penalty {
+                map.insert("frequency_penalty".to_string(), json!(frequency_penalty));
+            }
+            if let Some(presence_penalty) = request.presence_penalty {
+                map.insert("presence_penalty".to_string(), json!(presence_penalty));
+            }
+            if let Some(stop) = request.stop
+                && !stop.is_empty()
+            {
+                map.insert("stop".to_string(), json!(stop));
+            }
+        }
+
         if let Some(fmt) = request.response_format.as_ref() {
             match fmt {
                 ResponseFormat::JsonObject => {
@@ -323,6 +388,17 @@ impl LlmProvider for OllamaProvider {
                     return Err(ProviderError::Message(
                         "Ollama provider 暂不支持 JsonSchema 结构化输出".to_string(),
                     ));
+                }
+            }
+        }
+
+        // 添加额外参数（provider 特定参数，如 Ollama 的 think、chat_template_kwargs 等）
+        if let Some(extra) = &request.extra
+            && let Some(map) = body.as_object_mut()
+        {
+            if let Value::Object(extra_map) = extra {
+                for (key, value) in extra_map {
+                    map.insert(key.clone(), value.clone());
                 }
             }
         }
