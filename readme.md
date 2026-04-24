@@ -103,7 +103,7 @@ agentkit/
 
 ## 📝 更新日志
 
-查看 [CHANGELOG.md](docs/CHANGELOG.md) 了解最新版本和变更。
+查看 [CHANGELOG.md](CHANGELOG.md) 了解最新版本和变更。
 
 ## 🤝 贡献
 
