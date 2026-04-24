@@ -17,30 +17,80 @@
 
 ## 🚀 快速开始
 
+### 1. 安装依赖
+
 ```bash
 cargo add agentkit
 ```
 
+### 2. 设置环境变量
+
+快速开始示例使用 `OpenAiProvider`，需要设置以下环境变量：
+
+**必需**：
+- `OPENAI_API_KEY` - OpenAI API 密钥
+
+**可选**：
+- `OPENAI_BASE_URL` - 自定义 API 地址（如使用 Ollama 本地模型或其他兼容服务）
+
+#### 在不同命令行中设置环境变量
+
+**Windows CMD:**
+```cmd
+set OPENAI_API_KEY=sk-your-api-key-here
+set OPENAI_BASE_URL=https://api.openai.com/v1
+```
+
+**Windows PowerShell:**
+```powershell
+$env:OPENAI_API_KEY = "sk-your-api-key-here"
+$env:OPENAI_BASE_URL = "https://api.openai.com/v1"
+```
+
+**Linux / macOS (bash/zsh):**
+```bash
+export OPENAI_API_KEY="sk-your-api-key-here"
+export OPENAI_BASE_URL="https://api.openai.com/v1"
+```
+
+> **提示**: 以上设置仅对当前终端会话有效。如需永久设置，请将配置添加到你的 shell 配置文件（如 `~/.bashrc`、`~/.zshrc` 或 PowerShell profile）。
+
+**使用 Ollama 本地模型（可选）:**
+```bash
+# Linux/macOS
+export OPENAI_BASE_URL="http://localhost:11434/v1"
+
+# Windows PowerShell
+$env:OPENAI_BASE_URL = "http://localhost:11434/v1"
+
+# Windows CMD
+set OPENAI_BASE_URL=http://localhost:11434/v1
+```
+
+### 3. 运行示例代码
+
 ```rust
 use agentkit::provider::OpenAiProvider;
 use agentkit::agent::DefaultAgent;
+use agentkit::prelude::Agent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
-    
+
     let agent = DefaultAgent::builder()
         .provider(provider)
         .model("gpt-4o-mini")
         .system_prompt("你是有用的助手")
         .build();
-    
-    let output = agent.run("你好").await?;
+
+    let output = agent.run("你好".into()).await?;
     println!("{}", output.text().unwrap_or("无回复"));
-    
+
     Ok(())
 }
 ```
+
 
 ## 📚 文档
 
@@ -88,9 +138,9 @@ agentkit/
 | 变量 | 说明 | 示例 |
 |------|------|------|
 | `OPENAI_API_KEY` | OpenAI API 密钥 | `sk-...` |
+| `OPENAI_BASE_URL` | 自定义 API 地址 | `http://localhost:11434` |
 | `ANTHROPIC_API_KEY` | Anthropic API 密钥 | `sk-ant-...` |
 | `GOOGLE_API_KEY` | Google Gemini API 密钥 | `...` |
-| `OPENAI_BASE_URL` | 自定义 API 地址 | `http://localhost:11434` |
 
 ## 🎯 支持的 Provider
 
