@@ -24,14 +24,15 @@ cd my-agent
 [package]
 name = "my-agent"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 agentkit = "0.1"
-agentkit-runtime = "0.1"
 tokio = { version = "1", features = ["full"] }
-serde_json = "1"
 anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+dotenv = "0.15"
 ```
 
 ### 步骤 3：配置 API Key
@@ -39,56 +40,40 @@ anyhow = "1"
 ```bash
 # Windows (PowerShell)
 $env:OPENAI_API_KEY="sk-your-api-key"
+$env:MODEL_NAME="gpt-4o-mini"
 
 # Linux/Mac
 export OPENAI_API_KEY=sk-your-api-key
+export MODEL_NAME=gpt-4o-mini
 ```
+
+> 使用 Ollama 本地模型：`export OPENAI_BASE_URL=http://localhost:11434`，`export MODEL_NAME=qwen3.5:9b`
 
 ### 步骤 4：编写代码
 
 编辑 `src/main.rs`：
 
 ```rust
+use agentkit::agent::SimpleAgent;
+use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::types::AgentInput;
-use agentkit_core::provider::types::{ChatMessage, Role};
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("🤖 AgentKit 快速开始\n");
-
-    // 1. 创建 Provider
-    println!("1️⃣ 创建 Provider...");
+    // 创建 Provider（从环境变量读取）
     let provider = OpenAiProvider::from_env()?;
 
-    // 2. 创建工具注册表
-    println!("2️⃣ 创建工具...");
-    let tools = ToolRegistry::new();
+    // 创建 SimpleAgent
+    let agent = SimpleAgent::builder()
+        .provider(provider)
+        .model(std::env::var("MODEL_NAME").unwrap_or("gpt-4o-mini".into()))
+        .system_prompt("你是友好的 AI 助手，请简洁地回答问题。")
+        .temperature(0.7)
+        .build();
 
-    // 3. 创建运行时
-    println!("3️⃣ 创建运行时...");
-    let runtime = DefaultRuntime::new(Arc::new(provider), tools)
-        .with_system_prompt("你是有用的助手，用简洁的中文回答");
-
-    // 4. 创建对话
-    println!("4️⃣ 开始对话...\n");
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "用一句话介绍 Rust 编程语言".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
-
-    // 5. 运行 Agent
-    let output = runtime.run(input).await?;
-
-    // 6. 显示结果
-    println!("💬 助手回复：\n");
-    println!("{}", output.message.content);
+    // 运行对话
+    let output = agent.run("用一句话介绍 Rust 编程语言".into()).await?;
+    println!("助手：{}", output.text().unwrap_or("无回复"));
 
     Ok(())
 }
@@ -100,105 +85,85 @@ async fn main() -> anyhow::Result<()> {
 cargo run
 ```
 
-输出：
+输出示例：
 ```
-🤖 AgentKit 快速开始
-
-1️⃣ 创建 Provider...
-2️⃣ 创建工具...
-3️⃣ 创建运行时...
-4️⃣ 开始对话...
-
-💬 助手回复：
-
-Rust 是一门系统编程语言，专注于安全性和性能，由 Mozilla 研发。
+助手：Rust 是一门注重安全性和性能的系统级编程语言，由 Mozilla 开发。
 ```
 
-## 🎯 10 分钟进阶：添加工具
+## 🎯 10 分钟进阶：多轮对话
 
-### 步骤 1：添加工具依赖
-
-```toml
-[dependencies]
-agentkit = { version = "0.1", features = ["builtin-tools"] }
-agentkit-runtime = "0.1"
-tokio = { version = "1", features = ["full"] }
-serde_json = "1"
-anyhow = "1"
-```
-
-### 步骤 2：修改代码
+使用 `ChatAgent` 支持记住对话历史：
 
 ```rust
+use agentkit::agent::ChatAgent;
+use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
-use agentkit::tools::{FileReadTool, FileWriteTool};
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::types::AgentInput;
-use agentkit_core::provider::types::{ChatMessage, Role};
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("🤖 AgentKit 带工具示例\n");
-
-    // 创建 Provider
     let provider = OpenAiProvider::from_env()?;
 
-    // 创建工具注册表，添加文件工具
-    let tools = ToolRegistry::new()
-        .register(FileReadTool::new())
-        .register(FileWriteTool::new());
+    let agent = ChatAgent::builder()
+        .provider(provider)
+        .model(std::env::var("MODEL_NAME").unwrap_or("gpt-4o-mini".into()))
+        .system_prompt("你是友好的 AI 助手。")
+        .with_conversation(true)      // 启用对话历史
+        .max_history_messages(20)     // 保留最近 20 条消息
+        .build();
 
-    // 创建运行时
-    let runtime = DefaultRuntime::new(Arc::new(provider), tools)
-        .with_system_prompt(
-            "你是有用的助手。你可以使用工具来完成任务。
-            可用工具：
-            - file_read: 读取文件内容
-            - file_write: 写入文件内容"
-        )
-        .with_max_steps(5);
+    // 第一轮
+    agent.run("你好，我叫小明".into()).await?;
 
-    // 创建对话
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "请创建一个文件 hello.txt，内容为'Hello, AgentKit!'".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
-
-    // 运行 Agent（会自动调用工具）
-    let output = runtime.run(input).await?;
-
-    println!("💬 助手回复：\n");
-    println!("{}", output.message.content);
-
-    // 显示工具调用
-    println!("\n🔧 工具调用：");
-    for result in &output.tool_results {
-        println!("  - 工具结果：{}", result.output);
-    }
+    // 第二轮（自动记住上一轮）
+    let output = agent.run("你还记得我叫什么吗？".into()).await?;
+    println!("助手：{}", output.text().unwrap_or("无回复"));
+    // 输出：小明
 
     Ok(())
 }
 ```
 
-### 步骤 3：运行
+## 🔧 15 分钟进阶：添加工具
 
-```bash
-cargo run
+让 Agent 能够调用工具完成任务：
+
+```rust
+use agentkit::agent::ToolAgent;
+use agentkit::prelude::Agent;
+use agentkit::provider::OpenAiProvider;
+use agentkit::tools::{DatetimeTool, EchoTool};
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    let provider = OpenAiProvider::from_env()?;
+
+    let agent = ToolAgent::builder()
+        .provider(provider)
+        .model(std::env::var("MODEL_NAME").unwrap_or("gpt-4o-mini".into()))
+        .system_prompt("你是有用的助手。当用户询问时间时使用日期时间工具。")
+        .tool(DatetimeTool)  // 注册日期时间工具
+        .tool(EchoTool)      // 注册回显工具
+        .max_steps(10)
+        .temperature(0.7)
+        .top_p(0.9)
+        .build();
+
+    // Agent 会自动选择合适的工具
+    let output = agent.run("现在几点了？".into()).await?;
+    println!("助手：{}", output.text().unwrap_or("无回复"));
+
+    Ok(())
+}
 ```
 
 ## 📚 下一步学习
 
 完成快速入门后，您可以：
 
-1. 📖 阅读 [用户指南](./user_guide.md) 深入了解
-2. 🍳 查看 [示例集合](./cookbook.md) 学习更多用例
-3. 🔧 尝试 [自定义工具](./user_guide.md#自定义工具)
-4. 💰 学习 [成本管理](./user_guide.md#token-计数和成本管理)
+1. 📖 查看 `agentkit/examples/` 目录下 20+ 完整示例
+2. 🔧 尝试 [自定义工具](./skill_yaml_spec.md) 扩展 Agent 能力
+3. 🤖 学习 ReAct/Reflect 等高级 Agent 模式
+4. 📝 查看 [Skill 配置规范](./skill_yaml_spec.md) 了解技能系统
 
 ## 🆘 常见问题
 
@@ -207,31 +172,33 @@ cargo run
 A: 确保已设置环境变量：
 ```bash
 export OPENAI_API_KEY=sk-your-api-key
+export MODEL_NAME=gpt-4o-mini
 ```
 
 ### Q: 如何切换到 Ollama？
 
 A: 设置 Ollama 环境变量：
 ```bash
-export OLLAMA_BASE_URL=http://localhost:11434
+export OPENAI_BASE_URL=http://localhost:11434
+export MODEL_NAME=qwen3.5:9b
 ```
 
-然后修改代码：
-```rust
-use agentkit::provider::OllamaProvider;
-let provider = OllamaProvider::from_env();
-```
+代码无需修改，`OpenAiProvider` 兼容 Ollama API。
 
-### Q: 如何添加更多工具？
+### Q: 如何配置 LLM 参数（temperature、top_p 等）？
 
-A: 在 ToolRegistry 中注册：
+A: 所有 Agent 类型都支持完整的 LLM 参数配置：
 ```rust
-let tools = ToolRegistry::new()
-    .register(FileReadTool::new())
-    .register(FileWriteTool::new())
-    .register(HttpRequestTool::new());
+let agent = ToolAgent::builder()
+    .temperature(0.7)
+    .top_p(0.9)
+    .top_k(50)
+    .max_tokens(2048)
+    .frequency_penalty(0.1)
+    .presence_penalty(0.1)
+    .build();
 ```
 
 ---
 
-**恭喜！您已完成快速入门教程！** 🎉
+**恭喜！您已完成快速入门教程！**
