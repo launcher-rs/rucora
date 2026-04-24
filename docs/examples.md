@@ -6,14 +6,14 @@
 
 ### Hello World - 最简单的 Agent
 
-**文件**: [`examples/hello_world.rs`](../examples/hello_world.rs)
+**文件**: [`agentkit/examples/01_hello_world.rs`](../agentkit/examples/01_hello_world.rs)
 
 **说明**: 展示如何用最少的代码创建一个 Agent 应用。
 
 **运行**:
 ```bash
 export OPENAI_API_KEY=sk-your-key
-cargo run --example hello_world
+cargo run --example 01_hello_world
 ```
 
 **学习点**:
@@ -29,14 +29,14 @@ cargo run --example hello_world
 
 ### 基础对话 - 支持多轮对话
 
-**文件**: [`examples/chat_basic.rs`](../examples/chat_basic.rs)
+**文件**: [`agentkit/examples/02_basic_chat.rs`](../agentkit/examples/02_basic_chat.rs)
 
 **说明**: 展示如何创建支持多轮对话的 Agent，记住对话历史。
 
 **运行**:
 ```bash
 export OPENAI_API_KEY=sk-your-key
-cargo run --example chat_basic
+cargo run --example 02_basic_chat
 ```
 
 **学习点**:
@@ -48,14 +48,14 @@ cargo run --example chat_basic
 
 ### 带工具对话 - 调用工具
 
-**文件**: [`examples/chat_with_tools.rs`](../examples/chat_with_tools.rs)
+**文件**: [`agentkit/examples/03_chat_with_tools.rs`](../agentkit/examples/03_chat_with_tools.rs)
 
 **说明**: 展示如何创建支持工具调用的 Agent。
 
 **运行**:
 ```bash
 export OPENAI_API_KEY=sk-your-key
-cargo run --example chat_with_tools
+cargo run --example 03_chat_with_tools
 ```
 
 **学习点**:
@@ -97,28 +97,50 @@ cargo run
 
 | 示例 | 说明 | 文件 |
 |------|------|------|
-| hello_world | 使用 OpenAI Provider | hello_world.rs |
-| hello_world | 使用 Ollama Provider | hello_world.rs |
+| 01_hello_world | 使用 OpenAI Provider | 01_hello_world.rs |
+| 10_custom_provider | 自定义 Provider 实现 | 10_custom_provider.rs |
+| 11_resilient_provider | 弹性 Provider（重试/退避） | 11_resilient_provider.rs |
 
 ### Agent 相关
 
 | 示例 | 说明 | 文件 |
 |------|------|------|
-| hello_world | 基础 Agent | hello_world.rs |
-| chat_basic | 多轮对话 Agent | chat_basic.rs |
-| chat_with_tools | 带工具的 Agent | chat_with_tools.rs |
+| 01_hello_world | 基础 Agent | 01_hello_world.rs |
+| 02_basic_chat | 多轮对话 Agent | 02_basic_chat.rs |
+| 03_chat_with_tools | 带工具的 Agent | 03_chat_with_tools.rs |
+| 04_extractor | 信息提取 Agent | 04_extractor.rs |
+| 05_conversation | 对话历史管理 | 05_conversation.rs |
+| 15_react_agent | ReAct Agent | 15_react_agent.rs |
+| 16_reflect_agent | Reflect Agent | 16_reflect_agent.rs |
+| 17_supervisor_agent | Supervisor Agent | 17_supervisor_agent.rs |
 
 ### Tools 相关
 
-| 示例 | 说明 | 使用的工具 |
+| 示例 | 说明 | 文件 |
 |------|------|------|
-| chat_with_tools | DatetimeTool, EchoTool | chat_with_tools.rs |
+| 03_chat_with_tools | ShellTool, DatetimeTool | 03_chat_with_tools.rs |
+| 19_code_assistant | 代码助手 | 19_code_assistant.rs |
 
 ### Skills 相关
 
 | 示例 | 说明 | 文件 |
 |------|------|------|
-| agentkit-skills-example | 完整 Skills 集成 | agentkit-skills-example/ |
+| agentkit-skills-example | 完整 Skills 集成 | examples/agentkit-skills-example/ |
+
+### 高级功能
+
+| 示例 | 说明 | 文件 |
+|------|------|------|
+| 06_memory | 记忆系统 | 06_memory.rs |
+| 07_rag | RAG 检索增强生成 | 07_rag.rs |
+| 08_middleware | 中间件 | 08_middleware.rs |
+| 09_prompt | Prompt 模板 | 09_prompt.rs |
+| 12_mcp | MCP 协议 | 12_mcp.rs |
+| 13_task_decomposition | 任务分解 | 13_task_decomposition.rs |
+| 18_research_assistant | 研究助手 | 18_research_assistant.rs |
+| 20_custom_agent_with_middleware | 自定义 Agent + 中间件 | 20_custom_agent_with_middleware.rs |
+| 21_unified_conversation | 统一对话模式 | 21_unified_conversation.rs |
+| 24_context_compression | 上下文压缩 | 24_context_compression.rs |
 
 ---
 
@@ -128,82 +150,27 @@ cargo run
 
 适合第一次使用 AgentKit 的用户。
 
-- [hello_world.rs](../examples/hello_world.rs) - Hello World
-- [chat_basic.rs](../examples/chat_basic.rs) - 基础对话
+- [01_hello_world.rs](../agentkit/examples/01_hello_world.rs) - Hello World
+- [02_basic_chat.rs](../agentkit/examples/02_basic_chat.rs) - 基础对话
 
 ### 进阶级 ⭐⭐
 
 适合已经了解基础用法的用户。
 
-- [chat_with_tools.rs](../examples/chat_with_tools.rs) - 带工具对话
+- [03_chat_with_tools.rs](../agentkit/examples/03_chat_with_tools.rs) - 带工具对话
+- [04_extractor.rs](../agentkit/examples/04_extractor.rs) - 信息提取
+- [05_conversation.rs](../agentkit/examples/05_conversation.rs) - 对话管理
 - [agentkit-skills-example](../examples/agentkit-skills-example/) - Skills 集成
 
 ### 高级 ⭐⭐⭐
 
 适合需要实现复杂功能的用户。
 
-- 自定义 Agent（待添加）
-- 自定义 Tool（待添加）
-- 自定义 Skill（待添加）
-
----
-
-## 代码片段
-
-### 创建 Provider
-
-```rust
-use agentkit::provider::OpenAiProvider;
-
-// 从环境变量加载
-let provider = OpenAiProvider::from_env()?;
-
-// 或直接指定
-let provider = OpenAiProvider::new("sk-your-key")?;
-```
-
-### 创建 Agent
-
-```rust
-use agentkit::agent::DefaultAgent;
-
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .model("gpt-4o-mini")
-    .system_prompt("你是有用的助手")
-    .build();
-```
-
-### 运行对话
-
-```rust
-let output = agent.run("你好").await?;
-println!("{}", output.text().unwrap_or("无回复"));
-```
-
-### 启用对话历史
-
-```rust
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .model("gpt-4o-mini")
-    .with_conversation(true)  // 启用对话历史
-    .with_max_messages(20)    // 保留最近 20 条消息
-    .build();
-```
-
-### 注册工具
-
-```rust
-use agentkit::tools::{DatetimeTool, EchoTool};
-
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .model("gpt-4o-mini")
-    .tool(DatetimeTool)
-    .tool(EchoTool)
-    .build();
-```
+- [15_react_agent.rs](../agentkit/examples/15_react_agent.rs) - ReAct Agent
+- [16_reflect_agent.rs](../agentkit/examples/16_reflect_agent.rs) - Reflect Agent
+- [17_supervisor_agent.rs](../agentkit/examples/17_supervisor_agent.rs) - Supervisor Agent
+- [07_rag.rs](../agentkit/examples/07_rag.rs) - RAG
+- [13_task_decomposition.rs](../agentkit/examples/13_task_decomposition.rs) - 任务分解
 
 ---
 
@@ -211,13 +178,16 @@ let agent = DefaultAgent::builder()
 
 ```bash
 # Hello World
-cargo run --example hello_world
+cargo run --example 01_hello_world
 
 # 基础对话
-cargo run --example chat_basic
+cargo run --example 02_basic_chat
 
 # 带工具对话
-cargo run --example chat_with_tools
+cargo run --example 03_chat_with_tools
+
+# 对话历史管理
+cargo run --example 05_conversation
 
 # Skills 示例
 cd examples/agentkit-skills-example
@@ -263,7 +233,6 @@ async fn main() -> anyhow::Result<()> {
 
 ## 相关文档
 
-- [快速开始](quick_start.md)
-- [用户指南](user_guide.md)
-- [故障排除](TROUBLESHOOTING.md)
 - [Skill 配置规范](skill_yaml_spec.md)
+- [Skill 配置示例](skill_yaml_examples.md)
+- [Agent 自动对话](agent_auto_conversation.md)

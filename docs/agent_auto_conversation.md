@@ -22,7 +22,7 @@ let agent = DefaultAgent::builder()
     .provider(provider)
     .model("qwen3.5:9b")
     .with_conversation(true)       // ← 启用自动对话历史管理
-    .with_max_messages(20)         // ← 可选：保留最近 20 条消息
+    .max_history_messages(20)      // ← 可选：保留最近 20 条消息
     .build();
 
 // 第一轮对话
@@ -65,7 +65,7 @@ let agent = DefaultAgent::builder()
     .build();
 ```
 
-### `with_max_messages(max: usize)`
+### `max_history_messages(max: usize)`
 
 设置对话历史最大消息数（仅在启用对话时有效）。
 
@@ -78,7 +78,7 @@ let agent = DefaultAgent::builder()
     .provider(provider)
     .model("qwen3.5:9b")
     .with_conversation(true)
-    .with_max_messages(20)  // 保留最近 20 条消息
+    .max_history_messages(20)  // 保留最近 20 条消息
     .build();
 ```
 
@@ -130,7 +130,7 @@ let assistant = DefaultAgent::builder()
     .provider(provider)
     .model("qwen3.5:9b")
     .with_conversation(true)
-    .with_max_messages(50)  // 保留较多消息
+    .max_history_messages(50)  // 保留较多消息
     .build();
 
 // 多轮对话
@@ -176,7 +176,7 @@ agent.run("主题是请假").await?;
 agent.clear_conversation();
 
 // 开始新任务，不受之前影响
-agent.run "帮我写一个购物清单").await?;
+agent.run("帮我写一个购物清单").await?;
 ```
 
 ### 场景 4：查看历史进行分析
@@ -256,7 +256,7 @@ async fn main() -> anyhow::Result<()> {
         .provider(provider)
         .model("qwen3.5:9b")
         .with_conversation(true)
-        .with_max_messages(10)
+        .max_history_messages(10)
         .build();
     
     // 对话
@@ -317,13 +317,13 @@ async fn main() -> anyhow::Result<()> {
 // 短对话场景
 let agent = DefaultAgent::builder()
     .with_conversation(true)
-    .with_max_messages(10)
+    .max_history_messages(10)
     .build();
 
 // 长对话场景
 let agent = DefaultAgent::builder()
     .with_conversation(true)
-    .with_max_messages(50)
+    .max_history_messages(50)
     .build();
 ```
 

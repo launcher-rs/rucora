@@ -509,4 +509,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## 相关文档
 
 - [配置规范](skill_yaml_spec.md) - 完整的字段说明
-- [配置优化总结](../../SKILL_CONFIG_COMPLETE.md) - 优化详情
+- [Skill 配置规范](skill_yaml_spec.md) - 完整格式说明

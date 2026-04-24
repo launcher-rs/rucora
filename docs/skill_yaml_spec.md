@@ -448,4 +448,4 @@ description: 我的技能描述
 ## 相关文档
 
 - [使用示例](skill_yaml_examples.md) - 各场景的详细示例
-- [配置优化总结](../../SKILL_CONFIG_COMPLETE.md) - 完整优化说明
+- [Skill 配置示例](skill_yaml_examples.md) - 实际使用示例
