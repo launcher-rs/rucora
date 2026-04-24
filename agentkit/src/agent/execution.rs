@@ -46,41 +46,44 @@ use crate::middleware::MiddlewareChain;
 ///
 /// 本函数扫描历史消息，删除所有孤儿 tool 消息，并返回删除数量。
 ///
+/// 移除孤儿 tool 消息（assistant tool_calls 已被截断或丢失）
+///
 /// 参考实现: zeroclaw `remove_orphaned_tool_messages`
+///
+/// # 修复说明
+///
+/// 原实现通过检查 assistant content 是否包含 "tool_calls" 字符串来判断
+/// 是否有工具调用。但许多 LLM（尤其 Ollama）在纯工具调用时返回
+/// `content: ""`，导致有效的 tool 结果被误删，进而引发无限工具调用循环。
+///
+/// 新实现：仅删除"旧轮次"的孤儿 tool 消息，保护最新一轮的工具结果。
+/// 任何紧跟在最后一个 assistant 之后的 tool 消息都被认为是有效的（当前轮次）。
 pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> usize {
     let mut removed = 0usize;
 
-    // Pass 1: 删除两个连续 assistant 消息中间不合法的 tool_calls + 结果对
+    // Pass 1: 删除两个连续 assistant 消息中间的 assistant+tool 对
+    // （这些是被截断的旧轮次）
     let mut i = 0;
     while i < messages.len() {
         if messages[i].role == Role::Assistant
-            && messages[i].content.contains("tool_calls")
             && i > 0
             && messages[i - 1].role == Role::Assistant
         {
-            // 记录这个 assistant 消息的内容，用于匹配后续 tool 消息
-            let doomed_content = messages[i].content.clone();
+            // 删除这个多余的 assistant 消息
             messages.remove(i);
             removed += 1;
-            // 删除紧跟着的、引用这个 assistant 的 tool 消息
+            // 删除紧跟着的 tool 消息（它们属于被截断的 assistant）
             while i < messages.len() && messages[i].role == Role::Tool {
-                let dominated = match extract_tool_call_id_from_content(&messages[i].content) {
-                    Some(id) => doomed_content.contains(&id),
-                    None => true,
-                };
-                if dominated {
-                    messages.remove(i);
-                    removed += 1;
-                } else {
-                    break;
-                }
+                messages.remove(i);
+                removed += 1;
             }
         } else {
             i += 1;
         }
     }
 
-    // Pass 2: 删除没有配对 assistant 的孤儿 tool 消息
+    // Pass 2: 删除旧轮次中没有配对 assistant 的孤儿 tool 消息
+    // 关键规则：紧跟在最后一个 assistant 之后的 tool 消息永远保留（当前轮次）
     i = 0;
     while i < messages.len() {
         if messages[i].role != Role::Tool {
@@ -88,34 +91,25 @@ pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> 
             continue;
         }
 
-        // 向前查找最近的 assistant 消息
-        let assistant_idx = (0..i)
-            .rev()
-            .take_while(|&j| {
-                messages[j].role == Role::Assistant || messages[j].role == Role::Tool
-            })
-            .find(|&j| messages[j].role == Role::Assistant);
+        // 向前查找最近的非-tool 消息
+        let prev_non_tool_idx = (0..i).rev().find(|&j| messages[j].role != Role::Tool);
 
-        let is_orphan = match assistant_idx {
-            None => true,
+        match prev_non_tool_idx {
+            None => {
+                // 前面没有任何非-tool 消息，这是孤儿
+                messages.remove(i);
+                removed += 1;
+            }
             Some(idx) => {
-                let assistant_content = &messages[idx].content;
-                if assistant_content.contains("tool_calls") {
-                    match extract_tool_call_id_from_content(&messages[i].content) {
-                        Some(tool_call_id) => !assistant_content.contains(&tool_call_id),
-                        None => false, // 保守：无法解析 ID 时保留
-                    }
+                if messages[idx].role == Role::Assistant {
+                    // 前面是 assistant 消息，保留 tool 结果（无论是当前轮次还是历史轮次）
+                    i += 1;
                 } else {
-                    true
+                    // 前面是 user/system 消息，tool 没有配对的 assistant，是孤儿
+                    messages.remove(i);
+                    removed += 1;
                 }
             }
-        };
-
-        if is_orphan {
-            messages.remove(i);
-            removed += 1;
-        } else {
-            i += 1;
         }
     }
 
@@ -127,15 +121,6 @@ pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> 
     }
 
     removed
-}
-
-/// 从 tool 角色消息的 JSON 内容中提取 tool_call_id
-fn extract_tool_call_id_from_content(content: &str) -> Option<String> {
-    let value: serde_json::Value = serde_json::from_str(content).ok()?;
-    value
-        .get("tool_call_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
 }
 
 // ========== Context Overflow 内联恢复 ==========
@@ -1173,5 +1158,113 @@ impl DefaultExecution {
         };
 
         Box::pin(stream)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use agentkit_core::provider::Role;
+
+    fn assistant(content: &str) -> ChatMessage {
+        ChatMessage {
+            role: Role::Assistant,
+            content: content.to_string(),
+            name: None,
+        }
+    }
+
+    fn user(content: &str) -> ChatMessage {
+        ChatMessage {
+            role: Role::User,
+            content: content.to_string(),
+            name: None,
+        }
+    }
+
+    fn system(content: &str) -> ChatMessage {
+        ChatMessage {
+            role: Role::System,
+            content: content.to_string(),
+            name: None,
+        }
+    }
+
+    fn tool_result(tool_call_id: &str, output: &str) -> ChatMessage {
+        let payload = serde_json::json!({
+            "tool_call_id": tool_call_id,
+            "output": output
+        });
+        ChatMessage {
+            role: Role::Tool,
+            content: payload.to_string(),
+            name: Some("test_tool".to_string()),
+        }
+    }
+
+    #[test]
+    fn test_protects_tool_results_after_empty_assistant() {
+        // 模拟 Ollama 返回 content="" 但有 tool_calls 的情况
+        // 工具结果不应被误删
+        let mut messages = vec![
+            system("You are helpful"),
+            user("What time is it?"),
+            assistant(""), // LLM 返回空内容但有 tool_calls
+            tool_result("call_abc123", "Current time: 12:00"),
+        ];
+
+        let removed = remove_orphaned_tool_messages(&mut messages);
+        assert_eq!(removed, 0);
+        assert_eq!(messages.len(), 4); // 所有消息都应保留
+        assert_eq!(messages[3].role, Role::Tool); // 工具结果应保留
+    }
+
+    #[test]
+    fn test_removes_duplicate_assistants() {
+        // 两个连续 assistant，第二个及其后的 tool 应该被删除
+        let mut messages = vec![
+            system("You are helpful"),
+            user("What time is it?"),
+            assistant(""), // 第一个 assistant（空内容）
+            assistant("Final answer"), // 第二个 assistant（多余的）
+        ];
+
+        let removed = remove_orphaned_tool_messages(&mut messages);
+        assert_eq!(removed, 1); // 第二个 assistant 被删除
+        assert_eq!(messages.len(), 3);
+    }
+
+    #[test]
+    fn test_preserves_multiple_tool_results() {
+        // 多个工具调用结果都应保留（紧跟在 assistant 之后）
+        let mut messages = vec![
+            system("You are helpful"),
+            user("Get time and date"),
+            assistant(""),
+            tool_result("call_1", "12:00"),
+            tool_result("call_2", "2024-01-01"),
+        ];
+
+        let removed = remove_orphaned_tool_messages(&mut messages);
+        assert_eq!(removed, 0);
+        assert_eq!(messages.len(), 5);
+    }
+
+    #[test]
+    fn test_old_round_tool_results_cleaned() {
+        // 旧轮次中跟在 user/system 之后的孤儿工具消息应该被清理
+        let mut messages = vec![
+            system("You are helpful"),
+            user("Question 1"),
+            assistant("Answer 1"),
+            user("Question 2"),
+            tool_result("call_orphan", "orphan"), // 前面是 user，没有 assistant 配对
+            assistant(""),
+            tool_result("call_new", "valid result"),
+        ];
+
+        let removed = remove_orphaned_tool_messages(&mut messages);
+        assert_eq!(removed, 1); // call_orphan 被删除
+        assert_eq!(messages.len(), 6);
     }
 }
