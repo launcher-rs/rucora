@@ -30,9 +30,6 @@ edition = "2024"
 agentkit = "0.1"
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
-tracing = "0.1"
-tracing-subscriber = "0.3"
-dotenv = "0.15"
 ```
 
 ### 步骤 3：配置 API Key
