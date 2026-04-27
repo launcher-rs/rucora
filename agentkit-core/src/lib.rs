@@ -250,9 +250,7 @@ pub use error_classifier_trait::{
 };
 
 // 重新导出注入防护 trait
-pub use injection_guard_trait::{
-    ContentScannable, InjectionGuard, ScanResult, Threat, ThreatType,
-};
+pub use injection_guard_trait::{ContentScannable, InjectionGuard, ScanResult, Threat, ThreatType};
 
 pub use provider::LlmProvider;
 pub use provider::types::LlmParams;

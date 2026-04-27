@@ -172,7 +172,7 @@ fn build_research_engine(
 
     let search_execution = DefaultExecution::new(provider.clone(), model, search_registry)
         .with_system_prompt(search_system_prompt)
-        .with_max_steps(30)   // 允许足够多的工具调用步数
+        .with_max_steps(30) // 允许足够多的工具调用步数
         .with_max_tool_concurrency(3) // 并发执行搜索以加速
         .with_enhanced_config(enhanced_config.clone());
 
@@ -195,19 +195,18 @@ fn build_research_engine(
 
     // ── 阶段 3：综合报告执行器（无工具）──────────────────
     let synthesize_registry = ToolRegistry::new(); // 报告阶段不需要工具
-    let synthesize_execution =
-        DefaultExecution::new(provider.clone(), model, synthesize_registry)
-            .with_system_prompt(
-                "你是一名顶级研究报告撰写专家，擅长将复杂的研究材料整理为\
+    let synthesize_execution = DefaultExecution::new(provider.clone(), model, synthesize_registry)
+        .with_system_prompt(
+            "你是一名顶级研究报告撰写专家，擅长将复杂的研究材料整理为\
                  结构清晰、深度充分的专业报告。\n\
                  要求：\n\
                  - 报告必须完整，不得省略任何章节\n\
                  - 所有观点必须有来源支撑\n\
                  - 数据和引用必须准确，注明出处\n\
                  - 保持客观中立，呈现多方观点",
-            )
-            .with_max_steps(5) // 报告阶段只需要少量步骤
-            .with_enhanced_config(enhanced_config);
+        )
+        .with_max_steps(5) // 报告阶段只需要少量步骤
+        .with_enhanced_config(enhanced_config);
 
     info!(
         "✓ 研究引擎构建完成 | 模型: {} | Tavily: {}",

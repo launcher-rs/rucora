@@ -47,18 +47,16 @@ impl ToolFilterConfig {
 
     /// 设置工具为始终可见
     pub fn always_visible(mut self, tool_name: impl Into<String>) -> Self {
-        self.visibility.insert(tool_name.into(), ToolVisibility::Always);
+        self.visibility
+            .insert(tool_name.into(), ToolVisibility::Always);
         self
     }
 
     /// 设置工具为动态可见
-    pub fn dynamic_visible(
-        mut self,
-        tool_name: impl Into<String>,
-        keywords: Vec<String>,
-    ) -> Self {
+    pub fn dynamic_visible(mut self, tool_name: impl Into<String>, keywords: Vec<String>) -> Self {
         let name = tool_name.into();
-        self.visibility.insert(name.clone(), ToolVisibility::Dynamic);
+        self.visibility
+            .insert(name.clone(), ToolVisibility::Dynamic);
         self.dynamic_keywords.insert(name, keywords);
         self
     }
@@ -151,7 +149,11 @@ impl ToolFilter {
     ///
     /// # 返回
     /// 过滤后的工具列表
-    pub fn filter_tools(&self, tools: Vec<ToolDefinition>, user_message: &str) -> Vec<ToolDefinition> {
+    pub fn filter_tools(
+        &self,
+        tools: Vec<ToolDefinition>,
+        user_message: &str,
+    ) -> Vec<ToolDefinition> {
         if !self.config.enabled {
             return tools;
         }
@@ -299,11 +301,17 @@ impl ToolGroupManager {
             for tool_name in &group.tools {
                 match group.visibility {
                     ToolVisibility::Always => {
-                        config.visibility.insert(tool_name.clone(), ToolVisibility::Always);
+                        config
+                            .visibility
+                            .insert(tool_name.clone(), ToolVisibility::Always);
                     }
                     ToolVisibility::Dynamic => {
-                        config.visibility.insert(tool_name.clone(), ToolVisibility::Dynamic);
-                        config.dynamic_keywords.insert(tool_name.clone(), group.keywords.clone());
+                        config
+                            .visibility
+                            .insert(tool_name.clone(), ToolVisibility::Dynamic);
+                        config
+                            .dynamic_keywords
+                            .insert(tool_name.clone(), group.keywords.clone());
                     }
                 }
             }
@@ -338,8 +346,14 @@ mod tests {
         let config = ToolFilterConfig::new()
             .always_visible("file_read")
             .always_visible("file_write")
-            .dynamic_visible("docker_build", vec!["docker".to_string(), "container".to_string()])
-            .dynamic_visible("kubernetes", vec!["k8s".to_string(), "kubernetes".to_string()]);
+            .dynamic_visible(
+                "docker_build",
+                vec!["docker".to_string(), "container".to_string()],
+            )
+            .dynamic_visible(
+                "kubernetes",
+                vec!["k8s".to_string(), "kubernetes".to_string()],
+            );
 
         assert!(config.is_always_visible("file_read"));
         assert!(config.is_always_visible("file_write"));
@@ -350,8 +364,10 @@ mod tests {
 
     #[test]
     fn test_keyword_matching() {
-        let config = ToolFilterConfig::new()
-            .dynamic_visible("docker_build", vec!["docker".to_string(), "container".to_string()]);
+        let config = ToolFilterConfig::new().dynamic_visible(
+            "docker_build",
+            vec!["docker".to_string(), "container".to_string()],
+        );
 
         assert!(config.matches_keywords("docker_build", "I want to build a docker image"));
         assert!(config.matches_keywords("docker_build", "Use container for deployment"));

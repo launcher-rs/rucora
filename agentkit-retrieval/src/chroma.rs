@@ -350,9 +350,7 @@ impl VectorStore for ChromaVectorStore {
 
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(ProviderError::Message(format!(
-                "Chroma query 失败: {text}"
-            )));
+            return Err(ProviderError::Message(format!("Chroma query 失败: {text}")));
         }
 
         let data: Value = resp
@@ -443,9 +441,7 @@ impl VectorStore for ChromaVectorStore {
 
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(ProviderError::Message(format!(
-                "Chroma count 失败: {text}"
-            )));
+            return Err(ProviderError::Message(format!("Chroma count 失败: {text}")));
         }
 
         let count: usize = resp

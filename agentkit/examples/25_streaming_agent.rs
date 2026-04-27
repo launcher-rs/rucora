@@ -11,11 +11,9 @@
 //! ```
 
 use agentkit::agent::{SimpleAgent, ToolAgent};
-use agentkit::prelude::Agent;
+use agentkit::prelude::*;
 use agentkit::provider::OpenAiProvider;
 use agentkit::tools::DatetimeTool;
-use agentkit_core::channel::types::ChannelEvent;
-use futures_util::StreamExt;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;
 
@@ -33,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 初始化日志（仅显示 ERROR，避免干扰流式输出）
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::DEBUG)
+        .with_max_level(Level::ERROR)
         .with_target(false)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
@@ -47,9 +45,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // ========================================
-    // 示例 1：使用 run_stream() 逐帧处理事件
+    // 示例 1：使用 AgentStream.next() 逐帧处理事件
     // ========================================
-    println!("\n=== 示例 1: run_stream() - 逐帧流式输出 ===\n");
+    println!("\n=== 示例 1: AgentStream.next() - 逐帧流式输出 ===\n");
 
     let agent = SimpleAgent::builder()
         .provider(make_provider()?)
@@ -77,7 +75,7 @@ async fn main() -> anyhow::Result<()> {
     println!("\n");
 
     // ========================================
-    // 示例 2：使用 run_stream_text() 获取最终文本
+    // 示例 2：使用 run_stream_text() 获取最终文本（最简洁）
     // ========================================
     println!("\n=== 示例 2: run_stream_text() - 获取最终文本 ===\n");
 
@@ -95,9 +93,9 @@ async fn main() -> anyhow::Result<()> {
     println!("\n助手: {}\n", text);
 
     // ========================================
-    // 示例 3：ToolAgent 流式输出（含工具调用）
+    // 示例 3：ToolAgent 流式输出（含工具调用事件）
     // ========================================
-    println!("\n=== 示例 3: ToolAgent 流式输出（含工具调用事件） ===\n");
+    println!("\n=== 示例 3: ToolAgent AgentStream - 含工具调用事件 ===\n");
 
     let tool_agent = ToolAgent::builder()
         .provider(make_provider()?)

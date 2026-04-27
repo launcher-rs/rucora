@@ -84,13 +84,16 @@ pub use web as web_legacy;
 // ===== 重新导出常用工具类型 =====
 
 // 文件工具
-pub use file::{FileEditTool, FileReadTool, FileWriteTool, FileToolConfig};
+pub use file::{FileEditTool, FileReadTool, FileToolConfig, FileWriteTool};
 
 // 系统工具
 pub use system::{CmdExecTool, DatetimeTool, ShellTool};
 
 // Web 工具
-pub use web::{BrowseTool, BrowserOpenTool, GithubTrendingTool, HttpRequestTool, SerpapiTool, TavilyTool, WebFetchTool};
+pub use web::{
+    BrowseTool, BrowserOpenTool, GithubTrendingTool, HttpRequestTool, SerpapiTool, TavilyTool,
+    WebFetchTool,
+};
 
 // 搜索工具
 pub use search::{ContentSearchTool, GlobSearchTool};

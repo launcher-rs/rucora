@@ -77,9 +77,9 @@ impl FailoverReason {
     /// 获取推荐的退避时间（毫秒）
     pub fn recommended_backoff_ms(&self) -> Option<u64> {
         match self {
-            Self::RateLimit => Some(5000),  // 5 秒
-            Self::Overloaded => Some(3000), // 3 秒
-            Self::Timeout => Some(2000),    // 2 秒
+            Self::RateLimit => Some(5000),   // 5 秒
+            Self::Overloaded => Some(3000),  // 3 秒
+            Self::Timeout => Some(2000),     // 2 秒
             Self::ServerError => Some(1000), // 1 秒
             _ => None,
         }
@@ -123,7 +123,9 @@ impl ClassifiedError {
         format!(
             "错误原因：{:?} | 状态码：{} | 策略：{}",
             self.reason,
-            self.status_code.map(|s| s.to_string()).unwrap_or_else(|| "N/A".to_string()),
+            self.status_code
+                .map(|s| s.to_string())
+                .unwrap_or_else(|| "N/A".to_string()),
             action
         )
     }
@@ -192,7 +194,10 @@ mod tests {
 
     #[test]
     fn test_failover_reason_backoff_ms() {
-        assert_eq!(FailoverReason::RateLimit.recommended_backoff_ms(), Some(5000));
+        assert_eq!(
+            FailoverReason::RateLimit.recommended_backoff_ms(),
+            Some(5000)
+        );
         assert_eq!(FailoverReason::Timeout.recommended_backoff_ms(), Some(2000));
         assert_eq!(FailoverReason::Billing.recommended_backoff_ms(), None);
     }

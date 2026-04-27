@@ -348,9 +348,7 @@ impl Tool for TavilyTool {
                 .text()
                 .await
                 .unwrap_or_else(|_| "未知错误".to_string());
-            return Err(ToolError::Message(format!(
-                "Tavily API 错误：{error_text}"
-            )));
+            return Err(ToolError::Message(format!("Tavily API 错误：{error_text}")));
         }
 
         let search_result: Value = response

@@ -98,7 +98,6 @@ impl ProviderType {
             ProviderType::Nvidia => "NVIDIA",
         }
     }
-
 }
 
 /// 用户配置
@@ -218,7 +217,10 @@ impl AppConfig {
             })
             .filter(|v| !v.is_empty());
 
-        println!("api_key: {:?} model: {:?}, base_url: {:?}", api_key, model, base_url);
+        println!(
+            "api_key: {:?} model: {:?}, base_url: {:?}",
+            api_key, model, base_url
+        );
 
         // 只有当至少有一个配置项时才返回
         if api_key.is_some() || model.is_some() || base_url.is_some() {
@@ -253,7 +255,7 @@ impl AppConfig {
 
         // 其次从配置文件加载
         let path = Self::config_path()?;
-        println!("读取配置文件 {}....",path.display());
+        println!("读取配置文件 {}....", path.display());
         let content = fs::read_to_string(path).ok()?;
         toml::from_str(&content).ok()
     }

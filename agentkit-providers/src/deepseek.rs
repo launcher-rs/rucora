@@ -8,7 +8,11 @@
 
 use std::env;
 
-use crate::{helpers::{parse_finish_reason, apply_sampling_params}, http_config::build_client, preview};
+use crate::{
+    helpers::{apply_sampling_params, parse_finish_reason},
+    http_config::build_client,
+    preview,
+};
 use agentkit_core::{
     error::ProviderError,
     provider::{

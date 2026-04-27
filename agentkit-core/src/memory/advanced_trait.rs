@@ -25,7 +25,10 @@ pub trait AdvancedMemory: Send + Sync {
     async fn store(&self, entry: AdvancedMemoryEntry) -> Result<(), MemoryError>;
 
     /// 检索记忆
-    async fn recall(&self, query: &AdvancedMemoryQuery) -> Result<Vec<AdvancedMemoryEntry>, MemoryError>;
+    async fn recall(
+        &self,
+        query: &AdvancedMemoryQuery,
+    ) -> Result<Vec<AdvancedMemoryEntry>, MemoryError>;
 
     /// 按命名空间检索记忆
     async fn recall_namespaced(
@@ -76,11 +79,7 @@ pub trait AdvancedMemory: Send + Sync {
     async fn update_importance(&self, id: &str, importance: f64) -> Result<(), MemoryError>;
 
     /// 标记记忆被替代
-    async fn mark_superseded(
-        &self,
-        old_id: &str,
-        new_id: &str,
-    ) -> Result<(), MemoryError>;
+    async fn mark_superseded(&self, old_id: &str, new_id: &str) -> Result<(), MemoryError>;
 }
 
 /// 支持记忆整合的 Memory trait
@@ -108,7 +107,10 @@ pub trait ConsolidatableMemory: AdvancedMemory {
 #[async_trait]
 pub trait MemoryFactory: Send + Sync {
     /// 创建 Memory 实例
-    async fn create(&self, config: &MemoryBackendConfig) -> Result<Box<dyn AdvancedMemory>, MemoryError>;
+    async fn create(
+        &self,
+        config: &MemoryBackendConfig,
+    ) -> Result<Box<dyn AdvancedMemory>, MemoryError>;
 }
 
 /// Memory 后端配置
@@ -209,9 +211,7 @@ mod tests {
 
     #[test]
     fn test_memory_backend_config() {
-        let config = MemoryBackendConfig::InMemory {
-            max_capacity: 1000,
-        };
+        let config = MemoryBackendConfig::InMemory { max_capacity: 1000 };
         match config {
             MemoryBackendConfig::InMemory { max_capacity } => {
                 assert_eq!(max_capacity, 1000);

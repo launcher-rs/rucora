@@ -80,27 +80,15 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     let strategies = vec![
-        (
-            "Aggressive (激进)",
-            CompressionConfig::aggressive(),
-        ),
+        ("Aggressive (激进)", CompressionConfig::aggressive()),
         ("Balanced (平衡)", CompressionConfig::default()),
-        (
-            "Conservative (保守)",
-            CompressionConfig::conservative(),
-        ),
+        ("Conservative (保守)", CompressionConfig::conservative()),
     ];
 
     for (name, config) in &strategies {
         info!("策略: {}", name);
-        info!(
-            "  protect_head_count: {}",
-            config.protect_head_count
-        );
-        info!(
-            "  protect_tail_tokens: {}",
-            config.protect_tail_tokens
-        );
+        info!("  protect_head_count: {}", config.protect_head_count);
+        info!("  protect_tail_tokens: {}", config.protect_tail_tokens);
         info!(
             "  compression_threshold: {:.0}%",
             config.compression_threshold * 100.0
@@ -136,10 +124,7 @@ async fn main() -> anyhow::Result<()> {
     for (tokens, window, desc) in &test_cases {
         let should = engine.should_compress(*tokens, *window);
         let usage = *tokens as f64 / *window as f64 * 100.0;
-        info!(
-            "  {}: {:.1}% -> 压缩: {}",
-            desc, usage, should
-        );
+        info!("  {}: {:.1}% -> 压缩: {}", desc, usage, should);
     }
     info!("");
 

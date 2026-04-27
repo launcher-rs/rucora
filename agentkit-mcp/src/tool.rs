@@ -266,7 +266,8 @@ impl McpClient {
             const MAX: usize = 1200;
             let s = result
                 .structured_content
-                .as_ref().map_or_else(|| "<no structured_content>".to_string(), |v| v.to_string());
+                .as_ref()
+                .map_or_else(|| "<no structured_content>".to_string(), |v| v.to_string());
             if s.len() <= MAX {
                 s
             } else {

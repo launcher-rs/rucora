@@ -381,8 +381,13 @@ impl ConcurrencyConfig {
     }
 
     /// 为特定工具设置并发数
-    pub fn with_tool_concurrency(mut self, tool_name: impl Into<String>, concurrency: usize) -> Self {
-        self.tool_concurrency.insert(tool_name.into(), concurrency.max(1));
+    pub fn with_tool_concurrency(
+        mut self,
+        tool_name: impl Into<String>,
+        concurrency: usize,
+    ) -> Self {
+        self.tool_concurrency
+            .insert(tool_name.into(), concurrency.max(1));
         self
     }
 
@@ -508,7 +513,14 @@ impl ToolResultCache {
     }
 
     /// 写入缓存
-    pub async fn set(&self, tool_name: &str, input: &Value, value: Value, ttl: Duration, max_entries: usize) {
+    pub async fn set(
+        &self,
+        tool_name: &str,
+        input: &Value,
+        value: Value,
+        ttl: Duration,
+        max_entries: usize,
+    ) {
         let key = Self::make_key(tool_name, input);
         let mut entries = self.entries.lock().await;
 
@@ -670,12 +682,12 @@ mod tests {
         let cfg = TimeoutConfig::default_timeout(Duration::from_secs(30))
             .with_tool_timeout("http_request", Duration::from_secs(60));
 
-        assert_eq!(cfg.get_timeout("http_request"), Some(Duration::from_secs(60)));
-        assert_eq!(cfg.get_timeout("shell"), Some(Duration::from_secs(30)));
         assert_eq!(
-            TimeoutConfig::disabled().get_timeout("any"),
-            None
+            cfg.get_timeout("http_request"),
+            Some(Duration::from_secs(60))
         );
+        assert_eq!(cfg.get_timeout("shell"), Some(Duration::from_secs(30)));
+        assert_eq!(TimeoutConfig::disabled().get_timeout("any"), None);
     }
 
     #[test]
@@ -723,7 +735,15 @@ mod tests {
         assert!(cache.get("file_read", &input).await.is_none());
 
         // 写入缓存
-        cache.set("file_read", &input, value.clone(), Duration::from_secs(60), 1000).await;
+        cache
+            .set(
+                "file_read",
+                &input,
+                value.clone(),
+                Duration::from_secs(60),
+                1000,
+            )
+            .await;
 
         // 命中缓存
         let cached = cache.get("file_read", &input).await;
@@ -738,7 +758,9 @@ mod tests {
         let value = serde_json::json!({"result": "ok"});
 
         // 设置极短 TTL
-        cache.set("tool", &input, value, Duration::from_millis(1), 1000).await;
+        cache
+            .set("tool", &input, value, Duration::from_millis(1), 1000)
+            .await;
 
         // 等待过期
         tokio::time::sleep(Duration::from_millis(10)).await;

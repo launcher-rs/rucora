@@ -370,7 +370,10 @@ impl AgentOutput {
 
     /// 获取输出 Token 数。
     pub fn completion_tokens(&self) -> u32 {
-        self.usage.as_ref().map(|u| u.completion_tokens).unwrap_or(0)
+        self.usage
+            .as_ref()
+            .map(|u| u.completion_tokens)
+            .unwrap_or(0)
     }
 
     /// 格式化 Token 使用信息。

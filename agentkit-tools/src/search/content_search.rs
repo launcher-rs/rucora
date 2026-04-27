@@ -7,9 +7,9 @@ use agentkit_core::{
     tool::{Tool, ToolCategory},
 };
 use async_trait::async_trait;
+use regex::Regex;
 use serde_json::{Value, json};
 use std::path::Path;
-use regex::Regex;
 
 /// 内容搜索工具
 ///
@@ -120,7 +120,7 @@ impl Tool for ContentSearchTool {
         Some(
             "在文件内容中搜索文本或正则表达式模式。 \
              支持在指定目录递归搜索，返回匹配的文件路径、行号和内容。 \
-             示例: 搜索所有包含 'TODO' 的 Rust 文件"
+             示例: 搜索所有包含 'TODO' 的 Rust 文件",
         )
     }
 
@@ -172,8 +172,8 @@ impl Tool for ContentSearchTool {
             Regex::new(&format!("(?i){}", pattern_str))
         };
 
-        let pattern = regex_builder
-            .map_err(|e| ToolError::Message(format!("无效的正则表达式: {}", e)))?;
+        let pattern =
+            regex_builder.map_err(|e| ToolError::Message(format!("无效的正则表达式: {}", e)))?;
 
         // 获取搜索路径
         let search_path = input
@@ -183,10 +183,7 @@ impl Tool for ContentSearchTool {
             .unwrap_or_else(|| Path::new("."));
 
         // 获取文件过滤模式
-        let glob_pattern = input
-            .get("glob")
-            .and_then(|v| v.as_str())
-            .unwrap_or("*");
+        let glob_pattern = input.get("glob").and_then(|v| v.as_str()).unwrap_or("*");
 
         // 构建完整的 glob 模式
         let full_glob = if glob_pattern.contains('/') {
@@ -233,10 +230,7 @@ impl Tool for ContentSearchTool {
                 }
             }
             Err(e) => {
-                return Err(ToolError::Message(format!(
-                    "无效的 glob 模式: {}",
-                    e
-                )));
+                return Err(ToolError::Message(format!("无效的 glob 模式: {}", e)));
             }
         }
 

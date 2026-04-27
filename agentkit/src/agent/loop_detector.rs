@@ -177,7 +177,10 @@ mod tests {
         let output = "same output";
 
         // 1st call: ok
-        assert_eq!(detector.record("tool", &args, output), LoopDetectionResult::Ok);
+        assert_eq!(
+            detector.record("tool", &args, output),
+            LoopDetectionResult::Ok
+        );
         // 2nd call: warning (repeat_count=2 >= max/2+1=2)
         let r2 = detector.record("tool", &args, output);
         assert!(matches!(r2, LoopDetectionResult::Warning(_)));
@@ -208,7 +211,10 @@ mod tests {
         let mut detector = LoopDetector::new(config);
         let args = serde_json::json!({});
         for _ in 0..10 {
-            assert_eq!(detector.record("tool", &args, "out"), LoopDetectionResult::Ok);
+            assert_eq!(
+                detector.record("tool", &args, "out"),
+                LoopDetectionResult::Ok
+            );
         }
     }
 }

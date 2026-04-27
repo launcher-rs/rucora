@@ -85,7 +85,7 @@ impl Tool for GlobSearchTool {
         Some(
             "使用 glob 模式搜索文件。支持通配符: \
              * (匹配任意字符), ** (递归匹配目录), ? (匹配单个字符)。 \
-             示例: '**/*.rs' (所有 Rust 文件), 'src/**/mod.rs' (所有 mod.rs)"
+             示例: '**/*.rs' (所有 Rust 文件), 'src/**/mod.rs' (所有 mod.rs)",
         )
     }
 
@@ -119,26 +119,19 @@ impl Tool for GlobSearchTool {
         // 安全检查：禁止绝对路径和路径遍历
         if pattern.starts_with('/') || pattern.starts_with('\\') {
             return Err(ToolError::Message(
-                "不允许使用绝对路径，请使用相对路径".to_string()
+                "不允许使用绝对路径，请使用相对路径".to_string(),
             ));
         }
         if pattern.contains("..") {
-            return Err(ToolError::Message(
-                "不允许路径遍历 (..)".to_string()
-            ));
+            return Err(ToolError::Message("不允许路径遍历 (..)".to_string()));
         }
 
         // 构建完整路径
-        let search_path = input
-            .get("path")
-            .and_then(|v| v.as_str())
-            .map(Path::new);
+        let search_path = input.get("path").and_then(|v| v.as_str()).map(Path::new);
 
         let full_pattern = if let Some(base_path) = search_path {
             if !self.is_path_allowed(base_path) {
-                return Err(ToolError::Message(
-                    "搜索路径不在允许的范围内".to_string()
-                ));
+                return Err(ToolError::Message("搜索路径不在允许的范围内".to_string()));
             }
             base_path.join(pattern)
         } else {
@@ -163,10 +156,7 @@ impl Tool for GlobSearchTool {
                 }
             }
             Err(e) => {
-                return Err(ToolError::Message(format!(
-                    "无效的 glob 模式: {}",
-                    e
-                )));
+                return Err(ToolError::Message(format!("无效的 glob 模式: {}", e)));
             }
         }
 

@@ -134,9 +134,7 @@ impl Tool for FileEditTool {
         // 检查匹配次数
         let matches = content.matches(old_string).count();
         if matches == 0 {
-            return Err(ToolError::Message(format!(
-                "未找到匹配文本：{old_string}"
-            )));
+            return Err(ToolError::Message(format!("未找到匹配文本：{old_string}")));
         }
         if matches > 1 {
             return Err(ToolError::Message(format!(

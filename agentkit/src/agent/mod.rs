@@ -218,13 +218,13 @@ pub mod reflect;
 
 // 重新导出主要类型
 pub use execution::DefaultExecution;
+pub use loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 pub use policy::{DefaultToolPolicy, ToolPolicy};
 pub use tool_call_config::{
     CacheConfig, CircuitBreakerConfig, ConcurrencyConfig, RetryConfig, RetryStrategy,
     TimeoutConfig, ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
 };
 pub use tool_registry::{ToolRegistry, ToolSource, ToolWrapper};
-pub use loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 
 // 基础层
 pub use chat::{ChatAgent, ChatAgentBuilder};
@@ -244,3 +244,137 @@ pub use extractor::{ExtractionError, ExtractionResponse, Extractor, ExtractorBui
     note = "DefaultAgent 已重命名为 ToolAgent，请使用 ToolAgent"
 )]
 pub use tool::ToolAgent as DefaultAgent;
+
+// ========== 流式输出便捷类型 ==========
+
+use agentkit_core::channel::types::ChannelEvent;
+use agentkit_core::error::AgentError;
+use futures_util::stream::BoxStream;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+
+/// Agent 流式输出包装器。
+///
+/// 包装 `BoxStream`，提供便捷的 `.next()` 和 `.collect_text()` 方法。
+///
+/// # 使用方式
+///
+/// ## 方式 1：直接包装 `run_stream()` 的返回值
+///
+/// ```rust,no_run
+/// use agentkit::agent::{AgentStream, SimpleAgent};
+/// use agentkit::prelude::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let agent = SimpleAgent::builder()
+/// #     .provider(agentkit::provider::OpenAiProvider::from_env()?)
+/// #     .model("gpt-4o-mini")
+/// #     .build();
+/// let mut stream = AgentStream::new(agent.run_stream("你好".into()));
+/// while let Some(event) = stream.next().await {
+///     match event? {
+///         ChannelEvent::TokenDelta(delta) => print!("{}", delta.delta),
+///         _ => {}
+///     }
+/// }
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## 方式 2：使用 `.collect_text()` 直接获取拼接文本
+///
+/// ```rust,no_run
+/// use agentkit::agent::AgentStream;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let agent = agentkit::agent::SimpleAgent::builder()
+/// #     .provider(agentkit::provider::OpenAiProvider::from_env()?)
+/// #     .model("gpt-4o-mini")
+/// #     .build();
+/// let text = AgentStream::new(agent.run_stream("你好".into())).collect_text().await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ## 方式 3（推荐）：直接使用 Agent 上的 `run_stream_text()`
+///
+/// 如果只需要最终文本，每个 Agent 类型都提供了 `run_stream_text()` 方法：
+///
+/// ```rust,no_run
+/// use agentkit::prelude::*;
+///
+/// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+/// # let agent = agentkit::agent::SimpleAgent::builder()
+/// #     .provider(agentkit::provider::OpenAiProvider::from_env()?)
+/// #     .model("gpt-4o-mini")
+/// #     .build();
+/// let text = agent.run_stream_text("你好").await?;
+/// # Ok(())
+/// # }
+/// ```
+pub struct AgentStream(BoxStream<'static, Result<ChannelEvent, AgentError>>);
+
+impl AgentStream {
+    /// 创建新的流式输出包装器。
+    pub fn new(stream: BoxStream<'static, Result<ChannelEvent, AgentError>>) -> Self {
+        Self(stream)
+    }
+
+    /// 获取下一个事件。
+    ///
+    /// 等同于 `.0.next().await`，但用户不需要引入 `futures_util::StreamExt`。
+    pub async fn next(&mut self) -> Option<Result<ChannelEvent, AgentError>> {
+        futures_util::StreamExt::next(&mut self.0).await
+    }
+
+    /// 消费流，收集所有 `TokenDelta` 并拼接为完整文本返回。
+    ///
+    /// 忽略 `ToolCall`、`ToolResult`、`Message` 等非文本事件。
+    /// 遇到 `Error` 事件时立即返回错误。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,no_run
+    /// use agentkit::prelude::*;
+    ///
+    /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+    /// # let agent = agentkit::agent::SimpleAgent::builder()
+    /// #     .provider(agentkit::provider::OpenAiProvider::from_env()?)
+    /// #     .model("gpt-4o-mini")
+    /// #     .build();
+    /// let text = agent.run_stream("你好".into()).collect_text().await?;
+    /// println!("{}", text);
+    /// # Ok(())
+    /// # }
+    /// ```
+    pub async fn collect_text(mut self) -> Result<String, AgentError> {
+        let mut text = String::new();
+
+        while let Some(event) = futures_util::StreamExt::next(&mut self.0).await {
+            match event? {
+                ChannelEvent::TokenDelta(delta) => {
+                    text.push_str(&delta.delta);
+                }
+                ChannelEvent::Error(err) => {
+                    return Err(AgentError::Message(err.message));
+                }
+                _ => {}
+            }
+        }
+
+        Ok(text)
+    }
+}
+
+impl futures_util::Stream for AgentStream {
+    type Item = Result<ChannelEvent, AgentError>;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
+        self.0.as_mut().poll_next(cx)
+    }
+}
+
+/// Re-export `futures_util::StreamExt`，方便用户使用 `.next().await`。
+///
+/// 使用 `use agentkit::prelude::StreamExt;` 或 `use agentkit::agent::StreamExt;` 即可。
+pub use futures_util::StreamExt;

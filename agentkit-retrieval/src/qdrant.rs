@@ -311,9 +311,7 @@ impl VectorStore for QdrantVectorStore {
 
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(ProviderError::Message(format!(
-                "Qdrant clear 失败: {text}"
-            )));
+            return Err(ProviderError::Message(format!("Qdrant clear 失败: {text}")));
         }
 
         Ok(())
@@ -328,9 +326,7 @@ impl VectorStore for QdrantVectorStore {
 
         if !resp.status().is_success() {
             let text = resp.text().await.unwrap_or_default();
-            return Err(ProviderError::Message(format!(
-                "Qdrant count 失败: {text}"
-            )));
+            return Err(ProviderError::Message(format!("Qdrant count 失败: {text}")));
         }
 
         let data: Value = resp

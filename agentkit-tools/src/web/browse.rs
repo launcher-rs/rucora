@@ -294,9 +294,7 @@ impl BrowserOpenTool {
             || host.starts_with("10.")
             || host.starts_with("172.")
         {
-            return Err(ToolError::Message(format!(
-                "阻止访问本地/私有主机: {host}"
-            )));
+            return Err(ToolError::Message(format!("阻止访问本地/私有主机: {host}")));
         }
 
         Ok(url.to_string())

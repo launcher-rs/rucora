@@ -68,8 +68,7 @@ pub(crate) fn scrub_credentials(input: &str) -> String {
 
 use crate::agent::policy::{ToolCallContext, ToolPolicy};
 use crate::agent::tool_call_config::{
-    ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
-    TimeoutConfig,
+    TimeoutConfig, ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
 };
 use crate::agent::tool_registry::ToolRegistry;
 use crate::middleware::MiddlewareChain;
@@ -261,7 +260,8 @@ pub(crate) async fn execute_tool_call_with_middleware(
                     // 对序列化后的 JSON 字符串清洗，再反序列化回来
                     let serialized = other.to_string();
                     let cleaned = scrub_credentials(&serialized);
-                    serde_json::from_str::<Value>(&cleaned).unwrap_or_else(|_| Value::String(cleaned))
+                    serde_json::from_str::<Value>(&cleaned)
+                        .unwrap_or_else(|_| Value::String(cleaned))
                 }
             };
             json!({"ok": true, "output": cleaned_v})
@@ -315,7 +315,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
                 .char_indices()
                 .find(|(idx, _)| *idx >= MAX)
                 .map_or(s.len(), |(idx, _)| idx);
-            
+
             format!("{}...<truncated:{}>", &s[..truncation_point], s.len())
         }
     };

@@ -29,8 +29,7 @@ impl CacheEntry {
     }
 
     fn is_expired(&self) -> bool {
-        self.expires_at
-            .is_some_and(|exp| SystemTime::now() > exp)
+        self.expires_at.is_some_and(|exp| SystemTime::now() > exp)
     }
 }
 

@@ -14,7 +14,7 @@ use agentkit_core::{
 use async_trait::async_trait;
 use serde_json::{Value, json};
 
-use super::shell::{execute_shell_command, SHELL_TIMEOUT_SECS};
+use super::shell::{SHELL_TIMEOUT_SECS, execute_shell_command};
 
 /// 受限命令执行工具。
 ///

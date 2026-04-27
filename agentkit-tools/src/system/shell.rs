@@ -153,7 +153,7 @@ impl ShellTool {
         // 检查路径遍历
         if command.contains("..") {
             return Err(ToolError::Message(
-                "命令包含路径遍历（..），这是不安全的".to_string()
+                "命令包含路径遍历（..），这是不安全的".to_string(),
             ));
         }
 
@@ -167,21 +167,17 @@ impl ShellTool {
         // 检查路径遍历
         if dir.contains("..") {
             return Err(ToolError::Message(
-                "工作目录包含路径遍历（..），这是不安全的".to_string()
+                "工作目录包含路径遍历（..），这是不安全的".to_string(),
             ));
         }
 
         // 检查目录是否存在
         if !path.exists() {
-            return Err(ToolError::Message(format!(
-                "工作目录不存在：{dir}"
-            )));
+            return Err(ToolError::Message(format!("工作目录不存在：{dir}")));
         }
 
         if !path.is_dir() {
-            return Err(ToolError::Message(format!(
-                "工作目录路径不是目录：{dir}"
-            )));
+            return Err(ToolError::Message(format!("工作目录路径不是目录：{dir}")));
         }
 
         Ok(())
@@ -260,9 +256,7 @@ impl Tool for ShellTool {
         self.validate_command(command)?;
 
         // 处理工作目录
-        let working_dir = input
-            .get("working_dir")
-            .and_then(|v| v.as_str());
+        let working_dir = input.get("working_dir").and_then(|v| v.as_str());
 
         if let Some(dir) = working_dir {
             self.validate_working_dir(dir)?;

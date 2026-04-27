@@ -80,10 +80,7 @@ impl DeepResearchEngine {
     /// 执行完整的深度研究流程
     ///
     /// 返回 (最终报告文本, 每阶段输出摘要)
-    pub async fn run(
-        &self,
-        topic: &str,
-    ) -> Result<(String, Vec<PhaseResult>), AgentError> {
+    pub async fn run(&self, topic: &str) -> Result<(String, Vec<PhaseResult>), AgentError> {
         let mut phase_results = Vec::new();
 
         // ── 阶段 1：搜索收集 ──────────────────────────────────────

@@ -251,9 +251,7 @@ impl LayeredCompressor {
         }
 
         // 步骤 3: 生成结构化摘要
-        let summary = self
-            .generate_structured_summary(provider, &middle)
-            .await?;
+        let summary = self.generate_structured_summary(provider, &middle).await?;
 
         // 更新摘要元数据
         self.last_summary_timestamp = Some(

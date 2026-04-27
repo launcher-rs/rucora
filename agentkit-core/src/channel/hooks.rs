@@ -168,11 +168,7 @@ pub trait ModifyingHook: Send + Sync {
     /// 工具调用前钩子
     ///
     /// 可以修改工具名称和参数
-    async fn before_tool_call(
-        &self,
-        name: String,
-        args: Value,
-    ) -> HookResult<(String, Value)> {
+    async fn before_tool_call(&self, name: String, args: Value) -> HookResult<(String, Value)> {
         HookResult::Continue((name, args))
     }
 
@@ -233,11 +229,7 @@ impl HookRegistry {
     }
 
     /// 执行 Modifying 钩子（顺序，高优先级先执行）
-    pub async fn run_modifying<T, F, Fut>(
-        &self,
-        initial: T,
-        f: F,
-    ) -> HookResult<T>
+    pub async fn run_modifying<T, F, Fut>(&self, initial: T, f: F) -> HookResult<T>
     where
         T: Clone,
         F: Fn(&dyn ModifyingHook, T) -> Fut + Send + Sync,
@@ -359,11 +351,7 @@ impl VoidHook for LoggingVoidHook {
     }
 
     async fn on_llm_input(&self, messages: &[ChatMessage], model: &str) {
-        tracing::debug!(
-            message_count = messages.len(),
-            model,
-            "hook.llm.input"
-        );
+        tracing::debug!(message_count = messages.len(), model, "hook.llm.input");
     }
 
     async fn on_llm_output(&self, response: &ChatResponse) {
@@ -374,11 +362,7 @@ impl VoidHook for LoggingVoidHook {
     }
 
     async fn on_after_tool_call(&self, tool: &str, _result: &ToolResult, duration_ms: u64) {
-        tracing::info!(
-            tool_name = tool,
-            duration_ms,
-            "hook.tool_call.complete"
-        );
+        tracing::info!(tool_name = tool, duration_ms, "hook.tool_call.complete");
     }
 
     async fn on_error(&self, error: &AgentError) {
@@ -437,11 +421,7 @@ impl ModifyingHook for ValidationModifyingHook {
         HookResult::Continue(prompt)
     }
 
-    async fn before_tool_call(
-        &self,
-        name: String,
-        args: Value,
-    ) -> HookResult<(String, Value)> {
+    async fn before_tool_call(&self, name: String, args: Value) -> HookResult<(String, Value)> {
         // 示例：禁止调用某些危险工具
         let forbidden_tools = ["rm", "del", "delete"];
         if forbidden_tools.contains(&name.as_str()) {

@@ -91,9 +91,7 @@ pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> 
         // 向前查找最近的 assistant 消息
         let assistant_idx = (0..i)
             .rev()
-            .take_while(|&j| {
-                messages[j].role == Role::Assistant || messages[j].role == Role::Tool
-            })
+            .take_while(|&j| messages[j].role == Role::Assistant || messages[j].role == Role::Tool)
             .find(|&j| messages[j].role == Role::Assistant);
 
         let is_orphan = match assistant_idx {
@@ -626,7 +624,9 @@ impl DefaultExecution {
                                     continue;
                                 }
                                 // 无法恢复
-                                tracing::error!("Context overflow unrecoverable: no trimmable messages");
+                                tracing::error!(
+                                    "Context overflow unrecoverable: no trimmable messages"
+                                );
                             }
                             return Err(AgentError::Message(format!(
                                 "provider error ({}): {}",
@@ -721,9 +721,7 @@ impl DefaultExecution {
                         self.middleware_chain
                             .process_response(out)
                             .await
-                            .map_err(|e| {
-                                AgentError::Message(format!("中间件响应处理失败：{e}"))
-                            })?;
+                            .map_err(|e| AgentError::Message(format!("中间件响应处理失败：{e}")))?;
                     }
 
                     return output;
@@ -742,9 +740,7 @@ impl DefaultExecution {
                         self.middleware_chain
                             .process_response(out)
                             .await
-                            .map_err(|e| {
-                                AgentError::Message(format!("中间件响应处理失败：{e}"))
-                            })?;
+                            .map_err(|e| AgentError::Message(format!("中间件响应处理失败：{e}")))?;
                     }
 
                     return output;
@@ -784,11 +780,8 @@ impl DefaultExecution {
                 .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
 
                 // 循环检测
-                let detection = loop_detector.record(
-                    &call.name,
-                    &call.input,
-                    &result.output.to_string(),
-                );
+                let detection =
+                    loop_detector.record(&call.name, &call.input, &result.output.to_string());
                 match detection {
                     LoopDetectionResult::Ok => {}
                     LoopDetectionResult::Warning(msg) => {
@@ -866,8 +859,7 @@ impl DefaultExecution {
         // 收集结果
         let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
         for r in results {
-            let (idx, result) =
-                r.map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
+            let (idx, result) = r.map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
 
             // 循环检测（并发路径：串行处理检测结果）
             let detection = loop_detector.record(

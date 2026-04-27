@@ -343,11 +343,7 @@ pub trait DualTrackObserver: Send + Sync {
     fn record_metric(&self, metric: ObserverMetric);
 
     /// 记录带标签的指标
-    fn record_metric_with_labels(
-        &self,
-        metric: ObserverMetric,
-        labels: MetricLabels,
-    ) {
+    fn record_metric_with_labels(&self, metric: ObserverMetric, labels: MetricLabels) {
         let _ = labels;
         self.record_metric(metric);
     }
@@ -440,13 +436,25 @@ impl DualTrackObserver for LoggingObserver {
             ObserverEvent::AgentStart { ref agent_name, .. } => {
                 tracing::info!(agent_name, "agent.start");
             }
-            ObserverEvent::AgentEnd { ref agent_name, steps, .. } => {
+            ObserverEvent::AgentEnd {
+                ref agent_name,
+                steps,
+                ..
+            } => {
                 tracing::info!(agent_name, steps, "agent.end");
             }
-            ObserverEvent::LlmRequestStart { ref provider, ref model, .. } => {
+            ObserverEvent::LlmRequestStart {
+                ref provider,
+                ref model,
+                ..
+            } => {
                 tracing::debug!(provider, model, "llm.request.start");
             }
-            ObserverEvent::LlmResponse { ref provider, success, .. } => {
+            ObserverEvent::LlmResponse {
+                ref provider,
+                success,
+                ..
+            } => {
                 if success {
                     tracing::debug!(provider, "llm.response.success");
                 } else {
@@ -456,7 +464,9 @@ impl DualTrackObserver for LoggingObserver {
             ObserverEvent::ToolCallStart { ref tool, .. } => {
                 tracing::debug!(tool, "tool.call.start");
             }
-            ObserverEvent::ToolCallEnd { ref tool, success, .. } => {
+            ObserverEvent::ToolCallEnd {
+                ref tool, success, ..
+            } => {
                 if success {
                     tracing::debug!(tool, "tool.call.end");
                 } else {
@@ -469,10 +479,18 @@ impl DualTrackObserver for LoggingObserver {
             ObserverEvent::ToolCacheMiss { ref tool } => {
                 tracing::debug!(tool, "tool.cache.miss");
             }
-            ObserverEvent::Error { ref component, ref message, .. } => {
+            ObserverEvent::Error {
+                ref component,
+                ref message,
+                ..
+            } => {
                 tracing::error!(component, message, "observer.error");
             }
-            ObserverEvent::LoopDetected { ref tool, repeat_count, .. } => {
+            ObserverEvent::LoopDetected {
+                ref tool,
+                repeat_count,
+                ..
+            } => {
                 tracing::warn!(tool, repeat_count, "loop.detected");
             }
             _ => {
@@ -488,7 +506,11 @@ impl DualTrackObserver for LoggingObserver {
             ObserverMetric::RequestLatencyMs(latency) => {
                 tracing::debug!(latency_ms = latency, "metric.request_latency");
             }
-            ObserverMetric::TokensUsed { prompt, completion, total } => {
+            ObserverMetric::TokensUsed {
+                prompt,
+                completion,
+                total,
+            } => {
                 tracing::debug!(prompt, completion, total, "metric.tokens_used");
             }
             ObserverMetric::ActiveSessions(count) => {

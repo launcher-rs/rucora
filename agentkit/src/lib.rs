@@ -228,6 +228,7 @@ pub use agentkit_a2a as a2a;
 /// 使用 `use agentkit::prelude::*;` 可以快速导入常用类型。
 pub mod prelude {
     pub use crate::agent::DefaultAgent;
+    pub use crate::agent::{AgentStream, StreamExt};
     pub use crate::provider::OpenAiProvider;
     pub use agentkit_core::agent::{Agent, AgentInput, AgentOutput};
     pub use agentkit_core::channel::types::{ChannelEvent, TokenDeltaEvent};

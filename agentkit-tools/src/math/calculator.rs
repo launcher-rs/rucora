@@ -207,8 +207,8 @@ impl CalculatorTool {
                     return Err("variance 需要至少两个数值".to_string());
                 }
                 let mean = values.iter().sum::<f64>() / values.len() as f64;
-                let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>()
-                    / values.len() as f64;
+                let variance =
+                    values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
                 Ok(variance)
             }
             "stdev" => {
@@ -217,8 +217,8 @@ impl CalculatorTool {
                     return Err("stdev 需要至少两个数值".to_string());
                 }
                 let mean = values.iter().sum::<f64>() / values.len() as f64;
-                let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>()
-                    / values.len() as f64;
+                let variance =
+                    values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
                 Ok(variance.sqrt())
             }
             "percentile" => {
@@ -275,7 +275,7 @@ impl Tool for CalculatorTool {
              对数指数: log, ln, exp, factorial; \
              聚合: sum, average, count, min, max, range; \
              统计: median, mode, variance, stdev, percentile; \
-             实用: percentage_change, clamp"
+             实用: percentage_change, clamp",
         )
     }
 
@@ -362,7 +362,10 @@ fn get_values(args: &Value) -> Result<Vec<f64>, String> {
         .and_then(|v| v.as_array())
         .ok_or_else(|| "缺少 'values' 参数".to_string())?
         .iter()
-        .map(|v| v.as_f64().ok_or_else(|| "values 数组必须包含数值".to_string()))
+        .map(|v| {
+            v.as_f64()
+                .ok_or_else(|| "values 数组必须包含数值".to_string())
+        })
         .collect()
 }
 
@@ -433,7 +436,10 @@ mod tests {
         assert!(result.is_err());
 
         // clamp
-        let result = calc.calculate("clamp", &json!({"x": 15.0, "min_val": 0.0, "max_val": 10.0}));
+        let result = calc.calculate(
+            "clamp",
+            &json!({"x": 15.0, "min_val": 0.0, "max_val": 10.0}),
+        );
         assert_eq!(result.unwrap(), 10.0);
     }
 }

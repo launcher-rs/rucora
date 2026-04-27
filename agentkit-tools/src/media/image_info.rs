@@ -170,7 +170,7 @@ impl Tool for ImageInfoTool {
     fn description(&self) -> Option<&str> {
         Some(
             "读取图片文件的元数据信息。支持 PNG、JPEG、GIF、WebP、BMP 格式。 \
-             返回文件格式、尺寸（宽x高）、文件大小等信息。"
+             返回文件格式、尺寸（宽x高）、文件大小等信息。",
         )
     }
 
@@ -201,17 +201,11 @@ impl Tool for ImageInfoTool {
 
         // 检查文件是否存在
         if !path.exists() {
-            return Err(ToolError::Message(format!(
-                "文件不存在: {}",
-                path_str
-            )));
+            return Err(ToolError::Message(format!("文件不存在: {}", path_str)));
         }
 
         if !path.is_file() {
-            return Err(ToolError::Message(format!(
-                "路径不是文件: {}",
-                path_str
-            )));
+            return Err(ToolError::Message(format!("路径不是文件: {}", path_str)));
         }
 
         // 获取文件元数据
