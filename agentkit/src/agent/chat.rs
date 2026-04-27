@@ -103,6 +103,30 @@ where
     ) -> Result<AgentOutput, agentkit_core::agent::AgentError> {
         self.execution.run(self, input).await
     }
+
+    /// 流式运行
+    fn run_stream(
+        &self,
+        input: AgentInput,
+    ) -> futures_util::stream::BoxStream<
+        'static,
+        Result<agentkit_core::channel::types::ChannelEvent, agentkit_core::agent::AgentError>,
+    > {
+        self.execution.run_stream_simple(input)
+    }
+}
+
+impl<P> ChatAgent<P>
+where
+    P: LlmProvider + Send + Sync + 'static,
+{
+    /// 流式运行并返回拼接后的最终文本。
+    pub async fn run_stream_text(
+        &self,
+        input: impl Into<AgentInput>,
+    ) -> Result<String, agentkit_core::agent::AgentError> {
+        self.execution.run_stream_text(input.into()).await
+    }
 }
 
 impl<P> ChatAgent<P> {

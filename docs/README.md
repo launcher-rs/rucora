@@ -60,20 +60,21 @@ cargo add agentkit
 ```rust
 use agentkit::provider::OpenAiProvider;
 use agentkit::agent::DefaultAgent;
+use agentkit::prelude::Agent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
-    
+
     let agent = DefaultAgent::builder()
         .provider(provider)
         .model("gpt-4o-mini")
         .system_prompt("你是有用的助手")
         .build();
-    
-    let output = agent.run("你好").await?;
+
+    let output = agent.run("你好".into()).await?;
     println!("{}", output.text().unwrap_or("无回复"));
-    
+
     Ok(())
 }
 ```

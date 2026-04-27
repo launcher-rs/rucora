@@ -1174,4 +1174,41 @@ impl DefaultExecution {
 
         Box::pin(stream)
     }
+
+    /// 高层流式 API：运行并返回拼接后的最终文本。
+    ///
+    /// 此方法消费事件流，自动拼接 `TokenDelta` 为完整文本返回。
+    /// 适用于只需要最终文本、不需要逐帧处理的场景。
+    ///
+    /// # 参数
+    ///
+    /// - `input`: 用户输入
+    ///
+    /// # 返回
+    ///
+    /// 返回拼接后的完整文本内容。如果遇到错误则返回错误。
+    pub async fn run_stream_text(
+        &self,
+        input: AgentInput,
+    ) -> Result<String, agentkit_core::agent::AgentError> {
+        use agentkit_core::channel::types::ChannelEvent;
+        use futures_util::StreamExt;
+
+        let mut stream = self.run_stream_simple(input);
+        let mut text = String::new();
+
+        while let Some(event) = stream.next().await {
+            match event? {
+                ChannelEvent::TokenDelta(delta) => {
+                    text.push_str(&delta.delta);
+                }
+                ChannelEvent::Error(err) => {
+                    return Err(agentkit_core::agent::AgentError::Message(err.message));
+                }
+                _ => {}
+            }
+        }
+
+        Ok(text)
+    }
 }
