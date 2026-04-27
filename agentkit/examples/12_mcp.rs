@@ -128,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 初始化日志
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .with_target(false)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
@@ -242,14 +242,14 @@ async fn main() -> anyhow::Result<()> {
 
     let agent = ToolAgent::builder()
         .provider(provider)
-        .model("qwen3.5:9b")
+        .model("qwen3.6:27b")
         .system_prompt(
             "你是一个严谨的助手，擅长使用各种工具完成任务。\n\
              回答请使用中文。\n\
              如果需要获取实时信息或执行操作，请使用可用的工具。",
         )
         .tool_registry(tools)
-        .max_steps(6)
+        .max_steps(20)
         .build();
 
     info!("✓ Agent 创建成功\n");
@@ -282,7 +282,7 @@ async fn main() -> anyhow::Result<()> {
     info!("步骤 7: 测试对话 2 - 计算距离假期天数");
     info!("═══════════════════════════════════════\n");
 
-    let question2 = "距离清明假期还有几天？";
+    let question2 = "距离假期还有几天？";
     info!("用户：{}\n", question2);
 
     match agent.run(question2.into()).await {
@@ -310,40 +310,6 @@ async fn main() -> anyhow::Result<()> {
     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
 
     info!("✓ MCP 连接已关闭\n");
-
-    // ═══════════════════════════════════════════════════════════
-    // 总结
-    // ═══════════════════════════════════════════════════════════
-    info!("═══════════════════════════════════════");
-    info!("示例完成！");
-    info!("═══════════════════════════════════════\n");
-
-    info!("📝 MCP 使用总结：\n");
-
-    info!("1. 连接 MCP 服务器:");
-    info!("   - 使用 StreamableHttpClientTransport");
-    info!("   - 配置认证头（Bearer Token）");
-    info!("   - 创建 McpClient\n");
-
-    info!("2. 获取工具列表:");
-    info!("   - 调用 list_tools() 获取工具规格");
-    info!("   - 遍历工具列表了解可用功能\n");
-
-    info!("3. 注册工具:");
-    info!("   - 使用 McpTool 包装工具规格");
-    info!("   - 注册到 ToolRegistry");
-    info!("   - 传递给 Agent 使用\n");
-
-    info!("4. 使用工具:");
-    info!("   - Agent 自动决定调用工具");
-    info!("   - MCP 服务器执行实际逻辑");
-    info!("   - 返回结果给 Agent\n");
-
-    info!("5. 环境变量:");
-    info!("   - OPENAI_BASE_URL: OpenAI 兼容服务地址（如 Ollama）");
-    info!("   - OPENAI_API_KEY: OpenAI API Key");
-    info!("   - MCP_URL: MCP 服务器地址");
-    info!("   - MCP_BEARER_TOKEN: 认证 Token\n");
 
     Ok(())
 }

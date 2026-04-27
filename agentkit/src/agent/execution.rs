@@ -40,78 +40,41 @@ use crate::middleware::MiddlewareChain;
 
 /// 清理消息历史中的孤儿 Tool 消息。
 ///
-/// 当 context 压缩或历史截断后，可能出现没有对应 assistant(tool_calls)
+/// 当 context 压缩或历史截断后，可能出现没有对应 assistant
 /// 配对的 tool 角色消息。部分 LLM Provider（如 Anthropic、MiniMax）
 /// 会因此返回 400 错误。
 ///
 /// 本函数扫描历史消息，删除所有孤儿 tool 消息，并返回删除数量。
 ///
-/// 参考实现: zeroclaw `remove_orphaned_tool_messages`
+/// 注意：ChatMessage 不包含 tool_calls 字段（tool_calls 在 ChatResponse
+/// 中作为独立字段返回），因此本函数基于消息顺序和角色来判定配对关系，
+/// 而非检查 content 中是否包含 "tool_calls" 文本。
 pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> usize {
     let mut removed = 0usize;
-
-    // Pass 1: 删除两个连续 assistant 消息中间不合法的 tool_calls + 结果对
     let mut i = 0;
-    while i < messages.len() {
-        if messages[i].role == Role::Assistant
-            && messages[i].content.contains("tool_calls")
-            && i > 0
-            && messages[i - 1].role == Role::Assistant
-        {
-            // 记录这个 assistant 消息的内容，用于匹配后续 tool 消息
-            let doomed_content = messages[i].content.clone();
-            messages.remove(i);
-            removed += 1;
-            // 删除紧跟着的、引用这个 assistant 的 tool 消息
-            while i < messages.len() && messages[i].role == Role::Tool {
-                let dominated = match extract_tool_call_id_from_content(&messages[i].content) {
-                    Some(id) => doomed_content.contains(&id),
-                    None => true,
-                };
-                if dominated {
-                    messages.remove(i);
-                    removed += 1;
-                } else {
-                    break;
-                }
-            }
-        } else {
-            i += 1;
-        }
-    }
 
-    // Pass 2: 删除没有配对 assistant 的孤儿 tool 消息
-    i = 0;
     while i < messages.len() {
+        // 只检查 tool 角色的消息
         if messages[i].role != Role::Tool {
             i += 1;
             continue;
         }
 
-        // 向前查找最近的 assistant 消息
-        let assistant_idx = (0..i)
-            .rev()
-            .take_while(|&j| messages[j].role == Role::Assistant || messages[j].role == Role::Tool)
-            .find(|&j| messages[j].role == Role::Assistant);
+        // 向前查找最近的非-tool 消息
+        let parent_idx = (0..i).rev().find(|&j| messages[j].role != Role::Tool);
 
-        let is_orphan = match assistant_idx {
-            None => true,
+        let is_orphan = match parent_idx {
+            None => true, // 前面没有任何消息，肯定是孤儿
             Some(idx) => {
-                let assistant_content = &messages[idx].content;
-                if assistant_content.contains("tool_calls") {
-                    match extract_tool_call_id_from_content(&messages[i].content) {
-                        Some(tool_call_id) => !assistant_content.contains(&tool_call_id),
-                        None => false, // 保守：无法解析 ID 时保留
-                    }
-                } else {
-                    true
-                }
+                // 如果最近的非-tool 消息不是 assistant，则该 tool 消息是孤儿
+                messages[idx].role != Role::Assistant
             }
         };
 
         if is_orphan {
             messages.remove(i);
             removed += 1;
+            // 不递增 i，因为删除后当前位置是下一条消息
         } else {
             i += 1;
         }
@@ -120,20 +83,11 @@ pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> 
     if removed > 0 {
         tracing::warn!(
             count = removed,
-            "移除了 {removed} 个孤儿 tool 消息（assistant tool_calls 已被截断）"
+            "移除了 {removed} 个孤儿 tool 消息（没有对应的 assistant 父消息）"
         );
     }
 
     removed
-}
-
-/// 从 tool 角色消息的 JSON 内容中提取 tool_call_id
-fn extract_tool_call_id_from_content(content: &str) -> Option<String> {
-    let value: serde_json::Value = serde_json::from_str(content).ok()?;
-    value
-        .get("tool_call_id")
-        .and_then(|v| v.as_str())
-        .map(|s| s.to_string())
 }
 
 // ========== Context Overflow 内联恢复 ==========
