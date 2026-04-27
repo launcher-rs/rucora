@@ -1,10 +1,12 @@
 //! AgentKit Reflect Agent 示例
 //!
-//! 展示反思迭代模式的 Agent。
+//! 展示反思迭代模式的 Agent，支持使用工具辅助完成任务。
 //!
 //! ## 运行方法
 //! ```bash
 //! export OPENAI_API_KEY=sk-your-key
+//! # 或使用 Ollama
+//! export OPENAI_BASE_URL=http://127.0.0.1:11434
 //! cargo run --example 16_reflect_agent
 //! ```
 //!
@@ -12,12 +14,13 @@
 //!
 //! 1. **反思迭代** - 生成 - 反思 - 改进循环
 //! 2. **自我批评** - Agent 自我评估
-//! 3. **持续改进** - 迭代优化输出
+//! 3. **工具增强** - 使用工具获取信息辅助反思
 //! 4. **质量保证** - 达到质量阈值
 
 use agentkit::agent::ReflectAgent;
 use agentkit::prelude::Agent;
 use agentkit::provider::OpenAiProvider;
+use agentkit::tools::{DatetimeTool, EchoTool, ShellTool};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
@@ -25,7 +28,6 @@ use tracing_subscriber::FmtSubscriber;
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
-    // 初始化日志
     let subscriber = FmtSubscriber::builder()
         .with_max_level(Level::INFO)
         .with_target(false)
@@ -36,7 +38,6 @@ async fn main() -> anyhow::Result<()> {
     info!("║   AgentKit Reflect Agent 示例         ║");
     info!("╚════════════════════════════════════════╝\n");
 
-    // 检查配置
     if std::env::var("OPENAI_API_KEY").is_err() && std::env::var("OPENAI_BASE_URL").is_err() {
         info!("⚠ 未设置 API 配置");
         info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
@@ -44,11 +45,9 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o".to_string());
+    info!("使用模型: {}\n", model);
 
-    // ═══════════════════════════════════════════════════════════
-    // Reflect 模式说明
-    // ═══════════════════════════════════════════════════════════
     info!("═══════════════════════════════════════");
     info!("Reflect 模式说明:");
     info!("═══════════════════════════════════════");
@@ -62,30 +61,36 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     // ═══════════════════════════════════════════════════════════
-    // 创建 Reflect Agent
+    // 创建 Reflect Agent（带工具支持）
     // ═══════════════════════════════════════════════════════════
     info!("═══════════════════════════════════════");
     info!("创建 Reflect Agent");
     info!("═══════════════════════════════════════\n");
 
-    info!("1. 创建 Provider...");
     let provider = OpenAiProvider::from_env()?;
-    info!("✓ Provider 创建成功\n");
 
-    info!("2. 创建 Reflect Agent...");
     let agent = ReflectAgent::builder()
         .provider(provider)
-        .model(&model_name)
+        .model(&model)
         .system_prompt(
-            "你是一个追求卓越的助手。请遵循以下步骤：\n\
-             1. 生成初始版本的答案\n\
-             2. 反思答案的不足之处\n\
-             3. 改进答案\n\
-             4. 重复直到达到高质量标准",
+            "你是一个追求卓越的助手，擅长使用工具获取信息。\n\
+             请遵循以下步骤：\n\
+             1. 如有需要，先使用工具获取相关信息\n\
+             2. 生成初始版本的答案\n\
+             3. 反思答案的不足之处（正确性、完整性、清晰度）\n\
+             4. 根据反思改进答案\n\
+             5. 重复直到达到高质量标准",
         )
+        .tool(EchoTool)
+        .tool(DatetimeTool)
+        .tool(ShellTool::new())
         .max_iterations(3)
+        .quality_threshold(0.85)
         .build();
-    info!("✓ Reflect Agent 创建成功\n");
+
+    info!("✓ Reflect Agent 创建成功");
+    info!("  注册工具: {:?}", agent.tools());
+    info!("  最大迭代: 3, 质量阈值: 0.85\n");
 
     // ═══════════════════════════════════════════════════════════
     // 演示任务 1: 代码生成
@@ -104,18 +109,18 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Err(e) => {
-            info!("错误：{}\n", e);
+            info!("❌ 处理失败：{}\n", e);
         }
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 演示任务 2: 文档写作
+    // 演示任务 2: 需要实时信息的方案
     // ═══════════════════════════════════════════════════════════
     info!("═══════════════════════════════════════");
-    info!("演示任务 2: 文档写作");
+    info!("演示任务 2: 需要实时信息的方案");
     info!("═══════════════════════════════════════\n");
 
-    let task2 = "帮我写一个项目 README 文件的简介部分，项目是一个 Rust 编写的 Web 框架";
+    let task2 = "今天是几号？帮我安排一个本周的工作计划";
     info!("任务：\"{}\"\n", task2);
 
     match agent.run(task2.into()).await {
@@ -125,7 +130,7 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Err(e) => {
-            info!("错误：{}\n", e);
+            info!("❌ 处理失败：{}\n", e);
         }
     }
 
@@ -146,40 +151,19 @@ async fn main() -> anyhow::Result<()> {
             }
         }
         Err(e) => {
-            info!("错误：{}\n", e);
+            info!("❌ 处理失败：{}\n", e);
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 总结
-    // ═══════════════════════════════════════════════════════════
     info!("═══════════════════════════════════════");
     info!("示例完成！");
     info!("═══════════════════════════════════════\n");
 
-    info!("📝 Reflect Agent 总结：\n");
-
-    info!("1. Reflect 优势:");
-    info!("   - 高质量输出 - 多次迭代优化");
-    info!("   - 自我改进 - 自动发现问题");
-    info!("   - 一致性 - 减少矛盾和错误");
-    info!("   - 完整性 - 考虑更全面的因素\n");
-
-    info!("2. 适用场景:");
-    info!("   - 代码生成 - 生成高质量代码");
-    info!("   - 文档写作 - 不断改进文档质量");
-    info!("   - 方案设计 - 迭代优化方案");
-    info!("   - 任何需要高质量输出的任务\n");
-
-    info!("3. 配置建议:");
-    info!("   - max_iterations: 3-5 次迭代");
-    info!("   - quality_threshold: 0.8-0.9 质量阈值");
-    info!("   - 系统提示词：明确质量标准\n");
-
-    info!("4. 性能考虑:");
-    info!("   - 更多迭代 = 更长时间");
-    info!("   - 权衡质量和成本");
-    info!("   - 简单任务不需要反思\n");
+    info!("📝 ReflectAgent 总结：\n");
+    info!("1. 核心优势: 高质量输出、自我改进、减少错误");
+    info!("2. 工具增强: 可注册工具辅助信息获取和执行");
+    info!("3. 适用场景: 代码生成、文档写作、方案设计");
+    info!("4. 配置建议: max_iterations=3-5, quality_threshold=0.8-0.9");
 
     Ok(())
 }
