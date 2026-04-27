@@ -5,13 +5,15 @@
 //! ## 运行方法
 //! ```bash
 //! export OPENAI_API_KEY=sk-your-key
-//! cargo run --example 21_task_decomposition
+//! # 或使用 Ollama
+//! export OPENAI_BASE_URL=http://127.0.0.1:11434
+//! cargo run --example 13_task_decomposition
 //! ```
 //!
 //! ## 功能演示
 //!
 //! 1. **问题拆解** - AI 分析复杂问题并拆解为可执行的子问题
-//! 2. **并行/串行回答** - 对每个子问题进行独立回答
+//! 2. **串行回答** - 对每个子问题进行独立回答
 //! 3. **综合总结** - 整合所有子问题的答案形成完整回复
 //! 4. **质量评估** - 评估答案的完整性和一致性
 
@@ -30,37 +32,26 @@ use tracing_subscriber::FmtSubscriber;
 /// 子问题
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct SubQuestion {
-    /// 子问题 ID
     id: usize,
-    /// 子问题内容
     question: String,
-    /// 子问题描述（可选）
     description: Option<String>,
 }
 
 /// 子问题答案
 #[derive(Debug, Clone)]
 struct SubAnswer {
-    /// 子问题 ID
     question_id: usize,
-    /// 问题内容
     question: String,
-    /// 答案内容
     answer: String,
-    /// 置信度（1-5）
     confidence: u8,
 }
 
 /// 最终综合结果
 #[derive(Debug, Clone)]
 struct SynthesizedResult {
-    /// 子问题列表
     sub_questions: Vec<SubQuestion>,
-    /// 子问题答案列表
     sub_answers: Vec<SubAnswer>,
-    /// 综合总结
     summary: String,
-    /// 质量评估（1-5）
     quality_score: u8,
 }
 
@@ -77,10 +68,10 @@ impl<P> TaskDecomposer<P>
 where
     P: agentkit_core::provider::LlmProvider + Send + Sync + 'static,
 {
-    /// 创建新的任务拆解器
-    fn new(provider: P) -> Self {
+    fn new(provider: P, model: &str) -> Self {
         let agent = SimpleAgent::builder()
             .provider(provider)
+            .model(model.to_string())
             .system_prompt(
                 "你是一个专业的任务拆解专家。你的职责是：\n\
                  1. 分析复杂问题，识别核心要点\n\
@@ -98,7 +89,6 @@ where
         Self { agent }
     }
 
-    /// 拆解问题
     async fn decompose(&self, question: &str) -> anyhow::Result<Vec<SubQuestion>> {
         info!("🔍 正在拆解问题...");
 
@@ -107,9 +97,7 @@ where
 
         let response = output.text().unwrap_or("[]");
 
-        // 尝试解析 JSON
         let sub_questions: Vec<SubQuestion> = serde_json::from_str(response).unwrap_or_else(|_| {
-            // 如果解析失败，返回默认的子问题
             info!("⚠ JSON 解析失败，使用默认拆解");
             vec![SubQuestion {
                 id: 1,
@@ -136,10 +124,10 @@ impl<P> AnswerSynthesizer<P>
 where
     P: agentkit_core::provider::LlmProvider + Send + Sync + 'static,
 {
-    /// 创建新的答案综合器
-    fn new(provider: P) -> Self {
+    fn new(provider: P, model: &str) -> Self {
         let agent = SimpleAgent::builder()
             .provider(provider)
+            .model(model.to_string())
             .system_prompt(
                 "你是一个专业的答案综合专家。你的职责是：\n\
                  1. 阅读所有子问题及其答案\n\
@@ -158,7 +146,6 @@ where
         Self { agent }
     }
 
-    /// 综合答案
     async fn synthesize(
         &self,
         original_question: &str,
@@ -166,7 +153,6 @@ where
     ) -> anyhow::Result<(String, u8)> {
         info!("🔗 正在综合答案...");
 
-        // 构建综合提示
         let mut prompt = format!("原始问题：{}\n\n", original_question);
         prompt.push_str("子问题答案：\n\n");
 
@@ -182,7 +168,6 @@ where
         let output = self.agent.run(prompt.into()).await?;
         let response = output.text().unwrap_or("无法综合答案").to_string();
 
-        // 提取质量评分
         let quality_score = response
             .lines()
             .find(|line| line.contains("质量评分"))
@@ -211,15 +196,15 @@ impl<P> SubQuestionAnswerer<P>
 where
     P: agentkit_core::provider::LlmProvider + Send + Sync + 'static,
 {
-    /// 创建新的回答器
-    fn new(provider: P) -> Self {
+    fn new(provider: P, model: &str) -> Self {
         let agent = ToolAgent::builder()
             .provider(provider)
+            .model(model.to_string())
             .system_prompt(
                 "你是一个专业的子问题回答专家。你的职责是：\n\
                  1. 准确理解子问题\n\
                  2. 提供详细、准确的答案\n\
-                 3. 如有必要，使用工具获取额外信息\n\
+                 3. 如有必要，使用可用的工具获取额外信息\n\
                  4. 在答案末尾评估你的置信度（1-5 分）\n\n\
                  请以以下格式返回：\n\
                  【答案】\n\
@@ -233,7 +218,6 @@ where
         Self { agent }
     }
 
-    /// 回答子问题
     async fn answer(&self, sub_question: &SubQuestion) -> anyhow::Result<SubAnswer> {
         info!(
             "  📝 回答子问题 #{}: {}",
@@ -252,7 +236,6 @@ where
         let output = self.agent.run(prompt.into()).await?;
         let response = output.text().unwrap_or("无法回答");
 
-        // 提取置信度
         let confidence = response
             .lines()
             .find(|line| line.contains("置信度"))
@@ -263,7 +246,6 @@ where
             })
             .unwrap_or(3);
 
-        // 提取答案内容（移除置信度行）
         let answer = response
             .lines()
             .filter(|line| !line.contains("置信度") && !line.contains("【置信度】"))
@@ -287,22 +269,21 @@ where
 
 /// 任务拆解与综合系统
 struct TaskDecompositionSystem {
-    decomposer_factory: Box<dyn Fn() -> OpenAiProvider + Send + Sync>,
-    answerer_factory: Box<dyn Fn() -> OpenAiProvider + Send + Sync>,
-    synthesizer_factory: Box<dyn Fn() -> OpenAiProvider + Send + Sync>,
+    make_provider: Box<dyn Fn() -> anyhow::Result<OpenAiProvider> + Send + Sync>,
+    model: String,
 }
 
 impl TaskDecompositionSystem {
-    /// 创建新系统
-    fn new() -> Self {
+    fn new(
+        make_provider: impl Fn() -> anyhow::Result<OpenAiProvider> + Send + Sync + 'static,
+        model: &str,
+    ) -> Self {
         Self {
-            decomposer_factory: Box::new(|| OpenAiProvider::from_env().unwrap()),
-            answerer_factory: Box::new(|| OpenAiProvider::from_env().unwrap()),
-            synthesizer_factory: Box::new(|| OpenAiProvider::from_env().unwrap()),
+            make_provider: Box::new(make_provider),
+            model: model.to_string(),
         }
     }
 
-    /// 处理复杂问题
     async fn process(&self, question: &str) -> anyhow::Result<SynthesizedResult> {
         info!("╔════════════════════════════════════════╗");
         info!("║   开始处理复杂问题                     ║");
@@ -311,7 +292,8 @@ impl TaskDecompositionSystem {
         info!("📋 原始问题：{}\n", question);
 
         // 步骤 1: 拆解问题
-        let decomposer = TaskDecomposer::new((self.decomposer_factory)());
+        let provider = (self.make_provider)()?;
+        let decomposer = TaskDecomposer::new(provider, &self.model);
         let sub_questions = decomposer.decompose(question).await?;
         info!("✓ 问题拆解完成\n");
 
@@ -322,7 +304,8 @@ impl TaskDecompositionSystem {
 
         let mut sub_answers = Vec::new();
         for sub_question in &sub_questions {
-            let answerer = SubQuestionAnswerer::new((self.answerer_factory)());
+            let provider = (self.make_provider)()?;
+            let answerer = SubQuestionAnswerer::new(provider, &self.model);
             let answer = answerer.answer(sub_question).await?;
             sub_answers.push(answer);
         }
@@ -333,7 +316,8 @@ impl TaskDecompositionSystem {
         info!("步骤 3: 综合答案");
         info!("═══════════════════════════════════════\n");
 
-        let synthesizer = AnswerSynthesizer::new((self.synthesizer_factory)());
+        let provider = (self.make_provider)()?;
+        let synthesizer = AnswerSynthesizer::new(provider, &self.model);
         let (summary, quality_score) = synthesizer.synthesize(question, &sub_answers).await?;
         info!("✓ 答案综合完成\n");
 
@@ -354,9 +338,8 @@ impl TaskDecompositionSystem {
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
 
-    // 初始化日志
     let subscriber = FmtSubscriber::builder()
-        .with_max_level(Level::INFO)
+        .with_max_level(Level::DEBUG)
         .with_target(false)
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
@@ -365,7 +348,6 @@ async fn main() -> anyhow::Result<()> {
     info!("║   AgentKit 任务拆解示例                ║");
     info!("╚════════════════════════════════════════╝\n");
 
-    // 检查配置
     if std::env::var("OPENAI_API_KEY").is_err() && std::env::var("OPENAI_BASE_URL").is_err() {
         info!("⚠ 未设置 API 配置");
         info!("   使用 OpenAI: export OPENAI_API_KEY=sk-your-key");
@@ -373,16 +355,12 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 创建任务拆解系统
-    // ═══════════════════════════════════════════════════════════
-    info!("═══════════════════════════════════════");
-    info!("创建任务拆解系统");
-    info!("═══════════════════════════════════════\n");
+    // let model = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o".to_string());
+    let model = "qwen3.5:9b";
+    info!("使用模型: {}\n", model);
 
-    info!("1. 创建任务拆解系统...");
-    let system = TaskDecompositionSystem::new();
-    info!("✓ 系统创建成功\n");
+    let make_provider = || Ok(OpenAiProvider::from_env()?);
+    let system = TaskDecompositionSystem::new(make_provider, &model);
 
     // ═══════════════════════════════════════════════════════════
     // 演示任务 1: 技术调研
@@ -523,144 +501,16 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════
-    // 系统架构总结
-    // ═══════════════════════════════════════════════════════════
-    info!("═══════════════════════════════════════");
-    info!("系统架构总结");
-    info!("═══════════════════════════════════════\n");
-
-    info!("```");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│           复杂问题输入                   │");
-    info!("└─────────────────┬───────────────────────┘");
-    info!("                  │");
-    info!("                  ▼");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│         TaskDecomposer                   │");
-    info!("│    (问题拆解专家)                         │");
-    info!("│  - 分析问题结构                          │");
-    info!("│  - 识别核心要点                          │");
-    info!("│  - 生成独立子问题                        │");
-    info!("└─────────────────┬───────────────────────┘");
-    info!("                  │");
-    info!("                  ▼");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│    SubQuestion #1    SubQuestion #2 ... │");
-    info!("└─────────────────┬───────────────────────┘");
-    info!("                  │");
-    info!("                  ▼");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│      SubQuestionAnswerer                 │");
-    info!("│    (子问题回答专家)                       │");
-    info!("│  - 独立回答每个子问题                    │");
-    info!("│  - 可使用工具获取信息                    │");
-    info!("│  - 评估答案置信度                        │");
-    info!("└─────────────────┬───────────────────────┘");
-    info!("                  │");
-    info!("                  ▼");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│      Answer #1    Answer #2    Answer   │");
-    info!("└─────────────────┬───────────────────────┘");
-    info!("                  │");
-    info!("                  ▼");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│       AnswerSynthesizer                  │");
-    info!("│    (答案综合专家)                         │");
-    info!("│  - 整合所有答案                          │");
-    info!("│  - 消除重复和矛盾                        │");
-    info!("│  - 生成结构化总结                        │");
-    info!("│  - 评估整体质量                          │");
-    info!("└─────────────────┬───────────────────────┘");
-    info!("                  │");
-    info!("                  ▼");
-    info!("┌─────────────────────────────────────────┐");
-    info!("│         综合总结输出                     │");
-    info!("│    + 质量评分 + 改进建议                 │");
-    info!("└─────────────────────────────────────────┘");
-    info!("```\n");
-
-    // ═══════════════════════════════════════════════════════════
-    // 使用场景
-    // ═══════════════════════════════════════════════════════════
-    info!("═══════════════════════════════════════");
-    info!("使用场景");
-    info!("═══════════════════════════════════════\n");
-
-    info!("1. 复杂问题解答:");
-    info!("   - 技术问题需要多角度分析");
-    info!("   - 学术研究需要全面调研");
-    info!("   - 决策问题需要权衡利弊\n");
-
-    info!("2. 报告生成:");
-    info!("   - 市场调研报告");
-    info!("   - 竞品分析报告");
-    info!("   - 技术可行性报告\n");
-
-    info!("3. 学习规划:");
-    info!("   - 制定学习计划");
-    info!("   - 知识体系梳理");
-    info!("   - 技能路径规划\n");
-
-    info!("4. 产品设计:");
-    info!("   - 需求分析");
-    info!("   - 架构设计");
-    info!("   - 风险评估\n");
-
-    // ═══════════════════════════════════════════════════════════
-    // 优化建议
-    // ═══════════════════════════════════════════════════════════
-    info!("═══════════════════════════════════════");
-    info!("优化建议");
-    info!("═══════════════════════════════════════\n");
-
-    info!("1. 并行处理:");
-    info!("   - 使用 tokio::join! 并行回答子问题");
-    info!("   - 减少总体响应时间\n");
-
-    info!("2. 缓存机制:");
-    info!("   - 缓存常见子问题的答案");
-    info!("   - 避免重复计算\n");
-
-    info!("3. 迭代优化:");
-    info!("   - 根据质量评分自动调整拆解策略");
-    info!("   - 对低质量答案进行追问\n");
-
-    info!("4. 专家路由:");
-    info!("   - 根据子问题类型路由到不同专家");
-    info!("   - 提高答案专业性\n");
-
-    // ═══════════════════════════════════════════════════════════
-    // 总结
-    // ═══════════════════════════════════════════════════════════
     info!("═══════════════════════════════════════");
     info!("示例完成！");
     info!("═══════════════════════════════════════\n");
 
-    info!("📝 任务拆解系统总结：\n");
-
-    info!("1. 核心优势:");
-    info!("   - 结构化思考 - 将复杂问题拆解为可管理的小问题");
-    info!("   - 专注回答 - 每个子问题独立回答，提高准确性");
-    info!("   - 综合总结 - 整合信息形成完整答案");
-    info!("   - 质量评估 - 自动评估答案质量\n");
-
-    info!("2. 关键组件:");
-    info!("   - TaskDecomposer - 问题拆解专家");
-    info!("   - SubQuestionAnswerer - 子问题回答专家");
-    info!("   - AnswerSynthesizer - 答案综合专家\n");
-
-    info!("3. 适用场景:");
-    info!("   - 复杂技术咨询");
-    info!("   - 研究报告生成");
-    info!("   - 决策支持");
-    info!("   - 学习规划\n");
-
-    info!("4. 扩展方向:");
-    info!("   - 添加更多专业回答器");
-    info!("   - 实现并行处理");
-    info!("   - 集成 RAG 增强答案质量");
-    info!("   - 添加记忆系统记住历史拆解\n");
+    info!("系统架构：\n");
+    info!(
+        "  复杂问题 → TaskDecomposer(拆解) → SubQuestionAnswerer(逐个回答) → AnswerSynthesizer(综合)"
+    );
+    info!("");
+    info!("适用场景：复杂技术咨询、研究报告、决策支持、学习规划");
 
     Ok(())
 }
