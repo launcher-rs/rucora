@@ -6,7 +6,6 @@ members = [
     "rucora-mcp",
     "rucora-a2a",
     "rucora-providers",
-    "rucora-tools",
     "rucora-embed",
     "rucora-retrieval",
     "rucora-skills",
