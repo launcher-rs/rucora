@@ -61,6 +61,11 @@ impl SkillDefinition {
         })
     }
 
+    /// 验证输入数据是否符合 schema。
+    ///
+    /// # Errors
+    ///
+    /// 当输入数据不符合 schema 要求时返回错误描述。
     pub fn validate_input(&self, input: &Value) -> Result<(), String> {
         if self.input_schema.is_null() {
             return Ok(());

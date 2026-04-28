@@ -20,20 +20,15 @@ use serde::{Deserialize, Serialize};
 use tracing::{debug, info};
 
 /// 压缩策略
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum CompressionStrategy {
     /// 激进压缩（尽可能压缩，适合长对话）
     Aggressive,
     /// 平衡压缩（保留更多上下文，适合中等对话）
+    #[default]
     Balanced,
     /// 保守压缩（只压缩必要部分，适合短对话）
     Conservative,
-}
-
-impl Default for CompressionStrategy {
-    fn default() -> Self {
-        Self::Balanced
-    }
 }
 
 /// 压缩配置
@@ -189,8 +184,7 @@ impl LayeredCompressor {
         if let Some(last_ts) = self.last_summary_timestamp {
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0);
+                .map_or(0, |d| d.as_secs());
 
             if now - last_ts < self.config.summary_cooldown_seconds {
                 debug!(
@@ -257,16 +251,14 @@ impl LayeredCompressor {
         self.last_summary_timestamp = Some(
             std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_secs())
-                .unwrap_or(0),
+                .map_or(0, |d| d.as_secs()),
         );
         self.last_summary_content = Some(summary.clone());
 
         // 步骤 4: 创建摘要消息
         let summary_message = ChatMessage::system(format!(
-            "<conversation-summary>\n{}\n</conversation-summary>\n\n\
-             以上是之前对话的结构化摘要。请基于此摘要和后续对话继续工作。",
-            summary
+            "<conversation-summary>\n{summary}\n</conversation-summary>\n\n\
+             以上是之前对话的结构化摘要。请基于此摘要和后续对话继续工作。"
         ));
 
         // 步骤 5: 重组消息
@@ -370,16 +362,12 @@ impl LayeredCompressor {
         let prompt = if let Some(previous_summary) = &self.last_summary_content {
             // 迭代更新先前摘要
             format!(
-                "这是之前的对话摘要：\n{}\n\n---\n\n这是新的对话内容：\n{}\n\n\
-                 请更新之前的摘要以反映新的进展，保持结构化格式。",
-                previous_summary, context_text
+                "这是之前的对话摘要：\n{previous_summary}\n\n---\n\n这是新的对话内容：\n{context_text}\n\n\
+                 请更新之前的摘要以反映新的进展，保持结构化格式。"
             )
         } else {
             // 首次生成
-            format!(
-                "{}\n\n---\n\n对话内容：\n{}",
-                STRUCTURED_SUMMARY_TEMPLATE, context_text
-            )
+            format!("{STRUCTURED_SUMMARY_TEMPLATE}\n\n---\n\n对话内容：\n{context_text}")
         };
 
         let request = agentkit_core::provider::types::ChatRequest::from_user_text(prompt);
@@ -466,9 +454,9 @@ mod tests {
         let messages: Vec<ChatMessage> = (0..20)
             .map(|i| {
                 if i % 2 == 0 {
-                    ChatMessage::user(format!("User message {}", i))
+                    ChatMessage::user(format!("User message {i}"))
                 } else {
-                    ChatMessage::assistant(format!("Assistant message {}", i))
+                    ChatMessage::assistant(format!("Assistant message {i}"))
                 }
             })
             .collect();

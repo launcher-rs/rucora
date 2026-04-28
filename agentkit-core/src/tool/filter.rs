@@ -12,18 +12,13 @@ use std::collections::HashMap;
 use super::types::ToolDefinition;
 
 /// 工具可见性模式
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub enum ToolVisibility {
     /// 始终可见
+    #[default]
     Always,
     /// 动态可见（基于关键词匹配）
     Dynamic,
-}
-
-impl Default for ToolVisibility {
-    fn default() -> Self {
-        Self::Always
-    }
 }
 
 /// 工具过滤器配置
@@ -96,18 +91,17 @@ impl ToolFilterConfig {
         if !self.enabled {
             return false;
         }
-        match self.visibility.get(tool_name) {
-            Some(ToolVisibility::Dynamic) => true,
-            _ => false,
-        }
+        matches!(
+            self.visibility.get(tool_name),
+            Some(ToolVisibility::Dynamic)
+        )
     }
 
     /// 获取工具的关键词列表
     pub fn get_keywords(&self, tool_name: &str) -> &[String] {
         self.dynamic_keywords
             .get(tool_name)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+            .map_or(&[], |v| v.as_slice())
     }
 
     /// 检查用户消息是否匹配工具的关键词
@@ -333,7 +327,7 @@ mod tests {
     fn create_test_tool(name: &str) -> ToolDefinition {
         ToolDefinition {
             name: name.to_string(),
-            description: Some(format!("{} tool", name)),
+            description: Some(format!("{name} tool")),
             input_schema: serde_json::json!({
                 "type": "object",
                 "properties": {}

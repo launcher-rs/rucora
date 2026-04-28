@@ -54,13 +54,11 @@ impl GlobSearchTool {
 
         // 如果设置了根目录，检查路径是否在根目录下
         if let Some(ref root) = self.allowed_root {
-            let canonical_root = match std::fs::canonicalize(root) {
-                Ok(p) => p,
-                Err(_) => return false,
+            let Ok(canonical_root) = std::fs::canonicalize(root) else {
+                return false;
             };
-            let canonical_path = match std::fs::canonicalize(path) {
-                Ok(p) => p,
-                Err(_) => return false,
+            let Ok(canonical_path) = std::fs::canonicalize(path) else {
+                return false;
             };
             canonical_path.starts_with(canonical_root)
         } else {
@@ -156,7 +154,7 @@ impl Tool for GlobSearchTool {
                 }
             }
             Err(e) => {
-                return Err(ToolError::Message(format!("无效的 glob 模式: {}", e)));
+                return Err(ToolError::Message(format!("无效的 glob 模式: {e}")));
             }
         }
 

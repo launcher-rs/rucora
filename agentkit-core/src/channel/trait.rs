@@ -14,7 +14,11 @@ pub trait Channel: Send + Sync {
 
     /// 订阅事件流。
     ///
-    /// 约定：该流可以是“来自外部的输入”，也可以是“系统内部事件总线”。
+    /// 约定：该流可以是”来自外部的输入”，也可以是”系统内部事件总线”。
+    ///
+    /// # Errors
+    ///
+    /// 当无法创建事件流时返回 [`ChannelError`]。
     fn stream(
         &self,
     ) -> Result<BoxStream<'static, Result<ChannelEvent, ChannelError>>, ChannelError>;

@@ -270,6 +270,12 @@ pub struct CombinedHook {
     modifying_hooks: Vec<Arc<dyn ModifyingHook>>,
 }
 
+impl Default for CombinedHook {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CombinedHook {
     /// 创建新的组合钩子
     pub fn new() -> Self {
@@ -425,7 +431,7 @@ impl ModifyingHook for ValidationModifyingHook {
         // 示例：禁止调用某些危险工具
         let forbidden_tools = ["rm", "del", "delete"];
         if forbidden_tools.contains(&name.as_str()) {
-            return HookResult::Cancel(format!("工具 '{}' 被禁止调用", name));
+            return HookResult::Cancel(format!("工具 '{name}' 被禁止调用"));
         }
         HookResult::Continue((name, args))
     }
@@ -493,6 +499,7 @@ mod tests {
         registry.register_modifying(Arc::new(ValidationModifyingHook::new()));
 
         // 使用一个静态的修改函数来避免生命周期问题
+        #[allow(clippy::unused_async)]
         async fn modify_string(s: String) -> HookResult<String> {
             HookResult::Continue(s + " modified")
         }

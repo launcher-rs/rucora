@@ -256,7 +256,7 @@ async fn main() -> anyhow::Result<()> {
     // 模拟多轮对话
     info!("4.2 多轮对话演示...");
 
-    let conversations = vec![
+    let conversations = [
         "你好，我想了解一下 Rust 语言的特点。",
         "听起来很有趣！那我应该如何开始学习 Rust 呢？",
         "谢谢建议！我之前的编程经验主要是 Python，这对学习 Rust 有帮助吗？",

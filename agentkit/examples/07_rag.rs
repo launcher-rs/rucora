@@ -269,11 +269,10 @@ async fn main() -> anyhow::Result<()> {
     let enhanced_prompt = format!(
         "请根据以下上下文信息回答问题。\n\n\
          === 上下文 ===\n\
-         {}\n\n\
+         {context}\n\n\
          === 问题 ===\n\
-         {}\n\n\
-         请提供详细、准确的回答，并引用相关来源。",
-        context, query
+         {query}\n\n\
+         请提供详细、准确的回答，并引用相关来源。"
     );
 
     info!("5.4 生成回答...");

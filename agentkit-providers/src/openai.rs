@@ -324,8 +324,9 @@ impl LlmProvider for OpenAiProvider {
         // 额外参数（用于支持 provider 特定的参数，如 NVIDIA 的 reasoning_budget 等）
         if let Some(extra) = request.extra.as_ref()
             && let Some(map) = body.as_object_mut()
+            && let Some(extra_map) = extra.as_object()
         {
-            for (key, value) in extra.as_object().unwrap_or(&serde_json::Map::new()) {
+            for (key, value) in extra_map {
                 map.insert(key.clone(), value.clone());
             }
         }

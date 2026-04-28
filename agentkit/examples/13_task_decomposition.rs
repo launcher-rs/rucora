@@ -92,7 +92,7 @@ where
     async fn decompose(&self, question: &str) -> anyhow::Result<Vec<SubQuestion>> {
         info!("🔍 正在拆解问题...");
 
-        let prompt = format!("请拆解以下问题：\n\n{}", question);
+        let prompt = format!("请拆解以下问题：\n\n{question}");
         let output = self.agent.run(prompt.into()).await?;
 
         let response = output.text().unwrap_or("[]");
@@ -153,10 +153,10 @@ where
     ) -> anyhow::Result<(String, u8)> {
         info!("🔗 正在综合答案...");
 
-        let mut prompt = format!("原始问题：{}\n\n", original_question);
+        let mut prompt = format!("原始问题：{original_question}\n\n");
         prompt.push_str("子问题答案：\n\n");
 
-        for answer in sub_answers.iter() {
+        for answer in sub_answers {
             prompt.push_str(&format!(
                 "【子问题 {}】{}\n【答案】{}\n【置信度】{}/5\n\n",
                 answer.question_id, answer.question, answer.answer, answer.confidence
@@ -360,7 +360,7 @@ async fn main() -> anyhow::Result<()> {
     info!("使用模型: {}\n", model);
 
     let make_provider = || Ok(OpenAiProvider::from_env()?);
-    let system = TaskDecompositionSystem::new(make_provider, &model);
+    let system = TaskDecompositionSystem::new(make_provider, model);
 
     // ═══════════════════════════════════════════════════════════
     // 演示任务 1: 技术调研

@@ -360,20 +360,17 @@ impl AgentOutput {
 
     /// 获取总 Token 数。
     pub fn total_tokens(&self) -> u32 {
-        self.usage.as_ref().map(|u| u.total_tokens).unwrap_or(0)
+        self.usage.as_ref().map_or(0, |u| u.total_tokens)
     }
 
     /// 获取提示词 Token 数。
     pub fn prompt_tokens(&self) -> u32 {
-        self.usage.as_ref().map(|u| u.prompt_tokens).unwrap_or(0)
+        self.usage.as_ref().map_or(0, |u| u.prompt_tokens)
     }
 
     /// 获取输出 Token 数。
     pub fn completion_tokens(&self) -> u32 {
-        self.usage
-            .as_ref()
-            .map(|u| u.completion_tokens)
-            .unwrap_or(0)
+        self.usage.as_ref().map_or(0, |u| u.completion_tokens)
     }
 
     /// 格式化 Token 使用信息。
@@ -391,7 +388,7 @@ impl AgentOutput {
 impl std::fmt::Display for AgentOutput {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.text() {
-            Some(text) => write!(f, "{}", text),
+            Some(text) => write!(f, "{text}"),
             None => Ok(()),
         }
     }

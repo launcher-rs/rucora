@@ -122,20 +122,17 @@ impl LoopDetector {
 
         if repeat_count > max {
             let msg = format!(
-                "工具 '{}' 产生了相同的参数和输出，连续重复 {} 次（超过阈值 {}），终止 agent loop。",
-                tool_name, repeat_count, max
+                "工具 '{tool_name}' 产生了相同的参数和输出，连续重复 {repeat_count} 次（超过阈值 {max}），终止 agent loop。"
             );
             LoopDetectionResult::Break(msg)
         } else if repeat_count == max {
             let msg = format!(
-                "工具 '{}' 重复调用 {} 次，输出相同。请换一种方法完成任务，不要继续重复调用。",
-                tool_name, repeat_count
+                "工具 '{tool_name}' 重复调用 {repeat_count} 次，输出相同。请换一种方法完成任务，不要继续重复调用。"
             );
             LoopDetectionResult::Block(msg)
-        } else if repeat_count >= max / 2 + 1 && max >= 2 {
+        } else if repeat_count > max / 2 && max >= 2 {
             let msg = format!(
-                "[Loop Warning] 工具 '{}' 已重复产生相同输出 {} 次。请调整策略，避免循环。",
-                tool_name, repeat_count
+                "[Loop Warning] 工具 '{tool_name}' 已重复产生相同输出 {repeat_count} 次。请调整策略，避免循环。"
             );
             LoopDetectionResult::Warning(msg)
         } else {

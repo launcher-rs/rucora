@@ -158,6 +158,10 @@ pub trait RuntimeAdapter: Send + Sync {
     /// 构建 shell 命令
     ///
     /// 根据运行时环境构建适当的命令执行器
+    ///
+    /// # Errors
+    ///
+    /// 当运行时不支持 shell 访问时返回 [`RuntimeError`]。
     fn build_shell_command(
         &self,
         command: &str,
@@ -200,6 +204,10 @@ pub trait RuntimeAdapter: Send + Sync {
     fn get_env(&self, key: &str) -> Option<String>;
 
     /// 设置环境变量（如果运行时支持）
+    ///
+    /// # Errors
+    ///
+    /// 当运行时不支持设置环境变量时返回 [`RuntimeError`]。
     fn set_env(&self, key: &str, value: &str) -> Result<(), RuntimeError>;
 
     /// 记录日志
@@ -209,8 +217,7 @@ pub trait RuntimeAdapter: Send + Sync {
     fn current_timestamp(&self) -> u64 {
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0)
+            .map_or(0, |d| d.as_secs())
     }
 }
 
@@ -234,12 +241,12 @@ pub enum RuntimeError {
 impl std::fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            RuntimeError::NotSupported(msg) => write!(f, "操作不被支持: {}", msg),
-            RuntimeError::PermissionDenied(msg) => write!(f, "权限不足: {}", msg),
-            RuntimeError::ResourceLimit(msg) => write!(f, "资源限制: {}", msg),
-            RuntimeError::IoError(msg) => write!(f, "IO 错误: {}", msg),
-            RuntimeError::Timeout(msg) => write!(f, "超时: {}", msg),
-            RuntimeError::Other(msg) => write!(f, "错误: {}", msg),
+            RuntimeError::NotSupported(msg) => write!(f, "操作不被支持: {msg}"),
+            RuntimeError::PermissionDenied(msg) => write!(f, "权限不足: {msg}"),
+            RuntimeError::ResourceLimit(msg) => write!(f, "资源限制: {msg}"),
+            RuntimeError::IoError(msg) => write!(f, "IO 错误: {msg}"),
+            RuntimeError::Timeout(msg) => write!(f, "超时: {msg}"),
+            RuntimeError::Other(msg) => write!(f, "错误: {msg}"),
         }
     }
 }
@@ -375,8 +382,7 @@ impl RuntimeAdapter for NativeRuntimeAdapter {
             let max_size = self.capabilities.max_file_size;
             if max_size > 0 && size > max_size {
                 return Err(RuntimeError::ResourceLimit(format!(
-                    "文件大小 {} 超过限制 {}",
-                    size, max_size
+                    "文件大小 {size} 超过限制 {max_size}"
                 )));
             }
         }
@@ -398,8 +404,7 @@ impl RuntimeAdapter for NativeRuntimeAdapter {
         let max_size = self.capabilities.max_file_size;
         if max_size > 0 && content_size > max_size {
             return Err(RuntimeError::ResourceLimit(format!(
-                "内容大小 {} 超过限制 {}",
-                content_size, max_size
+                "内容大小 {content_size} 超过限制 {max_size}"
             )));
         }
 
@@ -669,7 +674,7 @@ impl RuntimeAdapter for RestrictedRuntimeAdapter {
 
     fn log(&self, level: LogLevel, message: &str) {
         // 受限环境中使用 console.log 或类似机制
-        eprintln!("[{:?}] {}", level, message);
+        eprintln!("[{level:?}] {message}");
     }
 }
 

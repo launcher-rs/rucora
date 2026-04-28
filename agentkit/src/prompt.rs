@@ -129,10 +129,10 @@ impl PromptTemplate {
         }
 
         // 处理条件渲染
-        result = process_if_blocks(&result, context)?;
+        result = process_if_blocks(&result, context);
 
         // 处理循环渲染
-        result = process_each_blocks(&result, context)?;
+        result = process_each_blocks(&result, context);
 
         // 清理未替换的变量
         result = cleanup_unused_variables(&result);
@@ -155,8 +155,8 @@ impl PromptTemplate {
             }
         }
 
-        result = process_if_blocks(&result, context)?;
-        result = process_each_blocks(&result, context)?;
+        result = process_if_blocks(&result, context);
+        result = process_each_blocks(&result, context);
         result = cleanup_unused_variables(&result);
 
         Ok(result)
@@ -276,7 +276,7 @@ fn escape_prompt(text: &str) -> String {
 }
 
 /// 处理条件渲染块
-fn process_if_blocks(text: &str, context: &Value) -> Result<String, PromptError> {
+fn process_if_blocks(text: &str, context: &Value) -> String {
     let mut result = text.to_string();
 
     // 处理 {{#if variable}}...{{/if}}
@@ -299,11 +299,11 @@ fn process_if_blocks(text: &str, context: &Value) -> Result<String, PromptError>
         result = result.replace(&cap[0], &replacement);
     }
 
-    Ok(result)
+    result
 }
 
 /// 处理循环渲染块
-fn process_each_blocks(text: &str, context: &Value) -> Result<String, PromptError> {
+fn process_each_blocks(text: &str, context: &Value) -> String {
     let mut result = text.to_string();
 
     // 处理 {{#each array}}...{{/each}}
@@ -331,7 +331,7 @@ fn process_each_blocks(text: &str, context: &Value) -> Result<String, PromptErro
         }
     }
 
-    Ok(result)
+    result
 }
 
 /// 清理未替换的变量

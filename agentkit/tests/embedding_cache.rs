@@ -59,7 +59,7 @@ async fn cached_embedding_provider_should_validate_dim() {
 
     let cached = CachedEmbeddingProvider::new(inner);
 
-    let err = cached.embed("hello").await.err().expect("should err");
+    let err = cached.embed("hello").await.expect_err("should err");
     let msg = err.to_string();
     assert!(msg.contains("embedding_dim"));
 }

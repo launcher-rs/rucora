@@ -196,11 +196,10 @@ impl LlmProvider for OllamaProvider {
         // 添加额外参数（provider 特定参数，如 Ollama 的 think、chat_template_kwargs 等）
         if let Some(extra) = &request.extra
             && let Some(map) = body.as_object_mut()
+            && let Value::Object(extra_map) = extra
         {
-            if let Value::Object(extra_map) = extra {
-                for (key, value) in extra_map {
-                    map.insert(key.clone(), value.clone());
-                }
+            for (key, value) in extra_map {
+                map.insert(key.clone(), value.clone());
             }
         }
 
@@ -395,11 +394,10 @@ impl LlmProvider for OllamaProvider {
         // 添加额外参数（provider 特定参数，如 Ollama 的 think、chat_template_kwargs 等）
         if let Some(extra) = &request.extra
             && let Some(map) = body.as_object_mut()
+            && let Value::Object(extra_map) = extra
         {
-            if let Value::Object(extra_map) = extra {
-                for (key, value) in extra_map {
-                    map.insert(key.clone(), value.clone());
-                }
+            for (key, value) in extra_map {
+                map.insert(key.clone(), value.clone());
             }
         }
 

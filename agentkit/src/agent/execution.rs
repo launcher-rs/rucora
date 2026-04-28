@@ -299,7 +299,7 @@ impl DefaultExecution {
         let model = model.into();
         Self {
             provider,
-            model: model,
+            model,
             system_prompt: None,
             tools,
             policy: Arc::new(DefaultToolPolicy::new()),
@@ -904,7 +904,7 @@ impl DefaultExecution {
             LoopDetectionResult::Block(msg) => {
                 tracing::warn!(tool = %name, "{}", msg);
                 let blocked = ToolResult {
-                    tool_call_id: result.tool_call_id.clone(),
+                    tool_call_id: result.tool_call_id,
                     output: serde_json::Value::String(msg),
                 };
                 records.push(ToolCallRecord {

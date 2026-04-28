@@ -322,8 +322,8 @@ pub async fn execute_shell_command(
     // 执行命令（带超时）
     let output = timeout(timeout_duration, cmd.output())
         .await
-        .map_err(|_| ToolError::Message(format!("命令执行超时（{} 秒）", timeout_secs)))?
-        .map_err(|e| ToolError::Message(format!("命令执行失败：{}", e)))?;
+        .map_err(|_| ToolError::Message(format!("命令执行超时（{timeout_secs} 秒）")))?
+        .map_err(|e| ToolError::Message(format!("命令执行失败：{e}")))?;
 
     let exit_code = output.status.code().unwrap_or(-1);
 
@@ -343,7 +343,7 @@ pub async fn execute_shell_command(
 pub fn truncate_output(output: &[u8]) -> (String, bool) {
     if output.len() > MAX_OUTPUT_BYTES {
         let truncated = String::from_utf8_lossy(&output[..MAX_OUTPUT_BYTES]);
-        (format!("{}... [截断]", truncated), true)
+        (format!("{truncated}... [截断]"), true)
     } else {
         (String::from_utf8_lossy(output).to_string(), false)
     }

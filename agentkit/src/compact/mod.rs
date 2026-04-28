@@ -264,13 +264,11 @@ mod tests {
         // 每条消息约 50 个字符，约 12-13 tokens + 角色开销 3-4 = 约 16 tokens
         // 需要约 7192 / 16 = 450 条消息
         for i in 0..500 {
-            manager.add_message(ChatMessage::user(&format!(
-                "这是第 {} 条测试消息，包含一些额外的内容来增加 token 数量",
-                i
+            manager.add_message(ChatMessage::user(format!(
+                "这是第 {i} 条测试消息，包含一些额外的内容来增加 token 数量"
             )));
-            manager.add_message(ChatMessage::assistant(&format!(
-                "这是第 {} 条回复，同样包含一些额外的内容来增加 token 数量",
-                i
+            manager.add_message(ChatMessage::assistant(format!(
+                "这是第 {i} 条回复，同样包含一些额外的内容来增加 token 数量"
             )));
         }
 

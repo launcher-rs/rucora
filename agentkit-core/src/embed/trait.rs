@@ -53,6 +53,10 @@ pub trait EmbeddingProvider: Send + Sync {
 ///
 /// 返回值为 [-1.0, 1.0]，值越大表示相似度越高。
 /// 对于归一化的向量（如 OpenAI embedding），返回值即为点积。
+///
+/// # Errors
+///
+/// 当两个向量维度不一致时返回 [`ProviderError`]。
 pub fn cosine_similarity(a: &[f32], b: &[f32]) -> Result<f32, ProviderError> {
     if a.len() != b.len() {
         return Err(ProviderError::Message(format!(
@@ -76,6 +80,10 @@ pub fn cosine_similarity(a: &[f32], b: &[f32]) -> Result<f32, ProviderError> {
 /// 向量搜索辅助函数。
 ///
 /// 对候选向量按与查询向量的相似度排序，返回前 k 个结果的索引和分数。
+///
+/// # Errors
+///
+/// 当计算相似度失败时返回 [`ProviderError`]。
 pub fn vector_search(
     query: &[f32],
     candidates: &[Vec<f32>],

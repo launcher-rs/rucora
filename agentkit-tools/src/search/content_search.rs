@@ -64,7 +64,7 @@ impl ContentSearchTool {
 
         // 检查文件大小
         let metadata = std::fs::metadata(file_path)
-            .map_err(|e| ToolError::Message(format!("无法读取文件元数据: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("无法读取文件元数据: {e}")))?;
 
         if metadata.len() > self.max_file_size {
             return Err(ToolError::Message(format!(
@@ -77,7 +77,7 @@ impl ContentSearchTool {
 
         // 读取文件内容
         let content = std::fs::read_to_string(file_path)
-            .map_err(|e| ToolError::Message(format!("无法读取文件: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("无法读取文件: {e}")))?;
 
         // 逐行搜索
         for (line_num, line) in content.lines().enumerate() {
@@ -169,18 +169,17 @@ impl Tool for ContentSearchTool {
         let regex_builder = if case_sensitive {
             Regex::new(pattern_str)
         } else {
-            Regex::new(&format!("(?i){}", pattern_str))
+            Regex::new(&format!("(?i){pattern_str}"))
         };
 
         let pattern =
-            regex_builder.map_err(|e| ToolError::Message(format!("无效的正则表达式: {}", e)))?;
+            regex_builder.map_err(|e| ToolError::Message(format!("无效的正则表达式: {e}")))?;
 
         // 获取搜索路径
         let search_path = input
             .get("path")
             .and_then(|v| v.as_str())
-            .map(Path::new)
-            .unwrap_or_else(|| Path::new("."));
+            .map_or_else(|| Path::new("."), Path::new);
 
         // 获取文件过滤模式
         let glob_pattern = input.get("glob").and_then(|v| v.as_str()).unwrap_or("*");
@@ -189,7 +188,7 @@ impl Tool for ContentSearchTool {
         let full_glob = if glob_pattern.contains('/') {
             glob_pattern.to_string()
         } else {
-            format!("**/{}", glob_pattern)
+            format!("**/{glob_pattern}")
         };
 
         // 执行搜索
@@ -230,7 +229,7 @@ impl Tool for ContentSearchTool {
                 }
             }
             Err(e) => {
-                return Err(ToolError::Message(format!("无效的 glob 模式: {}", e)));
+                return Err(ToolError::Message(format!("无效的 glob 模式: {e}")));
             }
         }
 
@@ -267,7 +266,7 @@ mod tests {
         assert!(regex.is_ok());
 
         // 无效的正则表达式
-        let regex = Regex::new(r"[invalid");
+        let regex = Regex::new(r"\[invalid");
         assert!(regex.is_err());
     }
 }

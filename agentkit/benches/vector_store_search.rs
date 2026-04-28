@@ -17,7 +17,7 @@ fn bench_inmemory_vector_store_search(c: &mut Criterion) {
                 (i as f32 * 0.01).sin(),
                 (i as f32 * 0.01).cos(),
             ];
-            records.push(VectorRecord::new(format!("id-{}", i), v));
+            records.push(VectorRecord::new(format!("id-{i}"), v));
         }
         store.upsert(records).await.unwrap();
     });

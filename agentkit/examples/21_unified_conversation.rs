@@ -121,10 +121,9 @@ async fn main() -> anyhow::Result<()> {
 
     // 模拟添加更多消息
     for i in 1..=30 {
-        manager.add_user_message(format!("这是第 {} 轮对话的用户消息", i));
+        manager.add_user_message(format!("这是第 {i} 轮对话的用户消息"));
         manager.add_assistant_message(format!(
-            "这是第 {} 轮对话的助手回复，包含一些详细内容来增加 token 数量。",
-            i
+            "这是第 {i} 轮对话的助手回复，包含一些详细内容来增加 token 数量。"
         ));
 
         if i % 10 == 0 {

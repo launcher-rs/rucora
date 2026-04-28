@@ -41,8 +41,7 @@ impl AdvancedMemoryEntry {
     pub fn new(id: impl Into<String>, content: impl Into<String>) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
         Self {
             id: id.into(),
             content: content.into(),
@@ -92,8 +91,7 @@ impl AdvancedMemoryEntry {
         self.superseded_by = Some(new_id.into());
         self.updated_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
     }
 
     /// 检查是否被替代
@@ -251,8 +249,7 @@ impl ProceduralMemory {
     pub fn new(name: impl Into<String>, description: impl Into<String>) -> Self {
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
         Self {
             name: name.into(),
             description: description.into(),
@@ -282,8 +279,7 @@ impl ProceduralMemory {
         self.success_count += 1;
         self.last_used_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
     }
 
     /// 记录失败使用
@@ -291,8 +287,7 @@ impl ProceduralMemory {
         self.failure_count += 1;
         self.last_used_at = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
     }
 
     /// 获取成功率
@@ -354,8 +349,7 @@ pub fn calculate_decayed_importance(
 
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(created_at);
+        .map_or(created_at, |d| d.as_secs());
 
     let age_seconds = now.saturating_sub(created_at);
     let half_lives = age_seconds as f64 / config.half_life_seconds as f64;
@@ -440,8 +434,7 @@ mod tests {
 
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
+            .map_or(0, |d| d.as_secs());
 
         // 刚刚创建的记忆不应衰减
         let importance = calculate_decayed_importance(1.0, now, &config);
@@ -450,7 +443,7 @@ mod tests {
         // 禁用衰减时不应衰减
         let disabled_config = DecayConfig {
             enabled: false,
-            ..config.clone()
+            ..config
         };
         let importance = calculate_decayed_importance(1.0, now - 86400, &disabled_config);
         assert!((importance - 1.0).abs() < 0.01);

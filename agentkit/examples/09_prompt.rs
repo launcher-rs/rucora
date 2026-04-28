@@ -244,10 +244,7 @@ async fn main() -> anyhow::Result<()> {
     }))?;
 
     // 完整的系统提示词
-    let full_system_prompt = format!(
-        "{}\n\n{}\n\n{}",
-        role_prompt, constraint_prompt, format_prompt
-    );
+    let full_system_prompt = format!("{role_prompt}\n\n{constraint_prompt}\n\n{format_prompt}");
 
     info!("角色定义：\n{}\n", role_prompt);
     info!("约束条件：\n{}\n", constraint_prompt);

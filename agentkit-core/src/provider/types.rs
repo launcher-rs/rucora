@@ -142,7 +142,7 @@ pub enum FinishReason {
 /// let mut request = ChatRequest::new(vec![]);
 /// params.apply_to(&mut request);
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
 pub struct LlmParams {
     /// 温度参数（0.0 - 2.0）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -276,22 +276,6 @@ impl LlmParams {
             stop: request.stop.clone(),
             response_format: request.response_format.clone(),
             extra: request.extra.clone(),
-        }
-    }
-}
-
-impl Default for LlmParams {
-    fn default() -> Self {
-        Self {
-            temperature: None,
-            top_p: None,
-            top_k: None,
-            max_tokens: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            stop: None,
-            response_format: None,
-            extra: None,
         }
     }
 }

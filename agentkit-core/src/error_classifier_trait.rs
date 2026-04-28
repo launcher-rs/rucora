@@ -43,10 +43,10 @@ pub enum FailoverReason {
 impl FailoverReason {
     /// 判断是否可重试
     pub fn is_retryable(&self) -> bool {
-        match self {
-            Self::AuthPermanent | Self::Billing | Self::ModelNotFound | Self::FormatError => false,
-            _ => true,
-        }
+        !matches!(
+            self,
+            Self::AuthPermanent | Self::Billing | Self::ModelNotFound | Self::FormatError
+        )
     }
 
     /// 是否应该触发上下文压缩
@@ -124,8 +124,7 @@ impl ClassifiedError {
             "错误原因：{:?} | 状态码：{} | 策略：{}",
             self.reason,
             self.status_code
-                .map(|s| s.to_string())
-                .unwrap_or_else(|| "N/A".to_string()),
+                .map_or_else(|| "N/A".to_string(), |s| s.to_string()),
             action
         )
     }

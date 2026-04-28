@@ -160,7 +160,7 @@ impl LlmProvider for EchoProvider {
         Ok(ChatResponse {
             message: ChatMessage {
                 role: Role::Assistant,
-                content: format!("Echo: {}", user_message),
+                content: format!("Echo: {user_message}"),
                 name: None,
             },
             tool_calls: vec![],

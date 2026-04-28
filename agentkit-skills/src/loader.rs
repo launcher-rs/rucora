@@ -108,6 +108,7 @@ impl SkillLoader {
         Ok(skills)
     }
 
+    #[allow(clippy::unused_async)]
     pub async fn load_skill(&self, skill_dir: &Path) -> Result<SkillDefinition, SkillLoadError> {
         // 配置文件优先级：skill.yaml > skill.toml > skill.json > SKILL.md
         let definition = if skill_dir.join("skill.yaml").exists() {

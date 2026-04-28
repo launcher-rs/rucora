@@ -134,6 +134,7 @@ impl CachedSkillLoader {
     }
 
     /// 获取 Skill（优先从缓存读取）
+    #[allow(clippy::unused_async)]
     pub async fn get_skill(&mut self, name: &str) -> Option<crate::SkillDefinition> {
         // 尝试从缓存读取
         if let Some(skill) = self.cache.get(name) {
@@ -169,7 +170,7 @@ mod tests {
         let mut cache = SkillCache::default_cache();
 
         let skill = SkillDefinition::new("test", "Test skill");
-        cache.insert("test".to_string(), skill.clone());
+        cache.insert("test".to_string(), skill);
 
         assert_eq!(cache.len(), 1);
         assert!(cache.get("test").is_some());
@@ -181,7 +182,7 @@ mod tests {
         let mut cache = SkillCache::new(100, Some(Duration::from_millis(100)));
 
         let skill = SkillDefinition::new("test", "Test skill");
-        cache.insert("test".to_string(), skill.clone());
+        cache.insert("test".to_string(), skill);
 
         // 立即检查，应该存在
         assert!(cache.get("test").is_some());
@@ -198,8 +199,8 @@ mod tests {
         let mut cache = SkillCache::new(3, None);
 
         for i in 0..5 {
-            let skill = SkillDefinition::new(&format!("test{}", i), "Test");
-            cache.insert(format!("test{}", i), skill);
+            let skill = SkillDefinition::new(format!("test{i}"), "Test");
+            cache.insert(format!("test{i}"), skill);
         }
 
         // 缓存应该只保留最新的 3 个
@@ -217,8 +218,8 @@ mod tests {
 
         // 添加一些会过期的条目
         for i in 0..3 {
-            let skill = SkillDefinition::new(&format!("test{}", i), "Test");
-            cache.insert(format!("test{}", i), skill);
+            let skill = SkillDefinition::new(format!("test{i}"), "Test");
+            cache.insert(format!("test{i}"), skill);
         }
 
         // 等待过期

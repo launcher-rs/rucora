@@ -197,8 +197,7 @@ impl CalculatorTool {
                 let mode_key = counts
                     .iter()
                     .find(|&(_, c)| *c == max_count)
-                    .map(|(k, _)| *k)
-                    .unwrap_or(0);
+                    .map_or(0, |(k, _)| *k);
                 Ok(mode_key as f64 / 1_000_000.0)
             }
             "variance" => {
@@ -227,7 +226,7 @@ impl CalculatorTool {
                     return Err("percentile 需要至少一个数值".to_string());
                 }
                 let p = get_f64(args, "p")?;
-                if p < 0.0 || p > 100.0 {
+                if !(0.0..=100.0).contains(&p) {
                     return Err("百分位数必须在 0-100 之间".to_string());
                 }
                 values.sort_by(|a, b| a.partial_cmp(b).unwrap());
@@ -251,7 +250,7 @@ impl CalculatorTool {
                 Ok(x.clamp(min_val, max_val))
             }
 
-            _ => Err(format!("未知的函数: {}", function)),
+            _ => Err(format!("未知的函数: {function}")),
         }
     }
 }
@@ -372,13 +371,13 @@ fn get_values(args: &Value) -> Result<Vec<f64>, String> {
 fn get_f64(args: &Value, key: &str) -> Result<f64, String> {
     args.get(key)
         .and_then(|v| v.as_f64())
-        .ok_or_else(|| format!("缺少或无效的 '{}' 参数", key))
+        .ok_or_else(|| format!("缺少或无效的 '{key}' 参数"))
 }
 
 fn get_u64(args: &Value, key: &str) -> Result<u64, String> {
     args.get(key)
         .and_then(|v| v.as_u64())
-        .ok_or_else(|| format!("缺少或无效的 '{}' 参数", key))
+        .ok_or_else(|| format!("缺少或无效的 '{key}' 参数"))
 }
 
 #[cfg(test)]

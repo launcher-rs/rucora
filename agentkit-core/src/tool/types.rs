@@ -286,12 +286,12 @@ pub struct ToolContext {
 }
 
 impl ToolContext {
-    /// 创建空上下文
+    /// 创建空上下文。
     pub fn new() -> Self {
         Self::default()
     }
 
-    /// 插入一个键值对（builder 风格）
+    /// 插入一个键值对（builder 风格）。
     pub fn with(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
         self.data.insert(key.into(), value.into());
         self

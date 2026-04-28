@@ -90,7 +90,7 @@ async fn main() -> anyhow::Result<()> {
     let text = agent2
         .run_stream_text("将 'The quick brown fox jumps over the lazy dog' 翻译成中文")
         .await?;
-    println!("\n助手: {}\n", text);
+    println!("\n助手: {text}\n");
 
     // ========================================
     // 示例 3：ToolAgent 流式输出（含工具调用事件）
@@ -148,7 +148,7 @@ async fn main() -> anyhow::Result<()> {
     let text2 = tool_agent
         .run_stream_text("用一句话回复我，不要调用工具")
         .await?;
-    println!("\n助手: {}\n", text2);
+    println!("\n助手: {text2}\n");
 
     Ok(())
 }

@@ -198,7 +198,7 @@ mod tests {
 
         // 普通内容
         let score1 = scorer.score("这是一段普通的内容", None);
-        assert!(score1 >= 0.5 && score1 <= 0.7);
+        assert!((0.5..=0.7).contains(&score1));
 
         // 包含关键词的内容
         let score2 = scorer.score("这是一个重要的关键信息", None);

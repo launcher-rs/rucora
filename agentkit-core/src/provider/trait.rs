@@ -17,7 +17,11 @@ pub trait LlmProvider: Send + Sync {
 
     /// 流式对话请求（可选能力）。
     ///
-    /// 默认实现会返回“不支持”。具体 provider 如果支持流式输出，重写该方法即可。
+    /// 默认实现会返回”不支持”。具体 provider 如果支持流式输出，重写该方法即可。
+    ///
+    /// # Errors
+    ///
+    /// 当流式输出不被支持或创建流失败时返回 [`ProviderError`]。
     fn stream_chat(
         &self,
         _request: ChatRequest,

@@ -263,12 +263,12 @@ impl CircuitBreakerState {
             CircuitState::Closed => true,
             CircuitState::Open => {
                 // 检查是否到了恢复探测时间
-                if let Some(opened_at) = self.last_opened_at {
-                    if opened_at.elapsed() >= config.recovery_timeout {
-                        self.state = CircuitState::HalfOpen;
-                        self.half_open_calls = 0;
-                        return true;
-                    }
+                if let Some(opened_at) = self.last_opened_at
+                    && opened_at.elapsed() >= config.recovery_timeout
+                {
+                    self.state = CircuitState::HalfOpen;
+                    self.half_open_calls = 0;
+                    return true;
                 }
                 false
             }
@@ -328,8 +328,7 @@ impl CircuitBreakerRegistry {
         let states = self.states.lock().await;
         states
             .get(tool_name)
-            .map(|s| s.state)
-            .unwrap_or(CircuitState::Closed)
+            .map_or(CircuitState::Closed, |s| s.state)
     }
 
     /// 记录成功
@@ -497,7 +496,7 @@ impl ToolResultCache {
     fn make_key(tool_name: &str, input: &Value) -> String {
         // 使用工具名和输入的 JSON 字符串作为 key
         // 对输入进行规范化排序以保证同一输入生成相同 key
-        format!("{}:{}", tool_name, input)
+        format!("{tool_name}:{input}")
     }
 
     /// 查询缓存

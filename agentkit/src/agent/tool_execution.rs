@@ -34,33 +34,31 @@ pub(crate) fn scrub_credentials(input: &str) -> String {
                 .get(2)
                 .or_else(|| caps.get(3))
                 .or_else(|| caps.get(4))
-                .map(|m| m.as_str())
-                .unwrap_or("");
+                .map_or("", |m| m.as_str());
 
             // 保留前 4 个字符作为调试上下文，截断时不破坏 UTF-8 边界
             let prefix = if val.len() > 4 {
                 val.char_indices()
                     .nth(4)
-                    .map(|(byte_idx, _)| &val[..byte_idx])
-                    .unwrap_or(val)
+                    .map_or(val, |(byte_idx, _)| &val[..byte_idx])
             } else {
                 ""
             };
 
             if full_match.contains(':') {
                 if full_match.contains('"') {
-                    format!("\"{}\": \"{}*[REDACTED]\"", key, prefix)
+                    format!("\"{key}\": \"{prefix}*[REDACTED]\"")
                 } else {
-                    format!("{}: {}*[REDACTED]", key, prefix)
+                    format!("{key}: {prefix}*[REDACTED]")
                 }
             } else if full_match.contains('=') {
                 if full_match.contains('"') {
-                    format!("{}=\"{}*[REDACTED]\"", key, prefix)
+                    format!("{key}=\"{prefix}*[REDACTED]\"")
                 } else {
-                    format!("{}={}*[REDACTED]", key, prefix)
+                    format!("{key}={prefix}*[REDACTED]")
                 }
             } else {
-                format!("{}: {}*[REDACTED]", key, prefix)
+                format!("{key}: {prefix}*[REDACTED]")
             }
         })
         .to_string()
@@ -260,8 +258,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
                     // 对序列化后的 JSON 字符串清洗，再反序列化回来
                     let serialized = other.to_string();
                     let cleaned = scrub_credentials(&serialized);
-                    serde_json::from_str::<Value>(&cleaned)
-                        .unwrap_or_else(|_| Value::String(cleaned))
+                    serde_json::from_str::<Value>(&cleaned).unwrap_or(Value::String(cleaned))
                 }
             };
             json!({"ok": true, "output": cleaned_v})
@@ -381,23 +378,23 @@ pub(crate) async fn execute_tool_call_enhanced(
     let tool_name = call.name.as_str();
 
     // --- 缓存命中检查 ---
-    if enhanced_config.cache.enabled {
-        if let Some(cached) = runtime.cache.get(tool_name, &call.input).await {
-            observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
-                agentkit_core::channel::types::DebugEvent {
-                    message: "tool_call.cache_hit".to_string(),
-                    data: Some(json!({
-                        "tool_name": tool_name,
-                        "tool_call_id": call.id,
-                    })),
-                },
-            ));
-            debug!(tool.name = %tool_name, tool.call_id = %call.id, "tool_call.cache_hit");
-            return Ok(ToolResult {
-                tool_call_id: call.id.clone(),
-                output: cached,
-            });
-        }
+    if enhanced_config.cache.enabled
+        && let Some(cached) = runtime.cache.get(tool_name, &call.input).await
+    {
+        observer.on_event(agentkit_core::channel::types::ChannelEvent::Debug(
+            agentkit_core::channel::types::DebugEvent {
+                message: "tool_call.cache_hit".to_string(),
+                data: Some(json!({
+                    "tool_name": tool_name,
+                    "tool_call_id": call.id,
+                })),
+            },
+        ));
+        debug!(tool.name = %tool_name, tool.call_id = %call.id, "tool_call.cache_hit");
+        return Ok(ToolResult {
+            tool_call_id: call.id.clone(),
+            output: cached,
+        });
     }
 
     // --- 熔断器检查 ---
@@ -458,12 +455,11 @@ pub(crate) async fn execute_tool_call_enhanced(
         match result {
             Ok(ref tool_result) => {
                 // 判断是否是逻辑上的失败（ok=false）
-                let is_error = tool_result
+                let is_error = !tool_result
                     .output
                     .get("ok")
                     .and_then(|v| v.as_bool())
-                    .unwrap_or(true)
-                    == false;
+                    .unwrap_or(true);
 
                 if is_error
                     && attempt < max_retries

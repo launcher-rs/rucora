@@ -106,7 +106,7 @@ impl ImageInfoTool {
             }
 
             // 跳过其他标记
-            if marker != 0x00 && (marker < 0xD0 || marker > 0xD9) {
+            if marker != 0x00 && !(0xD0..=0xD9).contains(&marker) {
                 if i + 2 > bytes.len() {
                     return None;
                 }
@@ -201,24 +201,23 @@ impl Tool for ImageInfoTool {
 
         // 检查文件是否存在
         if !path.exists() {
-            return Err(ToolError::Message(format!("文件不存在: {}", path_str)));
+            return Err(ToolError::Message(format!("文件不存在: {path_str}")));
         }
 
         if !path.is_file() {
-            return Err(ToolError::Message(format!("路径不是文件: {}", path_str)));
+            return Err(ToolError::Message(format!("路径不是文件: {path_str}")));
         }
 
         // 获取文件元数据
         let metadata = std::fs::metadata(path)
-            .map_err(|e| ToolError::Message(format!("无法读取文件: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("无法读取文件: {e}")))?;
 
         let file_size = metadata.len();
 
         // 检查文件大小
         if file_size > MAX_IMAGE_BYTES {
             return Err(ToolError::Message(format!(
-                "文件过大 ({} > {} bytes)",
-                file_size, MAX_IMAGE_BYTES
+                "文件过大 ({file_size} > {MAX_IMAGE_BYTES} bytes)"
             )));
         }
 
@@ -226,9 +225,9 @@ impl Tool for ImageInfoTool {
         let mut header = vec![0u8; 1024.min(file_size as usize)];
         use std::io::Read;
         let mut file = std::fs::File::open(path)
-            .map_err(|e| ToolError::Message(format!("无法打开文件: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("无法打开文件: {e}")))?;
         file.read_exact(&mut header)
-            .map_err(|e| ToolError::Message(format!("无法读取文件: {}", e)))?;
+            .map_err(|e| ToolError::Message(format!("无法读取文件: {e}")))?;
 
         // 检测格式
         let format = Self::detect_format(&header);
@@ -247,7 +246,8 @@ impl Tool for ImageInfoTool {
         if let Some((width, height)) = dimensions {
             result["width"] = json!(width);
             result["height"] = json!(height);
-            result["aspect_ratio"] = json!(format!("{:.2}", width as f64 / height as f64));
+            let ratio = width as f64 / height as f64;
+            result["aspect_ratio"] = json!(format!("{ratio:.2}"));
         }
 
         Ok(result)
@@ -265,7 +265,7 @@ fn format_file_size(size: u64) -> String {
         unit_index += 1;
     }
 
-    format!("{:.2} {}", size, UNITS[unit_index])
+    format!("{size:.2} {}", UNITS[unit_index])
 }
 
 #[cfg(test)]

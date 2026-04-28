@@ -481,7 +481,7 @@ mod tests {
             .with_max_messages(5);
 
         for i in 0..10 {
-            manager.add_user_message(format!("消息 {}", i));
+            manager.add_user_message(format!("消息 {i}"));
         }
 
         // 应该保留系统提示词 + 最近 4 条消息
