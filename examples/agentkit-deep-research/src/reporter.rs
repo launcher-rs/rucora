@@ -7,7 +7,7 @@
 
 use crate::research_agent::PhaseResult;
 use chrono::Local;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use tracing::info;
 
 /// 报告生成器
@@ -83,7 +83,7 @@ impl Reporter {
     }
 
     /// 打印研究完成摘要
-    pub fn print_summary(&self, topic: &str, phases: &[PhaseResult], report_path: &PathBuf) {
+    pub fn print_summary(&self, topic: &str, phases: &[PhaseResult], report_path: &Path) {
         let total_tokens: u32 = phases.iter().map(|p| p.tokens).sum();
         let total_chars: usize = phases.iter().map(|p| p.content.len()).sum();
 

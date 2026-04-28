@@ -431,6 +431,7 @@ impl Default for LoggingObserver {
 
 #[async_trait::async_trait]
 impl DualTrackObserver for LoggingObserver {
+    #[allow(clippy::cognitive_complexity)]
     fn observe_event(&self, event: ObserverEvent) {
         match event {
             ObserverEvent::AgentStart { ref agent_name, .. } => {
@@ -501,6 +502,7 @@ impl DualTrackObserver for LoggingObserver {
         }
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn record_metric(&self, metric: ObserverMetric) {
         match metric {
             ObserverMetric::RequestLatencyMs(latency) => {

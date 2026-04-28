@@ -527,6 +527,7 @@ impl RuntimeAdapter for NativeRuntimeAdapter {
         Ok(())
     }
 
+    #[allow(clippy::cognitive_complexity)]
     fn log(&self, level: LogLevel, message: &str) {
         match level {
             LogLevel::Trace => tracing::trace!("{}", message),

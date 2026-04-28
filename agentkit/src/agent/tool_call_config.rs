@@ -3,12 +3,12 @@
 //! # 概述
 //!
 //! 本模块提供工具调用的可靠性与性能增强配置：
-//! - [`RetryConfig`]: 重试策略（指数退避）
-//! - [`TimeoutConfig`]: 超时控制
-//! - [`CircuitBreakerConfig`]: 熔断器配置
-//! - [`ConcurrencyConfig`]: 细粒度并发控制
-//! - [`CacheConfig`]: 工具结果缓存
-//! - [`ToolCallEnhancedConfig`]: 聚合配置
+//! - `RetryConfig`: 重试策略（指数退避）
+//! - `TimeoutConfig`: 超时控制
+//! - `CircuitBreakerConfig`: 熔断器配置
+//! - `ConcurrencyConfig`: 细粒度并发控制
+//! - `CacheConfig`: 工具结果缓存
+//! - `ToolCallEnhancedConfig`: 聚合配置
 //!
 //! # 设计原则
 //!
