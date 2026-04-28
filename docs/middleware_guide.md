@@ -1,4 +1,4 @@
-# AgentKit 中间件使用指南
+# rucora 中间件使用指南
 
 ## 概述
 
@@ -17,9 +17,9 @@
 所有中间件必须实现 `Middleware` trait：
 
 ```rust
-use agentkit::middleware::Middleware;
-use agentkit_core::agent::{AgentError, AgentInput, AgentOutput};
-use agentkit_core::tool::types::{ToolCall, ToolResult};
+use rucora::middleware::Middleware;
+use rucora_core::agent::{AgentError, AgentInput, AgentOutput};
+use rucora_core::tool::types::{ToolCall, ToolResult};
 use async_trait::async_trait;
 
 #[async_trait]
@@ -49,7 +49,7 @@ pub trait Middleware: Send + Sync {
 中间件链按顺序管理多个中间件：
 
 ```rust
-use agentkit::middleware::MiddlewareChain;
+use rucora::middleware::MiddlewareChain;
 
 // 创建中间件链
 let chain = MiddlewareChain::new()
@@ -69,7 +69,7 @@ chain = chain.with(LoggingMiddleware::new());
 记录请求和响应信息。
 
 ```rust
-use agentkit::middleware::LoggingMiddleware;
+use rucora::middleware::LoggingMiddleware;
 
 let agent = ToolAgent::builder()
     .provider(provider)
@@ -82,7 +82,7 @@ let agent = ToolAgent::builder()
 限制请求频率。
 
 ```rust
-use agentkit::middleware::RateLimitMiddleware;
+use rucora::middleware::RateLimitMiddleware;
 
 // 每分钟最多 60 个请求
 let agent = ToolAgent::builder()
@@ -96,7 +96,7 @@ let agent = ToolAgent::builder()
 缓存响应结果。
 
 ```rust
-use agentkit::middleware::CacheMiddleware;
+use rucora::middleware::CacheMiddleware;
 
 let agent = ToolAgent::builder()
     .provider(provider)
@@ -109,7 +109,7 @@ let agent = ToolAgent::builder()
 收集性能指标。
 
 ```rust
-use agentkit::middleware::MetricsMiddleware;
+use rucora::middleware::MetricsMiddleware;
 
 let metrics = MetricsMiddleware::new();
 let agent = ToolAgent::builder()
@@ -127,8 +127,8 @@ println!("响应计数：{}", metrics.get_response_count());
 ### 示例 1：认证中间件
 
 ```rust
-use agentkit::middleware::Middleware;
-use agentkit_core::agent::{AgentError, AgentInput};
+use rucora::middleware::Middleware;
+use rucora_core::agent::{AgentError, AgentInput};
 use async_trait::async_trait;
 
 #[derive(Clone)]
@@ -166,8 +166,8 @@ let agent = ToolAgent::builder()
 ### 示例 2：敏感词过滤中间件
 
 ```rust
-use agentkit::middleware::Middleware;
-use agentkit_core::agent::{AgentError, AgentInput};
+use rucora::middleware::Middleware;
+use rucora_core::agent::{AgentError, AgentInput};
 use async_trait::async_trait;
 
 #[derive(Clone)]
@@ -211,8 +211,8 @@ let agent = ToolAgent::builder()
 ### 示例 3：响应格式化中间件
 
 ```rust
-use agentkit::middleware::Middleware;
-use agentkit_core::agent::{AgentError, AgentOutput};
+use rucora::middleware::Middleware;
+use rucora_core::agent::{AgentError, AgentOutput};
 use async_trait::async_trait;
 use serde_json::json;
 
@@ -237,9 +237,9 @@ impl Middleware for ResponseFormatMiddleware {
 ### 示例 4：工具调用日志中间件
 
 ```rust
-use agentkit::middleware::Middleware;
-use agentkit_core::agent::AgentError;
-use agentkit_core::tool::types::{ToolCall, ToolResult};
+use rucora::middleware::Middleware;
+use rucora_core::agent::AgentError;
+use rucora_core::tool::types::{ToolCall, ToolResult};
 use async_trait::async_trait;
 use tracing::info;
 
@@ -277,8 +277,8 @@ impl Middleware for ToolCallLoggingMiddleware {
 一次性设置完整的中间件链：
 
 ```rust
-use agentkit::agent::ToolAgent;
-use agentkit::middleware::MiddlewareChain;
+use rucora::agent::ToolAgent;
+use rucora::middleware::MiddlewareChain;
 
 let agent = ToolAgent::builder()
     .provider(provider)
@@ -353,10 +353,10 @@ let reflect = ReflectAgent::builder()
 最简单的方式是组合 `DefaultExecution`，它已经内置了中间件支持：
 
 ```rust
-use agentkit::agent::execution::DefaultExecution;
-use agentkit::middleware::MiddlewareChain;
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
-use agentkit_core::provider::LlmProvider;
+use rucora::agent::execution::DefaultExecution;
+use rucora::middleware::MiddlewareChain;
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+use rucora_core::provider::LlmProvider;
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -387,7 +387,7 @@ where
     async fn run(
         &self,
         input: AgentInput,
-    ) -> Result<AgentOutput, agentkit_core::agent::AgentError> {
+    ) -> Result<AgentOutput, rucora_core::agent::AgentError> {
         self.execution.run(self, input).await
     }
 }
@@ -430,7 +430,7 @@ where
     }
 
     /// 添加单个中间件
-    pub fn with_middleware<M: agentkit::middleware::Middleware + 'static>(
+    pub fn with_middleware<M: rucora::middleware::Middleware + 'static>(
         mut self,
         middleware: M,
     ) -> Self {
@@ -445,7 +445,7 @@ where
         let execution = DefaultExecution::new(
             provider.clone(),
             "my-model",
-            agentkit::agent::ToolRegistry::new(),
+            rucora::agent::ToolRegistry::new(),
         )
         .with_system_prompt_opt(self.system_prompt)
         .with_middleware_chain(self.middleware_chain);  // 设置中间件链
@@ -472,9 +472,9 @@ let agent = MyAgentBuilder::new()
 如果你想完全控制执行流程，可以手动调用中间件钩子：
 
 ```rust
-use agentkit::middleware::MiddlewareChain;
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, AgentError};
-use agentkit_core::provider::LlmProvider;
+use rucora::middleware::MiddlewareChain;
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, AgentError};
+use rucora_core::provider::LlmProvider;
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -556,7 +556,7 @@ impl<P> MyCustomAgentBuilder<P> {
         self
     }
 
-    pub fn with_middleware<M: agentkit::middleware::Middleware + 'static>(
+    pub fn with_middleware<M: rucora::middleware::Middleware + 'static>(
         mut self,
         middleware: M,
     ) -> Self {
@@ -578,8 +578,8 @@ impl<P> MyCustomAgentBuilder<P> {
 如果你的 Agent 支持工具调用，可以在工具执行时也使用中间件：
 
 ```rust
-use agentkit::middleware::MiddlewareChain;
-use agentkit_core::tool::types::{ToolCall, ToolResult};
+use rucora::middleware::MiddlewareChain;
+use rucora_core::tool::types::{ToolCall, ToolResult};
 
 // 在工具执行函数中
 async fn execute_tool_with_middleware(
@@ -605,12 +605,12 @@ async fn execute_tool_with_middleware(
 ```rust
 //! 自定义 Agent 使用中间件示例
 
-use agentkit::agent::execution::DefaultExecution;
-use agentkit::middleware::{Middleware, MiddlewareChain, LoggingMiddleware};
-use agentkit::provider::OpenAiProvider;
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, AgentError};
-use agentkit_core::provider::LlmProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest};
+use rucora::agent::execution::DefaultExecution;
+use rucora::middleware::{Middleware, MiddlewareChain, LoggingMiddleware};
+use rucora::provider::OpenAiProvider;
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput, AgentError};
+use rucora_core::provider::LlmProvider;
+use rucora_core::provider::types::{ChatMessage, ChatRequest};
 use async_trait::async_trait;
 use std::sync::Arc;
 
@@ -696,7 +696,7 @@ impl<P> TimestampAgentBuilder<P> {
         let execution = DefaultExecution::new(
             provider.clone(),
             "gpt-4o-mini",
-            agentkit::agent::ToolRegistry::new(),
+            rucora::agent::ToolRegistry::new(),
         )
         .with_middleware_chain(self.middleware_chain);
 

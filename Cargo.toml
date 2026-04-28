@@ -1,19 +1,19 @@
 [workspace]
 resolver = "3"
 members = [
-    "agentkit",
-    "agentkit-core",
-    "agentkit-mcp",
-    "agentkit-a2a",
-    "agentkit-providers",
-    "agentkit-tools",
-    "agentkit-embed",
-    "agentkit-retrieval",
-    "agentkit-skills",
+    "rucora",
+    "rucora-core",
+    "rucora-mcp",
+    "rucora-a2a",
+    "rucora-providers",
+    "rucora-tools",
+    "rucora-embed",
+    "rucora-retrieval",
+    "rucora-skills",
     "examples/a2a-client",
     "examples/a2a-server",
-    "examples/agentkit-skills-example",
-    "examples/agentkit-deep-research"
+    "examples/rucora-skills-example",
+    "examples/rucora-deep-research"
 ]
 
 [workspace.package]

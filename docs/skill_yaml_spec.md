@@ -1,6 +1,6 @@
 # Skill 配置文件规范
 
-> AgentKit Skills 系统配置文件标准格式
+> rucora Skills 系统配置文件标准格式
 
 ## 快速开始
 
@@ -20,7 +20,7 @@ skill:
   name: weather-query
   description: 查询指定城市的当前天气情况
   version: 1.0.0
-  author: AgentKit Team
+  author: rucora Team
   tags: [weather, api, utility]
 
 # 输入输出定义
@@ -257,7 +257,7 @@ dependencies:
 ### 自动验证
 
 ```rust
-use agentkit::skills::config::SkillConfig;
+use rucora::skills::config::SkillConfig;
 
 let config = SkillConfig::from_dir(&path)?;
 
@@ -286,7 +286,7 @@ match config.validate() {
 根据不同场景加载不同字段，优化性能：
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 
 // LLM 调用 - 只加载基本信息和 Schema
 let options = ConfigLoadOptions::for_llm();

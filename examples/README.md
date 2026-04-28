@@ -1,6 +1,6 @@
-# AgentKit 示例
+# rucora 示例
 
-本目录包含 AgentKit 的使用示例，帮助开发者快速上手。
+本目录包含 rucora 的使用示例，帮助开发者快速上手。
 
 ## 🚀 快速开始
 
@@ -29,7 +29,7 @@ cargo run --bin custom-tool
 cargo run --bin skills-demo
 
 # 8. 深度研究（独立示例）
-cargo run -p agentkit-deep-research
+cargo run -p rucora-deep-research
 ```
 
 ## 📚 示例列表
@@ -106,7 +106,7 @@ cargo run --bin file-processor
    ✓ 读取文件成功
    文件大小：1234 字节
    前 100 字符：[package]
-   name = "agentkit-examples"
+   name = "rucora-examples"
    ...
 
 2. 测试 FileWriteTool：
@@ -185,7 +185,7 @@ cargo run --bin skills-demo
 
 ## 🔬 高级示例
 
-### 8. agentkit-deep-research - 深度研究
+### 8. rucora-deep-research - 深度研究
 
 **独立的深度研究示例**，展示 Agent 如何自动调用各种工具完成研究任务并生成完整报告。
 
@@ -198,7 +198,7 @@ cargo run --bin skills-demo
 
 **运行**：
 ```bash
-cargo run -p agentkit-deep-research
+cargo run -p rucora-deep-research
 ```
 
 **输出示例**：
@@ -263,7 +263,7 @@ export GOOGLE_API_KEY=xxx
 ```
 examples/
 ├── README.md
-├── agentkit-examples/           # 基础示例集合
+├── rucora-examples/           # 基础示例集合
 │   ├── Cargo.toml
 │   └── src/
 │       ├── utils.rs             # 共享工具模块
@@ -276,7 +276,7 @@ examples/
 │       ├── 07_skills_demo.rs    # Skills 系统 ⏳
 │       └── 08_deep_research.rs  # 深度研究 ⏳
 │
-└── agentkit-deep-research/      # 深度研究示例（独立）
+└── rucora-deep-research/      # 深度研究示例（独立）
     ├── Cargo.toml
     └── src/
         └── main.rs              # 完整的研究助手实现 ✅

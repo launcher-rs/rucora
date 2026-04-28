@@ -17,7 +17,7 @@
 ### 基础加载
 
 ```rust
-use agentkit::skills::config::SkillConfig;
+use rucora::skills::config::SkillConfig;
 use std::path::Path;
 
 // 从目录加载配置
@@ -32,7 +32,7 @@ println!("描述：{}", config.skill.description);
 ### 按需加载
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 
 // LLM 调用场景 - 只加载必要字段
 let options = ConfigLoadOptions::for_llm();
@@ -52,7 +52,7 @@ let config = SkillConfig::from_dir_with_options(&path, &options)?;
 构建工具描述供 LLM 使用：
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 use serde_json::json;
 
 fn build_tool_description(path: &Path) -> Option<serde_json::Value> {
@@ -101,7 +101,7 @@ fn build_all_tools(skills_dir: &Path) -> Vec<serde_json::Value> {
 ### 检查权限
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 
 fn check_permissions(path: &Path) -> Result<(), String> {
     let options = ConfigLoadOptions::for_execution();
@@ -154,7 +154,7 @@ fn get_execution_config(path: &Path) -> Result<(u64, u32), String> {
 ### 关键词搜索
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 
 fn search_skills(skills_dir: &Path, keyword: &str) -> Vec<String> {
     let options = ConfigLoadOptions::for_search();
@@ -223,7 +223,7 @@ println!("API 技能：{:?}", api_skills);
 ### 基础验证
 
 ```rust
-use agentkit::skills::config::SkillConfig;
+use rucora::skills::config::SkillConfig;
 
 fn validate_config(path: &Path) -> Result<(), String> {
     let config = SkillConfig::from_dir(path)
@@ -278,7 +278,7 @@ fn validate_with_custom_rules(config: &SkillConfig) -> Result<(), Vec<String>> {
 ### 基础配置 + 自定义配置
 
 ```rust
-use agentkit::skills::config::SkillConfig;
+use rucora::skills::config::SkillConfig;
 
 fn merge_configs(base_path: &Path, custom_path: &Path) -> Option<SkillConfig> {
     let base = SkillConfig::from_dir(base_path)?;
@@ -331,7 +331,7 @@ fn merge_all_skills(base_dir: &Path, custom_dir: &Path) -> Vec<SkillConfig> {
 ### 批量加载（只加载必要字段）
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 use std::time::Instant;
 
 fn benchmark_loading(skills_dir: &Path) {
@@ -365,7 +365,7 @@ fn benchmark_loading(skills_dir: &Path) {
 
 ```rust
 use std::collections::HashMap;
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 
 struct SkillConfigCache {
     cache: HashMap<String, SkillConfig>,
@@ -406,7 +406,7 @@ if let Some(config) = cache.get_or_load("weather-query", &Path::new("skills")) {
 ### 技能管理器
 
 ```rust
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 use std::path::{Path, PathBuf};
 
 pub struct SkillManager {

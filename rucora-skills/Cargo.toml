@@ -1,0 +1,28 @@
+[package]
+name = "rucora-skills"
+version.workspace = true
+edition = "2024"
+description = "Skills system for rucora"
+documentation = "https://docs.rs/rucora-skills"
+readme = "README.md"
+
+[features]
+default = []
+all = []
+
+[dependencies]
+rucora-core = { path = "../rucora-core" }
+rucora-tools = { path = "../rucora-tools" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+serde_yaml = "0.9"
+toml = "0.8"
+tokio = { version = "1", features = ["fs"] }
+tracing = "0.1"
+thiserror = "2"
+anyhow = "1"
+
+# ?? workspace ??? lint ??
+[lints]
+workspace = true

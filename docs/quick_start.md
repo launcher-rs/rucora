@@ -1,4 +1,4 @@
-# AgentKit 快速入门教程
+# rucora 快速入门教程
 
 本教程将在 10 分钟内带您构建第一个 LLM 应用。
 
@@ -27,8 +27,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-agentkit = "0.1"
-agentkit-runtime = "0.1"
+rucora = "0.1"
+rucora-runtime = "0.1"
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 anyhow = "1"
@@ -49,15 +49,15 @@ export OPENAI_API_KEY=sk-your-api-key
 编辑 `src/main.rs`：
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::types::AgentInput;
-use agentkit_core::provider::types::{ChatMessage, Role};
+use rucora::provider::OpenAiProvider;
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
+use rucora_core::agent::types::AgentInput;
+use rucora_core::provider::types::{ChatMessage, Role};
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("🤖 AgentKit 快速开始\n");
+    println!("🤖 rucora 快速开始\n");
 
     // 1. 创建 Provider
     println!("1️⃣ 创建 Provider...");
@@ -102,7 +102,7 @@ cargo run
 
 输出：
 ```
-🤖 AgentKit 快速开始
+🤖 rucora 快速开始
 
 1️⃣ 创建 Provider...
 2️⃣ 创建工具...
@@ -120,8 +120,8 @@ Rust 是一门系统编程语言，专注于安全性和性能，由 Mozilla 研
 
 ```toml
 [dependencies]
-agentkit = { version = "0.1", features = ["builtin-tools"] }
-agentkit-runtime = "0.1"
+rucora = { version = "0.1", features = ["builtin-tools"] }
+rucora-runtime = "0.1"
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 anyhow = "1"
@@ -130,16 +130,16 @@ anyhow = "1"
 ### 步骤 2：修改代码
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit::tools::{FileReadTool, FileWriteTool};
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::types::AgentInput;
-use agentkit_core::provider::types::{ChatMessage, Role};
+use rucora::provider::OpenAiProvider;
+use rucora::tools::{FileReadTool, FileWriteTool};
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
+use rucora_core::agent::types::AgentInput;
+use rucora_core::provider::types::{ChatMessage, Role};
 use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    println!("🤖 AgentKit 带工具示例\n");
+    println!("🤖 rucora 带工具示例\n");
 
     // 创建 Provider
     let provider = OpenAiProvider::from_env()?;
@@ -163,7 +163,7 @@ async fn main() -> anyhow::Result<()> {
     let input = AgentInput {
         messages: vec![ChatMessage {
             role: Role::User,
-            content: "请创建一个文件 hello.txt，内容为'Hello, AgentKit!'".to_string(),
+            content: "请创建一个文件 hello.txt，内容为'Hello, rucora!'".to_string(),
             name: None,
         }],
         metadata: None,
@@ -218,7 +218,7 @@ export OLLAMA_BASE_URL=http://localhost:11434
 
 然后修改代码：
 ```rust
-use agentkit::provider::OllamaProvider;
+use rucora::provider::OllamaProvider;
 let provider = OllamaProvider::from_env();
 ```
 

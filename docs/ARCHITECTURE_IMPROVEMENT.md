@@ -1,11 +1,11 @@
-# AgentKit 架构改进方案
+# rucora 架构改进方案
 
 ## 📋 文档信息
 
 - **版本**: 1.0
 - **日期**: 2026 年 3 月 31 日
 - **状态**: 提案
-- **作者**: AgentKit Team
+- **作者**: rucora Team
 
 ---
 
@@ -196,7 +196,7 @@ pub struct ToolAgent<P> {
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    agentkit-core                        │
+│                    rucora-core                        │
 │  ┌─────────────────┐    ┌─────────────────────────┐    │
 │  │   Agent trait   │    │   Runtime trait         │    │
 │  │   (抽象)        │    │   (抽象)                │    │
@@ -204,7 +204,7 @@ pub struct ToolAgent<P> {
 └─────────────────────────────────────────────────────────┘
                           ↓ 实现
 ┌─────────────────────────────────────────────────────────┐
-│                      agentkit                           │
+│                      rucora                           │
 │  ┌─────────────────┐    ┌─────────────────────────┐    │
 │  │  DefaultAgent   │    │   DefaultRuntime        │    │
 │  │  (决策 + 执行)   │    │   (执行)                │    │
@@ -223,7 +223,7 @@ pub struct ToolAgent<P> {
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    agentkit-core                        │
+│                    rucora-core                        │
 │  ┌─────────────────┐    ┌─────────────────────────┐    │
 │  │   Agent trait   │    │   Runtime trait         │    │
 │  │   (保留，可选)  │    │   (保留，第三方用)       │    │
@@ -231,7 +231,7 @@ pub struct ToolAgent<P> {
 └─────────────────────────────────────────────────────────┘
                           ↓ 实现
 ┌─────────────────────────────────────────────────────────┐
-│                      agentkit                           │
+│                      rucora                           │
 │  ┌─────────────────────────────────────────────────┐   │
 │  │          共享执行能力 (DefaultExecution)         │   │
 │  │  - run() / run_stream()                         │   │
@@ -411,7 +411,7 @@ where
 
 ```rust
 // 新增模块结构
-agentkit/
+rucora/
 ├── agent/
 │   ├── mod.rs              // 导出所有 Agent 类型
 │   ├── execution.rs        // DefaultExecution（共享执行能力）
@@ -452,8 +452,8 @@ pub struct DefaultRuntime {
 #### 当前代码
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
 
 let provider = OpenAiProvider::from_env()?;
 let agent = DefaultAgent::builder()
@@ -468,8 +468,8 @@ let output = agent.run("你好").await?;
 #### 改进后代码
 
 ```rust
-use agentkit::agent::ChatAgent;  // 或 SimpleAgent
-use agentkit::provider::OpenAiProvider;
+use rucora::agent::ChatAgent;  // 或 SimpleAgent
+use rucora::provider::OpenAiProvider;
 
 let provider = OpenAiProvider::from_env()?;
 let agent = ChatAgent::builder()
@@ -490,8 +490,8 @@ let output = agent.run("你好").await?;
 #### 当前代码
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::tools::ShellTool;
+use rucora::agent::DefaultAgent;
+use rucora::tools::ShellTool;
 
 let agent = DefaultAgent::builder()
     .provider(provider)
@@ -505,8 +505,8 @@ let output = agent.run("ls -la").await?;
 #### 改进后代码
 
 ```rust
-use agentkit::agent::ToolAgent;
-use agentkit::tools::ShellTool;
+use rucora::agent::ToolAgent;
+use rucora::tools::ShellTool;
 
 let agent = ToolAgent::builder()
     .provider(provider)
@@ -526,8 +526,8 @@ let output = agent.run("ls -la").await?;
 #### 当前代码
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::runtime::DefaultRuntime;
+use rucora::agent::DefaultAgent;
+use rucora::runtime::DefaultRuntime;
 use futures_util::StreamExt;
 
 let agent = DefaultAgent::builder()...build();
@@ -545,7 +545,7 @@ while let Some(event) = stream.next().await {
 #### 改进后代码
 
 ```rust
-use agentkit::agent::ToolAgent;
+use rucora::agent::ToolAgent;
 use futures_util::StreamExt;
 
 let agent = ToolAgent::builder()
@@ -580,7 +580,7 @@ let agent = DefaultAgent::builder()...build();
 #### 改进后代码
 
 ```rust
-use agentkit::agent::ReActAgent;
+use rucora::agent::ReActAgent;
 
 let agent = ReActAgent::builder()
     .provider(provider)
@@ -777,15 +777,15 @@ let output = agent.run("帮我分析这个项目的代码结构").await?;
 
 ```rust
 // 原代码
-use agentkit::agent::DefaultAgent;
+use rucora::agent::DefaultAgent;
 let agent = DefaultAgent::builder()...build();
 
 // 新代码（推荐）
-use agentkit::agent::ToolAgent;
+use rucora::agent::ToolAgent;
 let agent = ToolAgent::builder()...build();
 
 // 或保持兼容（DefaultAgent 作为别名）
-use agentkit::agent::DefaultAgent; // 实际是 ToolAgent 的别名
+use rucora::agent::DefaultAgent; // 实际是 ToolAgent 的别名
 let agent = DefaultAgent::builder()...build();
 ```
 

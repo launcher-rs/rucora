@@ -1,4 +1,4 @@
-# AgentKit
+# rucora
 
 > 用 Rust 编写的高性能、类型安全的 LLM 应用开发框架
 
@@ -20,7 +20,7 @@
 ### 1. 安装依赖
 
 ```bash
-cargo add agentkit
+cargo add rucora
 ```
 
 ### 2. 设置环境变量
@@ -70,9 +70,9 @@ set OPENAI_BASE_URL=http://localhost:11434/v1
 ### 3. 运行示例代码
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
-use agentkit::prelude::Agent;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora::prelude::Agent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -118,7 +118,7 @@ async fn main() -> anyhow::Result<()> {
 ## 📦 项目结构
 
 ```
-agentkit/
+rucora/
 ├── docs/                      # 文档目录
 │   ├── README.md              # 文档导航
 │   ├── INDEX.md               # 文档索引
@@ -126,10 +126,10 @@ agentkit/
 │   ├── user_guide.md          # 用户指南
 │   ├── skill_yaml_spec.md     # Skill 配置规范
 │   └── ...
-├── agentkit/                  # 主库（实现聚合）
-├── agentkit-core/             # 核心抽象层
-├── agentkit-runtime/          # 运行时实现
-├── agentkit-cli/              # 命令行工具
+├── rucora/                  # 主库（实现聚合）
+├── rucora-core/             # 核心抽象层
+├── rucora-runtime/          # 运行时实现
+├── rucora-cli/              # 命令行工具
 └── examples/                  # 示例代码
 ```
 
@@ -161,4 +161,4 @@ agentkit/
 
 ## 📄 许可证
 
-AgentKit 使用 MIT 许可证。
+rucora 使用 MIT 许可证。

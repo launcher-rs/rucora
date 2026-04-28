@@ -6,13 +6,13 @@ version = 4
 name = "a2a-client"
 version = "0.1.0"
 dependencies = [
- "agentkit",
- "agentkit-core",
- "agentkit-providers",
- "agentkit-tools",
  "anyhow",
  "async-trait",
  "ra2a",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
  "serde",
  "serde_json",
  "tokio",
@@ -24,11 +24,11 @@ dependencies = [
 name = "a2a-server"
 version = "0.1.0"
 dependencies = [
- "agentkit",
  "anyhow",
  "axum",
  "chrono",
  "ra2a",
+ "rucora",
  "serde",
  "serde_json",
  "tokio",
@@ -41,208 +41,6 @@ name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "320119579fcad9c21884f5c4861d16174d0e06250625266f50fe6898340abefa"
-
-[[package]]
-name = "agentkit"
-version = "0.1.0"
-dependencies = [
- "agentkit-a2a",
- "agentkit-core",
- "agentkit-embed",
- "agentkit-mcp",
- "agentkit-providers",
- "agentkit-retrieval",
- "agentkit-skills",
- "agentkit-tools",
- "anyhow",
- "async-stream",
- "async-trait",
- "chrono",
- "criterion",
- "dotenv",
- "futures-executor",
- "futures-util",
- "regex",
- "reqwest",
- "schemars 0.8.22",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "agentkit-a2a"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "async-trait",
- "ra2a",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "agentkit-core"
-version = "0.1.0"
-dependencies = [
- "agentkit-retrieval",
- "anyhow",
- "async-trait",
- "futures-util",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "agentkit-deep-research"
-version = "0.1.0"
-dependencies = [
- "agentkit",
- "agentkit-core",
- "agentkit-providers",
- "agentkit-skills",
- "agentkit-tools",
- "anyhow",
- "async-trait",
- "chrono",
- "console",
- "dialoguer",
- "dirs",
- "dotenv",
- "futures-util",
- "serde",
- "serde_json",
- "tokio",
- "toml",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "agentkit-embed"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "agentkit-mcp"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "async-trait",
- "rmcp",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tracing",
-]
-
-[[package]]
-name = "agentkit-providers"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "async-stream",
- "async-trait",
- "backon",
- "futures-executor",
- "futures-util",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "agentkit-retrieval"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "async-trait",
- "reqwest",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "agentkit-skills"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "agentkit-tools",
- "anyhow",
- "async-trait",
- "serde",
- "serde_json",
- "serde_yaml",
- "thiserror 2.0.18",
- "tokio",
- "toml",
- "tracing",
-]
-
-[[package]]
-name = "agentkit-skills-example"
-version = "0.1.0"
-dependencies = [
- "agentkit",
- "agentkit-core",
- "agentkit-providers",
- "agentkit-skills",
- "agentkit-tools",
- "anyhow",
- "dotenv",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "agentkit-tools"
-version = "0.1.0"
-dependencies = [
- "agentkit-core",
- "async-trait",
- "backon",
- "chrono",
- "dom_smoothie",
- "glob",
- "html2text",
- "regex",
- "reqwest",
- "schemars 0.8.22",
- "scraper",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "url",
-]
 
 [[package]]
 name = "aho-corasick"
@@ -2524,6 +2322,208 @@ dependencies = [
  "quote",
  "serde_json",
  "syn",
+]
+
+[[package]]
+name = "rucora"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-stream",
+ "async-trait",
+ "chrono",
+ "criterion",
+ "dotenv",
+ "futures-executor",
+ "futures-util",
+ "regex",
+ "reqwest",
+ "rucora-a2a",
+ "rucora-core",
+ "rucora-embed",
+ "rucora-mcp",
+ "rucora-providers",
+ "rucora-retrieval",
+ "rucora-skills",
+ "rucora-tools",
+ "schemars 0.8.22",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "rucora-a2a"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "ra2a",
+ "rucora-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "rucora-core"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "futures-util",
+ "regex",
+ "rucora-retrieval",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "rucora-deep-research"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "console",
+ "dialoguer",
+ "dirs",
+ "dotenv",
+ "futures-util",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-skills",
+ "rucora-tools",
+ "serde",
+ "serde_json",
+ "tokio",
+ "toml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "rucora-embed"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "rucora-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "rucora-mcp"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "rmcp",
+ "rucora-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tracing",
+]
+
+[[package]]
+name = "rucora-providers"
+version = "0.1.0"
+dependencies = [
+ "async-stream",
+ "async-trait",
+ "backon",
+ "futures-executor",
+ "futures-util",
+ "reqwest",
+ "rucora-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "rucora-retrieval"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "reqwest",
+ "rucora-core",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "rucora-skills"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "rucora-core",
+ "rucora-tools",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "thiserror 2.0.18",
+ "tokio",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "rucora-skills-example"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-skills",
+ "rucora-tools",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "rucora-tools"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "backon",
+ "chrono",
+ "dom_smoothie",
+ "glob",
+ "html2text",
+ "regex",
+ "reqwest",
+ "rucora-core",
+ "schemars 0.8.22",
+ "scraper",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "url",
 ]
 
 [[package]]

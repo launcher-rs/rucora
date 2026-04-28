@@ -1,0 +1,25 @@
+name: calculator
+description: 执行数学表达式计算
+version: 1.0.0
+author: rucora Team
+tags:
+  - utility
+  - math
+timeout: 10
+input_schema:
+  type: object
+  properties:
+    expression:
+      type: string
+      description: 数学表达式（支持 +, -, *, /, ^, sqrt 等）
+  required:
+    - expression
+output_schema:
+  type: object
+  properties:
+    success:
+      type: boolean
+    result:
+      type: number
+    expression:
+      type: string

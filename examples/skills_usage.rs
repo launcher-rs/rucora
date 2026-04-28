@@ -5,13 +5,13 @@
 //! # 运行方式
 //!
 //! ```bash
-//! cargo run --example skills_usage -p agentkit
+//! cargo run --example skills_usage -p rucora
 //! ```
 
-use agentkit_skills::{SkillLoader, SkillExecutor};
-use agentkit_providers::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
-use agentkit::prelude::*;
+use rucora_skills::{SkillLoader, SkillExecutor};
+use rucora_providers::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora::prelude::*;
 use std::sync::Arc;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
@@ -26,7 +26,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     info!("╔═══════════════════════════════════════════════════════════╗");
-    info!("║         AgentKit Skills 使用示例                          ║");
+    info!("║         rucora Skills 使用示例                          ║");
     info!("╚═══════════════════════════════════════════════════════════╝\n");
 
     // 示例 1: 加载 Skills

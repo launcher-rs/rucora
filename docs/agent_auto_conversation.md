@@ -12,8 +12,8 @@ Agent 现在内置了对话历史管理功能，无需手动管理 `Conversation
 ### 启用对话历史
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
 
 let provider = OpenAiProvider::from_env()?;
 
@@ -213,8 +213,8 @@ if let Some(history) = agent.get_conversation_history() {
 ### 示例 1：基础对话
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -244,9 +244,9 @@ async fn main() -> anyhow::Result<()> {
 ### 示例 2：管理对话历史
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::provider::OpenAiProvider;
-use agentkit_core::provider::types::Role;
+use rucora::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
+use rucora_core::provider::types::Role;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -408,5 +408,5 @@ export OPENAI_API_KEY=sk-your-key
 export OPENAI_BASE_URL=http://your-server:11434/v1
 
 # 运行示例
-cargo run --example 06_agent_conversation -p agentkit
+cargo run --example 06_agent_conversation -p rucora
 ```

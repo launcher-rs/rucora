@@ -18,7 +18,7 @@
 
 #### 核心问题
 
-1. **Agent 的 `run_stream()` 默认实现不可用**：`agentkit-core/src/agent/mod.rs:570-578` 的默认实现直接返回错误，任何未覆写此方法的 Agent 都无法使用流式输出。
+1. **Agent 的 `run_stream()` 默认实现不可用**：`rucora-core/src/agent/mod.rs:570-578` 的默认实现直接返回错误，任何未覆写此方法的 Agent 都无法使用流式输出。
 
 2. **具体 Agent 类型未覆写 `run_stream()`**：`ToolAgent`、`ReActAgent`、`ReflectAgent`、`ChatAgent`、`SimpleAgent` 均未在各自的 `Agent` trait 实现中覆写 `run_stream()` 方法。
 
@@ -65,7 +65,7 @@ Error(err)         → 错误事件
 
 #### 3.1 ToolAgent 添加 run_stream
 
-**文件**: `agentkit/src/agent/tool.rs`
+**文件**: `rucora/src/agent/tool.rs`
 
 在 `ToolAgent` 的 `Agent` impl 中添加：
 
@@ -80,7 +80,7 @@ fn run_stream(
 
 #### 3.2 ReActAgent 添加 run_stream
 
-**文件**: `agentkit/src/agent/react.rs`
+**文件**: `rucora/src/agent/react.rs`
 
 ReActAgent 同样组合了 `DefaultExecution`，添加相同的桥接：
 
@@ -95,7 +95,7 @@ fn run_stream(
 
 #### 3.3 ReflectAgent 添加 run_stream
 
-**文件**: `agentkit/src/agent/reflect.rs`
+**文件**: `rucora/src/agent/reflect.rs`
 
 ReflectAgent 的"生成-反思-改进"循环中，每一轮生成阶段都可以流式输出。添加桥接：
 
@@ -110,7 +110,7 @@ fn run_stream(
 
 #### 3.4 ChatAgent 添加 run_stream
 
-**文件**: `agentkit/src/agent/chat.rs`
+**文件**: `rucora/src/agent/chat.rs`
 
 ChatAgent 需要处理对话历史的流式输出：
 
@@ -125,7 +125,7 @@ fn run_stream(
 
 #### 3.5 SimpleAgent 添加 run_stream
 
-**文件**: `agentkit/src/agent/simple.rs`
+**文件**: `rucora/src/agent/simple.rs`
 
 SimpleAgent 是最简单的 Agent，它不调用 `DefaultExecution`（因为它不需要工具循环），需要单独实现：
 
@@ -166,7 +166,7 @@ fn run_stream(
 
 在 `DefaultExecution` 上添加 `run_stream_text()` 方法，将 token 流拼接为完整文本。
 
-**文件**: `agentkit/src/agent/execution.rs`
+**文件**: `rucora/src/agent/execution.rs`
 
 ```rust
 /// 高层流式 API：返回拼接后的最终文本
@@ -209,7 +209,7 @@ where
 
 ### Phase 3: 添加使用示例
 
-**文件**: `agentkit/examples/` 新建 `25_streaming_agent.rs`
+**文件**: `rucora/examples/` 新建 `25_streaming_agent.rs`
 
 演示：
 1. 使用 `run_stream()` 逐帧处理事件

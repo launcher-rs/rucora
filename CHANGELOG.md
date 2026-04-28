@@ -14,49 +14,49 @@
 
 #### 过时注释修复
 
-- `agentkit-providers/src/openai.rs` - 更新文档说明已支持流式和非流式聊天
-- `agentkit-providers/src/ollama.rs` - 同样更新支持流式调用的说明
+- `rucora-providers/src/openai.rs` - 更新文档说明已支持流式和非流式聊天
+- `rucora-providers/src/ollama.rs` - 同样更新支持流式调用的说明
 
 #### 简化实现标注
 
-- `agentkit/src/middleware.rs` - 标注 `RateLimitMiddleware` 和 `CacheMiddleware` 为"占位实现"
+- `rucora/src/middleware.rs` - 标注 `RateLimitMiddleware` 和 `CacheMiddleware` 为"占位实现"
   - 明确说明当前仅记录日志，未实际执行限流/缓存逻辑
   - 标注完整实现应使用的算法（令牌桶/滑动窗口、内存/外部缓存）
 
 #### 夸大功能修正
 
-- `agentkit/src/prompt.rs` - 移除"模板继承"描述（未实现该功能）
+- `rucora/src/prompt.rs` - 移除"模板继承"描述（未实现该功能）
   - 澄清转义功能为"基础转义"（仅处理 ``` 和 " 等特殊字符）
   - 对于复杂的 Prompt 注入防护，建议结合 `InjectionGuard`
-- `agentkit/src/agent/mod.rs` - 移除不存在的 Agent 类型引用
+- `rucora/src/agent/mod.rs` - 移除不存在的 Agent 类型引用
   - 移除 `PlanAgent`、`CodeAgent`、`ResearchAgent`、`SupervisorAgent`、`RouterAgent`
   - 保留实际存在的 `SimpleAgent`、`ChatAgent`、`ToolAgent`、`ReActAgent`、`ReflectAgent`
 
 #### 逻辑不符修正
 
-- `agentkit/src/agent/loop_detector.rs` - 更新触发条件描述与实际代码逻辑一致
+- `rucora/src/agent/loop_detector.rs` - 更新触发条件描述与实际代码逻辑一致
   - `Warning`: 重复次数超过 `max_repeats/2` 但小于 `max_repeats`
   - `Block`: 重复次数等于 `max_repeats`
   - `Break`: 重复次数超过 `max_repeats`
-- `agentkit/src/agent/execution.rs` - 更新注释说明中间件始终返回原始错误
+- `rucora/src/agent/execution.rs` - 更新注释说明中间件始终返回原始错误
   - 中间件可用于记录日志或副作用，但不影响错误返回
 
 #### 不准确描述修正
 
-- `agentkit-tools/src/file/mod.rs` - 移除不存在的"搜索"功能描述
+- `rucora-tools/src/file/mod.rs` - 移除不存在的"搜索"功能描述
   - 该模块只提供文件读取、写入、编辑功能
-- `agentkit-tools/src/http.rs` - 明确区分 `HttpTool` 和 `WebFetchTool` 的适用场景
+- `rucora-tools/src/http.rs` - 明确区分 `HttpTool` 和 `WebFetchTool` 的适用场景
   - `HttpTool`: 通用 HTTP 请求（与 API 服务交互）
   - `WebFetchTool`: 专门用于网页内容提取
 
 #### 英文注释中文化
 
-- `agentkit-embed/src/lib.rs` - 模块文档改为中文，添加各子模块说明
-- `agentkit-retrieval/src/lib.rs` - 模块文档改为中文，添加各子模块说明
+- `rucora-embed/src/lib.rs` - 模块文档改为中文，添加各子模块说明
+- `rucora-retrieval/src/lib.rs` - 模块文档改为中文，添加各子模块说明
 
 #### 代码质量改进
 
-- `agentkit/src/agent/chat.rs` - 移除 `ChatAgent` 中冗余的 `max_history_messages` 字段
+- `rucora/src/agent/chat.rs` - 移除 `ChatAgent` 中冗余的 `max_history_messages` 字段
   - 该值已通过 `ConversationManager` 配置，无需在 `ChatAgent` 中重复存储
   - 修复 `dead_code` 编译警告
 
@@ -66,18 +66,18 @@
 
 #### 修改文件
 
-- `agentkit-providers/src/openai.rs`
-- `agentkit-providers/src/ollama.rs`
-- `agentkit/src/middleware.rs`
-- `agentkit/src/prompt.rs`
-- `agentkit/src/agent/mod.rs`
-- `agentkit/src/agent/loop_detector.rs`
-- `agentkit/src/agent/execution.rs`
-- `agentkit/src/agent/chat.rs`
-- `agentkit-tools/src/file/mod.rs`
-- `agentkit-tools/src/http.rs`
-- `agentkit-embed/src/lib.rs`
-- `agentkit-retrieval/src/lib.rs`
+- `rucora-providers/src/openai.rs`
+- `rucora-providers/src/ollama.rs`
+- `rucora/src/middleware.rs`
+- `rucora/src/prompt.rs`
+- `rucora/src/agent/mod.rs`
+- `rucora/src/agent/loop_detector.rs`
+- `rucora/src/agent/execution.rs`
+- `rucora/src/agent/chat.rs`
+- `rucora-tools/src/file/mod.rs`
+- `rucora-tools/src/http.rs`
+- `rucora-embed/src/lib.rs`
+- `rucora-retrieval/src/lib.rs`
 - `AGENTS.md` - 更新项目架构和文档说明
 
 ### AGENTS.md 更新
@@ -141,14 +141,14 @@
 
 #### 修改文件
 
-- `agentkit-providers/src/helpers.rs` - 添加 `apply_sampling_params` 辅助函数
-- `agentkit-providers/src/deepseek.rs`
-- `agentkit-providers/src/moonshot.rs`
-- `agentkit-providers/src/openrouter.rs`
-- `agentkit-providers/src/azure_openai.rs`
-- `agentkit-providers/src/anthropic.rs`
-- `agentkit-providers/src/gemini.rs`
-- `agentkit-providers/src/ollama.rs`（已修复）
+- `rucora-providers/src/helpers.rs` - 添加 `apply_sampling_params` 辅助函数
+- `rucora-providers/src/deepseek.rs`
+- `rucora-providers/src/moonshot.rs`
+- `rucora-providers/src/openrouter.rs`
+- `rucora-providers/src/azure_openai.rs`
+- `rucora-providers/src/anthropic.rs`
+- `rucora-providers/src/gemini.rs`
+- `rucora-providers/src/ollama.rs`（已修复）
 
 ---
 
@@ -166,7 +166,7 @@
 
 #### 新增 `LlmParams` 类型
 
-- **位置**: `agentkit-core/src/provider/types.rs`
+- **位置**: `rucora-core/src/provider/types.rs`
 - **功能**: 统一所有 LLM 采样参数（temperature、top_p、top_k、max_tokens、frequency_penalty、presence_penalty、stop、response_format、extra）
 - **默认行为**: 所有字段默认 `None`（使用模型默认值），不再硬编码 temperature
 - **Builder 模式**: 支持链式调用配置参数
@@ -208,8 +208,8 @@
 - 移除流式路径中硬编码的 `temperature: Some(0.7)`
 
 **3. 导出更新**
-- `agentkit::LlmParams` - 从 agentkit crate 直接导出
-- `agentkit_core::LlmParams` - 从 core crate 导出
+- `rucora::LlmParams` - 从 rucora crate 直接导出
+- `rucora_core::LlmParams` - 从 core crate 导出
 
 #### 破坏性变更
 
@@ -221,18 +221,18 @@
 - `docs/LLM_PARAMS_IMPROVEMENT.md` - 研究报告（问题分析与实现方案）
 
 #### 修改文件
-- `agentkit-core/src/provider/types.rs` - 新增 LlmParams 结构
-- `agentkit-core/src/agent/mod.rs` - 更新 AgentContext 方法
-- `agentkit-core/src/lib.rs` - 导出 LlmParams
-- `agentkit/src/agent/execution.rs` - 添加 llm_params 字段
-- `agentkit/src/agent/simple.rs` - 更新 SimpleAgent
-- `agentkit/src/agent/chat.rs` - 更新 ChatAgent
-- `agentkit/src/agent/tool.rs` - 更新 ToolAgent
-- `agentkit/src/agent/react.rs` - 更新 ReActAgent
-- `agentkit/src/agent/reflect.rs` - 更新 ReflectAgent
-- `agentkit/src/agent/extractor.rs` - **新增** Extractor 支持 llm_params
-- `agentkit/src/lib.rs` - 导出 LlmParams
-- `examples/agentkit-skills-example/src/main.rs` - 示例展示 LlmParams 用法
+- `rucora-core/src/provider/types.rs` - 新增 LlmParams 结构
+- `rucora-core/src/agent/mod.rs` - 更新 AgentContext 方法
+- `rucora-core/src/lib.rs` - 导出 LlmParams
+- `rucora/src/agent/execution.rs` - 添加 llm_params 字段
+- `rucora/src/agent/simple.rs` - 更新 SimpleAgent
+- `rucora/src/agent/chat.rs` - 更新 ChatAgent
+- `rucora/src/agent/tool.rs` - 更新 ToolAgent
+- `rucora/src/agent/react.rs` - 更新 ReActAgent
+- `rucora/src/agent/reflect.rs` - 更新 ReflectAgent
+- `rucora/src/agent/extractor.rs` - **新增** Extractor 支持 llm_params
+- `rucora/src/lib.rs` - 导出 LlmParams
+- `examples/rucora-skills-example/src/main.rs` - 示例展示 LlmParams 用法
 
 #### Extractor 支持 LLM 参数配置
 
@@ -278,29 +278,29 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 #### 删除已弃用代码
 
 **1. 移除已弃用的错误分类器实现**
-- 删除 `agentkit-core/src/error_classifier.rs`
+- 删除 `rucora-core/src/error_classifier.rs`
 - 该模块已被标记为弃用，由 `error_classifier_trait.rs` 替代
-- 实现已迁移至 `agentkit` crate
+- 实现已迁移至 `rucora` crate
 
 **2. 移除已弃用的注入防护实现**
-- 删除 `agentkit-core/src/injection_guard.rs`
+- 删除 `rucora-core/src/injection_guard.rs`
 - 该模块已被标记为弃用，由 `injection_guard_trait.rs` 替代
-- 实现已迁移至 `agentkit` crate
+- 实现已迁移至 `rucora` crate
 
 **3. 移除使用已弃用 API 的示例**
-- 删除 `agentkit/examples/22_error_classification.rs`
-- 删除 `agentkit/examples/23_prompt_injection_guard.rs`
-- 更新 `agentkit/Cargo.toml` 移除对应示例配置
+- 删除 `rucora/examples/22_error_classification.rs`
+- 删除 `rucora/examples/23_prompt_injection_guard.rs`
+- 更新 `rucora/Cargo.toml` 移除对应示例配置
 
 **4. 清理模块导出**
-- 更新 `agentkit-core/src/lib.rs`
+- 更新 `rucora-core/src/lib.rs`
 - 移除对已弃用模块的导出
 - 移除向后兼容的 `ErrorClassifierImpl` 和 `InjectionGuardImpl` 导出
 
 #### 工具模块重构
 
 **5. 工具分类管理优化**
-- 将 `agentkit-tools` 从扁平结构重构为模块化结构
+- 将 `rucora-tools` 从扁平结构重构为模块化结构
 - 新增分类：
   - `file/` - 文件操作工具（read/write/edit）
   - `system/` - 系统工具（shell/datetime/cmd_exec）
@@ -316,33 +316,33 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 - `ImageInfoTool` - 支持图片元数据读取（PNG/JPEG/GIF/WebP/BMP）
 
 **删除文件清单**
-- `agentkit-core/src/error_classifier.rs`
-- `agentkit-core/src/injection_guard.rs`
-- `agentkit/examples/22_error_classification.rs`
-- `agentkit/examples/23_prompt_injection_guard.rs`
+- `rucora-core/src/error_classifier.rs`
+- `rucora-core/src/injection_guard.rs`
+- `rucora/examples/22_error_classification.rs`
+- `rucora/examples/23_prompt_injection_guard.rs`
 
 **新建文件清单**
-- `agentkit-tools/src/file/mod.rs`
-- `agentkit-tools/src/file/config.rs`
-- `agentkit-tools/src/file/read.rs`
-- `agentkit-tools/src/file/write.rs`
-- `agentkit-tools/src/file/edit.rs`
-- `agentkit-tools/src/system/mod.rs`
-- `agentkit-tools/src/system/shell.rs`
-- `agentkit-tools/src/system/datetime.rs`
-- `agentkit-tools/src/system/cmd_exec.rs`
-- `agentkit-tools/src/web/mod.rs`
-- `agentkit-tools/src/web/fetch.rs`
-- `agentkit-tools/src/web/browse.rs`
-- `agentkit-tools/src/web/http.rs`
-- `agentkit-tools/src/web/search.rs`
-- `agentkit-tools/src/search/mod.rs`
-- `agentkit-tools/src/search/glob_search.rs`
-- `agentkit-tools/src/search/content_search.rs`
-- `agentkit-tools/src/math/mod.rs`
-- `agentkit-tools/src/math/calculator.rs`
-- `agentkit-tools/src/media/mod.rs`
-- `agentkit-tools/src/media/image_info.rs`
+- `rucora-tools/src/file/mod.rs`
+- `rucora-tools/src/file/config.rs`
+- `rucora-tools/src/file/read.rs`
+- `rucora-tools/src/file/write.rs`
+- `rucora-tools/src/file/edit.rs`
+- `rucora-tools/src/system/mod.rs`
+- `rucora-tools/src/system/shell.rs`
+- `rucora-tools/src/system/datetime.rs`
+- `rucora-tools/src/system/cmd_exec.rs`
+- `rucora-tools/src/web/mod.rs`
+- `rucora-tools/src/web/fetch.rs`
+- `rucora-tools/src/web/browse.rs`
+- `rucora-tools/src/web/http.rs`
+- `rucora-tools/src/web/search.rs`
+- `rucora-tools/src/search/mod.rs`
+- `rucora-tools/src/search/glob_search.rs`
+- `rucora-tools/src/search/content_search.rs`
+- `rucora-tools/src/math/mod.rs`
+- `rucora-tools/src/math/calculator.rs`
+- `rucora-tools/src/media/mod.rs`
+- `rucora-tools/src/media/image_info.rs`
 
 ---
 
@@ -409,8 +409,8 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 
 **6. Pure Interface Layer 纯接口层分离 (`error_classifier_trait.rs` / `injection_guard_trait.rs`)**
 - 将 `ErrorClassifier` 和 `InjectionGuard` 的 trait 定义与实现分离
-- trait 层（`agentkit-core`）：纯接口，无重依赖
-- 实现层（`agentkit`）：具体实现，可独立演进
+- trait 层（`rucora-core`）：纯接口，无重依赖
+- 实现层（`rucora`）：具体实现，可独立演进
 - 符合接口隔离原则，提高模块可测试性
 - **新增 Trait**:
   - `ErrorClassifier` - 错误分类接口
@@ -430,18 +430,18 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 #### 修改文件清单
 
 **新建文件 (8)**:
-- `agentkit-core/src/memory/advanced_types.rs` - 高级内存类型
-- `agentkit-core/src/memory/advanced_trait.rs` - 高级内存 trait
-- `agentkit-core/src/tool/filter.rs` - 工具过滤组
-- `agentkit-core/src/channel/hooks.rs` - 钩子优先级系统
-- `agentkit-core/src/channel/metrics.rs` - 双轨指标系统
-- `agentkit-core/src/agent/runtime_adapter.rs` - 运行时适配器
-- `agentkit-core/src/error_classifier_trait.rs` - 错误分类纯接口
-- `agentkit-core/src/injection_guard_trait.rs` - 注入防护纯接口
+- `rucora-core/src/memory/advanced_types.rs` - 高级内存类型
+- `rucora-core/src/memory/advanced_trait.rs` - 高级内存 trait
+- `rucora-core/src/tool/filter.rs` - 工具过滤组
+- `rucora-core/src/channel/hooks.rs` - 钩子优先级系统
+- `rucora-core/src/channel/metrics.rs` - 双轨指标系统
+- `rucora-core/src/agent/runtime_adapter.rs` - 运行时适配器
+- `rucora-core/src/error_classifier_trait.rs` - 错误分类纯接口
+- `rucora-core/src/injection_guard_trait.rs` - 注入防护纯接口
 
 **修改文件 (2)**:
-- `agentkit-core/Cargo.toml` - 添加 tokio fs/process features
-- `agentkit-core/src/lib.rs` - 导出新模块
+- `rucora-core/Cargo.toml` - 添加 tokio fs/process features
+- `rucora-core/src/lib.rs` - 导出新模块
 
 ---
 
@@ -469,7 +469,7 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 - 重试策略现在能有效分散请求，避免重试风暴
 
 **4. AgentError 统一定义**
-- 消除 `agentkit-core` 中两个重复的 `AgentError` 定义
+- 消除 `rucora-core` 中两个重复的 `AgentError` 定义
 - 添加 `RequiresRuntime` 变体到统一错误类型
 - 更新所有使用旧变体（`MaxStepsReached`）的代码为新变体（`MaxStepsExceeded`）
 - 接口统一，减少使用困惑
@@ -504,7 +504,7 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 #### P2 中优先级问题修复
 
 **9. tokio features 优化**
-- `agentkit-core` 将 `tokio` features 从 `["full"]` 改为 `["sync", "time", "macros", "rt"]`
+- `rucora-core` 将 `tokio` features 从 `["full"]` 改为 `["sync", "time", "macros", "rt"]`
 - 减少编译时间和二进制大小
 
 **10. AgentInput 初始值统一**
@@ -592,32 +592,32 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 ### 新增依赖
 
 - `regex = "1"` - 用于错误分类和注入检测
-- `tracing = "0.1"` - 用于安全扫描日志（agentkit-core）
+- `tracing = "0.1"` - 用于安全扫描日志（rucora-core）
 
 ### 新增导出
 
-**agentkit-core**:
+**rucora-core**:
 - `ErrorClassifier`, `ErrorContext`, `ClassifiedError`, `FailoverReason`
 - `InjectionGuard`, `ScanResult`, `Threat`, `ThreatType`, `ContentScannable`
 
-**agentkit**:
+**rucora**:
 - `CompressionConfig`, `CompressionStrategy`, `LayeredCompressor`
 
 ### 修改文件清单
 
 #### 新建文件 (6)
-- `agentkit-core/src/error_classifier.rs` - 结构化错误分类器
-- `agentkit-core/src/injection_guard.rs` - Prompt 注入防护扫描器
-- `agentkit/src/compact/engine.rs` - 分层上下文压缩引擎
-- `agentkit/examples/22_error_classification.rs` - 错误分类器示例
-- `agentkit/examples/23_prompt_injection_guard.rs` - 注入防护示例
-- `agentkit/examples/24_context_compression.rs` - 上下文压缩示例
+- `rucora-core/src/error_classifier.rs` - 结构化错误分类器
+- `rucora-core/src/injection_guard.rs` - Prompt 注入防护扫描器
+- `rucora/src/compact/engine.rs` - 分层上下文压缩引擎
+- `rucora/examples/22_error_classification.rs` - 错误分类器示例
+- `rucora/examples/23_prompt_injection_guard.rs` - 注入防护示例
+- `rucora/examples/24_context_compression.rs` - 上下文压缩示例
 
 #### 修改文件 (5)
-- `agentkit-core/src/lib.rs` - 导出新模块和类型
-- `agentkit-core/Cargo.toml` - 添加 regex 和 tracing 依赖
-- `agentkit/src/lib.rs` - 重新导出压缩引擎类型
-- `agentkit/Cargo.toml` - 添加新 example 配置
+- `rucora-core/src/lib.rs` - 导出新模块和类型
+- `rucora-core/Cargo.toml` - 添加 regex 和 tracing 依赖
+- `rucora/src/lib.rs` - 重新导出压缩引擎类型
+- `rucora/Cargo.toml` - 添加新 example 配置
 - `docs/HERMES_AGENT_RESEARCH.md` - Hermes Agent 研究报告
 
 ---
@@ -642,39 +642,39 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
    - 增加消息长度和数量以确保触发压缩阈值
 
 **测试结果**：
-- ✅ 81 个测试全部通过（72 agentkit + 9 agentkit-core）
+- ✅ 81 个测试全部通过（72 rucora + 9 rucora-core）
 - ✅ 0 个测试失败
 
 ### 修改文件清单
 
 #### 新建文件 (5)
-- `agentkit/src/provider/http_config.rs` - HTTP 客户端配置模块
+- `rucora/src/provider/http_config.rs` - HTTP 客户端配置模块
 - `docs/CODE_AUDIT_REPORT.md` - 完整代码审计报告
 - `docs/CODE_IMPROVEMENT_REPORT.md` - 改进实施报告
 - `docs/P0_FIXES_COMPLETE.md` - P0 修复完成报告
 - `docs/COMPACT_TESTS_FIX_REPORT.md` - 测试修复报告
 
 #### 修改文件 (20)
-- `agentkit-core/Cargo.toml` - 优化 tokio features
-- `agentkit-core/src/agent/mod.rs` - 统一 AgentError，改进默认实现
-- `agentkit-core/src/error.rs` - 添加 RequiresRuntime，修正可重试性
-- `agentkit/src/agent/execution.rs` - 更新错误变体
-- `agentkit/src/compact/grouping.rs` - 修复消息分组算法
-- `agentkit/src/compact/mod.rs` - 修复测试
-- `agentkit/src/compact/prompt.rs` - 更新提示词常量
-- `agentkit/src/provider/anthropic.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/azure_openai.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/deepseek.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/gemini.rs` - 添加 HTTP 超时，修复 API Key 泄露
-- `agentkit/src/provider/mod.rs` - 添加 http_config 模块导出
-- `agentkit/src/provider/moonshot.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/ollama.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/openai.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/openrouter.rs` - 添加 HTTP 超时
-- `agentkit/src/provider/resilient.rs` - 修复退避算法抖动 bug
-- `agentkit/src/tools/cmd_exec.rs` - 更新函数调用
-- `agentkit/src/tools/shell.rs` - 增强安全策略
-- `examples/agentkit-skills-example/src/main.rs` - 更新 ShellTool 使用
+- `rucora-core/Cargo.toml` - 优化 tokio features
+- `rucora-core/src/agent/mod.rs` - 统一 AgentError，改进默认实现
+- `rucora-core/src/error.rs` - 添加 RequiresRuntime，修正可重试性
+- `rucora/src/agent/execution.rs` - 更新错误变体
+- `rucora/src/compact/grouping.rs` - 修复消息分组算法
+- `rucora/src/compact/mod.rs` - 修复测试
+- `rucora/src/compact/prompt.rs` - 更新提示词常量
+- `rucora/src/provider/anthropic.rs` - 添加 HTTP 超时
+- `rucora/src/provider/azure_openai.rs` - 添加 HTTP 超时
+- `rucora/src/provider/deepseek.rs` - 添加 HTTP 超时
+- `rucora/src/provider/gemini.rs` - 添加 HTTP 超时，修复 API Key 泄露
+- `rucora/src/provider/mod.rs` - 添加 http_config 模块导出
+- `rucora/src/provider/moonshot.rs` - 添加 HTTP 超时
+- `rucora/src/provider/ollama.rs` - 添加 HTTP 超时
+- `rucora/src/provider/openai.rs` - 添加 HTTP 超时
+- `rucora/src/provider/openrouter.rs` - 添加 HTTP 超时
+- `rucora/src/provider/resilient.rs` - 修复退避算法抖动 bug
+- `rucora/src/tools/cmd_exec.rs` - 更新函数调用
+- `rucora/src/tools/shell.rs` - 增强安全策略
+- `examples/rucora-skills-example/src/main.rs` - 更新 ShellTool 使用
 
 ### Agent 执行能力增强（参考 Zeroclaw 架构）
 
@@ -688,13 +688,13 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 - 匹配模式：token、api_key、password、secret、user_key、bearer、credential 等
 - 在工具输出返回给 LLM 前自动执行清洗
 - 防止 API Key / Token 等敏感信息泄露到 LLM 上下文
-- 新增模块：`agentkit/src/agent/tool_execution.rs` 新增 `SENSITIVE_KV_REGEX`
+- 新增模块：`rucora/src/agent/tool_execution.rs` 新增 `SENSITIVE_KV_REGEX`
 
 **2. 孤儿 Tool 消息清理 (`remove_orphaned_tool_messages`)**
 - 新增 `remove_orphaned_tool_messages()` 函数，修复 context 截断后的孤儿 tool 消息问题
 - 两阶段算法：第一遍删除连续 assistant+tool_calls 之间的非法对，第二遍清理剩余孤儿
 - 每次 Agent Loop 迭代前自动执行，防止 Anthropic / MiniMax 等 Provider 返回 400 错误
-- 新增模块：`agentkit/src/agent/execution.rs` 新增 `remove_orphaned_tool_messages`、`extract_tool_call_id_from_content`
+- 新增模块：`rucora/src/agent/execution.rs` 新增 `remove_orphaned_tool_messages`、`extract_tool_call_id_from_content`
 
 #### P1 优先级：健壮性与可维护性
 
@@ -726,10 +726,10 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
   - `is_context_overflow_error(message)` - 检测 context 溢出错误
 
 #### 修改文件
-- `agentkit/src/agent/mod.rs` - 注册 `loop_detector` 模块
-- `agentkit/src/agent/loop_detector.rs` - 新增循环检测器模块
-- `agentkit/src/agent/execution.rs` - 集成 loop detector、孤儿清理、context 恢复
-- `agentkit/src/agent/tool_execution.rs` - 新增 credential 清洗
+- `rucora/src/agent/mod.rs` - 注册 `loop_detector` 模块
+- `rucora/src/agent/loop_detector.rs` - 新增循环检测器模块
+- `rucora/src/agent/execution.rs` - 集成 loop detector、孤儿清理、context 恢复
+- `rucora/src/agent/tool_execution.rs` - 新增 credential 清洗
 - `docs/ZEROCLAW_ARCHITECTURE_ANALYSIS.md` - 新增架构分析报告
 
 ---
@@ -739,9 +739,9 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 ### 新增功能
 
 #### 核心框架
-- **agentkit-core** - 核心抽象层（traits/types）
-- **agentkit** - 主库（实现聚合）
-- **agentkit-runtime** - 运行时编排层
+- **rucora-core** - 核心抽象层（traits/types）
+- **rucora** - 主库（实现聚合）
+- **rucora-runtime** - 运行时编排层
 
 #### Provider 支持
 - **OpenAiProvider** - OpenAI GPT 系列模型
@@ -765,21 +765,21 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 - **A2A 协议** - Agent-to-Agent Protocol
 
 #### 应用
-- **agentkit-cli** - 命令行工具
-- **agentkit-server** - HTTP 服务器
+- **rucora-cli** - 命令行工具
+- **rucora-server** - HTTP 服务器
 
 ### 项目结构
 
 ```
-agentkit/
-├── agentkit-core       # 核心抽象层
-├── agentkit            # 主库（实现聚合）
-├── agentkit-runtime    # 运行时编排
-├── agentkit-skills     # 技能系统
-├── agentkit-cli        # 命令行工具
-├── agentkit-server     # HTTP 服务器
-├── agentkit-mcp        # MCP 协议支持
-└── agentkit-a2a        # A2A 协议支持
+rucora/
+├── rucora-core       # 核心抽象层
+├── rucora            # 主库（实现聚合）
+├── rucora-runtime    # 运行时编排
+├── rucora-skills     # 技能系统
+├── rucora-cli        # 命令行工具
+├── rucora-server     # HTTP 服务器
+├── rucora-mcp        # MCP 协议支持
+└── rucora-a2a        # A2A 协议支持
 ```
 
 ---
@@ -793,15 +793,15 @@ agentkit/
 ```toml
 # 旧配置（0.1.0）
 [dependencies]
-agentkit = "0.1"
-agentkit-runtime = "0.1"
-agentkit-mcp = "0.1"
-agentkit-a2a = "0.1"
-agentkit-skills = "0.1"
+rucora = "0.1"
+rucora-runtime = "0.1"
+rucora-mcp = "0.1"
+rucora-a2a = "0.1"
+rucora-skills = "0.1"
 
 # 新配置（当前版本）
 [dependencies]
-agentkit = { version = "0.1", features = ["runtime", "mcp", "a2a", "skills"] }
+rucora = { version = "0.1", features = ["runtime", "mcp", "a2a", "skills"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 anyhow = "1"
@@ -811,18 +811,18 @@ anyhow = "1"
 
 ```rust
 // 旧导入方式（0.1.0）
-use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::AgentInput;
-use agentkit_mcp::McpClient;
-use agentkit_skills::load_skills_from_dir;
+use rucora::provider::OpenAiProvider;
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
+use rucora_core::agent::AgentInput;
+use rucora_mcp::McpClient;
+use rucora_skills::load_skills_from_dir;
 
 // 新导入方式（当前版本）
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
-use agentkit::prelude::AgentInput;
-use agentkit::mcp::McpClient;
-use agentkit::skills::load_skills_from_dir;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, ToolRegistry};
+use rucora::prelude::AgentInput;
+use rucora::mcp::McpClient;
+use rucora::skills::load_skills_from_dir;
 ```
 
 #### 3. 更新 AgentInput 使用
@@ -852,8 +852,8 @@ println!("{}", output.text().unwrap_or("无回复"));
 
 ```rust
 // 旧用法（0.1.0）
-use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use rucora::provider::OpenAiProvider;
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
 use std::sync::Arc;
 
 let provider = OpenAiProvider::from_env()?;
@@ -866,9 +866,9 @@ let input = AgentInput::new("用一句话介绍 Rust");
 let output = runtime.run(input).await?;
 
 // 新用法（当前版本）
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
-use agentkit::prelude::AgentInput;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, ToolRegistry};
+use rucora::prelude::AgentInput;
 use std::sync::Arc;
 
 let provider = OpenAiProvider::from_env()?;

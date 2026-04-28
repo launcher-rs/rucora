@@ -1,8 +1,8 @@
-﻿//! AgentKit - LLM 应用开发框架
+﻿//! rucora - LLM 应用开发框架
 //!
 //! # 概述
 //!
-//! AgentKit 是一个用于构建生产级 LLM 应用的框架，提供：
+//! rucora 是一个用于构建生产级 LLM 应用的框架，提供：
 //! - Skills（技能）系统 - 可扩展的功能模块
 //! - Agent（智能体） - 决策和执行单元
 //! - Provider（模型提供商） - LLM 连接层
@@ -13,7 +13,7 @@
 //! ## 使用 Skills
 //!
 //! ```rust,no_run
-//! use agentkit::skills::{SkillLoader, SkillExecutor};
+//! use rucora::skills::{SkillLoader, SkillExecutor};
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
@@ -38,9 +38,9 @@
 //! ## 与 Agent 集成
 //!
 //! ```rust,no_run
-//! use agentkit::agent::DefaultAgent;
-//! use agentkit::provider::OpenAiProvider;
-//! use agentkit::skills::SkillLoader;
+//! use rucora::agent::DefaultAgent;
+//! use rucora::provider::OpenAiProvider;
+//! use rucora::skills::SkillLoader;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {

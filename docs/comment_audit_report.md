@@ -1,7 +1,7 @@
 # 代码注释和文档审计报告
 
 > 审计日期：2026-04-24
-> 审计范围：agentkit-core, agentkit, agentkit-providers, agentkit-tools, agentkit-mcp, agentkit-a2a, agentkit-embed, agentkit-retrieval, agentkit-skills
+> 审计范围：rucora-core, rucora, rucora-providers, rucora-tools, rucora-mcp, rucora-a2a, rucora-embed, rucora-retrieval, rucora-skills
 
 ---
 
@@ -31,47 +31,47 @@
 
 ## 一、严重问题（注释与代码功能不符）
 
-### 1. agentkit-providers/src/openai.rs:33-34
+### 1. rucora-providers/src/openai.rs:33-34
 **问题**：注释声称"仅实现 `chat`（非流式）"，但 `stream_chat` 方法已在第 514-672 行实现。
 **建议**：删除或更新该注释，反映当前已支持流式聊天。
 
-### 2. agentkit-providers/src/ollama.rs:32-33
+### 2. rucora-providers/src/ollama.rs:32-33
 **问题**：与 openai.rs 相同，注释声称"仅实现 `chat`（非流式）"，但 `stream_chat` 方法已实现。
 **建议**：删除或更新该注释。
 
-### 3. agentkit/src/middleware.rs:369
+### 3. rucora/src/middleware.rs:369
 **问题**：`RateLimitMiddleware` 注释说"限制请求频率"，但 `on_request` 方法只记录日志，未实现真正的限流逻辑。代码中有注释"简化实现：实际应该使用令牌桶或滑动窗口算法"。
 **建议**：更新结构体文档说明这是简化实现，或标注为 TODO/FIXME。
 
-### 4. agentkit/src/middleware.rs:409-414
+### 4. rucora/src/middleware.rs:409-414
 **问题**：`CacheMiddleware` 注释说"缓存请求响应"，但实际仅记录日志，未实现缓存功能。
 **建议**：更新文档说明这是占位实现，或标注为 TODO。
 
-### 5. agentkit/src/prompt.rs:1-10
+### 5. rucora/src/prompt.rs:1-10
 **问题**：模块文档声称支持"模板继承"，但代码中未实现该功能。
 **建议**：移除"模板继承"相关描述，或实现该功能后保留。
 
-### 6. agentkit/src/prompt.rs:35-36
+### 6. rucora/src/prompt.rs:35-36
 **问题**：文档说"模板系统会自动转义用户输入，防止 Prompt 注入攻击"，但 `escape_prompt` 函数只做简单的 ``` 和 " 转义，并非完整的注入防护。
 **建议**：更新文档说明只做了基础转义，不应夸大为完整的注入防护。
 
-### 7. agentkit/src/agent/loop_detector.rs:12-14
+### 7. rucora/src/agent/loop_detector.rs:12-14
 **问题**：模块文档说 `Warning` 在"小于 max_repeats/2"时触发，`Block` 在"等于 max_repeats/2"时触发。但实际代码逻辑是：`repeat_count > max` 触发 Break，`repeat_count == max` 触发 Block，`repeat_count >= max / 2 + 1` 触发 Warning。
 **建议**：更新文档使其与实际代码逻辑一致。
 
-### 8. agentkit/src/agent/execution.rs:519-531
+### 8. rucora/src/agent/execution.rs:519-531
 **问题**：注释说"如果中间件处理成功，返回修改后的错误；如果中间件处理失败，返回原始错误"，但代码中两个分支都返回 `Err(e)`。
 **建议**：更新注释反映实际逻辑，或修复代码实现。
 
-### 9. agentkit-tools/src/http.rs:37
+### 9. rucora-tools/src/http.rs:37
 **问题**：文档说适用场景包括"获取网页内容"，但该工具是通用 HTTP 请求工具，与 `WebFetchTool` 功能描述重复，易混淆。
 **建议**：明确区分 HttpTool（通用 HTTP 请求）和 WebFetchTool（专门获取网页内容）的适用场景。
 
-### 10. agentkit-tools/src/file/mod.rs:3
+### 10. rucora-tools/src/file/mod.rs:3
 **问题**：模块文档说提供"搜索"功能，但该模块只有 read/write/edit，没有搜索功能。
 **建议**：移除"搜索"相关描述。
 
-### 11. agentkit/src/agent/mod.rs:20-35
+### 11. rucora/src/agent/mod.rs:20-35
 **问题**：模块文档提到了 `PlanAgent`、`CodeAgent`、`ResearchAgent`、`SupervisorAgent`、`RouterAgent`，但这些类型在当前模块中并未定义或重新导出。
 **建议**：更新文档，移除不存在的类型引用。
 
@@ -79,7 +79,7 @@
 
 ## 二、注释缺失问题
 
-### agentkit-providers 模块
+### rucora-providers 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
@@ -95,7 +95,7 @@
 | openrouter.rs | 166-235 | `map_role()`, `build_messages()`, `build_response_format()`, `build_tools()`, `parse_tool_calls()` 方法缺少文档注释 |
 | azure_openai.rs | 165-234 | `map_role()`, `build_messages()`, `build_response_format()`, `build_tools()`, `parse_tool_calls()` 方法缺少文档注释 |
 
-### agentkit 模块
+### rucora 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
@@ -112,7 +112,7 @@
 | agent/compact/config.rs | 61-63 | `CompactConfig::new()` 方法缺少文档注释 |
 | memory/in_memory.rs | 23-27 | `InMemoryMemory` 的 doc 注释位置不规范（在 `#[derive]` 之后） |
 
-### agentkit-tools 模块
+### rucora-tools 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
@@ -126,7 +126,7 @@
 | search/content_search.rs | 41-58 | `ContentSearchTool::new()`, `search_in_file()` 注释不完整 |
 | search/glob_search.rs | 47-48 | `is_path_allowed()` 注释过于简单 |
 
-### agentkit-a2a 模块
+### rucora-a2a 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
@@ -134,20 +134,20 @@
 | protocol.rs | 1 | 文档过于简单，未说明转导出的类型 |
 | transport.rs | 1 | 文档过于简单，未说明转导出的类型 |
 
-### agentkit-embed 模块
+### rucora-embed 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
 | lib.rs | 3-5 | 子模块声明缺少中文注释 |
 | cache.rs | 7-40 | `CachedEmbeddingProvider` 结构体、字段、`new()`, `new_arc()`, `inner()`, `validate_dim()` 方法使用 `//` 而非 `///` |
 
-### agentkit-retrieval 模块
+### rucora-retrieval 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
 | lib.rs | 3-7 | 所有子模块声明缺少中文注释 |
 
-### agentkit-skills 模块
+### rucora-skills 模块
 
 | 文件 | 行号 | 缺失内容 |
 |------|------|----------|
@@ -166,28 +166,28 @@
 
 | 文件 | 行号 | 问题 |
 |------|------|------|
-| agentkit-embed/src/lib.rs | 1 | 模块级文档使用英文 `//! agentkit-embed - Embedding providers for AgentKit` |
-| agentkit-retrieval/src/lib.rs | 1 | 模块级文档使用英文 `//! agentkit-retrieval - Vector store retrieval for AgentKit` |
-| agentkit/src/compact/token_counter.rs | 518-522 | `SAFETY` 注释使用英文 |
+| rucora-embed/src/lib.rs | 1 | 模块级文档使用英文 `//! rucora-embed - Embedding providers for rucora` |
+| rucora-retrieval/src/lib.rs | 1 | 模块级文档使用英文 `//! rucora-retrieval - Vector store retrieval for rucora` |
+| rucora/src/compact/token_counter.rs | 518-522 | `SAFETY` 注释使用英文 |
 
 ### 使用 `//` 而非 `///`
 
 | 文件 | 行号 | 问题 |
 |------|------|------|
-| agentkit-embed/src/cache.rs | 7-40 | 多处方法注释使用普通行注释而非文档注释 |
+| rucora-embed/src/cache.rs | 7-40 | 多处方法注释使用普通行注释而非文档注释 |
 
 ### 文档位置不规范
 
 | 文件 | 行号 | 问题 |
 |------|------|------|
-| agentkit/src/agent/policy.rs | 11-75 | 多处 doc 注释放在 `#[derive]` 之后，应放在 derive 之前 |
-| agentkit/src/memory/in_memory.rs | 23-27 | doc 注释放在 `#[derive(Default)]` 之后 |
+| rucora/src/agent/policy.rs | 11-75 | 多处 doc 注释放在 `#[derive]` 之后，应放在 derive 之前 |
+| rucora/src/memory/in_memory.rs | 23-27 | doc 注释放在 `#[derive(Default)]` 之后 |
 
 ### 注释重复
 
 | 文件 | 行号 | 问题 |
 |------|------|------|
-| agentkit-providers/src/gemini.rs | 10-14 与 71-75 | 默认模型优先级说明在模块级和结构体级完全重复 |
+| rucora-providers/src/gemini.rs | 10-14 与 71-75 | 默认模型优先级说明在模块级和结构体级完全重复 |
 
 ---
 
@@ -195,10 +195,10 @@
 
 | 文件 | 行号 | 问题 |
 |------|------|------|
-| agentkit/src/conversation.rs | 274-276 | TODO 注释表示 token 限制检查未实现 |
-| agentkit/src/prompt.rs | 485 | 注释说"需要添加 regex 依赖"，如已添加应删除 |
-| agentkit-skills/src/cache.rs | 144 | 注释标注"简化实现，实际应该调用 loader" |
-| agentkit-providers/src/lib.rs | 25 | `preview` 函数注释"预览函数"过于模糊 |
+| rucora/src/conversation.rs | 274-276 | TODO 注释表示 token 限制检查未实现 |
+| rucora/src/prompt.rs | 485 | 注释说"需要添加 regex 依赖"，如已添加应删除 |
+| rucora-skills/src/cache.rs | 144 | 注释标注"简化实现，实际应该调用 loader" |
+| rucora-providers/src/lib.rs | 25 | `preview` 函数注释"预览函数"过于模糊 |
 
 ---
 
@@ -237,11 +237,11 @@
   ```
 
 ### 5. 示例代码改进
-- agentkit-tools/src/lib.rs 第 24 行的示例代码使用占位注释，应提供实际可用的示例
-- agentkit/src/lib.rs 第 133 行引用了 `docs/QUICK_REFERENCE.md`，需确认该文件是否存在
+- rucora-tools/src/lib.rs 第 24 行的示例代码使用占位注释，应提供实际可用的示例
+- rucora/src/lib.rs 第 133 行引用了 `docs/QUICK_REFERENCE.md`，需确认该文件是否存在
 
 ### 6. 代码质量问题
-- agentkit-skills/src/testkit.rs 第 3 行引用了可能不存在的 `registry` 模块，需确认是否会编译错误
+- rucora-skills/src/testkit.rs 第 3 行引用了可能不存在的 `registry` 模块，需确认是否会编译错误
 
 ---
 
@@ -252,9 +252,9 @@
 2. 潜在的编译错误（testkit.rs 中的模块引用）
 
 ### 中优先级（近期修复）
-1. agentkit-providers 中各 provider 的私有辅助方法注释
-2. agentkit-skills/loader.rs 中的大量缺失注释
-3. agentkit-embed/cache.rs 中的注释格式问题（`//` vs `///`）
+1. rucora-providers 中各 provider 的私有辅助方法注释
+2. rucora-skills/loader.rs 中的大量缺失注释
+3. rucora-embed/cache.rs 中的注释格式问题（`//` vs `///`）
 4. 英文注释改为中文
 
 ### 低优先级（逐步完善）
@@ -267,17 +267,17 @@
 ## 七、注释良好的示例文件
 
 以下文件注释质量较好，可作为参考：
-- agentkit-core/src/lib.rs
-- agentkit-core/src/channel/mod.rs
-- agentkit-core/src/channel/types.rs
-- agentkit-core/src/error.rs
-- agentkit-providers/src/helpers.rs
-- agentkit-providers/src/http_config.rs
-- agentkit-tools/src/cmd_exec.rs
-- agentkit-tools/src/git.rs
-- agentkit-tools/src/echo.rs
-- agentkit-tools/src/shell.rs
-- agentkit-tools/src/web/fetch.rs
-- agentkit-tools/src/web/http.rs
-- agentkit-mcp/src/*.rs（所有文件）
-- agentkit-skills/src/lib.rs
+- rucora-core/src/lib.rs
+- rucora-core/src/channel/mod.rs
+- rucora-core/src/channel/types.rs
+- rucora-core/src/error.rs
+- rucora-providers/src/helpers.rs
+- rucora-providers/src/http_config.rs
+- rucora-tools/src/cmd_exec.rs
+- rucora-tools/src/git.rs
+- rucora-tools/src/echo.rs
+- rucora-tools/src/shell.rs
+- rucora-tools/src/web/fetch.rs
+- rucora-tools/src/web/http.rs
+- rucora-mcp/src/*.rs（所有文件）
+- rucora-skills/src/lib.rs

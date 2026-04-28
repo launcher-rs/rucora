@@ -22,8 +22,8 @@ cargo build --all-features
 cargo test --workspace
 
 # Run tests for specific package
-cargo test -p agentkit-core
-cargo test -p agentkit
+cargo test -p rucora-core
+cargo test -p rucora
 
 # Run a specific test by name
 cargo test test_name_pattern
@@ -32,9 +32,9 @@ cargo test test_name_pattern
 cargo test -- --nocapture
 
 # Run contract tests (behavior validation for core traits)
-cargo test -p agentkit-core --test contract_provider
-cargo test -p agentkit-core --test contract_tool
-cargo test -p agentkit-core --test contract_vector_store
+cargo test -p rucora-core --test contract_provider
+cargo test -p rucora-core --test contract_tool
+cargo test -p rucora-core --test contract_vector_store
 ```
 
 ### Linting
@@ -48,7 +48,7 @@ cargo clippy --fix --all-targets
 
 ### Running Examples
 ```bash
-# Run a specific example (examples are in agentkit/examples/)
+# Run a specific example (examples are in rucora/examples/)
 cargo run --example 01_hello_world
 cargo run --example 03_chat_with_tools
 cargo run --example 07_rag
@@ -64,23 +64,23 @@ cargo run --example 12_mcp --all-features
 
 This is a Rust workspace with multiple crates:
 
-- **`agentkit-core/`** - Core abstractions (traits, types, errors). No implementations, minimal dependencies. Defines the stable minimal kernel.
-- **`agentkit/`** - Aggregator crate providing "batteries-included" implementations (providers, tools, skills, memory, retrieval). This is the main entry point for users.
-- **`agentkit-providers/`** - LLM provider implementations (OpenAI, Anthropic, Gemini, Ollama, etc.)
-- **`agentkit-tools/`** - Tool implementations (Shell, File, HTTP, Git, browser scraping, etc.)
-- **`agentkit-mcp/`** - MCP (Model Context Protocol) integration
-- **`agentkit-a2a/`** - A2A (Agent-to-Agent) protocol integration
-- **`agentkit-skills/`** - Skill system (Rhai scripts, YAML command templates)
-- **`agentkit-embed/`** - Embedding providers
-- **`agentkit-retrieval/`** - Vector store implementations
-- **`examples/`** - Example applications (a2a-client, a2a-server, agentkit-skills-example, agentkit-deep-research)
-- **`agentkit/examples/`** - 20+ example files demonstrating various features (01_hello_world.rs through 24_context_compression.rs)
+- **`rucora-core/`** - Core abstractions (traits, types, errors). No implementations, minimal dependencies. Defines the stable minimal kernel.
+- **`rucora/`** - Aggregator crate providing "batteries-included" implementations (providers, tools, skills, memory, retrieval). This is the main entry point for users.
+- **`rucora-providers/`** - LLM provider implementations (OpenAI, Anthropic, Gemini, Ollama, etc.)
+- **`rucora-tools/`** - Tool implementations (Shell, File, HTTP, Git, browser scraping, etc.)
+- **`rucora-mcp/`** - MCP (Model Context Protocol) integration
+- **`rucora-a2a/`** - A2A (Agent-to-Agent) protocol integration
+- **`rucora-skills/`** - Skill system (Rhai scripts, YAML command templates)
+- **`rucora-embed/`** - Embedding providers
+- **`rucora-retrieval/`** - Vector store implementations
+- **`examples/`** - Example applications (a2a-client, a2a-server, rucora-skills-example, rucora-deep-research)
+- **`rucora/examples/`** - 20+ example files demonstrating various features (01_hello_world.rs through 24_context_compression.rs)
 
 ### Key Design Principles
 
-1. **Interface/Implementation Separation**: `agentkit-core` defines only traits and types. Third parties can implement their own providers/tools without depending on heavy implementations.
+1. **Interface/Implementation Separation**: `rucora-core` defines only traits and types. Third parties can implement their own providers/tools without depending on heavy implementations.
 
-2. **Feature-gated Modules**: The main `agentkit` crate uses Cargo features to enable optional functionality:
+2. **Feature-gated Modules**: The main `rucora` crate uses Cargo features to enable optional functionality:
    - `providers` - LLM provider implementations
    - `tools` - Tool implementations
    - `skills` - Skill system
@@ -95,7 +95,7 @@ This is a Rust workspace with multiple crates:
 
 5. **No Agent Trait in Core**: The core does not define an `Agent` trait. `AgentInput/AgentOutput` types exist in `agent::types` as stable input/output types for the runtime.
 
-### Core Traits (agentkit-core)
+### Core Traits (rucora-core)
 
 - **`LlmProvider`** - LLM provider abstraction (chat, stream_chat)
 - **`Tool`** - Tool abstraction (name, description, input_schema, call)
@@ -107,7 +107,7 @@ This is a Rust workspace with multiple crates:
 - **`ErrorClassifier`** - Error classification trait (pure interface)
 - **`InjectionGuard`** - Prompt injection detection trait (pure interface)
 
-### Core Modules (agentkit-core)
+### Core Modules (rucora-core)
 
 - `provider` - LlmProvider, Chat types
 - `tool` - Tool, ToolCall, ToolResult, ToolDefinition
@@ -139,29 +139,29 @@ Common environment variables used by providers:
 
 ### Contract Tests
 
-The `agentkit-core` crate contains contract tests that validate trait behavior expectations:
+The `rucora-core` crate contains contract tests that validate trait behavior expectations:
 - `tests/contract_provider.rs` - Validates LlmProvider implementations
 - `tests/contract_tool.rs` - Validates Tool implementations
 - `tests/contract_vector_store.rs` - Validates VectorStore implementations
 
 These tests ensure third-party implementations meet the expected behavioral contracts.
 
-### Agentkit Crate Modules (agentkit/)
+### rucora Crate Modules (rucora/)
 
 The main aggregator crate exposes these modules:
-- `agentkit::provider::*` - Provider implementations (OpenAI-compatible, Ollama, Router)
-- `agentkit::tools::*` - Tool implementations (HTTP, browser scraping, command execution, etc.)
-- `agentkit::skills::*` - Skill loaders (Rhai/Command skill, skills-to-tools adapter)
-- `agentkit::retrieval::*` - Retrieval implementations (including `InMemoryVectorStore`)
-- `agentkit::embed::*` - Embedding providers
-- `agentkit::memory::*` - Memory implementations
-- `agentkit::config::*` - Unified configuration (`AgentkitConfig`)
+- `rucora::provider::*` - Provider implementations (OpenAI-compatible, Ollama, Router)
+- `rucora::tools::*` - Tool implementations (HTTP, browser scraping, command execution, etc.)
+- `rucora::skills::*` - Skill loaders (Rhai/Command skill, skills-to-tools adapter)
+- `rucora::retrieval::*` - Retrieval implementations (including `InMemoryVectorStore`)
+- `rucora::embed::*` - Embedding providers
+- `rucora::memory::*` - Memory implementations
+- `rucora::config::*` - Unified configuration (`rucoraConfig`)
 
 ### Quick Start Pattern
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -192,4 +192,4 @@ Key documentation files in `docs/`:
 
 ### License
 
-AgentKit uses the MIT license.
+rucora uses the MIT license.

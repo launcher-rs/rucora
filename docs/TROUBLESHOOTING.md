@@ -104,7 +104,7 @@ curl http://localhost:11434/api/tags
 
 **在代码中设置**:
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 // 方式 1：从环境变量
 let provider = OpenAiProvider::from_env()?;
@@ -425,8 +425,8 @@ grep -i error app.log
 
 ```rust
 // minimal.rs
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -463,7 +463,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```rust
 // 使用缓存
-use agentkit::skills::{SkillCache, CachedSkillLoader};
+use rucora::skills::{SkillCache, CachedSkillLoader};
 use std::time::Duration;
 
 let cache = SkillCache::new(100, Some(Duration::from_secs(600)));
@@ -484,7 +484,7 @@ execution:
 
 ```rust
 // 按需加载配置
-use agentkit::skills::config::{SkillConfig, ConfigLoadOptions};
+use rucora::skills::config::{SkillConfig, ConfigLoadOptions};
 
 let options = ConfigLoadOptions::for_search();  // 只加载搜索信息
 let config = SkillConfig::from_dir_with_options(&path, &options)?;

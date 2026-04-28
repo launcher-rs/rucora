@@ -101,9 +101,9 @@ let agent = DefaultAgent::builder()
 ### 示例 1：Runtime 基础使用
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, ToolRegistry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -128,9 +128,9 @@ async fn main() -> anyhow::Result<()> {
 ### 示例 2：Runtime 使用环境变量
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, RuntimeConfig, ToolRegistry};
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, RuntimeConfig, ToolRegistry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -160,9 +160,9 @@ async fn main() -> anyhow::Result<()> {
 ### 示例 3：Agent 必须指定 model
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::AnthropicProvider;
-use agentkit::agent::DefaultAgent;
+use rucora::prelude::*;
+use rucora::provider::AnthropicProvider;
+use rucora::agent::DefaultAgent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -186,9 +186,9 @@ async fn main() -> anyhow::Result<()> {
 ### 示例 4：不同场景使用不同模型
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, ToolRegistry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -331,4 +331,4 @@ let runtime = DefaultRuntime::new(provider, tools, model);
 | `DefaultAgent::builder()` | 必须调用 `model()` 才能 `build()` |
 | `Provider` | 移除 `default_model()` getter（可选保留） |
 
-这个设计让 AgentKit 的架构更加清晰，职责分离更加明确。
+这个设计让 rucora 的架构更加清晰，职责分离更加明确。

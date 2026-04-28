@@ -20,7 +20,7 @@ Agent/Runtime       = 推理和执行单元（使用历史进行对话）
 ### 创建对话管理器
 
 ```rust
-use agentkit::conversation::ConversationManager;
+use rucora::conversation::ConversationManager;
 
 // 基础创建
 let mut conv = ConversationManager::new();
@@ -71,10 +71,10 @@ for msg in messages {
 ### 方式 1：每次手动传递历史
 
 ```rust
-use agentkit::conversation::ConversationManager;
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::DefaultRuntime;
+use rucora::conversation::ConversationManager;
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::DefaultRuntime;
 
 let provider = OpenAiProvider::from_env()?;
 let runtime = DefaultRuntime::new(
@@ -87,8 +87,8 @@ let mut conv = ConversationManager::new()
     .with_system_prompt("你是项目助手");
 
 // 第 1 轮
-conv.add_user_message("AgentKit 是什么？".to_string());
-let input = AgentInput::new("AgentKit 是什么？");
+conv.add_user_message("rucora 是什么？".to_string());
+let input = AgentInput::new("rucora 是什么？");
 let output = runtime.run(input).await?;
 conv.add_assistant_message(output.text().unwrap().to_string());
 
@@ -105,9 +105,9 @@ let output = runtime.run(input).await?;
 ### 方式 1：简单对话（无历史）
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
 
 let provider = OpenAiProvider::from_env()?;
 let agent = DefaultAgent::builder()
@@ -122,11 +122,11 @@ let output = agent.run("你好").await?;
 ### 方式 2：配合 ConversationManager（推荐）
 
 ```rust
-use agentkit::conversation::ConversationManager;
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
-use agentkit_core::provider::types::Role;
+use rucora::conversation::ConversationManager;
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora_core::provider::types::Role;
 
 let provider = OpenAiProvider::from_env()?;
 let mut conv = ConversationManager::new()
@@ -179,8 +179,8 @@ for user_input in conversations {
 ### 示例 1：基础对话管理
 
 ```rust
-use agentkit::conversation::ConversationManager;
-use agentkit_core::provider::types::Role;
+use rucora::conversation::ConversationManager;
+use rucora_core::provider::types::Role;
 
 let mut conv = ConversationManager::new()
     .with_system_prompt("你是有帮助的助手")
@@ -208,10 +208,10 @@ for msg in messages {
 ### 示例 2：Runtime 多轮对话
 
 ```rust
-use agentkit::conversation::ConversationManager;
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::DefaultRuntime;
+use rucora::conversation::ConversationManager;
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::DefaultRuntime;
 
 let provider = OpenAiProvider::from_env()?;
 let runtime = DefaultRuntime::new(
@@ -224,9 +224,9 @@ let mut conv = ConversationManager::new()
     .with_system_prompt("你是项目助手");
 
 // 第 1 轮
-println!("用户：AgentKit 是什么？");
-conv.add_user_message("AgentKit 是什么？".to_string());
-let output = runtime.run(AgentInput::new("AgentKit 是什么？")).await?;
+println!("用户：rucora 是什么？");
+conv.add_user_message("rucora 是什么？".to_string());
+let output = runtime.run(AgentInput::new("rucora 是什么？")).await?;
 if let Some(content) = output.text() {
     println!("助手：{}", content);
     conv.add_assistant_message(content.to_string());
@@ -245,11 +245,11 @@ if let Some(content) = output.text() {
 ### 示例 3：Agent 多轮对话（推荐方式）
 
 ```rust
-use agentkit::conversation::ConversationManager;
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
-use agentkit_core::provider::types::Role;
+use rucora::conversation::ConversationManager;
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora_core::provider::types::Role;
 
 let provider = OpenAiProvider::from_env()?;
 let mut conv = ConversationManager::new()
@@ -394,7 +394,7 @@ export OPENAI_API_KEY=sk-your-key
 export OPENAI_BASE_URL=http://your-server:11434/v1
 
 # 运行示例
-cargo run --example 05_conversation -p agentkit
+cargo run --example 05_conversation -p rucora
 ```
 
 ## 常见问题

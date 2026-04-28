@@ -1,0 +1,166 @@
+﻿[package]
+name = "rucora"
+version.workspace = true
+edition = "2024"
+
+[lib]
+doctest = false
+
+[features]
+default = ["providers", "tools", "embed", "retrieval"]
+# 协议支持
+mcp = ["dep:rucora-mcp"]
+a2a = ["dep:rucora-a2a"]
+# Skills 技能系统
+skills = ["dep:rucora-skills"]
+# 子模块（可选）
+providers = ["dep:rucora-providers"]
+tools = ["dep:rucora-tools"]
+embed = ["dep:rucora-embed"]
+retrieval = ["dep:rucora-retrieval"]
+# 全量启用
+full = ["providers", "tools", "embed", "retrieval", "mcp", "a2a", "skills"]
+
+[dependencies]
+# 核心层
+rucora-core = { path = "../rucora-core" }
+
+# 子模块（可选，通过 feature 启用）
+rucora-mcp = { path = "../rucora-mcp", optional = true }
+rucora-a2a = { path = "../rucora-a2a", optional = true }
+rucora-providers = { path = "../rucora-providers", optional = true }
+rucora-tools = { path = "../rucora-tools", optional = true }
+rucora-embed = { path = "../rucora-embed", optional = true }
+rucora-retrieval = { path = "../rucora-retrieval", optional = true }
+rucora-skills = { path = "../rucora-skills", optional = true }
+
+# rucora 核心依赖（仅主库自身功能需要）
+async-trait = "0.1"
+async-stream = "0.3"
+futures-util = "0.3"
+futures-executor = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time", "sync"] }
+tracing = "0.1"
+thiserror = "2"
+anyhow = "1"
+schemars = "0.8"
+regex = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["macros", "rt","rt-multi-thread"] }
+tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
+criterion = "0.5"
+anyhow = "1"
+dotenv = "0.15.0"
+rucora-retrieval = { path = "../rucora-retrieval" }
+rucora-embed = { path = "../rucora-embed" }
+rucora-tools = { path = "../rucora-tools" }
+rucora-providers = { path = "../rucora-providers" }
+rucora-mcp = { path = "../rucora-mcp" }
+rucora-skills = { path = "../rucora-skills" }
+reqwest = { version = "0.13", features = ["json"] }
+chrono = "0.4"
+
+[[bench]]
+name = "json_serialize"
+harness = false
+
+[[bench]]
+name = "vector_store_search"
+harness = false
+
+# ===== 示例配置 =====
+
+# 入门系列（01-05）
+[[example]]
+name = "01_hello_world"
+path = "examples/01_hello_world.rs"
+
+[[example]]
+name = "02_basic_chat"
+path = "examples/02_basic_chat.rs"
+
+[[example]]
+name = "03_chat_with_tools"
+path = "examples/03_chat_with_tools.rs"
+
+[[example]]
+name = "04_extractor"
+path = "examples/04_extractor.rs"
+
+[[example]]
+name = "05_conversation"
+path = "examples/05_conversation.rs"
+
+# 核心模块（06-10）
+[[example]]
+name = "06_memory"
+path = "examples/06_memory.rs"
+
+[[example]]
+name = "07_rag"
+path = "examples/07_rag.rs"
+
+[[example]]
+name = "08_middleware"
+path = "examples/08_middleware.rs"
+
+[[example]]
+name = "09_prompt"
+path = "examples/09_prompt.rs"
+
+[[example]]
+name = "10_custom_provider"
+path = "examples/10_custom_provider.rs"
+
+# 高级特性（11-14）
+[[example]]
+name = "11_resilient_provider"
+path = "examples/11_resilient_provider.rs"
+
+[[example]]
+name = "12_mcp"
+path = "examples/12_mcp.rs"
+required-features = ["mcp"]
+
+[[example]]
+name = "13_task_decomposition"
+path = "examples/13_task_decomposition.rs"
+
+# Agent 类型（15-17）
+[[example]]
+name = "15_react_agent"
+path = "examples/15_react_agent.rs"
+
+[[example]]
+name = "16_reflect_agent"
+path = "examples/16_reflect_agent.rs"
+
+[[example]]
+name = "17_supervisor_agent"
+path = "examples/17_supervisor_agent.rs"
+
+# 综合应用（18-21）
+[[example]]
+name = "18_research_assistant"
+path = "examples/18_research_assistant.rs"
+
+[[example]]
+name = "19_code_assistant"
+path = "examples/19_code_assistant.rs"
+
+[[example]]
+name = "21_unified_conversation"
+path = "examples/21_unified_conversation.rs"
+
+# Hermes Agent 特性（24）
+[[example]]
+name = "24_context_compression"
+path = "examples/24_context_compression.rs"
+
+# 继承 workspace 级别的 lint 配置
+[lints]
+workspace = true
+

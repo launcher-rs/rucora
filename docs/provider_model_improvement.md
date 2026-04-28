@@ -27,14 +27,14 @@
 
 | Provider | 默认模型 | 环境变量 | 文件 |
 |----------|---------|----------|------|
-| OpenAI | `gpt-4o-mini` | `OPENAI_DEFAULT_MODEL` | `agentkit/src/provider/openai.rs` |
-| Anthropic | `claude-3-5-sonnet-20241022` | `ANTHROPIC_DEFAULT_MODEL` | `agentkit/src/provider/anthropic.rs` |
-| Google Gemini | `gemini-1.5-flash` | `GEMINI_DEFAULT_MODEL` | `agentkit/src/provider/gemini.rs` |
-| DeepSeek | `deepseek-chat` | `DEEPSEEK_DEFAULT_MODEL` | `agentkit/src/provider/deepseek.rs` |
-| Moonshot | `moonshot-v1-8k` | `MOONSHOT_DEFAULT_MODEL` | `agentkit/src/provider/moonshot.rs` |
-| Ollama | `llama3.1:8b` | `OLLAMA_DEFAULT_MODEL` | `agentkit/src/provider/ollama.rs` |
-| OpenRouter | `anthropic/claude-3-5-sonnet` | `OPENROUTER_DEFAULT_MODEL` | `agentkit/src/provider/openrouter.rs` |
-| Azure OpenAI | `gpt-4` (deployment) | `AZURE_OPENAI_DEFAULT_DEPLOYMENT` | `agentkit/src/provider/azure_openai.rs` |
+| OpenAI | `gpt-4o-mini` | `OPENAI_DEFAULT_MODEL` | `rucora/src/provider/openai.rs` |
+| Anthropic | `claude-3-5-sonnet-20241022` | `ANTHROPIC_DEFAULT_MODEL` | `rucora/src/provider/anthropic.rs` |
+| Google Gemini | `gemini-1.5-flash` | `GEMINI_DEFAULT_MODEL` | `rucora/src/provider/gemini.rs` |
+| DeepSeek | `deepseek-chat` | `DEEPSEEK_DEFAULT_MODEL` | `rucora/src/provider/deepseek.rs` |
+| Moonshot | `moonshot-v1-8k` | `MOONSHOT_DEFAULT_MODEL` | `rucora/src/provider/moonshot.rs` |
+| Ollama | `llama3.1:8b` | `OLLAMA_DEFAULT_MODEL` | `rucora/src/provider/ollama.rs` |
+| OpenRouter | `anthropic/claude-3-5-sonnet` | `OPENROUTER_DEFAULT_MODEL` | `rucora/src/provider/openrouter.rs` |
+| Azure OpenAI | `gpt-4` (deployment) | `AZURE_OPENAI_DEFAULT_DEPLOYMENT` | `rucora/src/provider/azure_openai.rs` |
 
 ### 2. API 变更
 
@@ -66,15 +66,15 @@ pub fn default_deployment_id(&self) -> &str
 
 ### 4. 更新的示例
 
-- `agentkit/examples/01_basic_chat.rs` - 添加默认模型说明和日志输出
-- `agentkit/examples/04_memory.rs` - 已包含完整的 model 设置示例
+- `rucora/examples/01_basic_chat.rs` - 添加默认模型说明和日志输出
+- `rucora/examples/04_memory.rs` - 已包含完整的 model 设置示例
 
 ## 使用示例
 
 ### 最简单用法（开箱即用）
 
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 // 自动使用 gpt-4o-mini，无需任何配置
 let provider = OpenAiProvider::from_env()?;
@@ -102,9 +102,9 @@ let provider = OpenAiProvider::from_env()?
 ### 在 Runtime 中使用
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, ToolRegistry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -127,9 +127,9 @@ async fn main() -> anyhow::Result<()> {
 ### 在 Agent 中使用
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::AnthropicProvider;
-use agentkit::agent::DefaultAgent;
+use rucora::prelude::*;
+use rucora::provider::AnthropicProvider;
+use rucora::agent::DefaultAgent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -151,7 +151,7 @@ async fn main() -> anyhow::Result<()> {
 ### 临时覆盖模型
 
 ```rust
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, Role};
 
 // Provider 默认使用 gpt-4o-mini
 let provider = OpenAiProvider::from_env()?;
@@ -204,7 +204,7 @@ cargo check --workspace
 ### 测试通过
 
 ```bash
-cargo test -p agentkit --lib provider
+cargo test -p rucora --lib provider
 # test result: ok. 20+ passed; 0 failed
 ```
 
@@ -259,4 +259,4 @@ GEMINI_DEFAULT_MODEL=gemini-1.5-flash
 - **灵活配置**：不同环境使用不同模型
 - **易于调试**：日志中显示当前使用的默认模型
 
-这个改进让 AgentKit 的使用体验更加流畅，特别是对于新手用户和快速原型开发场景。
+这个改进让 rucora 的使用体验更加流畅，特别是对于新手用户和快速原型开发场景。

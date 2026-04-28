@@ -1,4 +1,4 @@
-# AgentKit 示例索引
+# rucora 示例索引
 
 > 完整的示例代码列表和说明
 
@@ -71,13 +71,13 @@ cargo run --example chat_with_tools
 
 ### Agent + Skills 完整示例
 
-**文件**: [`examples/agentkit-skills-example/src/main.rs`](../examples/agentkit-skills-example/src/main.rs)
+**文件**: [`examples/rucora-skills-example/src/main.rs`](../examples/rucora-skills-example/src/main.rs)
 
 **说明**: 展示 Agent 如何自动调用 Skills 完成任务。
 
 **运行**:
 ```bash
-cd examples/agentkit-skills-example
+cd examples/rucora-skills-example
 cargo run
 ```
 
@@ -118,7 +118,7 @@ cargo run
 
 | 示例 | 说明 | 文件 |
 |------|------|------|
-| agentkit-skills-example | 完整 Skills 集成 | agentkit-skills-example/ |
+| rucora-skills-example | 完整 Skills 集成 | rucora-skills-example/ |
 
 ---
 
@@ -126,7 +126,7 @@ cargo run
 
 ### 入门级 ⭐
 
-适合第一次使用 AgentKit 的用户。
+适合第一次使用 rucora 的用户。
 
 - [hello_world.rs](../examples/hello_world.rs) - Hello World
 - [chat_basic.rs](../examples/chat_basic.rs) - 基础对话
@@ -136,7 +136,7 @@ cargo run
 适合已经了解基础用法的用户。
 
 - [chat_with_tools.rs](../examples/chat_with_tools.rs) - 带工具对话
-- [agentkit-skills-example](../examples/agentkit-skills-example/) - Skills 集成
+- [rucora-skills-example](../examples/rucora-skills-example/) - Skills 集成
 
 ### 高级 ⭐⭐⭐
 
@@ -153,7 +153,7 @@ cargo run
 ### 创建 Provider
 
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 // 从环境变量加载
 let provider = OpenAiProvider::from_env()?;
@@ -165,7 +165,7 @@ let provider = OpenAiProvider::new("sk-your-key")?;
 ### 创建 Agent
 
 ```rust
-use agentkit::agent::DefaultAgent;
+use rucora::agent::DefaultAgent;
 
 let agent = DefaultAgent::builder()
     .provider(provider)
@@ -195,7 +195,7 @@ let agent = DefaultAgent::builder()
 ### 注册工具
 
 ```rust
-use agentkit::tools::{DatetimeTool, EchoTool};
+use rucora::tools::{DatetimeTool, EchoTool};
 
 let agent = DefaultAgent::builder()
     .provider(provider)
@@ -220,7 +220,7 @@ cargo run --example chat_basic
 cargo run --example chat_with_tools
 
 # Skills 示例
-cd examples/agentkit-skills-example
+cd examples/rucora-skills-example
 cargo run
 ```
 
@@ -243,7 +243,7 @@ cargo run
 //! cargo run --example example_name
 //! ```
 
-use agentkit::...;
+use rucora::...;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

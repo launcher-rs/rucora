@@ -1,0 +1,30 @@
+[package]
+name = "rucora-tools"
+version.workspace = true
+edition = "2024"
+description = "Built-in tools for rucora"
+documentation = "https://docs.rs/rucora-tools"
+readme = "README.md"
+
+[dependencies]
+rucora-core = { path = "../rucora-core" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["time", "sync", "process", "fs"] }
+tracing = "0.1"
+thiserror = "2"
+reqwest = { version = "0.13", features = ["json", "query", "gzip", "brotli", "deflate", "zstd"] }
+regex = "1"
+chrono = "0.4"
+url = "2"
+scraper = "0.22"
+html2text = "0.12"
+dom_smoothie = "0.16"
+schemars = "0.8"
+backon = "1.5"
+glob = "0.3"
+
+# 继承 workspace 级别的 lint 配置
+[lints]
+workspace = true

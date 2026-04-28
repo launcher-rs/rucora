@@ -1,6 +1,6 @@
-//! A2A Client 示例 - 使用 agentkit 调用 A2A server
+//! A2A Client 示例 - 使用 rucora 调用 A2A server
 //!
-//! 此示例演示如何使用 agentkit 通过 A2A 协议与远程 Agent 交互：
+//! 此示例演示如何使用 rucora 通过 A2A 协议与远程 Agent 交互：
 //! 1. 创建一个 A2A 工具，通过 ra2a 客户端调用 A2A server
 //! 2. 直接调用 A2A 工具获取时间
 //!
@@ -13,10 +13,10 @@
 //! cargo run --example a2a-client
 //! ```
 
-use agentkit::a2a::A2AToolAdapter;
-use agentkit::agent::ToolRegistry;
-use agentkit::core::tool::Tool;
-use agentkit_providers::OllamaProvider;
+use rucora::a2a::A2AToolAdapter;
+use rucora::agent::ToolRegistry;
+use rucora::core::tool::Tool;
+use rucora_providers::OllamaProvider;
 use ra2a::client::Client;
 use std::sync::Arc;
 use tracing::Level;
@@ -32,7 +32,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     println!("╔════════════════════════════════════════════════════════╗");
-    println!("║         AgentKit A2A Client - 调用远程时间助手         ║");
+    println!("║         rucora A2A Client - 调用远程时间助手         ║");
     println!("╚════════════════════════════════════════════════════════╝\n");
 
     // A2A Server 地址

@@ -2,7 +2,7 @@
 
 ## 概述
 
-AgentKit 的所有 Provider 现在都支持**三层优先级**的默认模型配置方案，让您无需在每次使用时都手动指定模型。
+rucora 的所有 Provider 现在都支持**三层优先级**的默认模型配置方案，让您无需在每次使用时都手动指定模型。
 
 ## 默认模型优先级
 
@@ -34,7 +34,7 @@ AgentKit 的所有 Provider 现在都支持**三层优先级**的默认模型配
 无需任何配置，直接使用 Provider 的内置默认模型：
 
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 // 自动使用 gpt-4o-mini
 let provider = OpenAiProvider::from_env()?;
@@ -59,7 +59,7 @@ export GEMINI_DEFAULT_MODEL=gemini-1.5-pro
 ```
 
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 // 使用环境变量中指定的 gpt-4o
 let provider = OpenAiProvider::from_env()?;
@@ -70,7 +70,7 @@ let provider = OpenAiProvider::from_env()?;
 通过代码显式指定模型，优先级最高：
 
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 let provider = OpenAiProvider::from_env()?
     .with_default_model("gpt-4o-turbo");
@@ -88,9 +88,9 @@ let provider = OpenAiProvider::with_model(
 ### 示例 1：Runtime 中使用默认模型
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit::runtime::{DefaultRuntime, ToolRegistry};
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora::runtime::{DefaultRuntime, ToolRegistry};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -115,9 +115,9 @@ async fn main() -> anyhow::Result<()> {
 ### 示例 2：Agent 中使用默认模型
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::AnthropicProvider;
-use agentkit::agent::DefaultAgent;
+use rucora::prelude::*;
+use rucora::provider::AnthropicProvider;
+use rucora::agent::DefaultAgent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -144,9 +144,9 @@ async fn main() -> anyhow::Result<()> {
 即使 Provider 设置了默认模型，也可以在单次请求中临时指定不同的模型：
 
 ```rust
-use agentkit::prelude::*;
-use agentkit::provider::OpenAiProvider;
-use agentkit_core::provider::types::{ChatMessage, ChatRequest, Role};
+use rucora::prelude::*;
+use rucora::provider::OpenAiProvider;
+use rucora_core::provider::types::{ChatMessage, ChatRequest, Role};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

@@ -1,31 +1,31 @@
-# Agentkit 设计思想（中文）
+# rucora 设计思想（中文）
 
-本文档描述 Agentkit 的总体设计目标、模块划分与关键数据流，便于你在阅读/扩展代码时快速建立心智模型。
+本文档描述 rucora 的总体设计目标、模块划分与关键数据流，便于你在阅读/扩展代码时快速建立心智模型。
 
 ## 设计目标
 
-- **接口与实现解耦**：`agentkit-core` 只定义 trait 与核心类型，第三方可以只依赖 core 自己实现 Provider/Tool/VectorStore 等。
-- **runtime 可替换**：`agentkit-runtime` 提供默认的 tool-calling loop 与 streaming loop，但不把“如何运行”写死在 core 里。
+- **接口与实现解耦**：`rucora-core` 只定义 trait 与核心类型，第三方可以只依赖 core 自己实现 Provider/Tool/VectorStore 等。
+- **runtime 可替换**：`rucora-runtime` 提供默认的 tool-calling loop 与 streaming loop，但不把“如何运行”写死在 core 里。
 - **可组合**：Provider/Tools/Skills/Policy/Audit/Trace 都以独立组件存在，上层自由组合。
 - **可观测**：统一事件模型 `ChannelEvent`，配套 trace JSONL 持久化与回放。
 
 ## 模块与 crate 关系
 
-- **`agentkit-core`**
+- **`rucora-core`**
   - 负责：trait、数据结构、错误类型、事件类型。
   - 不负责：HTTP 请求、具体 provider、具体工具实现、默认 runtime。
-- **`agentkit`**
+- **`rucora`**
   - 负责：常用实现（providers/tools/skills/retrieval/memory/embed/config）。
   - 作为“开箱即用”的聚合 crate。
-- **`agentkit-runtime`**
+- **`rucora-runtime`**
   - 负责：默认 Runtime 实现（DefaultRuntime）、工具注册表、policy/audit、trace。
-- **`agentkit-cli`（可选）**
+- **`rucora-cli`（可选）**
   - 负责：命令行快速试用（加载 config + skills，运行一次 agent）。
-- **`agentkit-server`（可选）**
+- **`rucora-server`（可选）**
   - 负责：把 agent 暴露为 HTTP 服务（SSE streaming 输出事件）。
-- **`agentkit-mcp`（可选）**
+- **`rucora-mcp`（可选）**
   - 负责：MCP 工具/资源适配，把外部 MCP tools 映射为 `Tool`。
-- **`agentkit-a2a`（可选）**
+- **`rucora-a2a`（可选）**
   - 负责：A2A 集成（用于多 agent/跨服务协作的扩展）。
 
 ## 核心抽象（core）
@@ -71,24 +71,24 @@
 ## 统一事件模型与 Trace
 
 - `ChannelEvent`：Message / TokenDelta / ToolCall / ToolResult / Skill / Memory / Debug / Error / Raw
-- `agentkit-runtime::trace`：
+- `rucora-runtime::trace`：
   - `write_trace_jsonl(path, &[ChannelEvent])`
   - `read_trace_jsonl(path)`
   - `replay_events(events)`
 
 JSONL 的好处：易于流式写入、增量分析、对比回放。
 
-## 配置（agentkit::config）
+## 配置（rucora::config）
 
 - 支持：配置文件（YAML/TOML）+ profile + 环境变量覆盖。
-- `AgentkitConfig::load()`：读取 `AGENTKIT_CONFIG` + `AGENTKIT_PROFILE`，并应用 `AGENTKIT_*` 覆盖。
-- `AgentkitConfig::build_provider(&ProfileConfig)`：构建 `RouterProvider`（openai/ollama/router）。
+- `rucoraConfig::load()`：读取 `rucora_CONFIG` + `rucora_PROFILE`，并应用 `rucora_*` 覆盖。
+- `rucoraConfig::build_provider(&ProfileConfig)`：构建 `RouterProvider`（openai/ollama/router）。
 
 ## 代码导航建议
 
 - 先看：
-  - `agentkit-core/src/*`：trait/类型/错误/事件
-  - `agentkit-runtime/src/lib.rs`：默认 agent loop
-  - `agentkit/src/skills/mod.rs`：skills loader + skill->tool 适配
-  - `agentkit/src/config.rs`：配置加载
-- 再看 examples：`agentkit/examples/*`
+  - `rucora-core/src/*`：trait/类型/错误/事件
+  - `rucora-runtime/src/lib.rs`：默认 agent loop
+  - `rucora/src/skills/mod.rs`：skills loader + skill->tool 适配
+  - `rucora/src/config.rs`：配置加载
+- 再看 examples：`rucora/examples/*`

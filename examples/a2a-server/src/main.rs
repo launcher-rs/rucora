@@ -112,7 +112,7 @@ async fn main() -> anyhow::Result<()> {
     tracing::subscriber::set_global_default(subscriber)?;
 
     println!("╔════════════════════════════════════════════════════════╗");
-    println!("║         AgentKit A2A Server - 时间助手                 ║");
+    println!("║         rucora A2A Server - 时间助手                 ║");
     println!("╚════════════════════════════════════════════════════════╝\n");
 
     // 创建 AgentCard

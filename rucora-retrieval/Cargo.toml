@@ -1,0 +1,27 @@
+[package]
+name = "rucora-retrieval"
+version.workspace = true
+edition = "2024"
+description = "Vector store retrieval for rucora"
+documentation = "https://docs.rs/rucora-retrieval"
+readme = "README.md"
+
+[features]
+default = ["in-memory"]
+in-memory = []
+chroma = []
+all = ["in-memory", "chroma"]
+
+[dependencies]
+rucora-core = { path = "../rucora-core" }
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync"] }
+reqwest = { version = "0.13", features = ["json"] }
+tracing = "0.1"
+thiserror = "2"
+
+# ?? workspace ??? lint ??
+[lints]
+workspace = true

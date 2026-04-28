@@ -1,4 +1,4 @@
-# AgentKit 常见问题解答 (FAQ)
+# rucora 常见问题解答 (FAQ)
 
 ## 📋 目录
 
@@ -12,22 +12,22 @@
 
 ## 安装和配置
 
-### Q: AgentKit 支持哪些 Rust 版本？
+### Q: rucora 支持哪些 Rust 版本？
 
-**A**: AgentKit 需要 Rust 1.70 或更高版本。建议使用最新稳定版：
+**A**: rucora 需要 Rust 1.70 或更高版本。建议使用最新稳定版：
 
 ```bash
 rustup update stable
 ```
 
-### Q: 如何安装 AgentKit？
+### Q: 如何安装 rucora？
 
 **A**: 在 `Cargo.toml` 中添加：
 
 ```toml
 [dependencies]
-agentkit = "0.1"
-agentkit-runtime = "0.1"
+rucora = "0.1"
+rucora-runtime = "0.1"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -80,7 +80,7 @@ tokio = { version = "1", features = ["full"] }
 **A**: 使用 `ConversationManager`：
 
 ```rust
-use agentkit::conversation::ConversationManager;
+use rucora::conversation::ConversationManager;
 
 let mut conv = ConversationManager::new();
 conv.add_user_message("你好");
@@ -137,7 +137,7 @@ let manager = ConversationManager::new()
 **A**: 使用 `CostTracker`：
 
 ```rust
-use agentkit::cost::CostTracker;
+use rucora::cost::CostTracker;
 
 let tracker = CostTracker::new();
 tracker.record_usage("gpt-4", 100, 50, 0.0045).await;
@@ -168,7 +168,7 @@ let tokens = counter.count_text("Hello");
 let msg_tokens = counter.count_messages(&messages);
 ```
 
-### Q: AgentKit 的性能如何？
+### Q: rucora 的性能如何？
 
 **A**: 
 - ⚡ 内存占用：极低（<10MB 基础）
@@ -207,7 +207,7 @@ $env:OPENAI_API_KEY="sk-your-key"
 3. 使用 `ResilientProvider` 自动重试
 
 ```rust
-use agentkit::provider::ResilientProvider;
+use rucora::provider::ResilientProvider;
 
 let resilient = ResilientProvider::new(Arc::new(provider))
     .with_config(RetryConfig::new()

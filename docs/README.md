@@ -1,6 +1,6 @@
-# AgentKit 文档中心
+# rucora 文档中心
 
-> AgentKit 是一个用 Rust 编写的高性能、类型安全的 LLM 应用开发框架
+> rucora 是一个用 Rust 编写的高性能、类型安全的 LLM 应用开发框架
 
 ## 📚 文档导航
 
@@ -8,7 +8,7 @@
 
 | 文档 | 说明 | 适合人群 |
 |------|------|----------|
-| [快速开始](quick_start.md) | 5 分钟上手 AgentKit | 新用户 |
+| [快速开始](quick_start.md) | 5 分钟上手 rucora | 新用户 |
 | [用户指南](user_guide.md) | 完整的使用指南 | 所有用户 |
 | [示例集合](cookbook.md) | 实际使用示例 | 实践者 |
 | [常见问题](faq.md) | 常见问题解答 | 所有人 |
@@ -52,15 +52,15 @@
 ### 安装
 
 ```bash
-cargo add agentkit
+cargo add rucora
 ```
 
 ### 基本使用
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
-use agentkit::prelude::Agent;
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora::prelude::Agent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -94,4 +94,4 @@ async fn main() -> anyhow::Result<()> {
 
 ## 📄 许可证
 
-AgentKit 使用 MIT 许可证。
+rucora 使用 MIT 许可证。

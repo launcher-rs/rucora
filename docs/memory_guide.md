@@ -1,8 +1,8 @@
-# AgentKit 记忆系统与 Agent 结合使用指南
+# rucora 记忆系统与 Agent 结合使用指南
 
 ## 概述
 
-AgentKit 的记忆系统允许 Agent 具备长期记忆能力，可以存储和检索用户信息、偏好、历史对话等内容。本指南展示如何将记忆系统与 Agent 集成使用。
+rucora 的记忆系统允许 Agent 具备长期记忆能力，可以存储和检索用户信息、偏好、历史对话等内容。本指南展示如何将记忆系统与 Agent 集成使用。
 
 ## 核心组件
 
@@ -40,8 +40,8 @@ pub trait Memory: Send + Sync {
 适合简单场景，手动管理记忆的存储和检索：
 
 ```rust
-use agentkit::memory::InMemoryMemory;
-use agentkit_core::memory::{Memory, MemoryItem, MemoryQuery};
+use rucora::memory::InMemoryMemory;
+use rucora_core::memory::{Memory, MemoryItem, MemoryQuery};
 
 let memory = InMemoryMemory::new();
 
@@ -64,10 +64,10 @@ let results = memory.query(MemoryQuery {
 让 Agent 自主决定何时存储和检索记忆：
 
 ```rust
-use agentkit::agent::ToolAgent;
-use agentkit::memory::InMemoryMemory;
-use agentkit::tools::{MemoryStoreTool, MemoryRecallTool};
-use agentkit_core::agent::Agent;
+use rucora::agent::ToolAgent;
+use rucora::memory::InMemoryMemory;
+use rucora::tools::{MemoryStoreTool, MemoryRecallTool};
+use rucora_core::agent::Agent;
 use std::sync::Arc;
 
 // 创建共享记忆系统
@@ -100,8 +100,8 @@ let output = agent.run("我叫李四，是一名软件工程师。").await?;
 适合需要跨会话保存记忆的场景：
 
 ```rust
-use agentkit::memory::FileMemory;
-use agentkit_core::memory::{Memory, MemoryItem};
+use rucora::memory::FileMemory;
+use rucora_core::memory::{Memory, MemoryItem};
 
 let memory = FileMemory::new("memory.json");
 
@@ -226,8 +226,8 @@ let agent2 = ToolAgent::builder()
 结合向量检索实现语义搜索：
 
 ```rust
-use agentkit::retrieval::InMemoryVectorStore;
-use agentkit_core::retrieval::{VectorStore, VectorQuery};
+use rucora::retrieval::InMemoryVectorStore;
+use rucora_core::retrieval::{VectorStore, VectorQuery};
 
 // 1. 将记忆向量化存储
 let vector_store = InMemoryVectorStore::new();
@@ -264,7 +264,7 @@ A:
 
 ## 总结
 
-AgentKit 的记忆系统提供了灵活的记忆能力：
+rucora 的记忆系统提供了灵活的记忆能力：
 
 | 特性 | 说明 |
 |------|------|

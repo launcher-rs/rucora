@@ -1,4 +1,4 @@
-# AgentKit 快速参考
+# rucora 快速参考
 
 ## 快速开始
 
@@ -6,8 +6,8 @@
 
 ```toml
 [dependencies]
-agentkit = "0.2.0"
-agentkit-runtime = "0.2.0"
+rucora = "0.2.0"
+rucora-runtime = "0.2.0"
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 anyhow = "1"
@@ -16,9 +16,9 @@ anyhow = "1"
 ### 第一个 Agent
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
-use agentkit_core::agent::AgentInput;
+use rucora::provider::OpenAiProvider;
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
+use rucora_core::agent::AgentInput;
 use std::sync::Arc;
 
 #[tokio::main]
@@ -48,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
 ### OpenAI
 
 ```rust
-use agentkit::provider::OpenAiProvider;
+use rucora::provider::OpenAiProvider;
 
 let provider = OpenAiProvider::from_env()?
     .with_default_model("gpt-4o-mini");
@@ -57,7 +57,7 @@ let provider = OpenAiProvider::from_env()?
 ### Anthropic Claude
 
 ```rust
-use agentkit::provider::AnthropicProvider;
+use rucora::provider::AnthropicProvider;
 
 let provider = AnthropicProvider::from_env()?
     .with_default_model("claude-3-5-sonnet-20241022");
@@ -66,7 +66,7 @@ let provider = AnthropicProvider::from_env()?
 ### Google Gemini
 
 ```rust
-use agentkit::provider::GeminiProvider;
+use rucora::provider::GeminiProvider;
 
 let provider = GeminiProvider::from_env()?
     .with_default_model("gemini-1.5-pro");
@@ -75,7 +75,7 @@ let provider = GeminiProvider::from_env()?
 ### OpenRouter（多模型）
 
 ```rust
-use agentkit::provider::OpenRouterProvider;
+use rucora::provider::OpenRouterProvider;
 
 let provider = OpenRouterProvider::from_env()?
     .with_default_model("anthropic/claude-3-5-sonnet");
@@ -99,15 +99,15 @@ let provider = OpenRouterProvider::from_env()?
 ### 简单对话（独立模式）
 
 ```rust
-use agentkit::agent::DefaultAgent;
+use rucora::agent::DefaultAgent;
 
 let agent = DefaultAgent::builder()
     .provider(provider)
     .system_prompt("你是有用的助手")
-    .tool(agentkit::tools::EchoTool)
+    .tool(rucora::tools::EchoTool)
     .build();
 
-let input = agentkit::core::agent::AgentInput::new("你好");
+let input = rucora::core::agent::AgentInput::new("你好");
 let output = agent.run(input).await?;
 
 if let Some(content) = output.text() {
@@ -118,9 +118,9 @@ if let Some(content) = output.text() {
 ### 复杂任务（Runtime 模式）
 
 ```rust
-use agentkit::provider::OpenAiProvider;
-use agentkit::agent::DefaultAgent;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use rucora::provider::OpenAiProvider;
+use rucora::agent::DefaultAgent;
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
 
 // 创建 Agent
 let agent = DefaultAgent::builder()
@@ -131,7 +131,7 @@ let agent = DefaultAgent::builder()
 let runtime = DefaultRuntime::new(
     Arc::new(provider),
     ToolRegistry::new()
-        .register(agentkit::tools::FileReadTool::new())
+        .register(rucora::tools::FileReadTool::new())
 );
 
 // 运行
@@ -142,7 +142,7 @@ let output = runtime.run_with_agent(&agent, input).await?;
 ### 自定义 Agent
 
 ```rust
-use agentkit_core::agent::{Agent, AgentContext, AgentDecision, AgentInput};
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput};
 use async_trait::async_trait;
 
 struct WeatherAgent;
@@ -237,7 +237,7 @@ let output = runtime.run(input).await?;
 
 ```rust
 use futures_util::StreamExt;
-use agentkit_runtime::ChannelEvent;
+use rucora_runtime::ChannelEvent;
 
 let mut stream = runtime.run_stream(input);
 while let Some(event) = stream.next().await {
@@ -260,19 +260,19 @@ while let Some(event) = stream.next().await {
 ### 内置工具
 
 ```rust
-use agentkit_runtime::ToolRegistry;
+use rucora_runtime::ToolRegistry;
 
 let tools = ToolRegistry::new()
-    .register(agentkit::tools::FileReadTool::new())
-    .register(agentkit::tools::ShellTool::new())
-    .register(agentkit::tools::HttpRequestTool::new());
+    .register(rucora::tools::FileReadTool::new())
+    .register(rucora::tools::ShellTool::new())
+    .register(rucora::tools::HttpRequestTool::new());
 ```
 
 ### 自定义工具
 
 ```rust
-use agentkit_core::tool::{Tool, ToolCategory};
-use agentkit_core::error::ToolError;
+use rucora_core::tool::{Tool, ToolCategory};
+use rucora_core::error::ToolError;
 use async_trait::async_trait;
 use serde_json::{json, Value};
 
@@ -308,7 +308,7 @@ impl Tool for EchoTool {
 ### 错误类型
 
 ```rust
-use agentkit_core::error::{AgentError, ProviderError, ToolError};
+use rucora_core::error::{AgentError, ProviderError, ToolError};
 
 // Provider 错误
 match provider.chat(request).await {
@@ -334,10 +334,10 @@ match agent.run(input).await {
 ### 从配置文件加载
 
 ```rust
-use agentkit::config::AgentkitConfig;
+use rucora::config::rucoraConfig;
 
-let config = AgentkitConfig::load().await?;
-let provider = AgentkitConfig::build_provider(&config)?;
+let config = rucoraConfig::load().await?;
+let provider = rucoraConfig::build_provider(&config)?;
 ```
 
 ### 环境变量
@@ -389,7 +389,7 @@ match agent.run(input).await {
 let provider = Arc::new(OpenAiProvider::from_env()?);
 
 // 多个 Agent 共享
-use agentkit::agent::DefaultAgent;
+use rucora::agent::DefaultAgent;
 let agent1 = DefaultAgent::builder().provider(provider.clone()).build();
 let agent2 = DefaultAgent::builder().provider(provider.clone()).build();
 ```
@@ -430,14 +430,14 @@ A:
 
 A: 启用详细日志：
 ```bash
-export RUST_LOG=agentkit=debug,agentkit_runtime=debug
+export RUST_LOG=rucora=debug,rucora_runtime=debug
 ```
 
 ---
 
 ## 更多资源
 
-- [完整示例](examples/agentkit-examples-complete/src/agent_example.rs)
+- [完整示例](examples/rucora-examples-complete/src/agent_example.rs)
 - [Agent 架构文档](docs/agent_runtime_relationship.md)
 - [变更日志](CHANGELOG.md)
 - [项目总结](PROJECT_SUMMARY.md)

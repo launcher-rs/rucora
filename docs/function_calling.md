@@ -2,7 +2,7 @@
 
 ## 概述
 
-AgentKit 中所有 Agent 与外部世界的交互，无论来源是内置工具、MCP 服务器、A2A 远程 Agent 还是 Skill 脚本，**最终都统一走 LLM 的 Function Calling / Tool Calling 机制**。本文档详解这一核心机制的工作原理。
+rucora 中所有 Agent 与外部世界的交互，无论来源是内置工具、MCP 服务器、A2A 远程 Agent 还是 Skill 脚本，**最终都统一走 LLM 的 Function Calling / Tool Calling 机制**。本文档详解这一核心机制的工作原理。
 
 ## 1. 什么是 Function Calling
 
@@ -47,7 +47,7 @@ Assistant (最终回复):
 
 ## 2. Tool 定义的结构
 
-AgentKit 内部使用 `ToolDefinition` 结构表示一个工具：
+rucora 内部使用 `ToolDefinition` 结构表示一个工具：
 
 ```rust
 pub struct ToolDefinition {
@@ -136,7 +136,7 @@ LLM **不会执行你的工具代码**。它看到的只有：
 
 ## 4. 四种工具来源，同一套机制
 
-AgentKit 支持四种工具来源，但**全部通过 Tool trait 统一**，最终都走 Function Calling 机制：
+rucora 支持四种工具来源，但**全部通过 Tool trait 统一**，最终都走 Function Calling 机制：
 
 ```
 ┌──────────────────────────────────────────────────────────────────┐

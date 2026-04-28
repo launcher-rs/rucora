@@ -2,12 +2,12 @@
 name = "a2a-server"
 version = "0.1.0"
 edition = "2024"
-description = "AgentKit A2A 服务器示例 - 实现 A2A 协议的 Agent 服务器"
+description = "rucora A2A 服务器示例 - 实现 A2A 协议的 Agent 服务器"
 publish = false
 
 [dependencies]
 ra2a = { version = "0.9", default-features = false, features = ["server"] }
-agentkit = { path = "../../agentkit", features = ["a2a"] }
+rucora = { path = "../../rucora", features = ["a2a"] }
 tokio = { version = "1", features = ["full"] }
 axum = "0.8"
 serde = { version = "1", features = ["derive"] }

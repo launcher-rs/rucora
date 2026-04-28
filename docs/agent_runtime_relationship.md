@@ -2,7 +2,7 @@
 
 ## 概述
 
-在 AgentKit 框架中，**Agent** 和 **Runtime** 是两个核心概念，它们分工明确、相互配合：
+在 rucora 框架中，**Agent** 和 **Runtime** 是两个核心概念，它们分工明确、相互配合：
 
 ```
 ┌─────────────────────────────────────────────────┐
@@ -36,9 +36,9 @@
 适合直接对话、无需工具调用的场景：
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::provider::OpenAiProvider;
-use agentkit_core::agent::Agent;
+use rucora::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
+use rucora_core::agent::Agent;
 
 // 创建 Agent
 let agent = DefaultAgent::builder()
@@ -64,9 +64,9 @@ let output = agent.run(input).await?;
 适合需要工具调用、多轮对话、复杂编排的场景：
 
 ```rust
-use agentkit::agent::DefaultAgent;
-use agentkit::provider::OpenAiProvider;
-use agentkit_runtime::{DefaultRuntime, ToolRegistry};
+use rucora::agent::DefaultAgent;
+use rucora::provider::OpenAiProvider;
+use rucora_runtime::{DefaultRuntime, ToolRegistry};
 
 // 创建 Agent
 let agent = DefaultAgent::builder()

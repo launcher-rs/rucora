@@ -1,4 +1,4 @@
-# A2A 示例 - AgentKit
+# A2A 示例 - rucora
 
 本目录包含两个 A2A（Agent-to-Agent）协议示例：
 
@@ -17,9 +17,9 @@ A2A 服务器示例，实现一个简单的时间助手 Agent：
 
 ### a2a-client
 
-A2A 客户端示例，演示如何使用 agentkit 调用远程 A2A Agent：
+A2A 客户端示例，演示如何使用 rucora 调用远程 A2A Agent：
 - 通过 A2A 协议连接远程时间助手
-- 使用 agentkit 的 Agent 调用 A2A 工具
+- 使用 rucora 的 Agent 调用 A2A 工具
 - 询问当前时间并显示结果
 
 **功能特点：**
@@ -34,7 +34,7 @@ A2A 客户端示例，演示如何使用 agentkit 调用远程 A2A Agent：
 在第一个终端窗口运行：
 
 ```bash
-cd agentkit/agentkit/examples/a2a-server
+cd rucora/rucora/examples/a2a-server
 cargo run
 ```
 
@@ -45,7 +45,7 @@ cargo run
 在第二个终端窗口运行：
 
 ```bash
-cd agentkit/agentkit/examples/a2a-client
+cd rucora/rucora/examples/a2a-client
 cargo run
 ```
 
@@ -78,7 +78,7 @@ ollama serve
 ## 技术栈
 
 - **ra2a**: A2A 协议实现
-- **agentkit**: Agent 开发框架
+- **rucora**: Agent 开发框架
 - **tokio**: 异步运行时
 - **axum**: Web 框架（服务器）
 - **Ollama**: 本地 LLM 运行
@@ -197,5 +197,5 @@ ollama pull qwen2.5:7b
 ## 相关资源
 
 - [ra2a 库文档](https://github.com/qntx/ra2a)
-- [AgentKit 文档](../../readme.md)
+- [rucora 文档](../../readme.md)
 - [A2A 协议规范](https://github.com/google/A2A)

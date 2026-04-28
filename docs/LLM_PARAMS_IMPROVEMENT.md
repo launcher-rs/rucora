@@ -4,7 +4,7 @@
 
 ### 当前架构缺陷
 
-AgentKit 的 Agent 设计缺少 LLM 请求参数配置能力：
+rucora 的 Agent 设计缺少 LLM 请求参数配置能力：
 
 1. **硬编码 temperature**: `AgentContext::default_chat_request()` 硬编码 `temperature: Some(0.7)`
 2. **参数不完整**: 仅 SimpleAgent/ChatAgent 有 temperature builder，其他 Agent 完全没有
@@ -26,7 +26,7 @@ AgentKit 的 Agent 设计缺少 LLM 请求参数配置能力：
 
 ### 核心设计: `LlmParams` 类型
 
-在 `agentkit-core/src/provider/types.rs` 中新增统一参数类型：
+在 `rucora-core/src/provider/types.rs` 中新增统一参数类型：
 
 ```rust
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -53,7 +53,7 @@ pub struct LlmParams {
 
 #### 1. 添加 LlmParams 类型
 
-位置: `agentkit-core/src/provider/types.rs`
+位置: `rucora-core/src/provider/types.rs`
 
 - 定义结构体和默认值
 - 实现 builder 方法
@@ -61,7 +61,7 @@ pub struct LlmParams {
 
 #### 2. 更新 AgentContext
 
-位置: `agentkit-core/src/agent/mod.rs`
+位置: `rucora-core/src/agent/mod.rs`
 
 - 移除 `default_chat_request()` 中的硬编码 temperature
 - 新增 `default_chat_request_with(&LlmParams)` 方法
@@ -75,7 +75,7 @@ pub struct LlmParams {
 
 #### 4. 更新 Extractor
 
-位置: `agentkit/src/agent/extractor.rs`
+位置: `rucora/src/agent/extractor.rs`
 
 Extractor 内部的 `_extract_json_with_usage()` 方法硬编码了 `temperature: Some(0.0)`。
 虽然 Extractor 需要确定性输出，但对于能力较弱的开源模型，用户可能需要：
@@ -90,21 +90,21 @@ Extractor 内部的 `_extract_json_with_usage()` 方法硬编码了 `temperature
 
 #### 5. 更新 DefaultExecution
 
-位置: `agentkit/src/agent/execution.rs`
+位置: `rucora/src/agent/execution.rs`
 
 - 添加 `llm_params` 字段
 - 流式执行路径使用 llm_params 而非硬编码值
 
 #### 6. 更新导出
 
-- `agentkit-core/src/lib.rs`: 导出 `LlmParams`
-- `agentkit/src/lib.rs`: 重新导出 `LlmParams`
+- `rucora-core/src/lib.rs`: 导出 `LlmParams`
+- `rucora/src/lib.rs`: 重新导出 `LlmParams`
 
 ## 使用示例
 
 ```rust
-use agentkit::LlmParams;
-use agentkit::agent::ToolAgent;
+use rucora::LlmParams;
+use rucora::agent::ToolAgent;
 
 let agent = ToolAgent::builder()
     .provider(provider)

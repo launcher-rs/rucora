@@ -1,0 +1,32 @@
+name: weather-query
+description: 查询指定城市的当前天气情况
+version: 1.0.0
+author: rucora Team
+tags:
+  - weather
+  - api
+timeout: 10
+input_schema:
+  type: object
+  properties:
+    city:
+      type: string
+      description: 城市名称（英文或拼音，如 Beijing、Shanghai）
+    format:
+      type: string
+      description: 输出格式
+      enum: [simple, full, json]
+      default: simple
+  required:
+    - city
+output_schema:
+  type: object
+  properties:
+    success:
+      type: boolean
+    city:
+      type: string
+    weather:
+      type: string
+    message:
+      type: string

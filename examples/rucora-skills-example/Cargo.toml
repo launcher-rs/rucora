@@ -1,0 +1,19 @@
+[package]
+name = "rucora-skills-example"
+version.workspace = true
+edition = "2024"
+description = "rucora Agent + Skills 简单示例"
+publish = false
+
+[dependencies]
+rucora = { path = "../../rucora", features = ["full"] }
+rucora-core = { path = "../../rucora-core" }
+rucora-tools = { path = "../../rucora-tools" }
+rucora-providers = { path = "../../rucora-providers" }
+rucora-skills = { path = "../../rucora-skills" }
+tokio = { version = "1", features = ["full"] }
+serde_json = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+anyhow = "1"
+dotenv = "0.15"
