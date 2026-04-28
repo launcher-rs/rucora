@@ -7,9 +7,9 @@
 
 use std::env;
 
-use rucora_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
+use rucora_core::{embed::EmbeddingProvider, error::ProviderError};
 use serde_json::{Value, json};
 
 /// OpenAI Embedding Provider。

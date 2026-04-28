@@ -247,9 +247,9 @@ pub use tool::ToolAgent as DefaultAgent;
 
 // ========== 流式输出便捷类型 ==========
 
+use futures_util::stream::BoxStream;
 use rucora_core::channel::types::ChannelEvent;
 use rucora_core::error::AgentError;
-use futures_util::stream::BoxStream;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 

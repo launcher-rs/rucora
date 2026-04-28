@@ -1,7 +1,7 @@
+use async_trait::async_trait;
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
-use async_trait::async_trait;
 
 struct MockProvider;
 

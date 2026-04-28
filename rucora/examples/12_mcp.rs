@@ -106,6 +106,7 @@
 
 use std::{collections::HashMap, sync::Arc};
 
+use reqwest::header::{AUTHORIZATION, HeaderValue};
 use rucora::agent::ToolAgent;
 use rucora::mcp::{
     ServiceExt,
@@ -118,7 +119,6 @@ use rucora::mcp::{
 use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
 use rucora_mcp::McpClient;
-use reqwest::header::{AUTHORIZATION, HeaderValue};
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 

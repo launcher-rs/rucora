@@ -15,6 +15,7 @@
 //! 3. **中间件集成** - 展示如何将中间件集成到自定义 Agent
 //! 4. **实际使用** - 演示自定义 Agent 的实际运行效果
 
+use async_trait::async_trait;
 use rucora::agent::execution::DefaultExecution;
 use rucora::middleware::{
     LoggingMiddleware, MetricsMiddleware, Middleware, MiddlewareChain, RateLimitMiddleware,
@@ -24,7 +25,6 @@ use rucora::provider::OpenAiProvider;
 use rucora_core::agent::{AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::ChatRequest;
-use async_trait::async_trait;
 use serde_json::json;
 use std::sync::Arc;
 use tracing::{Level, info};

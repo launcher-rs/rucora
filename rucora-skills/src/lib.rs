@@ -90,11 +90,11 @@ pub mod integrator;
 pub mod loader;
 pub mod tool_adapter;
 
-pub use rucora_core::skill::{SkillContext, SkillDefinition, SkillResult};
 pub use cache::{CachedSkillLoader, SkillCache};
 pub use config::{SkillConfig, SkillMeta};
 pub use integrator::SkillsAutoIntegrator;
 pub use loader::{SkillExecutor, SkillImplementation, SkillLoader};
+pub use rucora_core::skill::{SkillContext, SkillDefinition, SkillResult};
 pub use tool_adapter::{
     ReadSkillTool, SkillTool, read_skill, skills_to_prompt_with_mode, skills_to_tools,
 };

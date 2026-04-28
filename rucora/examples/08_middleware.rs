@@ -17,6 +17,7 @@
 //! 6. **ReActAgent + 中间件** - 推理行动场景
 //! 7. **ReflectAgent + 中间件** - 反思迭代场景
 
+use async_trait::async_trait;
 use rucora::agent::{ChatAgent, ReActAgent, ReflectAgent, SimpleAgent, ToolAgent};
 use rucora::middleware::{
     CacheMiddleware, LoggingMiddleware, MetricsMiddleware, Middleware, MiddlewareChain,
@@ -27,7 +28,6 @@ use rucora::provider::OpenAiProvider;
 use rucora::tools::EchoTool;
 use rucora_core::agent::{AgentError, AgentInput, AgentOutput};
 use rucora_core::tool::types::{ToolCall, ToolResult};
-use async_trait::async_trait;
 use serde_json::json;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;

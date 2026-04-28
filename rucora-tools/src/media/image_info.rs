@@ -2,11 +2,11 @@
 //!
 //! 读取图片文件的元数据信息，包括格式、尺寸、文件大小等
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::path::Path;
 

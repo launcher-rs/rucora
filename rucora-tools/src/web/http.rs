@@ -2,11 +2,11 @@
 //!
 //! 提供 HTTP 请求功能，支持多种方法和安全限制
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::time::Duration;
 use tracing::{info, warn};

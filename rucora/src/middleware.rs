@@ -158,12 +158,12 @@
 //!
 //! 详细使用指南请参考：`docs/middleware_guide.md`
 
+use async_trait::async_trait;
 use rucora_core::agent::AgentError;
 use rucora_core::agent::AgentInput;
 use rucora_core::agent::AgentOutput;
 use rucora_core::tool::types::ToolCall;
 use rucora_core::tool::types::ToolResult;
-use async_trait::async_trait;
 use std::sync::Arc;
 
 /// 中间件 trait

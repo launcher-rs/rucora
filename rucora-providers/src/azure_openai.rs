@@ -14,6 +14,9 @@ use crate::{
     http_config::build_client,
     preview,
 };
+use async_trait::async_trait;
+use futures_util::{StreamExt, stream::BoxStream};
+use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use rucora_core::{
     error::ProviderError,
     provider::{
@@ -24,9 +27,6 @@ use rucora_core::{
     },
     tool::types::{ToolCall, ToolDefinition},
 };
-use async_trait::async_trait;
-use futures_util::{StreamExt, stream::BoxStream};
-use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
 use serde_json::{Value, json};
 use tracing::debug;
 

@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 
+use async_trait::async_trait;
+use futures_util::StreamExt;
+use futures_util::stream::BoxStream;
 use rucora::provider::{ResilientProvider, RetryConfig};
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
-use async_trait::async_trait;
-use futures_util::StreamExt;
-use futures_util::stream::BoxStream;
 
 struct FlakyProvider {
     attempts: Mutex<u32>,

@@ -6,11 +6,11 @@
 use std::collections::HashMap;
 use std::sync::RwLock;
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ProviderError,
     retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore},
 };
-use async_trait::async_trait;
 
 /// 内存向量存储。
 pub struct InMemoryVectorStore {

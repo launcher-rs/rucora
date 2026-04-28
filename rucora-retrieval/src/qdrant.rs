@@ -5,11 +5,11 @@
 
 use std::env;
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ProviderError,
     retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 
 /// Qdrant Vector Store。

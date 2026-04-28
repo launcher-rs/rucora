@@ -1,8 +1,8 @@
 //! rucora-a2a - A2A（Agent-to-Agent）协议支持
 
+use async_trait::async_trait;
 use rucora_core::error::ToolError;
 use rucora_core::tool::{Tool, ToolCategory};
-use async_trait::async_trait;
 use serde_json::Value;
 use std::sync::Arc;
 

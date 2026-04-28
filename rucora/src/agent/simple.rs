@@ -33,10 +33,10 @@
 //! # }
 //! ```
 
+use async_trait::async_trait;
 use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::LlmParams;
-use async_trait::async_trait;
 use std::sync::Arc;
 
 use crate::agent::execution::DefaultExecution;
@@ -90,10 +90,7 @@ where
     }
 
     /// 运行 Agent（覆盖默认实现，使用 DefaultExecution）
-    async fn run(
-        &self,
-        input: AgentInput,
-    ) -> Result<AgentOutput, rucora_core::agent::AgentError> {
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, rucora_core::agent::AgentError> {
         self.execution.run(self, input).await
     }
 
@@ -298,11 +295,11 @@ impl<P> Default for SimpleAgentBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use futures_util::stream;
+    use futures_util::stream::BoxStream;
     use rucora_core::error::ProviderError;
     use rucora_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
     use rucora_core::provider::{ChatMessage, Role};
-    use futures_util::stream;
-    use futures_util::stream::BoxStream;
 
     struct MockProvider;
 

@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use rucora_core::error::ToolError;
 use rucora_core::tool::Tool;
-use async_trait::async_trait;
 use serde_json::{Value, json};
 
 struct EchoTool;

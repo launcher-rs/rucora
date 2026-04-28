@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
-use rucora_core::{embed::EmbeddingProvider, error::ProviderError};
 use async_trait::async_trait;
+use rucora_core::{embed::EmbeddingProvider, error::ProviderError};
 
 // EmbeddingProvider 的简单内存缓存包装器：
 // - 对单条 `embed`：以 `text` 作为 key 缓存向量结果

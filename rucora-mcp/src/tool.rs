@@ -76,10 +76,6 @@
 
 use std::{borrow::Cow, sync::Arc};
 
-use rucora_core::{
-    error::ToolError,
-    tool::{Tool, ToolCategory},
-};
 use async_trait::async_trait;
 use rmcp::{
     model::{
@@ -87,6 +83,10 @@ use rmcp::{
         Tool as RmcpTool,
     },
     service::{Peer, RoleClient, RunningService},
+};
+use rucora_core::{
+    error::ToolError,
+    tool::{Tool, ToolCategory},
 };
 use serde_json::{Value, json};
 use tracing::{debug, trace};

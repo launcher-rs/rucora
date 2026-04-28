@@ -13,11 +13,11 @@ use std::{
     sync::RwLock,
 };
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ProviderError,
     retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore},
 };
-use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
 /// Chroma 本地嵌入式向量存储（持久化到文件）。

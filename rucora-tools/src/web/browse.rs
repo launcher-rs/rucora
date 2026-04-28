@@ -2,13 +2,13 @@
 //!
 //! 提供网页内容提取和浏览功能
 
+use async_trait::async_trait;
+use dom_smoothie::{Config, Readability, TextMode};
+use html2text::from_read;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
-use dom_smoothie::{Config, Readability, TextMode};
-use html2text::from_read;
 use serde_json::{Value, json};
 use std::{
     collections::HashMap,

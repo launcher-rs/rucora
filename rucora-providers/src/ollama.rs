@@ -7,6 +7,9 @@
 use std::env;
 
 use crate::{http_config::build_client, preview};
+use async_trait::async_trait;
+use futures_util::{StreamExt, stream::BoxStream};
+use reqwest::header::HeaderMap;
 use rucora_core::{
     error::ProviderError,
     provider::{
@@ -17,9 +20,6 @@ use rucora_core::{
         },
     },
 };
-use async_trait::async_trait;
-use futures_util::{StreamExt, stream::BoxStream};
-use reqwest::header::HeaderMap;
 use serde_json::{Value, json};
 use tracing::debug;
 

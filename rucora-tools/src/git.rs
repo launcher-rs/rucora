@@ -2,11 +2,11 @@
 //!
 //! 提供 Git 操作功能，支持常见命令和安全检查。
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
 

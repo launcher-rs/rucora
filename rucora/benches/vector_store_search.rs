@@ -1,6 +1,6 @@
+use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use rucora_core::retrieval::{VectorQuery, VectorRecord, VectorStore};
 use rucora_retrieval::in_memory::InMemoryVectorStore;
-use criterion::{Criterion, black_box, criterion_group, criterion_main};
 
 fn bench_inmemory_vector_store_search(c: &mut Criterion) {
     let store = InMemoryVectorStore::new();

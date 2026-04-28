@@ -11,6 +11,11 @@ mod config;
 mod reporter;
 mod research_agent;
 
+use config::{AppConfig, ProviderType};
+use console::style;
+use dialoguer::{Input, Select};
+use reporter::Reporter;
+use research_agent::DeepResearchEngine;
 use rucora::agent::execution::DefaultExecution;
 use rucora::agent::{
     CacheConfig, RetryConfig, TimeoutConfig, ToolCallEnhancedConfig, ToolRegistry,
@@ -18,11 +23,6 @@ use rucora::agent::{
 use rucora::provider::resilient::{ResilientProvider, RetryConfig as ProviderRetryConfig};
 use rucora_core::provider::LlmProvider;
 use rucora_tools::{BrowseTool, DatetimeTool, TavilyTool, WebFetchTool};
-use config::{AppConfig, ProviderType};
-use console::style;
-use dialoguer::{Input, Select};
-use reporter::Reporter;
-use research_agent::DeepResearchEngine;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{Level, info, warn};

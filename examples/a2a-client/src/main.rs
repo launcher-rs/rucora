@@ -13,11 +13,11 @@
 //! cargo run --example a2a-client
 //! ```
 
+use ra2a::client::Client;
 use rucora::a2a::A2AToolAdapter;
 use rucora::agent::ToolRegistry;
 use rucora::core::tool::Tool;
 use rucora_providers::OllamaProvider;
-use ra2a::client::Client;
 use std::sync::Arc;
 use tracing::Level;
 use tracing_subscriber::FmtSubscriber;

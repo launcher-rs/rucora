@@ -2,12 +2,12 @@
 //!
 //! 提供长期记忆存储和检索功能。
 
+use async_trait::async_trait;
 use rucora_core::{
     error::{MemoryError, ToolError},
     memory::{Memory, MemoryItem, MemoryQuery},
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};

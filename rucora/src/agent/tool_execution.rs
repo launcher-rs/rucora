@@ -4,11 +4,11 @@
 
 use std::sync::{Arc, LazyLock};
 
+use regex::Regex;
 use rucora_core::channel::ChannelObserver;
 use rucora_core::error::{AgentError, ToolError};
 use rucora_core::provider::types::{ChatMessage, Role};
 use rucora_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolResult};
-use regex::Regex;
 use serde_json::{Value, json};
 use tracing::{debug, info, warn};
 

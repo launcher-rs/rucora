@@ -2,13 +2,13 @@
 //!
 //! 提供多种搜索服务集成（SerpAPI、Tavily、GitHub Trending）
 
+use async_trait::async_trait;
+use backon::{ExponentialBuilder, Retryable};
+use reqwest::Client;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
-use backon::{ExponentialBuilder, Retryable};
-use reqwest::Client;
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 use std::collections::HashMap;

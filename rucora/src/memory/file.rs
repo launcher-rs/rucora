@@ -9,11 +9,11 @@ use std::{
     sync::Arc,
 };
 
+use async_trait::async_trait;
 use rucora_core::{
     error::MemoryError,
     memory::{Memory, MemoryItem, MemoryQuery},
 };
-use async_trait::async_trait;
 use tokio::sync::Mutex;
 
 /// 基于 JSON 文件的记忆存储。

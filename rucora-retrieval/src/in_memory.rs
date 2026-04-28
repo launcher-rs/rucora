@@ -28,9 +28,9 @@
 //! # }
 //! ```
 
+use async_trait::async_trait;
 use rucora_core::error::ProviderError;
 use rucora_core::retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore};
-use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;

@@ -39,11 +39,11 @@
 //! # }
 //! ```
 
+use async_trait::async_trait;
 use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
 use rucora_core::tool::Tool;
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -126,10 +126,7 @@ where
     }
 
     /// 运行 Agent（覆盖默认实现，使用 DefaultExecution）
-    async fn run(
-        &self,
-        input: AgentInput,
-    ) -> Result<AgentOutput, rucora_core::agent::AgentError> {
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, rucora_core::agent::AgentError> {
         self.execution.run(self, input).await
     }
 
@@ -487,10 +484,10 @@ impl<P> Default for ReflectAgentBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use rucora_core::error::ProviderError;
-    use rucora_core::provider::types::{ChatResponse, ChatStreamChunk};
     use futures_util::stream;
     use futures_util::stream::BoxStream;
+    use rucora_core::error::ProviderError;
+    use rucora_core::provider::types::{ChatResponse, ChatStreamChunk};
 
     struct MockProvider;
 

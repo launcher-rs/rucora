@@ -7,10 +7,10 @@
 //! 4. 综合阶段：汇总所有信息
 //! 5. 报告阶段：生成结构化研究报告
 
+use async_trait::async_trait;
 use rucora::agent::execution::DefaultExecution;
 use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput};
 use rucora_core::error::AgentError;
-use async_trait::async_trait;
 use tracing::{info, warn};
 
 // ============================================================

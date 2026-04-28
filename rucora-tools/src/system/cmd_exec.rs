@@ -7,11 +7,11 @@
 //! - 通过白名单 + 禁止 shell 操作符来降低注入与破坏性风险
 //! - 对输出进行截断，避免返回内容过大
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 
 use super::shell::{SHELL_TIMEOUT_SECS, execute_shell_command};

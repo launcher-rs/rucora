@@ -1,11 +1,11 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 
+use async_trait::async_trait;
+use futures_util::{StreamExt, stream::BoxStream};
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::ChatRequest;
-use async_trait::async_trait;
-use futures_util::{StreamExt, stream::BoxStream};
 use tokio::time::{Duration, sleep, timeout};
 use tracing::warn;
 
@@ -273,8 +273,7 @@ impl LlmProvider for ResilientProvider {
     async fn chat(
         &self,
         request: ChatRequest,
-    ) -> Result<rucora_core::provider::types::ChatResponse, rucora_core::error::ProviderError>
-    {
+    ) -> Result<rucora_core::provider::types::ChatResponse, rucora_core::error::ProviderError> {
         let mut attempt = 0usize;
 
         loop {

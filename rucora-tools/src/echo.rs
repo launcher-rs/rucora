@@ -2,11 +2,11 @@
 //!
 //! 提供简单的回显功能，用于测试和调试。
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 
 /// Echo 工具：原样返回输入。

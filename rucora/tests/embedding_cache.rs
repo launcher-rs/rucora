@@ -1,6 +1,6 @@
+use async_trait::async_trait;
 use rucora_core::{embed::EmbeddingProvider, error::ProviderError};
 use rucora_embed::cache::CachedEmbeddingProvider;
-use async_trait::async_trait;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 

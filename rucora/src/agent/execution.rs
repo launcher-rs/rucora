@@ -1137,8 +1137,8 @@ impl DefaultExecution {
         &self,
         input: AgentInput,
     ) -> Result<String, rucora_core::agent::AgentError> {
-        use rucora_core::channel::types::ChannelEvent;
         use futures_util::StreamExt;
+        use rucora_core::channel::types::ChannelEvent;
 
         let mut stream = self.run_stream_simple(input);
         let mut text = String::new();

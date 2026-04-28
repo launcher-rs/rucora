@@ -14,13 +14,13 @@
 //! 3. **错误处理** - 处理各种错误场景
 //! 4. **集成使用** - 与 Agent 集成使用
 
+use async_trait::async_trait;
+use futures_util::StreamExt;
+use futures_util::stream::{self, BoxStream};
 use rucora::agent::SimpleAgent;
 use rucora::prelude::Agent;
 use rucora_core::error::ProviderError;
 use rucora_core::provider::{LlmProvider, types::*};
-use async_trait::async_trait;
-use futures_util::StreamExt;
-use futures_util::stream::{self, BoxStream};
 use std::time::Duration;
 use tokio::time::sleep;
 use tracing::{Level, info};

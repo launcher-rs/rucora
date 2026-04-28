@@ -2,11 +2,11 @@
 //!
 //! 支持 25 种数学函数：算术运算、对数指数、聚合统计、百分位数等
 
+use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
 };
-use async_trait::async_trait;
 use serde_json::{Value, json};
 
 /// 高级计算器工具

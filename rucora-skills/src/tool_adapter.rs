@@ -1,9 +1,9 @@
 //! Skill 到 Tool 的适配器
 
 use crate::{SkillDefinition, SkillExecutor, SkillsPromptMode};
+use async_trait::async_trait;
 use rucora_core::error::ToolError;
 use rucora_core::tool::{Tool, ToolCategory};
-use async_trait::async_trait;
 use serde_json::{Value, json};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
