@@ -29,6 +29,7 @@ pub fn parse_finish_reason(reason: &str) -> FinishReason {
 /// - `presence_penalty`: 存在惩罚
 /// - `stop`: 停止序列
 /// - `extra`: 额外参数（provider 特定）
+#[allow(clippy::too_many_arguments)]
 pub fn apply_sampling_params(
     map: &mut Map<String, Value>,
     temperature: Option<f32>,

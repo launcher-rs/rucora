@@ -2,6 +2,14 @@
 name = "rucora"
 version.workspace = true
 edition = "2024"
+description = "High-performance, type-safe LLM agent framework with built-in tools and multi-provider support"
+documentation = "https://docs.rs/rucora"
+readme = "../readme.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords = ["llm", "agent", "ai", "chatgpt", "claude"]
+categories = ["api-bindings", "asynchronous", "text-processing"]
 
 [lib]
 doctest = false
@@ -23,16 +31,16 @@ full = ["providers", "tools", "embed", "retrieval", "mcp", "a2a", "skills"]
 
 [dependencies]
 # 核心层
-rucora-core = { path = "../rucora-core" }
+rucora-core = { path = "../rucora-core", version = "0.1" }
 
 # 子模块（可选，通过 feature 启用）
-rucora-mcp = { path = "../rucora-mcp", optional = true }
-rucora-a2a = { path = "../rucora-a2a", optional = true }
-rucora-providers = { path = "../rucora-providers", optional = true }
-rucora-tools = { path = "../rucora-tools", optional = true }
-rucora-embed = { path = "../rucora-embed", optional = true }
-rucora-retrieval = { path = "../rucora-retrieval", optional = true }
-rucora-skills = { path = "../rucora-skills", optional = true }
+rucora-mcp = { path = "../rucora-mcp", optional = true, version = "0.1" }
+rucora-a2a = { path = "../rucora-a2a", optional = true, version = "0.1" }
+rucora-providers = { path = "../rucora-providers", optional = true, version = "0.1" }
+rucora-tools = { path = "../rucora-tools", optional = true, version = "0.1" }
+rucora-embed = { path = "../rucora-embed", optional = true, version = "0.1" }
+rucora-retrieval = { path = "../rucora-retrieval", optional = true, version = "0.1" }
+rucora-skills = { path = "../rucora-skills", optional = true, version = "0.1" }
 
 # rucora 核心依赖（仅主库自身功能需要）
 async-trait = "0.1"
@@ -54,12 +62,12 @@ tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 criterion = "0.5"
 anyhow = "1"
 dotenv = "0.15.0"
-rucora-retrieval = { path = "../rucora-retrieval" }
-rucora-embed = { path = "../rucora-embed" }
-rucora-tools = { path = "../rucora-tools" }
-rucora-providers = { path = "../rucora-providers" }
-rucora-mcp = { path = "../rucora-mcp" }
-rucora-skills = { path = "../rucora-skills" }
+rucora-retrieval = { path = "../rucora-retrieval", version = "0.1" }
+rucora-embed = { path = "../rucora-embed", version = "0.1" }
+rucora-tools = { path = "../rucora-tools", version = "0.1" }
+rucora-providers = { path = "../rucora-providers", version = "0.1" }
+rucora-mcp = { path = "../rucora-mcp", version = "0.1" }
+rucora-skills = { path = "../rucora-skills", version = "0.1" }
 reqwest = { version = "0.13", features = ["json"] }
 chrono = "0.4"
 

@@ -100,6 +100,7 @@ fn find_script_file(skill_dir: &Path) -> Option<PathBuf> {
     None
 }
 
+#[allow(clippy::needless_pass_by_value)]
 /// 将 Skills 转换为 Tools
 pub fn skills_to_tools(
     skills: &[SkillDefinition],

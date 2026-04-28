@@ -139,7 +139,7 @@ impl ContextManager {
             .await?;
 
         // 4. 创建边界消息
-        let boundary_message = self.create_compact_boundary(summary.clone());
+        let boundary_message = self.create_compact_boundary(&summary);
 
         // 5. 替换已压缩的消息
         self.replace_compacted_messages(boundary_message, groups_to_compact.len());
@@ -179,7 +179,7 @@ impl ContextManager {
     }
 
     /// 创建压缩边界消息
-    fn create_compact_boundary(&self, summary: String) -> ChatMessage {
+    fn create_compact_boundary(&self, summary: &str) -> ChatMessage {
         ChatMessage::system(format!(
             "<conversation_summary>\n{summary}\n</conversation_summary>\n\n\
              以上是之前对话的摘要。请基于此摘要继续对话。"

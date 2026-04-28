@@ -5,9 +5,14 @@ edition = "2024"
 description = "A2A (Agent-to-Agent) protocol integration for rucora"
 documentation = "https://docs.rs/rucora-a2a"
 readme = "README.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-rucora-core = { path = "../rucora-core" }
+rucora-core = { path = "../rucora-core", version = "0.1" }
 ra2a = { version = "0.9", default-features = false, features = ["client", "server"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }

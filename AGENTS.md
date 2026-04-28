@@ -70,7 +70,7 @@ This is a Rust workspace with multiple crates:
 - **`rucora-tools/`** - Tool implementations (Shell, File, HTTP, Git, browser scraping, etc.)
 - **`rucora-mcp/`** - MCP (Model Context Protocol) integration
 - **`rucora-a2a/`** - A2A (Agent-to-Agent) protocol integration
-- **`rucora-skills/`** - Skill system (Rhai scripts, YAML command templates)
+- **`rucora-skills/`** - Skill system ( YAML command templates)
 - **`rucora-embed/`** - Embedding providers
 - **`rucora-retrieval/`** - Vector store implementations
 - **`examples/`** - Example applications (a2a-client, a2a-server, rucora-skills-example, rucora-deep-research)
@@ -151,7 +151,7 @@ These tests ensure third-party implementations meet the expected behavioral cont
 The main aggregator crate exposes these modules:
 - `rucora::provider::*` - Provider implementations (OpenAI-compatible, Ollama, Router)
 - `rucora::tools::*` - Tool implementations (HTTP, browser scraping, command execution, etc.)
-- `rucora::skills::*` - Skill loaders (Rhai/Command skill, skills-to-tools adapter)
+- `rucora::skills::*` - Skill loaders (Command skill, skills-to-tools adapter)
 - `rucora::retrieval::*` - Retrieval implementations (including `InMemoryVectorStore`)
 - `rucora::embed::*` - Embedding providers
 - `rucora::memory::*` - Memory implementations

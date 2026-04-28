@@ -62,7 +62,6 @@ pub enum SkillImplementation {
     Python(PathBuf),
     JavaScript(PathBuf),
     Shell(PathBuf),
-    Rhai(PathBuf),
     Unknown,
 }
 
@@ -229,11 +228,6 @@ fn detect_implementation(skill_dir: &Path) -> SkillImplementation {
         return SkillImplementation::Shell(sh_path);
     }
 
-    let rhai_path = skill_dir.join("SKILL.rhai");
-    if rhai_path.exists() {
-        return SkillImplementation::Rhai(rhai_path);
-    }
-
     SkillImplementation::Unknown
 }
 
@@ -279,9 +273,6 @@ impl SkillExecutor {
                 self.execute_shell(script_path, input, definition.timeout)
                     .await
             }
-            SkillImplementation::Rhai(_) => Err(SkillExecuteError::NotFound(
-                "Rhai 执行需要 rhai-skills feature".to_string(),
-            )),
             SkillImplementation::Unknown => {
                 Err(SkillExecuteError::NotFound("未找到脚本实现".to_string()))
             }

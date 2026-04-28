@@ -756,7 +756,6 @@ let extractor = Extractor::<_, Person>::builder(provider, "qwen-7b")
 - 等 12+ 内置工具
 
 #### 技能系统
-- **RhaiSkill** - Rhai 脚本技能
 - **CommandSkill** - 命令模板技能
 - **FileReadSkill** - 文件读取技能
 

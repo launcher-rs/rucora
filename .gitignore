@@ -4,3 +4,5 @@ temp
 .qwen
 memory_test.json
 .env
+*.log
+*.txt

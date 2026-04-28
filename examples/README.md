@@ -173,7 +173,6 @@ cargo run --bin custom-tool
 
 **功能**：
 - ⏳ 从目录加载 Skills
-- ⏳ 使用 Rhai 脚本技能
 - ⏳ 使用命令模板技能
 
 **运行**：

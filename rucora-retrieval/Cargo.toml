@@ -2,9 +2,14 @@
 name = "rucora-retrieval"
 version.workspace = true
 edition = "2024"
-description = "Vector store retrieval for rucora"
+description = "Vector store retrieval for rucora (in-memory, Chroma, Qdrant)"
 documentation = "https://docs.rs/rucora-retrieval"
 readme = "README.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 default = ["in-memory"]
@@ -13,7 +18,7 @@ chroma = []
 all = ["in-memory", "chroma"]
 
 [dependencies]
-rucora-core = { path = "../rucora-core" }
+rucora-core = { path = "../rucora-core", version = "0.1" }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

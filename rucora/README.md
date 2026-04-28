@@ -6,7 +6,7 @@
 
 - **Provider 实现**：OpenAI-compatible / Ollama / Router
 - **Tools 实现**：HTTP、浏览器抓取、命令执行等
-- **Skills**：Rhai/Command skill loader，支持将 skills 适配为 tools
+- **Skills**：Command skill loader，支持将 skills 适配为 tools
 - **Retrieval/Embedding/Memory**：面向 RAG 的基础实现（包含 `InMemoryVectorStore`）
 - **统一配置**：`rucora::config::rucoraConfig`
 

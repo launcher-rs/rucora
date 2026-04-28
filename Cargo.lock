@@ -2377,7 +2377,6 @@ dependencies = [
  "async-trait",
  "futures-util",
  "regex",
- "rucora-retrieval",
  "serde",
  "serde_json",
  "thiserror 2.0.18",

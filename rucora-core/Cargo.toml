@@ -2,6 +2,14 @@
 name = "rucora-core"
 version.workspace = true
 edition = "2024"
+description = "Core abstractions and types for the rucora LLM agent framework"
+documentation = "https://docs.rs/rucora-core"
+readme = "README.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
 async-trait = "0.1"
@@ -14,8 +22,8 @@ tokio = { version = "1", features = ["sync", "time", "macros", "rt", "fs", "proc
 regex = "1"
 tracing = "0.1"
 
-[dev-dependencies]
-rucora-retrieval = { path = "../rucora-retrieval" }
+# 注意：contract_vector_store.rs 测试需要在 workspace 级别运行
+# 而非单独发布 rucora-core 时运行
 
 # 继承 workspace 级别的 lint 配置
 [lints]

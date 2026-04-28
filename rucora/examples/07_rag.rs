@@ -182,7 +182,7 @@ async fn main() -> anyhow::Result<()> {
                 citation
                     .text
                     .as_ref()
-                    .unwrap_or(&"无内容".to_string())
+                    .unwrap_or(&String::new())
                     .chars()
                     .take(40)
                     .collect::<String>(),
@@ -256,7 +256,7 @@ async fn main() -> anyhow::Result<()> {
             format!(
                 "[{}]: {}",
                 c.render(),
-                c.text.as_ref().unwrap_or(&"无内容".to_string())
+                c.text.as_ref().unwrap_or(&String::new())
             )
         })
         .collect::<Vec<_>>()

@@ -68,7 +68,7 @@ where
     }
 
     /// 分析任务并返回执行建议
-    async fn analyze_task(&self, task: &str) -> String {
+    fn analyze_task(&self, task: &str) -> String {
         // 简单实现：返回专家列表和任务分析
         format!(
             "任务分析：{}\n\n可用专家:\n{}",
@@ -243,7 +243,7 @@ async fn main() -> anyhow::Result<()> {
     let task1 = "帮我分析当前目录的文件结构";
     info!("任务：\"{}\"\n", task1);
 
-    let analysis = supervisor.analyze_task(task1).await;
+    let analysis = supervisor.analyze_task(task1);
     info!("主管分析:\n{}\n", analysis);
 
     // ═══════════════════════════════════════════════════════════

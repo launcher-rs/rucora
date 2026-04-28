@@ -145,7 +145,7 @@
 //! ├── agent         - Agent 实现（增强的 DefaultAgent，支持 Tools/MCP/A2A/Skills）
 //! ├── provider      - LLM Provider 实现（OpenAI/Ollama/Router）
 //! ├── tools         - 工具实现（Shell/File/HTTP/Git/Memory）
-//! ├── skills        - 技能实现（Echo/Rhai/Command）
+//! ├── skills        - 技能实现（Echo/Command）
 //! ├── mcp           - MCP 协议集成（需要 `mcp` feature）
 //! ├── a2a           - A2A 协议集成（需要 `a2a` feature）
 //! ├── memory        - 记忆实现（InMemory/File）

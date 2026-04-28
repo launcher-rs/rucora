@@ -310,6 +310,7 @@ impl LayeredCompressor {
     }
 
     /// 分离消息为头部/中间/尾部
+    #[allow(clippy::needless_pass_by_value)]
     fn split_messages(
         &self,
         messages: Vec<ChatMessage>,

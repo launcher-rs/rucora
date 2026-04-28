@@ -349,7 +349,6 @@ cargo run --example 14_skills --features skills
 
 **学习要点**:
 - 技能配置
-- Rhai 脚本编写
 - 技能注册
 
 ---

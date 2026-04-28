@@ -5,9 +5,14 @@ edition = "2024"
 description = "MCP (Model Context Protocol) integration for rucora"
 documentation = "https://docs.rs/rucora-mcp"
 readme = "README.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [dependencies]
-rucora-core = { path = "../rucora-core" }
+rucora-core = { path = "../rucora-core", version = "0.1" }
 rmcp = { version = "1.3", features = ["client", "reqwest", "transport-streamable-http-client-reqwest"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }

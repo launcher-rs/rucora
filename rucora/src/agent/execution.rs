@@ -113,7 +113,7 @@ fn is_context_overflow_error(message: &str) -> bool {
 /// 返回节省的总字符数。
 ///
 /// 参考实现: zeroclaw `fast_trim_tool_results`
-fn fast_trim_tool_results(messages: &mut Vec<ChatMessage>, protect_last_n: usize) -> usize {
+fn fast_trim_tool_results(messages: &mut [ChatMessage], protect_last_n: usize) -> usize {
     const TRIM_TO: usize = 2000;
     let mut saved = 0;
     let cutoff = messages.len().saturating_sub(protect_last_n);

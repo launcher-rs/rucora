@@ -18,6 +18,11 @@ members = [
 
 [workspace.package]
 version = "0.1.0"
+license = "MIT"
+repository = "https://github.com/launcher-rs/rucora"
+authors = ["rucora contributors"]
+keywords = ["llm", "agent", "ai", "openai", "rag"]
+categories = ["api-bindings", "asynchronous", "text-processing"]
 
 # ===== Workspace 级别的 Lint 配置 =====
 # 这些配置将应用于 workspace 中的所有 crate
@@ -57,13 +62,13 @@ manual_flatten = "deny"                 # 手动展平 Option/Result
 # 这些 lint 级别设为 "warn"，会显示警告但不阻止编译
 
 # 代码复杂度
-cognitive_complexity = "warn"           # 认知复杂度过高
+cognitive_complexity = "allow"           # 认知复杂度过高
 too_many_arguments = "warn"             # 函数参数过多
 type_complexity = "warn"                # 类型过于复杂
 
 # 文档
-missing_errors_doc = "warn"             # 缺少错误文档
-missing_panics_doc = "warn"             # 缺少 panic 文档
+missing_errors_doc = "allow"             # 缺少错误文档
+missing_panics_doc = "allow"             # 缺少 panic 文档
 
 # 代码风格
 enum_variant_names = "warn"             # 枚举变体命名不规范

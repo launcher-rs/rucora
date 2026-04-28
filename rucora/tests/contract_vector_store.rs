@@ -1,5 +1,5 @@
+use rucora::retrieval::in_memory::InMemoryVectorStore;
 use rucora_core::retrieval::{VectorQuery, VectorRecord, VectorStore};
-use rucora_retrieval::in_memory::InMemoryVectorStore;
 use serde_json::json;
 
 // 说明：VectorStore 的一个最小 contract 测试。

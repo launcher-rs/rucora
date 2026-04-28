@@ -2,17 +2,22 @@
 name = "rucora-skills"
 version.workspace = true
 edition = "2024"
-description = "Skills system for rucora"
+description = "Skills system for rucora (YAML command templates)"
 documentation = "https://docs.rs/rucora-skills"
 readme = "README.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
 
 [features]
 default = []
 all = []
 
 [dependencies]
-rucora-core = { path = "../rucora-core" }
-rucora-tools = { path = "../rucora-tools" }
+rucora-core = { path = "../rucora-core", version = "0.1" }
+rucora-tools = { path = "../rucora-tools", version = "0.1" }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -23,6 +28,5 @@ tracing = "0.1"
 thiserror = "2"
 anyhow = "1"
 
-# ?? workspace ??? lint ??
 [lints]
 workspace = true

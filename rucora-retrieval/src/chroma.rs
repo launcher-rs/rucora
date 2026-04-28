@@ -38,6 +38,10 @@ impl ChromaVectorStore {
     /// - CHROMA_COLLECTION: 集合名称（默认 default）
     /// - CHROMA_TENANT: 租户（默认 default_tenant）
     /// - CHROMA_DATABASE: 数据库（默认 default_database）
+    ///
+    /// # Errors
+    ///
+    /// 当所需环境变量不存在时返回错误。
     pub fn from_env() -> Result<Self, ProviderError> {
         let base_url =
             env::var("CHROMA_URL").unwrap_or_else(|_| "http://localhost:8000".to_string());
