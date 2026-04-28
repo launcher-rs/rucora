@@ -8,6 +8,7 @@ members = [
     "rucora-providers",
     "rucora-embed",
     "rucora-retrieval",
+    "rucora-tools",
     "rucora-skills",
     "examples/a2a-client",
     "examples/a2a-server",
