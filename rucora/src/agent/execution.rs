@@ -422,15 +422,13 @@ impl DefaultExecution {
     pub(crate) fn build_messages(&self, input: &AgentInput) -> Vec<ChatMessage> {
         let mut messages = Vec::new();
 
-        // 添加系统提示词
-        if let Some(ref prompt) = self.system_prompt {
-            messages.push(ChatMessage::system(prompt.clone()));
-        }
-
         // 如果启用了对话历史，从历史中获取消息
         if let Some(ref conv_arc) = self.conversation_manager {
             let conv = futures_executor::block_on(conv_arc.lock());
             messages.extend(conv.get_messages().to_vec());
+        } else if let Some(ref prompt) = self.system_prompt {
+            // 未启用对话历史时，由执行器负责注入系统提示词
+            messages.push(ChatMessage::system(prompt.clone()));
         }
 
         // 添加用户消息

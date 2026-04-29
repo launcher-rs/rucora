@@ -32,11 +32,11 @@ impl SerpapiTool {
     }
 
     /// 创建带多个 API Keys 的 SerpAPI 工具
-    pub fn with_keys(api_keys: Vec<String>) -> Self {
+    pub fn with_keys(api_keys: Vec<String>) -> Result<Self, ToolError> {
         if api_keys.is_empty() {
-            panic!("API Keys 不能为空");
+            return Err(ToolError::Message("API Keys 不能为空".to_string()));
         }
-        Self { api_keys }
+        Ok(Self { api_keys })
     }
 
     /// 从环境变量加载 API Keys
@@ -211,11 +211,11 @@ impl TavilyTool {
     }
 
     /// 创建带多个 API Keys 的 Tavily 工具
-    pub fn with_keys(api_keys: Vec<String>) -> Self {
+    pub fn with_keys(api_keys: Vec<String>) -> Result<Self, ToolError> {
         if api_keys.is_empty() {
-            panic!("API Keys 不能为空");
+            return Err(ToolError::Message("API Keys 不能为空".to_string()));
         }
-        Self { api_keys }
+        Ok(Self { api_keys })
     }
 
     /// 从环境变量加载 API Keys

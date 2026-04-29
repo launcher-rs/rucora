@@ -283,7 +283,11 @@ where
             }
         }
 
-        Err(last_error.unwrap_or(ExtractionError::NoData))
+        match last_error {
+            Some(_) if self.retries > 0 => Err(ExtractionError::MaxRetriesExceeded),
+            Some(error) => Err(error),
+            None => Err(ExtractionError::NoData),
+        }
     }
 
     /// 内部实现：带 Usage 和对话历史的提取
@@ -314,7 +318,11 @@ where
             }
         }
 
-        Err(last_error.unwrap_or(ExtractionError::NoData))
+        match last_error {
+            Some(_) if self.retries > 0 => Err(ExtractionError::MaxRetriesExceeded),
+            Some(error) => Err(error),
+            None => Err(ExtractionError::NoData),
+        }
     }
 
     /// 内部实现：执行 JSON 提取

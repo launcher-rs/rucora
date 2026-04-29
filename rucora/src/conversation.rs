@@ -156,21 +156,23 @@ impl ConversationManager {
 
     /// 添加消息
     pub fn add_message(&mut self, message: ChatMessage) {
-        // 估算 token 并更新计数
-        let tokens = self.estimate_message_tokens(&message);
-        self.token_count = self.token_count.saturating_add(tokens);
-
         // 如果是第一条消息且没有系统提示词，先添加系统提示词
         if self.messages.is_empty()
             && let Some(prompt) = &self.system_prompt
         {
-            self.messages.push(ChatMessage {
+            let system_message = ChatMessage {
                 role: Role::System,
                 content: prompt.clone(),
                 name: None,
-            });
+            };
+            let system_tokens = self.estimate_message_tokens(&system_message);
+            self.token_count = self.token_count.saturating_add(system_tokens);
+            self.messages.push(system_message);
         }
 
+        // 估算 token 并更新计数
+        let tokens = self.estimate_message_tokens(&message);
+        self.token_count = self.token_count.saturating_add(tokens);
         self.messages.push(message);
         self.enforce_limits();
     }
@@ -242,14 +244,17 @@ impl ConversationManager {
     /// 清空历史
     pub fn clear(&mut self) {
         self.messages.clear();
+        self.token_count = 0;
 
         // 保留系统提示词
         if let Some(prompt) = &self.system_prompt {
-            self.messages.push(ChatMessage {
+            let system_message = ChatMessage {
                 role: Role::System,
                 content: prompt.clone(),
                 name: None,
-            });
+            };
+            self.token_count = self.estimate_message_tokens(&system_message);
+            self.messages.push(system_message);
         }
     }
 
@@ -268,11 +273,24 @@ impl ConversationManager {
             if self.messages.len() > self.max_messages {
                 let drain_count = self.messages.len() - self.max_messages;
                 self.messages.drain(skip..skip + drain_count);
+                self.recalculate_token_count();
             }
         }
 
-        // TODO: 实现 token 限制检查
-        // 需要集成 token 计数器
+        if self.max_tokens > 0 {
+            let preserve_system = self
+                .messages
+                .first()
+                .is_some_and(|m| m.role == Role::System);
+            let min_len = usize::from(preserve_system);
+
+            while self.token_count as usize > self.max_tokens && self.messages.len() > min_len {
+                let remove_idx = usize::from(preserve_system);
+                let removed = self.messages.remove(remove_idx);
+                let removed_tokens = self.estimate_message_tokens(&removed);
+                self.token_count = self.token_count.saturating_sub(removed_tokens);
+            }
+        }
     }
 
     /// 压缩历史（使用摘要）
@@ -313,10 +331,12 @@ impl ConversationManager {
     /// 从 JSON 导入
     pub fn from_json(json: &str) -> Result<Self, serde_json::Error> {
         let messages: Vec<ChatMessage> = serde_json::from_str(json)?;
-        Ok(Self {
+        let mut manager = Self {
             messages,
             ..Default::default()
-        })
+        };
+        manager.recalculate_token_count();
+        Ok(manager)
     }
 
     // ==================== 压缩相关方法 ====================
@@ -498,6 +518,21 @@ mod tests {
 
         assert_eq!(manager.len(), 1);
         assert_eq!(manager.messages[0].content, "系统");
+    }
+
+    #[test]
+    fn test_conversation_manager_max_tokens() {
+        let mut manager = ConversationManager::new()
+            .with_system_prompt("系统提示词")
+            .with_max_tokens(12);
+
+        manager.add_user_message("第一条很长的用户消息");
+        manager.add_assistant_message("第一条很长的助手回复");
+        manager.add_user_message("第二条很长的用户消息");
+
+        assert_eq!(manager.messages[0].role, Role::System);
+        assert!(manager.token_count() as usize <= 12 || manager.len() == 1);
+        assert!(manager.len() <= 2);
     }
 
     #[test]

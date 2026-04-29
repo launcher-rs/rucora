@@ -40,7 +40,7 @@
 //! ```
 
 use async_trait::async_trait;
-use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
 use rucora_core::tool::Tool;
@@ -280,7 +280,7 @@ pub struct ReflectAgentBuilder<P> {
     tools: ToolRegistry,
     max_iterations: usize,
     quality_threshold: f32,
-    conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    with_conversation: bool,
     middleware_chain: crate::middleware::MiddlewareChain,
     llm_params: LlmParams,
 }
@@ -295,7 +295,7 @@ impl<P> ReflectAgentBuilder<P> {
             tools: ToolRegistry::new(),
             max_iterations: 3,
             quality_threshold: 0.9,
-            conversation_manager: None,
+            with_conversation: false,
             middleware_chain: crate::middleware::MiddlewareChain::new(),
             llm_params: LlmParams::default(),
         }
@@ -412,15 +412,7 @@ where
 
     /// 启用对话历史管理
     pub fn with_conversation(mut self, enabled: bool) -> Self {
-        if enabled {
-            let mut conv = ConversationManager::new();
-            if let Some(ref prompt) = self.system_prompt {
-                conv = conv.with_system_prompt(prompt.clone());
-            }
-            self.conversation_manager = Some(Arc::new(Mutex::new(conv)));
-        } else {
-            self.conversation_manager = None;
-        }
+        self.with_conversation = enabled;
         self
     }
 
@@ -442,14 +434,23 @@ where
         self
     }
 
-    /// 构建 Agent
-    ///
-    /// # Panics
-    ///
-    /// 如果没有设置 `provider` 或 `model`，此方法会 panic。
-    pub fn build(self) -> ReflectAgent<P> {
-        let provider = self.provider.expect("Provider is required");
-        let model = self.model.expect("Model is required");
+    /// 尝试构建 Agent。
+    pub fn try_build(self) -> Result<ReflectAgent<P>, AgentError> {
+        let provider = self
+            .provider
+            .ok_or_else(|| AgentError::Message("构建 ReflectAgent 失败：缺少 provider".to_string()))?;
+        let model = self
+            .model
+            .ok_or_else(|| AgentError::Message("构建 ReflectAgent 失败：缺少 model".to_string()))?;
+        let conversation_manager = if self.with_conversation {
+            let mut conv = ConversationManager::new();
+            if let Some(ref prompt) = self.system_prompt {
+                conv = conv.with_system_prompt(prompt.clone());
+            }
+            Some(Arc::new(Mutex::new(conv)))
+        } else {
+            None
+        };
 
         // 创建执行能力
         let provider_arc = Arc::new(provider);
@@ -457,21 +458,29 @@ where
             DefaultExecution::new(provider_arc.clone(), model.clone(), self.tools.clone())
                 .with_system_prompt_opt(self.system_prompt.clone())
                 .with_max_steps(self.max_iterations * 2) // 每次迭代需要 2 步
-                .with_conversation_manager(self.conversation_manager.clone())
+                .with_conversation_manager(conversation_manager.clone())
                 .with_middleware_chain(self.middleware_chain)
                 .with_llm_params(self.llm_params.clone());
 
-        ReflectAgent {
+        Ok(ReflectAgent {
             provider: provider_arc,
             model,
             system_prompt: self.system_prompt,
             tools: self.tools,
             max_iterations: self.max_iterations,
             quality_threshold: self.quality_threshold,
-            conversation_manager: self.conversation_manager,
+            conversation_manager,
             llm_params: self.llm_params,
             execution,
-        }
+        })
+    }
+
+    /// 构建 Agent。
+    ///
+    /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    pub fn build(self) -> ReflectAgent<P> {
+        self.try_build()
+            .unwrap_or_else(|err| panic!("ReflectAgentBuilder::build 失败：{err}"))
     }
 }
 

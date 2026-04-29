@@ -41,7 +41,7 @@
 //! ```
 
 use async_trait::async_trait;
-use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, LlmParams};
 use std::sync::Arc;
@@ -306,14 +306,14 @@ where
         self
     }
 
-    /// 构建 Agent
-    ///
-    /// # Panics
-    ///
-    /// 如果没有设置 `provider` 或 `model`，此方法会 panic。
-    pub fn build(self) -> ChatAgent<P> {
-        let provider = self.provider.expect("Provider is required");
-        let model = self.model.expect("Model is required");
+    /// 尝试构建 Agent。
+    pub fn try_build(self) -> Result<ChatAgent<P>, AgentError> {
+        let provider = self
+            .provider
+            .ok_or_else(|| AgentError::Message("构建 ChatAgent 失败：缺少 provider".to_string()))?;
+        let model = self
+            .model
+            .ok_or_else(|| AgentError::Message("构建 ChatAgent 失败：缺少 model".to_string()))?;
 
         // 创建对话管理器
         let conversation_manager = if self.with_conversation {
@@ -341,14 +341,22 @@ where
         .with_middleware_chain(self.middleware_chain)
         .with_llm_params(self.llm_params.clone());
 
-        ChatAgent {
+        Ok(ChatAgent {
             provider: provider_arc,
             model,
             system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             conversation_manager,
             execution,
-        }
+        })
+    }
+
+    /// 构建 Agent。
+    ///
+    /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    pub fn build(self) -> ChatAgent<P> {
+        self.try_build()
+            .unwrap_or_else(|err| panic!("ChatAgentBuilder::build 失败：{err}"))
     }
 }
 

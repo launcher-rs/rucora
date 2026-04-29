@@ -139,7 +139,7 @@ fn build_research_engine(
         .register(BrowseTool::new());
 
     if let Some(tavily_keys) = &config.tavily_keys {
-        search_registry = search_registry.register(TavilyTool::with_keys(tavily_keys.clone()));
+        search_registry = search_registry.register(TavilyTool::with_keys(tavily_keys.clone())?);
         info!("✓ Tavily 搜索工具已启用");
     } else {
         info!("⚠ 未配置 Tavily Key，使用 Browse + WebFetch 作为搜索替代");
