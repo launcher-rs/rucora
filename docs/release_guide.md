@@ -51,7 +51,7 @@ cargo-release 会自动解析依赖顺序并发布所有 crate。
 # 模拟发布（不实际推送，验证配置是否正确）
 cargo release --workspace --dry-run
 
-# 实际发布（使用 crates.io registry）
+# 模拟发布（使用 crates.io registry）
 cargo release --workspace --registry crates-io
 ```
 
