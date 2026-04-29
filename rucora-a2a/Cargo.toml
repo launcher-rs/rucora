@@ -12,7 +12,7 @@ keywords.workspace = true
 categories.workspace = true
 
 [dependencies]
-rucora-core = { path = "../rucora-core", version = "0.1" }
+rucora-core = { path = "../rucora-core", version = "0.1.2" }
 ra2a = { version = "0.9", default-features = false, features = ["client", "server"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }

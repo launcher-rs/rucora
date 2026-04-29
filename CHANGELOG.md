@@ -4,6 +4,52 @@
 
 ---
 
+## [0.1.2] - 2026-04-29
+
+### API 改进
+
+**简化 Extractor 泛型用法**
+
+- `Extractor<P, T>` 调整为对外只暴露目标类型 `T`
+- 创建方式从 `Extractor::<_, T>::builder(...)` 简化为 `Extractor::<T>::builder(...)`
+- 为 `Box<T>` / `Arc<T>` 补充 `LlmProvider` 转发实现，支持内部类型擦除
+
+### 行为修复
+
+**修复对话历史与 Agent 构建行为不一致的问题**
+
+- 统一 `ChatAgent`、`ToolAgent`、`ReActAgent`、`ReflectAgent` 的 `with_conversation(true)` 语义，避免调用顺序影响最终行为
+- 修复启用 `ConversationManager` 时 system prompt 可能重复注入的问题
+- 为各类 Agent builder 增加 `try_build()`，提供显式错误返回入口
+
+**补全 ConversationManager token 限制**
+
+- 实现 `with_max_tokens(...)` 的实际裁剪逻辑
+- 修复 `clear()`、`from_json()`、系统提示词注入后的 token 计数
+- 新增对应回归测试，确保 token 限制真实生效
+
+**统一工具构造错误边界**
+
+- `SerpapiTool::with_keys(...)`
+- `TavilyTool::with_keys(...)`
+- `rucora_tools::web::search` 中同类 `with_keys(...)`
+
+以上接口改为返回 `Result`，空 key 不再直接 panic
+
+**修复 Extractor 重试错误语义**
+
+- `ExtractionError::MaxRetriesExceeded` 现在会在配置重试且所有尝试失败时真实返回
+
+### 文档更新
+
+**同步文档到当前 API 行为**
+
+- 重写自动对话历史文档，纠正过时的 builder 示例
+- 补充发布与版本管理文档，说明 workspace 统一版本下的 crates.io 发布策略
+- 修正文档中漏写 `model(...)` 或仍使用旧接口的示例
+
+---
+
 ## [0.1.1] - 2026-04-29
 
 ### Extractor 修复

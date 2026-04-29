@@ -18,7 +18,7 @@ ollama = []
 all = ["openai", "ollama"]
 
 [dependencies]
-rucora-core = { path = "../rucora-core", version = "0.1" }
+rucora-core = { path = "../rucora-core", version = "0.1.2" }
 async-trait = "0.1"
 reqwest = { version = "0.13", features = ["json"] }
 serde = { version = "1", features = ["derive"] }

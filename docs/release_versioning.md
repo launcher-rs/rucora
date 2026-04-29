@@ -117,13 +117,21 @@ version = "0.2.0"
 
 但这里有一个额外动作不能漏：
 
-当前很多 crate 之间的内部依赖仍然写成：
+当前很多 crate 之间的内部依赖应该显式写到当前最小需要版本，例如：
 
 ```toml
-rucora-core = { path = "../rucora-core", version = "0.1" }
+rucora-core = { path = "../rucora-core", version = "0.1.2" }
 ```
 
-因此当 workspace 从 `0.1.x` 升到 `0.2.0` 时，**这些内部依赖约束也必须一起改成 `0.2`**，否则发布后的 crate 依赖关系会不一致。
+不要只写成过宽的：
+
+```toml
+version = "0.1"
+```
+
+因为这会让发布校验阶段解析到 crates.io 上已存在的旧 patch 版本。
+
+因此当 workspace 从 `0.1.2` 升到 `0.2.0` 时，**这些内部依赖约束也必须一起改成当前目标版本线**，否则发布后的 crate 依赖关系会不一致。
 
 也就是说，breaking 升级时至少要做两件事：
 
@@ -133,9 +141,9 @@ rucora-core = { path = "../rucora-core", version = "0.1" }
 例如：
 
 ```toml
-rucora-core = { path = "../rucora-core", version = "0.2" }
-rucora-tools = { path = "../rucora-tools", version = "0.2" }
-rucora-providers = { path = "../rucora-providers", version = "0.2" }
+rucora-core = { path = "../rucora-core", version = "0.2.0" }
+rucora-tools = { path = "../rucora-tools", version = "0.2.0" }
+rucora-providers = { path = "../rucora-providers", version = "0.2.0" }
 ```
 
 ---
@@ -249,16 +257,16 @@ version = "0.2.0"
 
 ### 2. 如果是 breaking 升级，批量修改内部依赖版本
 
-把所有内部依赖里的：
+把所有内部依赖里的旧版本约束：
 
 ```toml
-version = "0.1"
+version = "0.1.2"
 ```
 
 改成：
 
 ```toml
-version = "0.2"
+version = "0.2.0"
 ```
 
 ### 3. 更新锁文件并检查
@@ -319,7 +327,7 @@ cargo publish -p rucora-core --registry crates-io --dry-run
 
 ## 八、后续可选优化
 
-如果以后你觉得“每次 breaking 都要手改很多 `version = "0.1"` 很烦”，可以考虑把内部依赖进一步集中到 workspace 里管理，例如使用 `workspace.dependencies` 做统一声明。
+如果以后你觉得“每次升级都要手改很多内部依赖版本很烦”，可以考虑把内部依赖进一步集中到 workspace 里管理，例如使用 `workspace.dependencies` 做统一声明。
 
 这样做的收益是：
 
