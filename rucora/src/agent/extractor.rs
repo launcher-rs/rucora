@@ -615,9 +615,9 @@ where
     }
 
     fn input_schema(&self) -> serde_json::Value {
-        // 生成 T 的 JSON Schema
+        // 生成 T 的 JSON Schema (schemars 1.x 的 Schema 直接实现了 Serialize)
         let schema = schema_for!(T);
-        json!(schema.schema)
+        serde_json::to_value(&schema).unwrap_or_else(|_| json!({}))
     }
 
     async fn call(

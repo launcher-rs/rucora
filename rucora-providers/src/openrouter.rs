@@ -69,6 +69,7 @@ pub const OPENROUTER_DEFAULT_MODEL: &str = "anthropic/claude-3-5-sonnet";
 /// | `OPENROUTER_SITE_URL` | 网站 URL（可选） | `https://your-app.com` |
 /// | `OPENROUTER_SITE_NAME` | 网站名称（可选） | `Your App` |
 /// | `OPENROUTER_DEFAULT_MODEL` | 默认模型 | `anthropic/claude-3-5-sonnet` |
+#[derive(Clone)]
 pub struct OpenRouterProvider {
     client: reqwest::Client,
     base_url: String,

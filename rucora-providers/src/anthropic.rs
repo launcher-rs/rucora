@@ -67,6 +67,7 @@ pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-3-5-sonnet-20241022";
 /// | `ANTHROPIC_API_KEY` | Anthropic API Key | `sk-ant-...` |
 /// | `ANTHROPIC_BASE_URL` | Anthropic Base URL | `https://api.anthropic.com/v1` |
 /// | `ANTHROPIC_DEFAULT_MODEL` | 默认模型 | `claude-3-5-sonnet-20241022` |
+#[derive(Clone)]
 pub struct AnthropicProvider {
     client: reqwest::Client,
     base_url: String,

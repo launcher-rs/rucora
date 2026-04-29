@@ -64,6 +64,7 @@ pub const MOONSHOT_DEFAULT_MODEL: &str = "moonshot-v1-8k";
 /// | `MOONSHOT_API_KEY` | Moonshot API Key | `sk-...` |
 /// | `MOONSHOT_BASE_URL` | Moonshot Base URL | `https://api.moonshot.cn/v1` |
 /// | `MOONSHOT_DEFAULT_MODEL` | 默认模型 | `moonshot-v1-8k` |
+#[derive(Clone)]
 pub struct MoonshotProvider {
     client: reqwest::Client,
     base_url: String,

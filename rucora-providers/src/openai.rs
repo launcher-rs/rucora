@@ -59,6 +59,7 @@ const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
 /// # Ok(())
 /// # }
 /// ```
+#[derive(Clone)]
 pub struct OpenAiProvider {
     client: reqwest::Client,
     base_url: String,

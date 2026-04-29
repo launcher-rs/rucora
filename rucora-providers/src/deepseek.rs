@@ -63,6 +63,7 @@ pub const DEEPSEEK_DEFAULT_MODEL: &str = "deepseek-chat";
 /// | `DEEPSEEK_API_KEY` | DeepSeek API Key | `sk-...` |
 /// | `DEEPSEEK_BASE_URL` | DeepSeek Base URL | `https://api.deepseek.com/v1` |
 /// | `DEEPSEEK_DEFAULT_MODEL` | 默认模型 | `deepseek-chat` |
+#[derive(Clone)]
 pub struct DeepSeekProvider {
     client: reqwest::Client,
     base_url: String,

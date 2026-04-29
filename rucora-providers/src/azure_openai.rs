@@ -71,6 +71,7 @@ pub const AZURE_OPENAI_DEFAULT_DEPLOYMENT: &str = "gpt-4";
 /// | `AZURE_OPENAI_DEPLOYMENT_ID` | 默认 Deployment ID | `gpt-4` |
 /// | `AZURE_OPENAI_DEFAULT_DEPLOYMENT` | 默认 Deployment ID（优先级高于 `AZURE_OPENAI_DEPLOYMENT_ID`） | `gpt-4` |
 /// | `AZURE_OPENAI_API_VERSION` | API 版本 | `2024-02-15-preview` |
+#[derive(Clone)]
 pub struct AzureOpenAiProvider {
     client: reqwest::Client,
     endpoint: String,

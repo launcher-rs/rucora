@@ -73,6 +73,7 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-1.5-flash";
 /// 1. 手动设置：通过 `with_default_model()` 方法设置
 /// 2. 环境变量：从 `GEMINI_DEFAULT_MODEL` 环境变量读取
 /// 3. 内置默认值：`gemini-1.5-flash`
+#[derive(Clone)]
 pub struct GeminiProvider {
     client: reqwest::Client,
     base_url: String,

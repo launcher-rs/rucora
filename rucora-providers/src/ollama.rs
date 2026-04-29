@@ -38,6 +38,7 @@ pub const OLLAMA_DEFAULT_MODEL: &str = "llama3.1:8b";
 /// |--------|------|------|
 /// | `OLLAMA_BASE_URL` | Ollama Base URL | `http://localhost:11434` |
 /// | `OLLAMA_DEFAULT_MODEL` | 默认模型 | `llama3.1:8b` |
+#[derive(Clone)]
 pub struct OllamaProvider {
     client: reqwest::Client,
     base_url: String,
@@ -264,12 +265,14 @@ impl LlmProvider for OllamaProvider {
                     .filter_map(|tc| {
                         let function = tc.get("function")?;
                         let name = function.get("name")?.as_str()?.to_string();
-                        let arguments = function
-                            .get("arguments")
-                            .and_then(|a| a.as_str())
-                            .unwrap_or("{}");
-                        let input: Value = serde_json::from_str(arguments)
-                            .unwrap_or_else(|_| json!({"_raw": arguments}));
+                        // Ollama 可能返回 JSON 对象或 JSON 字符串格式的 arguments
+                        let input = match function.get("arguments") {
+                            Some(Value::Object(_)) => function.get("arguments").unwrap().clone(),
+                            Some(Value::String(s)) => {
+                                serde_json::from_str(s).unwrap_or_else(|_| json!({"_raw": s}))
+                            }
+                            _ => json!({}),
+                        };
                         let id = tc
                             .get("id")
                             .and_then(|v| v.as_str())
