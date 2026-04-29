@@ -37,7 +37,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! // 创建 Extractor
-//! let extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini")
+//! let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
 //!     .build();
 //!
 //! // 提取结构化数据
@@ -69,7 +69,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini")
+//! let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
 //!     .build();
 //!
 //! let response = extractor.extract_with_usage("Jane Smith 是数据科学家")
@@ -100,7 +100,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini")
+//! let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
 //!     .preamble("只提取明确提到的信息，不要推测。")
 //!     .retries(3)
 //!     .build();
@@ -162,23 +162,20 @@ pub enum ExtractionError {
 ///
 /// # 类型参数
 ///
-/// - `P`: LLM Provider 类型
 /// - `T`: 目标数据结构类型，必须实现 `JsonSchema`、`Deserialize`、`Serialize`
-pub struct Extractor<P, T>
+pub struct Extractor<T>
 where
-    P: LlmProvider + Send + Sync + 'static,
     T: JsonSchema + for<'a> Deserialize<'a> + Serialize + Send + Sync + 'static,
 {
-    agent: ToolAgent<P>,
+    agent: ToolAgent<Box<dyn LlmProvider>>,
     _t: PhantomData<T>,
     retries: u32,
     /// LLM 请求参数
     llm_params: LlmParams,
 }
 
-impl<P, T> Extractor<P, T>
+impl<T> Extractor<T>
 where
-    P: LlmProvider + Send + Sync + 'static,
     T: JsonSchema + for<'a> Deserialize<'a> + Serialize + Send + Sync + 'static,
 {
     /// 创建 Extractor 构建器
@@ -187,7 +184,10 @@ where
     ///
     /// - `provider`: LLM Provider
     /// - `model`: 模型名称
-    pub fn builder(provider: P, model: impl Into<String>) -> ExtractorBuilder<P, T> {
+    pub fn builder<P>(provider: P, model: impl Into<String>) -> ExtractorBuilder<T>
+    where
+        P: LlmProvider + Send + Sync + 'static,
+    {
         ExtractorBuilder::new(provider, model)
     }
 
@@ -217,7 +217,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let provider = OpenAiProvider::from_env()?;
-    /// let extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini").build();
+    /// let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini").build();
     ///
     /// let person = extractor.extract("John Doe 是 30 岁").await?;
     /// # Ok(())
@@ -402,18 +402,17 @@ where
     }
 
     /// 获取内部的 Agent 引用
-    pub fn agent(&self) -> &ToolAgent<P> {
+    pub fn agent(&self) -> &ToolAgent<Box<dyn LlmProvider>> {
         &self.agent
     }
 }
 
 /// Extractor 构建器
-pub struct ExtractorBuilder<P, T>
+pub struct ExtractorBuilder<T>
 where
-    P: LlmProvider + Send + Sync + 'static,
     T: JsonSchema + for<'a> Deserialize<'a> + Serialize + Send + Sync + 'static,
 {
-    provider: P,
+    provider: Box<dyn LlmProvider>,
     model: String,
     _t: PhantomData<T>,
     retries: u32,
@@ -422,15 +421,17 @@ where
     llm_params: LlmParams,
 }
 
-impl<P, T> ExtractorBuilder<P, T>
+impl<T> ExtractorBuilder<T>
 where
-    P: LlmProvider + Send + Sync + 'static,
     T: JsonSchema + for<'a> Deserialize<'a> + Serialize + Send + Sync + 'static,
 {
     /// 创建新的构建器
-    fn new(provider: P, model: impl Into<String>) -> Self {
+    fn new<P>(provider: P, model: impl Into<String>) -> Self
+    where
+        P: LlmProvider + Send + Sync + 'static,
+    {
         Self {
-            provider,
+            provider: Box::new(provider),
             model: model.into(),
             preamble: None,
             retries: 0,
@@ -478,7 +479,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let provider = OpenAiProvider::from_env()?;
-    /// let extractor = Extractor::<_, Person>::builder(provider, "gpt-4o-mini")
+    /// let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
     ///     .llm_params(LlmParams::new().temperature(0.1).max_tokens(1024))
     ///     .build();
     /// # Ok(())
@@ -534,7 +535,7 @@ where
     /// # 返回
     ///
     /// 返回配置好的 [`Extractor`] 实例
-    pub fn build(self) -> Extractor<P, T> {
+    pub fn build(self) -> Extractor<T> {
         // 构建系统提示词
         let mut system_prompt = String::from(
             "你是一个 AI 助手，用于从文本中提取结构化数据。\n\

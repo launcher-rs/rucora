@@ -1,5 +1,6 @@
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
+use std::sync::Arc;
 
 use crate::{
     error::ProviderError,
@@ -29,5 +30,39 @@ pub trait LlmProvider: Send + Sync {
         Err(ProviderError::Message(
             "stream_chat not supported".to_string(),
         ))
+    }
+}
+
+#[async_trait]
+impl<T> LlmProvider for Box<T>
+where
+    T: LlmProvider + ?Sized,
+{
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        (**self).chat(request).await
+    }
+
+    fn stream_chat(
+        &self,
+        request: ChatRequest,
+    ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
+        (**self).stream_chat(request)
+    }
+}
+
+#[async_trait]
+impl<T> LlmProvider for Arc<T>
+where
+    T: LlmProvider + ?Sized,
+{
+    async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
+        (**self).chat(request).await
+    }
+
+    fn stream_chat(
+        &self,
+        request: ChatRequest,
+    ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
+        (**self).stream_chat(request)
     }
 }

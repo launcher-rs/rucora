@@ -66,7 +66,7 @@ async fn main() -> anyhow::Result<()> {
     info!("示例 1: 提取人物信息");
     info!("═══════════════════════════════════════\n");
 
-    let person_extractor = Extractor::<_, Person>::builder(provider, model_name)
+    let person_extractor = Extractor::<Person>::builder(provider, model_name)
         .preamble("只提取明确提到的信息，不要推测。")
         .retries(2)
         .build();
