@@ -39,6 +39,7 @@
 | [内存指南](memory_guide.md) | 内存系统使用 |
 | [中间件指南](middleware_guide.md) | 中间件开发 |
 | [自动对话](agent_auto_conversation.md) | 自动对话功能 |
+| [发布与版本管理](release_versioning.md) | crates.io 发布与版本策略 |
 
 ### 其他
 
