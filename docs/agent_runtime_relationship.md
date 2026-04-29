@@ -162,6 +162,7 @@ pub enum AgentDecision {
 // 使用 Agent 独立运行
 let agent = DefaultAgent::builder()
     .provider(provider)
+    .model("qwen3.5:9b")
     .build();
 
 let response = agent.run("你好").await?;
@@ -174,6 +175,7 @@ let response = agent.run("你好").await?;
 // 使用 Agent + Runtime
 let agent = DefaultAgent::builder()
     .provider(provider.clone())
+    .model("qwen3.5:9b")
     .build();
 
 let runtime = DefaultRuntime::new(provider, tools)

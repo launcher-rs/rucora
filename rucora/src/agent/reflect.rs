@@ -32,7 +32,7 @@
 //!     .tool(FileWriteTool)
 //!     .max_iterations(3)
 //!     .quality_threshold(0.9)
-//!     .build();
+//!     .try_build()?;
 //!
 //! let output = agent.run("帮我写一个快速排序算法，要求有详细注释").await?;
 //! # Ok(())
@@ -478,6 +478,7 @@ where
     /// 构建 Agent。
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
     pub fn build(self) -> ReflectAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("ReflectAgentBuilder::build 失败：{err}"))

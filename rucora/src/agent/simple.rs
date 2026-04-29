@@ -25,7 +25,7 @@
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是一个翻译助手")
 //!     .temperature(0.3)
-//!     .build();
+//!     .try_build()?;
 //!
 //! let output = agent.run("把'Hello'翻译成中文").await?;
 //! println!("{}", output.text().unwrap_or("无回复"));
@@ -288,6 +288,7 @@ where
     /// 构建 Agent。
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
     pub fn build(self) -> SimpleAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("SimpleAgentBuilder::build 失败：{err}"))

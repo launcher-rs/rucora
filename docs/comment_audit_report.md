@@ -195,7 +195,6 @@
 
 | 文件 | 行号 | 问题 |
 |------|------|------|
-| rucora/src/conversation.rs | 274-276 | TODO 注释表示 token 限制检查未实现 |
 | rucora/src/prompt.rs | 485 | 注释说"需要添加 regex 依赖"，如已添加应删除 |
 | rucora-skills/src/cache.rs | 144 | 注释标注"简化实现，实际应该调用 loader" |
 | rucora-providers/src/lib.rs | 25 | `preview` 函数注释"预览函数"过于模糊 |

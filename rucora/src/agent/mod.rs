@@ -59,7 +59,7 @@
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是一个翻译助手")
 //!     .temperature(0.3)
-//!     .build();
+//!     .try_build()?;
 //!
 //! let output = agent.run("把'Hello'翻译成中文").await?;
 //! # Ok(())
@@ -80,7 +80,7 @@
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是友好的助手")
 //!     .with_conversation(true)
-//!     .build();
+//!     .try_build()?;
 //!
 //! agent.run("你好").await?;
 //! agent.run("今天天气怎么样？").await?;
@@ -103,7 +103,7 @@
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
 //!     .tool(ShellTool)
-//!     .build();
+//!     .try_build()?;
 //!
 //! let output = agent.run("帮我列出当前目录的文件").await?;
 //! # Ok(())
@@ -125,7 +125,7 @@
 //!     .model("gpt-4o-mini")
 //!     .tools(vec![ShellTool, FileReadTool])
 //!     .max_steps(15)
-//!     .build();
+//!     .try_build()?;
 //!
 //! let output = agent.run("帮我分析这个项目的代码结构").await?;
 //! # Ok(())
@@ -147,7 +147,7 @@
 //!     .model("gpt-4o-mini")
 //!     .tool(FileWriteTool)
 //!     .max_iterations(3)
-//!     .build();
+//!     .try_build()?;
 //!
 //! let output = agent.run("帮我写一个快速排序算法").await?;
 //! # Ok(())

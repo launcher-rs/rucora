@@ -188,7 +188,7 @@ let agent = DefaultAgent::builder()
     .provider(provider)
     .model("gpt-4o-mini")
     .with_conversation(true)  // 启用对话历史
-    .with_max_messages(20)    // 保留最近 20 条消息
+    .max_history_messages(20) // 保留最近 20 条消息
     .build();
 ```
 

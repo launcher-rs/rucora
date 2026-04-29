@@ -26,7 +26,7 @@
 //!     .system_prompt("你是友好的心理咨询助手")
 //!     .with_conversation(true)  // 启用对话历史
 //!     .max_history_messages(20) // 保留最近 20 条消息
-//!     .build();
+//!     .try_build()?;
 //!
 //! // 第一轮
 //! agent.run("我今天心情不好").await?;
@@ -354,6 +354,7 @@ where
     /// 构建 Agent。
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
     pub fn build(self) -> ChatAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("ChatAgentBuilder::build 失败：{err}"))

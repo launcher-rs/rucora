@@ -154,6 +154,7 @@ pub enum ExtractionError {
     #[error("LLM 调用失败：{0}")]
     LlmError(String),
 
+    /// 当配置了重试次数且所有尝试都失败时返回。
     #[error("达到最大重试次数")]
     MaxRetriesExceeded,
 }

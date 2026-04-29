@@ -946,11 +946,13 @@ let chain = MiddlewareChain::new()
     .with(LoggingMiddleware::new());
 let agent = ToolAgent::builder()
     .provider(provider)
+    .model("gpt-4o-mini")
     .build();  // 忘记添加 with_middleware_chain()
 
 // ✅ 正确
 let agent = ToolAgent::builder()
     .provider(provider)
+    .model("gpt-4o-mini")
     .with_middleware_chain(chain)
     .build();
 ```

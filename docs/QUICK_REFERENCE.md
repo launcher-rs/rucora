@@ -125,6 +125,7 @@ use rucora_runtime::{DefaultRuntime, ToolRegistry};
 // 创建 Agent
 let agent = DefaultAgent::builder()
     .provider(provider)
+    .model("gpt-4o-mini")
     .build();
 
 // 创建 Runtime（带工具）
@@ -390,8 +391,8 @@ let provider = Arc::new(OpenAiProvider::from_env()?);
 
 // 多个 Agent 共享
 use rucora::agent::DefaultAgent;
-let agent1 = DefaultAgent::builder().provider(provider.clone()).build();
-let agent2 = DefaultAgent::builder().provider(provider.clone()).build();
+let agent1 = DefaultAgent::builder().provider(provider.clone()).model("gpt-4o-mini").build();
+let agent2 = DefaultAgent::builder().provider(provider.clone()).model("gpt-4o-mini").build();
 ```
 
 ### 4. 性能优化

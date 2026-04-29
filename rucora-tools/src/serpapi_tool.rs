@@ -32,7 +32,9 @@ impl SerpapiTool {
         }
     }
 
-    /// 创建带多个 API Keys 的 SerpAPI 工具
+    /// 创建带多个 API Keys 的 SerpAPI 工具。
+    ///
+    /// 当 `api_keys` 为空时返回错误，而不是 panic。
     pub fn with_keys(api_keys: Vec<String>) -> Result<Self, ToolError> {
         if api_keys.is_empty() {
             return Err(ToolError::Message("API Keys 不能为空".to_string()));

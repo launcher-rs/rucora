@@ -30,7 +30,7 @@
 //!     .system_prompt("你是一个善于推理的助手")
 //!     .tools(vec![ShellTool, FileReadTool, HttpTool])
 //!     .max_steps(15)
-//!     .build();
+//!     .try_build()?;
 //!
 //! // 复杂任务：先分析，再分步执行
 //! let output = agent.run("帮我分析这个项目的代码结构，找出所有 Rust 文件并统计行数").await?;
@@ -417,6 +417,7 @@ where
     /// 构建 Agent。
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
     pub fn build(self) -> ReActAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("ReActAgentBuilder::build 失败：{err}"))
