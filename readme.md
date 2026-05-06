@@ -2,7 +2,8 @@
 
 > 用 Rust 编写的高性能、类型安全的 LLM 应用开发框架
 
-[![Documentation](https://img.shields.io/crates/v/rucora.svg?color=dca282)](https://docs.rs/rucora/latest/rucora/)
+[![crate](https://img.shields.io/crates/v/rucora.svg?color=dca282)](https://crates.io/crates/rucora)
+[![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://docs.rs/rucora/latest/rucora/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![star](https://img.shields.io/github/stars/launcher-rs/rucora?style=social)](https://github.com/launcher-rs/rucora)
 
