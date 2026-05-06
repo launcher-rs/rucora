@@ -23,25 +23,16 @@
 //! anyhow = "1"
 //! ```
 //!
-//! ### 2. 设置环境变量
-//!
-//! ```bash
-//! # 使用 OpenAI
-//! export OPENAI_API_KEY=sk-your-key
-//!
-//! # 或使用 Ollama（本地）
-//! export OPENAI_BASE_URL=http://localhost:11434
-//! ```
-//!
-//! ### 3. 编写代码
+//! ### 2. 编写代码
 //!
 //! ```rust,no_run
 //! use rucora::provider::OpenAiProvider;
 //! use rucora::agent::DefaultAgent;
+//! use rucora::prelude::Agent;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
-//!     let provider = OpenAiProvider::from_env()?;
+//!     let provider = OpenAiProvider::new("https://api.openai.com/v1","sk-*******************");
 //!     
 //!     let agent = DefaultAgent::builder()
 //!         .provider(provider)
@@ -49,7 +40,7 @@
 //!         .system_prompt("你是有用的助手")
 //!         .build();
 //!     
-//!     let output = agent.run("你好").await?;
+//!     let output = agent.run("你好".into()).await?;
 //!     println!("{}", output.text().unwrap_or("无回复"));
 //!     
 //!     Ok(())
@@ -77,7 +68,7 @@
 //!     .system_prompt("你是有用的助手")
 //!     .build();
 //!
-//! let output = agent.run("北京天气怎么样？").await?;
+//! let output = agent.run("北京天气怎么样？".into()).await?;
 //! ```
 //!
 //! ### Tool（工具）
@@ -91,77 +82,10 @@
 //! let agent = DefaultAgent::builder()
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
-//!     .tool(ShellTool)
-//!     .tool(FileReadTool)
+//!      .tool(ShellTool::new())
+//!      .tool(FileReadTool::new())
 //!     .build();
 //! ```
-//!
-//! ### Skill（技能）
-//!
-//! 技能是可配置的自动化任务，通过配置文件定义。
-//!
-//! ```rust,no_run
-//! use rucora::skills::{SkillLoader, skills_to_tools, SkillExecutor};
-//! use std::sync::Arc;
-//!
-//! // 加载 Skills
-//! let mut loader = SkillLoader::new("skills/");
-//! let skills = loader.load_from_dir().await?;
-//!
-//! // 转换为 Tools
-//! let executor = Arc::new(SkillExecutor::new());
-//! let tools = skills_to_tools(&skills, executor, skills_dir);
-//!
-//! // 注册到 Agent
-//! let agent = DefaultAgent::builder()
-//!     .provider(provider)
-//!     .tools(tools)
-//!     .build();
-//! ```
-//!
-//! ## 学习路径
-//!
-//! ### 新手
-//! 1. 运行 [Hello World](#快速开始) 示例
-//! 2. 阅读 [快速开始](docs/quick_start.md)
-//! 3. 查看 [用户指南](docs/user_guide.md)
-//! 4. 参考 [示例集合](docs/cookbook.md)
-//!
-//! ### 开发者
-//! 1. 阅读 [设计文档](docs/design.md)
-//! 2. 学习 [Agent 与 Runtime](docs/agent_runtime_relationship.md)
-//! 3. 参考 [快速参考](docs/QUICK_REFERENCE.md)
-//!
-//! ### 技能开发者
-//! 1. 阅读 [Skill 配置规范](docs/skill_yaml_spec.md)
-//! 2. 参考 [Skill 配置示例](docs/skill_yaml_examples.md)
-//!
-//! ## 项目结构
-//!
-//! ```text
-//! rucora
-//! ├── core          - 核心抽象层（重新导出 rucora-core）
-//! ├── runtime       - 运行时（重新导出 rucora-runtime，需要 `runtime` feature）
-//! ├── agent         - Agent 实现（增强的 DefaultAgent，支持 Tools/MCP/A2A/Skills）
-//! ├── provider      - LLM Provider 实现（OpenAI/Ollama/Router）
-//! ├── tools         - 工具实现（Shell/File/HTTP/Git/Memory）
-//! ├── skills        - 技能实现（Echo/Command）
-//! ├── mcp           - MCP 协议集成（需要 `mcp` feature）
-//! ├── a2a           - A2A 协议集成（需要 `a2a` feature）
-//! ├── memory        - 记忆实现（InMemory/File）
-//! ├── retrieval     - 检索实现（Chroma）
-//! ├── embed         - Embedding 实现（OpenAI/Ollama）
-//! ├── rag           - RAG 管线（Chunking/Indexing/Retrieval）
-//! ├── conversation  - 对话历史管理
-//! └── config        - 统一配置系统
-//! ```
-//!
-//! ## 相关文档
-//!
-//! - [完整文档](docs/README.md)
-//! - [示例集合](docs/cookbook.md)
-//! - [常见问题](docs/faq.md)
-//! - [更新日志](docs/CHANGELOG.md)
 
 // ===== 模块导出 =====
 
