@@ -216,6 +216,10 @@ impl ResilientProvider {
 
     /// 判断错误是否可重试
     fn should_retry(&self, error: &ProviderError, attempt: usize) -> bool {
+        if error.is_retriable() {
+            return true;
+        }
+
         let msg = error.to_string();
         let category = ErrorCategory::from_error_message(&msg);
 

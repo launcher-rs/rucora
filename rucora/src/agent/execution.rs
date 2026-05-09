@@ -419,12 +419,12 @@ impl DefaultExecution {
     }
 
     /// 构建初始消息列表
-    pub(crate) fn build_messages(&self, input: &AgentInput) -> Vec<ChatMessage> {
+    pub(crate) async fn build_messages(&self, input: &AgentInput) -> Vec<ChatMessage> {
         let mut messages = Vec::new();
 
         // 如果启用了对话历史，从历史中获取消息
         if let Some(ref conv_arc) = self.conversation_manager {
-            let conv = futures_executor::block_on(conv_arc.lock());
+            let conv = conv_arc.lock().await;
             messages.extend(conv.get_messages().to_vec());
         } else if let Some(ref prompt) = self.system_prompt {
             // 未启用对话历史时，由执行器负责注入系统提示词
@@ -494,7 +494,7 @@ impl DefaultExecution {
             .await
             .map_err(|e| AgentError::Message(format!("中间件处理失败：{e}")))?;
 
-        let mut messages = self.build_messages(&input);
+        let mut messages = self.build_messages(&input).await;
         let mut tool_call_records = Vec::new();
         let mut step = 0;
         let mut total_usage: Option<Usage> = None;

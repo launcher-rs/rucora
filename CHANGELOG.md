@@ -4,6 +4,43 @@
 
 ---
 
+## [0.1.3] - 2026-05-09
+
+### 安全修复
+
+**收紧工具执行边界**
+
+- `ShellTool` 不再将参数拼接成 shell 字符串执行，改为直接通过 `Command::new(...).args(...)` 传参，降低参数注入风险
+- `CmdExecTool` 修复命令白名单前缀误判，并同步使用更安全的命令执行路径
+- 文件工具的 `allowed_dirs` 校验改为基于 canonical path，避免写入路径通过父目录关系绕过限制
+- Web/HTTP 工具新增共享 URL 安全校验，拒绝 localhost、私网、链路本地地址，并在 DNS 解析后再次检查目标地址
+- `WebFetchTool` 增加响应体大小限制，并禁用自动重定向，避免重定向绕过访问控制
+
+### 行为修复
+
+**修复可选 feature 与异步执行问题**
+
+- 修复 `rucora --no-default-features` 下 `prelude` 无条件导出 provider 类型导致的编译失败
+- 移除 Agent 执行路径中异步上下文里的同步 `block_on`，改为真正异步获取对话历史
+- OpenAI 流式响应补充 tool call 增量累积解析，使 streaming 模式可以收到完整工具调用
+
+### Provider 改进
+
+**改进错误分类与重试语义**
+
+- OpenAI/Ollama provider 将网络、超时、HTTP 状态码错误映射为结构化 `ProviderError`
+- `ResilientProvider` 优先使用结构化错误的 `is_retriable()` 结果，再回退到字符串分类
+- 修复 Ollama tool call arguments 解析中的不必要 `unwrap`
+
+### 文档与测试
+
+**修复 provider 文档示例**
+
+- 修正 `rucora-providers` doctest 中错误引用聚合 crate 路径的问题
+- 更新 provider 示例中的旧构造函数调用，保证 doctest 可编译
+
+---
+
 ## [0.1.2] - 2026-04-29
 
 ### API 改进

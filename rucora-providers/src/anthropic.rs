@@ -45,14 +45,14 @@ pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-3-5-sonnet-20241022";
 /// # 使用示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::AnthropicProvider;
+/// use rucora_providers::AnthropicProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 从环境变量加载（包括 ANTHROPIC_DEFAULT_MODEL）
 /// let provider = AnthropicProvider::from_env()?;
 ///
 /// // 或手动配置（使用内置默认模型）
-/// let provider = AnthropicProvider::new("sk-ant-...");
+/// let provider = AnthropicProvider::with_api_key("sk-ant-...");
 ///
 /// // 使用特定模型（手动设置优先级最高）
 /// let provider = provider.with_default_model("claude-3-opus-20240229");

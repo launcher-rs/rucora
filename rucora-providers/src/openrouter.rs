@@ -45,14 +45,14 @@ pub const OPENROUTER_DEFAULT_MODEL: &str = "anthropic/claude-3-5-sonnet";
 /// # 使用示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::OpenRouterProvider;
+/// use rucora_providers::OpenRouterProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 从环境变量加载
 /// let provider = OpenRouterProvider::from_env()?;
 ///
 /// // 或手动配置
-/// let provider = OpenRouterProvider::new("sk-or-...");
+/// let provider = OpenRouterProvider::with_api_key("sk-or-...");
 ///
 /// // 使用特定模型
 /// let provider = provider.with_default_model("anthropic/claude-3.5-sonnet");

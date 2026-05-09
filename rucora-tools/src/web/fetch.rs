@@ -10,6 +10,11 @@ use rucora_core::{
 use serde_json::{Value, json};
 use std::time::Duration;
 
+use super::security::validate_public_http_url;
+
+/// 最大响应体大小（字节）
+const MAX_RESPONSE_SIZE: usize = 5 * 1024 * 1024;
+
 /// 网页获取工具：获取网页内容。
 ///
 /// 使用 HTTP 请求获取网页的 HTML 内容，支持超时设置。
@@ -82,16 +87,12 @@ impl Tool for WebFetchTool {
 
         let timeout_secs = input.get("timeout").and_then(|v| v.as_u64()).unwrap_or(30);
 
-        // 验证 URL
-        if !url.starts_with("http://") && !url.starts_with("https://") {
-            return Err(ToolError::Message(
-                "URL 必须以 http:// 或 https:// 开头".to_string(),
-            ));
-        }
+        validate_public_http_url(url, None, None).await?;
 
         // 构建客户端
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
+            .redirect(reqwest::redirect::Policy::none())
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")
             .build()
             .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {e}")))?;
@@ -105,11 +106,19 @@ impl Tool for WebFetchTool {
 
         let status = response.status().as_u16();
 
-        // 获取响应体
-        let body = response
-            .text()
+        // 获取响应体并限制大小
+        let body_bytes = response
+            .bytes()
             .await
             .map_err(|e| ToolError::Message(format!("读取响应体失败: {e}")))?;
+        if body_bytes.len() > MAX_RESPONSE_SIZE {
+            return Err(ToolError::Message(format!(
+                "响应体过大（{} 字节），超过限制（{} 字节）",
+                body_bytes.len(),
+                MAX_RESPONSE_SIZE
+            )));
+        }
+        let body = String::from_utf8_lossy(&body_bytes).to_string();
 
         Ok(json!({
             "url": url,

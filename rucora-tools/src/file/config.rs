@@ -47,7 +47,11 @@ impl FileToolConfig {
 
     /// 设置允许的工作目录
     pub fn with_allowed_dirs(mut self, dirs: Vec<PathBuf>) -> Self {
-        self.allowed_dirs = Some(dirs);
+        self.allowed_dirs = Some(
+            dirs.into_iter()
+                .map(|dir| dir.canonicalize().unwrap_or(dir))
+                .collect(),
+        );
         self
     }
 
@@ -105,7 +109,7 @@ impl FileToolConfig {
                     .unwrap_or_else(|_| parent.to_path_buf());
                 let is_allowed = allowed_dirs
                     .iter()
-                    .any(|dir| canonical_path.starts_with(dir) || dir.starts_with(&canonical_path));
+                    .any(|dir| canonical_path.starts_with(dir));
                 if !is_allowed {
                     return Err(ToolError::Message(format!(
                         "文件路径不在允许的工作目录内（允许的目录：{allowed_dirs:?}）"

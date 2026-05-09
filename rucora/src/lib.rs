@@ -153,6 +153,7 @@ pub use rucora_a2a as a2a;
 pub mod prelude {
     pub use crate::agent::DefaultAgent;
     pub use crate::agent::{AgentStream, StreamExt};
+    #[cfg(feature = "providers")]
     pub use crate::provider::OpenAiProvider;
     pub use rucora_core::agent::{Agent, AgentInput, AgentOutput};
     pub use rucora_core::channel::types::{ChannelEvent, TokenDeltaEvent};

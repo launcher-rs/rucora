@@ -6,6 +6,7 @@ pub mod browse;
 pub mod fetch;
 pub mod http;
 pub mod search;
+pub(crate) mod security;
 
 pub use browse::{BrowseTool, BrowserOpenTool};
 pub use fetch::WebFetchTool;

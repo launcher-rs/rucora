@@ -9,7 +9,7 @@ use rucora_core::{
 };
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tokio::time::timeout;
 
@@ -160,6 +160,26 @@ impl ShellTool {
         Ok(())
     }
 
+    /// 检查命令参数是否安全
+    fn validate_args(&self, args: &[String]) -> Result<(), ToolError> {
+        for arg in args {
+            for operator in DANGEROUS_OPERATORS {
+                if arg.contains(operator) {
+                    return Err(ToolError::Message(format!(
+                        "命令参数包含危险操作符：{operator}"
+                    )));
+                }
+            }
+
+            if arg.contains("..") {
+                return Err(ToolError::Message(
+                    "命令参数包含路径遍历（..），这是不安全的".to_string(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// 检查工作目录是否安全
     fn validate_working_dir(&self, dir: &str) -> Result<(), ToolError> {
         let path = Path::new(dir);
@@ -254,26 +274,25 @@ impl Tool for ShellTool {
 
         // 验证命令安全性
         self.validate_command(command)?;
+        self.validate_args(&args)?;
 
         // 处理工作目录
         let working_dir = input.get("working_dir").and_then(|v| v.as_str());
 
-        if let Some(dir) = working_dir {
+        let working_dir = if let Some(dir) = working_dir {
             self.validate_working_dir(dir)?;
-        }
-
-        // 构建完整命令
-        let full_command = if args.is_empty() {
-            command.to_string()
+            Some(PathBuf::from(dir))
         } else {
-            format!("{} {}", command, args.join(" "))
+            None
         };
 
         // 执行命令
-        let result = execute_shell_command(&full_command, timeout_secs, working_dir).await?;
+        let result =
+            execute_shell_command(command, &args, timeout_secs, working_dir.as_deref()).await?;
 
         Ok(json!({
-            "command": full_command,
+            "command": command,
+            "args": args,
             "stdout": result.stdout,
             "stderr": result.stderr,
             "exit_code": result.exit_code,
@@ -294,20 +313,14 @@ pub struct CommandResult {
 /// 执行 shell 命令
 pub async fn execute_shell_command(
     command: &str,
+    args: &[String],
     timeout_secs: u64,
-    working_dir: Option<&str>,
+    working_dir: Option<&Path>,
 ) -> Result<CommandResult, ToolError> {
     let timeout_duration = Duration::from_secs(timeout_secs);
 
-    // 根据操作系统选择 shell
-    let (shell, shell_arg) = if cfg!(target_os = "windows") {
-        ("cmd", "/C")
-    } else {
-        ("sh", "-c")
-    };
-
-    let mut cmd = tokio::process::Command::new(shell);
-    cmd.arg(shell_arg).arg(command);
+    let mut cmd = tokio::process::Command::new(command);
+    cmd.args(args);
 
     // 设置工作目录
     if let Some(dir) = working_dir {

@@ -43,7 +43,7 @@ pub const AZURE_OPENAI_DEFAULT_DEPLOYMENT: &str = "gpt-4";
 /// # 使用示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::AzureOpenAiProvider;
+/// use rucora_providers::AzureOpenAiProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 从环境变量加载

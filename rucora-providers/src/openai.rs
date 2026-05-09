@@ -5,7 +5,7 @@
 //! - Base URL 默认 `https://api.openai.com/v1`，也可通过 `OPENAI_BASE_URL` 覆盖
 //! - 默认模型优先级：1) 手动设置 `with_default_model()` 2) `OPENAI_DEFAULT_MODEL` 环境变量 3) 内置默认值 `gpt-4o-mini`
 
-use std::env;
+use std::{collections::BTreeMap, env};
 
 use crate::{http_config::build_client, preview};
 use async_trait::async_trait;
@@ -44,7 +44,7 @@ const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
 /// # 示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::OpenAiProvider;
+/// use rucora_providers::OpenAiProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 方式 1：使用内置默认模型（gpt-4o-mini）
@@ -67,6 +67,38 @@ pub struct OpenAiProvider {
 }
 
 impl OpenAiProvider {
+    fn map_reqwest_error(e: reqwest::Error) -> ProviderError {
+        if e.is_timeout() {
+            ProviderError::Timeout {
+                message: e.to_string(),
+                elapsed: std::time::Duration::ZERO,
+            }
+        } else if e.is_connect() || e.is_request() {
+            ProviderError::Network {
+                message: e.to_string(),
+                source: Some(Box::new(e)),
+                retriable: true,
+            }
+        } else {
+            ProviderError::Message(e.to_string())
+        }
+    }
+
+    fn map_http_error(status: reqwest::StatusCode, message: String) -> ProviderError {
+        match status.as_u16() {
+            401 | 403 => ProviderError::Authentication { message },
+            429 => ProviderError::RateLimit {
+                message,
+                retry_after: None,
+            },
+            status => ProviderError::Api {
+                status,
+                message,
+                code: None,
+            },
+        }
+    }
+
     /// 从环境变量创建 Provider。
     ///
     /// 默认模型来源（按优先级）：
@@ -235,6 +267,15 @@ impl OpenAiProvider {
 
         out
     }
+
+    fn parse_finish_reason(fr: &str) -> FinishReason {
+        match fr {
+            "stop" => FinishReason::Stop,
+            "length" => FinishReason::Length,
+            "tool_calls" => FinishReason::ToolCall,
+            _ => FinishReason::Other,
+        }
+    }
 }
 
 #[async_trait]
@@ -347,7 +388,7 @@ impl LlmProvider for OpenAiProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| ProviderError::Message(e.to_string()))?;
+            .map_err(Self::map_reqwest_error)?;
 
         let status = resp.status();
 
@@ -389,7 +430,7 @@ impl LlmProvider for OpenAiProvider {
                 format!("OpenAI 请求失败：status={status} body={text}")
             };
 
-            return Err(ProviderError::Message(error_msg));
+            return Err(Self::map_http_error(status, error_msg));
         }
 
         // 尝试解析 JSON，提供更友好的错误信息
@@ -420,7 +461,11 @@ impl LlmProvider for OpenAiProvider {
             )));
         }
 
-        let message = message.unwrap().clone();
+        let Some(message) = message.cloned() else {
+            return Err(ProviderError::Message(
+                "OpenAI 响应缺少 message 字段".to_string(),
+            ));
+        };
 
         // 解析 content，兼容多种格式
         let mut content = message
@@ -488,12 +533,7 @@ impl LlmProvider for OpenAiProvider {
             .and_then(|arr| arr.first())
             .and_then(|c| c.get("finish_reason"))
             .and_then(|fr| fr.as_str())
-            .map(|fr| match fr {
-                "stop" => FinishReason::Stop,
-                "length" => FinishReason::Length,
-                "tool_calls" => FinishReason::ToolCall,
-                _ => FinishReason::Other,
-            });
+            .map(Self::parse_finish_reason);
 
         debug!(
             provider = "openai",
@@ -592,13 +632,14 @@ impl LlmProvider for OpenAiProvider {
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| ProviderError::Message(e.to_string()))?;
+                .map_err(Self::map_reqwest_error)?;
 
             let status = resp.status();
             if !status.is_success() {
-                Err(ProviderError::Message(format!(
-                    "OpenAI stream 请求失败：status={status}"
-                )))?;
+                Err(Self::map_http_error(
+                    status,
+                    format!("OpenAI stream 请求失败：status={status}"),
+                ))?;
             }
 
             debug!(
@@ -610,9 +651,10 @@ impl LlmProvider for OpenAiProvider {
 
             let mut buf = String::new();
             let mut bytes_stream = resp.bytes_stream();
+            let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
 
             while let Some(item) = bytes_stream.next().await {
-                let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
+                let bytes = item.map_err(Self::map_reqwest_error)?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
@@ -642,24 +684,84 @@ impl LlmProvider for OpenAiProvider {
                     let v: Value = serde_json::from_str(&data)
                         .map_err(|e| ProviderError::Message(format!("SSE JSON 解析失败: {e} data={data}")))?;
 
-                    // OpenAI: choices[0].delta.content
-                    let delta = v
+                    let choice = v
                         .get("choices")
                         .and_then(|c| c.as_array())
-                        .and_then(|arr| arr.first())
-                        .and_then(|c0| c0.get("delta"))
+                        .and_then(|arr| arr.first());
+                    let delta_obj = choice.and_then(|c0| c0.get("delta"));
+
+                    // OpenAI: choices[0].delta.content
+                    let delta = delta_obj
                         .and_then(|d| d.get("content"))
                         .and_then(|s| s.as_str())
                         .map(|s| s.to_string());
 
-                    // 当前实现仅输出文本增量；tool_calls/usage/finish_reason 可后续扩展。
+                    if let Some(tool_calls) = delta_obj
+                        .and_then(|d| d.get("tool_calls"))
+                        .and_then(|tc| tc.as_array())
+                    {
+                        for item in tool_calls {
+                            let index = item.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                            let entry = tool_call_parts
+                                .entry(index)
+                                .or_insert_with(|| (String::new(), String::new(), String::new()));
+
+                            if let Some(id) = item.get("id").and_then(|v| v.as_str())
+                                && !id.is_empty()
+                            {
+                                entry.0 = id.to_string();
+                            }
+
+                            if let Some(function) = item.get("function") {
+                                if let Some(name) = function.get("name").and_then(|v| v.as_str()) {
+                                    entry.1.push_str(name);
+                                }
+                                if let Some(arguments) = function.get("arguments").and_then(|v| v.as_str()) {
+                                    entry.2.push_str(arguments);
+                                }
+                            }
+                        }
+                    }
+
+                    let finish_reason = choice
+                        .and_then(|c0| c0.get("finish_reason"))
+                        .and_then(|fr| fr.as_str())
+                        .map(Self::parse_finish_reason);
+
                     if delta.is_some() {
                         yield ChatStreamChunk {
                             delta,
                             tool_calls: vec![],
                             usage: None,
-                            finish_reason: None,
+                            finish_reason: finish_reason.clone(),
                         };
+                    }
+
+                    if matches!(finish_reason, Some(FinishReason::ToolCall)) {
+                        let tool_calls = tool_call_parts
+                            .values()
+                            .filter_map(|(id, name, args_raw)| {
+                                if name.is_empty() {
+                                    return None;
+                                }
+                                let input = serde_json::from_str(args_raw)
+                                    .unwrap_or_else(|_| Value::String(args_raw.clone()));
+                                Some(ToolCall {
+                                    id: id.clone(),
+                                    name: name.clone(),
+                                    input,
+                                })
+                            })
+                            .collect::<Vec<_>>();
+
+                        if !tool_calls.is_empty() {
+                            yield ChatStreamChunk {
+                                delta: None,
+                                tool_calls,
+                                usage: None,
+                                finish_reason,
+                            };
+                        }
                     }
                 }
 

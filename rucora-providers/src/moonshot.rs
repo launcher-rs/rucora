@@ -42,14 +42,14 @@ pub const MOONSHOT_DEFAULT_MODEL: &str = "moonshot-v1-8k";
 /// # 使用示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::MoonshotProvider;
+/// use rucora_providers::MoonshotProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 从环境变量加载
 /// let provider = MoonshotProvider::from_env()?;
 ///
 /// // 或手动配置
-/// let provider = MoonshotProvider::new("sk-...");
+/// let provider = MoonshotProvider::with_api_key("sk-...");
 ///
 /// // 使用特定模型
 /// let provider = provider.with_default_model("moonshot-v1-32k");

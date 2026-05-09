@@ -44,14 +44,14 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-1.5-flash";
 /// # 使用示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::GeminiProvider;
+/// use rucora_providers::GeminiProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 从环境变量加载（包括 GEMINI_DEFAULT_MODEL）
 /// let provider = GeminiProvider::from_env()?;
 ///
 /// // 或手动配置（使用内置默认模型 gemini-1.5-flash）
-/// let provider = GeminiProvider::new("your-api-key");
+/// let provider = GeminiProvider::with_api_key("your-api-key");
 ///
 /// // 使用特定模型
 /// let provider = provider.with_default_model("gemini-1.5-pro");

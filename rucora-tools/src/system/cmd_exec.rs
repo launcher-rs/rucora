@@ -45,7 +45,7 @@ impl CmdExecTool {
         let prefix_ok = self
             .allowed_prefixes
             .iter()
-            .any(|p| t.starts_with(p) || t.starts_with(&format!("{p} ")));
+            .any(|p| t == *p || t.starts_with(&format!("{p} ")));
 
         if !prefix_ok {
             return Err(ToolError::Message(
@@ -124,7 +124,12 @@ impl Tool for CmdExecTool {
         self.validate_command(command)?;
 
         // 执行命令
-        let result = execute_shell_command(command, timeout_secs, None).await?;
+        let mut parts = command.split_whitespace();
+        let executable = parts
+            .next()
+            .ok_or_else(|| ToolError::Message("命令不能为空".to_string()))?;
+        let args: Vec<String> = parts.map(String::from).collect();
+        let result = execute_shell_command(executable, &args, timeout_secs, None).await?;
 
         Ok(json!({
             "command": command,

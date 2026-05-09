@@ -41,14 +41,14 @@ pub const DEEPSEEK_DEFAULT_MODEL: &str = "deepseek-chat";
 /// # 使用示例
 ///
 /// ```rust,no_run
-/// use rucora::provider::DeepSeekProvider;
+/// use rucora_providers::DeepSeekProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// // 从环境变量加载
 /// let provider = DeepSeekProvider::from_env()?;
 ///
 /// // 或手动配置
-/// let provider = DeepSeekProvider::new("sk-...");
+/// let provider = DeepSeekProvider::with_api_key("sk-...");
 ///
 /// // 使用特定模型
 /// let provider = provider.with_default_model("deepseek-chat");

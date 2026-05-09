@@ -11,18 +11,13 @@ use serde_json::{Value, json};
 use std::time::Duration;
 use tracing::{info, warn};
 
+use super::security::validate_public_http_url;
+
 /// 默认超时时间（秒）
 const DEFAULT_TIMEOUT_SECS: u64 = 30;
 
 /// 最大响应体大小（字节），默认 5MB
 const MAX_RESPONSE_SIZE: usize = 5 * 1024 * 1024;
-
-/// 禁止访问的内网 IP 段
-const FORBIDDEN_IP_RANGES: &[&str] = &[
-    "10.", "172.16.", "172.17.", "172.18.", "172.19.", "172.20.", "172.21.", "172.22.", "172.23.",
-    "172.24.", "172.25.", "172.26.", "172.27.", "172.28.", "172.29.", "172.30.", "172.31.",
-    "192.168.", "127.", "0.", "169.254.",
-];
 
 /// HTTP 请求工具：发送 HTTP 请求。
 ///
@@ -83,63 +78,6 @@ impl HttpRequestTool {
     pub fn with_max_redirects(mut self, max: u32) -> Self {
         self.max_redirects = max;
         self
-    }
-
-    /// 检查 URL 是否安全
-    fn validate_url(&self, url: &str) -> Result<(), ToolError> {
-        // 解析 URL
-        let parsed =
-            url::Url::parse(url).map_err(|e| ToolError::Message(format!("无效的 URL: {e}")))?;
-
-        // 检查协议
-        let scheme = parsed.scheme().to_lowercase();
-        if scheme != "http" && scheme != "https" {
-            return Err(ToolError::Message(format!(
-                "不支持的协议：{scheme}（仅支持 http/https）"
-            )));
-        }
-
-        // 获取主机名
-        let host = parsed
-            .host_str()
-            .ok_or_else(|| ToolError::Message("URL 缺少主机名".to_string()))?;
-
-        let host_lower = host.to_lowercase();
-
-        // 检查是否在黑名单中
-        if let Some(blocked) = &self.blocked_domains {
-            for domain in blocked {
-                if host_lower.ends_with(domain) || host_lower == *domain {
-                    return Err(ToolError::Message(format!("域名 {host} 在黑名单中")));
-                }
-            }
-        }
-
-        // 检查是否在白名单中（如果配置了白名单）
-        if let Some(allowed) = &self.allowed_domains {
-            let is_allowed = allowed
-                .iter()
-                .any(|domain| host_lower.ends_with(domain) || host_lower == *domain);
-            if !is_allowed {
-                return Err(ToolError::Message(format!(
-                    "域名 {host} 不在白名单中（允许的域名：{allowed:?}）"
-                )));
-            }
-        }
-
-        // 检查是否为内网 IP（简单的字符串前缀检查）
-        for ip_prefix in FORBIDDEN_IP_RANGES {
-            if host_lower.starts_with(ip_prefix) {
-                return Err(ToolError::Message(format!("禁止访问内网资源：{host}")));
-            }
-        }
-
-        // 检查 localhost
-        if host_lower == "localhost" || host_lower.ends_with(".local") {
-            return Err(ToolError::Message(format!("禁止访问本地资源：{host}")));
-        }
-
-        Ok(())
     }
 }
 
@@ -204,7 +142,12 @@ impl Tool for HttpRequestTool {
             .ok_or_else(|| ToolError::Message("缺少必需的 'url' 字段".to_string()))?;
 
         // 验证 URL 安全性
-        self.validate_url(url)?;
+        validate_public_http_url(
+            url,
+            self.allowed_domains.as_deref(),
+            self.blocked_domains.as_deref(),
+        )
+        .await?;
 
         let method_str = input
             .get("method")
@@ -244,11 +187,12 @@ impl Tool for HttpRequestTool {
         };
 
         // 构建 HTTP 客户端
+        let _configured_redirect_limit = self.max_redirects;
+        // 自动重定向会让跳转目标绕过调用前 URL 校验，因此这里保守禁用。
+        let redirect_policy = reqwest::redirect::Policy::none();
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(timeout_secs))
-            .redirect(reqwest::redirect::Policy::limited(
-                self.max_redirects as usize,
-            ))
+            .redirect(redirect_policy)
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")
             .build()
             .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败：{e}")))?;
