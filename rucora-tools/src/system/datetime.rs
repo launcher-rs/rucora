@@ -3,7 +3,7 @@
 //! 获取时间、日期、农历、生肖、星座等信息
 
 use async_trait::async_trait;
-use chrono::{Datelike, Local, Timelike};
+use chrono::{Datelike, Local, NaiveDate, Timelike};
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory},
@@ -147,6 +147,52 @@ impl DatetimeTool {
             "constellation": Self::get_constellation(month, day)
         })
     }
+
+    /// 计算两个日期之间的天数。
+    pub fn days_between(&self, date1: &str, date2: &str) -> Result<i32, ToolError> {
+        let d1 = NaiveDate::parse_from_str(date1, "%Y-%m-%d")
+            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
+        let d2 = NaiveDate::parse_from_str(date2, "%Y-%m-%d")
+            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
+
+        Ok((d2 - d1).num_days() as i32)
+    }
+
+    /// 获取指定日期的详细信息。
+    pub fn get_date_detail(&self, date: &str) -> Result<String, ToolError> {
+        let naive_date = NaiveDate::parse_from_str(date, "%Y-%m-%d")
+            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
+
+        let year = naive_date.year();
+        let year_index = ((year - 4) % 60) as usize;
+        let heavenly_stems = ["甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"];
+        let earthly_branches = [
+            "子", "丑", "寅", "卯", "辰", "巳", "午", "未", "申", "酉", "戌", "亥",
+        ];
+        let zodiacs = [
+            "鼠", "牛", "虎", "兔", "龙", "蛇", "马", "羊", "猴", "鸡", "狗", "猪",
+        ];
+
+        let weekday = match naive_date.weekday().number_from_monday() {
+            1 => "一",
+            2 => "二",
+            3 => "三",
+            4 => "四",
+            5 => "五",
+            6 => "六",
+            7 => "日",
+            _ => "未知",
+        };
+
+        Ok(format!(
+            "公历：{naive_date}, 农历：{}{}年, 生肖：{}, 星座：{}, 星期：{}",
+            heavenly_stems[year_index % 10],
+            earthly_branches[year_index % 12],
+            zodiacs[year_index % 12],
+            Self::get_constellation(naive_date.month(), naive_date.day()),
+            weekday
+        ))
+    }
 }
 
 impl Default for DatetimeTool {
@@ -162,7 +208,7 @@ impl Tool for DatetimeTool {
     }
 
     fn description(&self) -> Option<&str> {
-        Some("获取当前日期时间信息，包括公历、农历干支、生肖、星座等")
+        Some("获取当前日期时间信息、查询指定日期详情、计算两个日期之间的天数")
     }
 
     fn categories(&self) -> &'static [ToolCategory] {
@@ -178,6 +224,24 @@ impl Tool for DatetimeTool {
                     "description": "输出格式：text（文本）或 json（详细 JSON）",
                     "enum": ["text", "json"],
                     "default": "text"
+                },
+                "action": {
+                    "type": "string",
+                    "description": "操作类型：now（当前时间）、detail（指定日期详情）、days_between（日期差）",
+                    "enum": ["now", "detail", "days_between"],
+                    "default": "now"
+                },
+                "date": {
+                    "type": "string",
+                    "description": "日期字符串，格式：YYYY-MM-DD（用于 detail）"
+                },
+                "date1": {
+                    "type": "string",
+                    "description": "第一个日期字符串，格式：YYYY-MM-DD（用于 days_between）"
+                },
+                "date2": {
+                    "type": "string",
+                    "description": "第二个日期字符串，格式：YYYY-MM-DD（用于 days_between）"
                 }
             }
         })
@@ -189,11 +253,43 @@ impl Tool for DatetimeTool {
             .and_then(|v| v.as_str())
             .unwrap_or("text");
 
-        match format {
-            "json" => Ok(self.get_detailed_info()),
-            _ => Ok(json!({
-                "info": self.get_time_info()
-            })),
+        let action = input
+            .get("action")
+            .and_then(|v| v.as_str())
+            .unwrap_or("now");
+
+        match action {
+            "now" => match format {
+                "json" => Ok(self.get_detailed_info()),
+                _ => Ok(json!({
+                    "info": self.get_time_info()
+                })),
+            },
+            "detail" => {
+                let date = input
+                    .get("date")
+                    .and_then(|v| v.as_str())
+                    .ok_or_else(|| ToolError::Message("detail 操作需要 date 参数".to_string()))?;
+                Ok(json!({
+                    "date": date,
+                    "detail": self.get_date_detail(date)?
+                }))
+            }
+            "days_between" => {
+                let date1 = input.get("date1").and_then(|v| v.as_str()).ok_or_else(|| {
+                    ToolError::Message("days_between 操作需要 date1 参数".to_string())
+                })?;
+                let date2 = input.get("date2").and_then(|v| v.as_str()).ok_or_else(|| {
+                    ToolError::Message("days_between 操作需要 date2 参数".to_string())
+                })?;
+
+                Ok(json!({
+                    "date1": date1,
+                    "date2": date2,
+                    "days": self.days_between(date1, date2)?
+                }))
+            }
+            other => Err(ToolError::Message(format!("未知 action：{other}"))),
         }
     }
 }
@@ -225,5 +321,25 @@ mod tests {
         assert!(info.contains("生肖"));
         assert!(info.contains("星座"));
         assert!(info.contains("星期"));
+    }
+
+    #[test]
+    fn test_days_between() {
+        let tool = DatetimeTool::new();
+        assert_eq!(
+            tool.days_between("2026-05-01", "2026-05-09")
+                .expect("应能计算日期差"),
+            8
+        );
+    }
+
+    #[test]
+    fn test_date_detail() {
+        let tool = DatetimeTool::new();
+        let detail = tool
+            .get_date_detail("2026-05-09")
+            .expect("应能查询日期详情");
+        assert!(detail.contains("公历"));
+        assert!(detail.contains("星期"));
     }
 }

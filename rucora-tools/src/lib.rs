@@ -10,9 +10,8 @@
 //! - `search` - 搜索工具（Glob 搜索、内容搜索）
 //! - `math` - 数学工具（计算器）
 //! - `media` - 媒体工具（图片信息）
-//! - `git` - Git 工具
 //! - `memory` - 记忆工具
-//! - `echo` - 回显工具
+//! - `basic` - 基础工具（回显等）
 //!
 //! ## 使用示例
 //!
@@ -56,16 +55,27 @@ pub mod math;
 /// 提供图片信息读取等媒体处理功能
 pub mod media;
 
-// ===== 独立工具模块 =====
-
-/// Git 工具模块
-pub mod git;
+/// 基础工具模块
+///
+/// 提供测试、调试等基础能力
+pub mod basic;
 
 /// 记忆工具模块
+///
+/// 提供长期记忆存储和检索能力
 pub mod memory;
 
-/// 回显工具模块
-pub mod echo;
+/// Git 工具兼容模块，建议使用 `system::git`。
+#[deprecated(since = "0.2.0", note = "请使用 `system::git` 模块代替")]
+pub mod git {
+    pub use crate::system::git::*;
+}
+
+/// Echo 工具兼容模块，建议使用 `basic::echo`。
+#[deprecated(since = "0.2.0", note = "请使用 `basic::echo` 模块代替")]
+pub mod echo {
+    pub use crate::basic::echo::*;
+}
 
 // ===== 向后兼容：保留顶层模块 =====
 
@@ -87,7 +97,7 @@ pub use web as web_legacy;
 pub use file::{FileEditTool, FileReadTool, FileToolConfig, FileWriteTool};
 
 // 系统工具
-pub use system::{CmdExecTool, DatetimeTool, ShellTool};
+pub use system::{CmdExecTool, DatetimeTool, GitTool, ShellTool};
 
 // Web 工具
 pub use web::{
@@ -104,10 +114,39 @@ pub use math::CalculatorTool;
 // 媒体工具
 pub use media::ImageInfoTool;
 
-// 其他工具
-pub use echo::EchoTool;
-pub use git::GitTool;
+// 基础工具
+pub use basic::EchoTool;
+
+// 记忆工具
 pub use memory::{MemoryRecallTool, MemoryStoreTool};
 
 // 重新导出 ToolRegistry
 pub use rucora_core::tool::ToolRegistry;
+
+#[cfg(test)]
+mod tests {
+    use std::path::Path;
+
+    #[test]
+    fn src_root_contains_only_declared_entry_files() {
+        let src_dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("src");
+        let allowed_root_files = ["lib.rs"];
+
+        let unexpected_files = std::fs::read_dir(&src_dir)
+            .expect("应能读取 rucora-tools/src 目录")
+            .flatten()
+            .map(|entry| entry.path())
+            .filter(|path| path.is_file())
+            .filter(|path| path.extension().and_then(|ext| ext.to_str()) == Some("rs"))
+            .filter_map(|path| {
+                let file_name = path.file_name()?.to_str()?;
+                (!allowed_root_files.contains(&file_name)).then(|| file_name.to_string())
+            })
+            .collect::<Vec<_>>();
+
+        assert!(
+            unexpected_files.is_empty(),
+            "发现未归类或未挂载的根目录工具文件：{unexpected_files:?}"
+        );
+    }
+}

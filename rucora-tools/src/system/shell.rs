@@ -16,11 +16,11 @@ use tokio::time::timeout;
 /// 获取 Shell 工具描述
 fn get_shell_description() -> &'static str {
     if cfg!(target_os = "windows") {
-        "执行系统命令。当前平台：Windows。请使用 Windows 命令：dir (列表), cd (切换目录), type (查看文件), findstr (搜索), copy (复制), move (移动), del (删除), mkdir (创建目录)。命令必须与当前操作系统兼容。"
+        "执行系统命令。当前平台：Windows。常用命令：dir、cd、type、findstr、copy、move、del、mkdir。请只使用与 Windows 兼容的命令。"
     } else if cfg!(target_os = "macos") {
-        "执行系统命令。当前平台：macOS。请使用 macOS 命令：ls (列表), cd (切换目录), cat (查看文件), grep (搜索), cp (复制), mv (移动), rm (删除), mkdir (创建目录)。命令必须与当前操作系统兼容。"
+        "执行系统命令。当前平台：macOS。常用命令：ls、cd、cat、grep、cp、mv、rm、mkdir。请只使用与 macOS 兼容的命令。"
     } else if cfg!(target_os = "linux") {
-        "执行系统命令。当前平台：Linux。请使用 Linux 命令：ls (列表), cd (切换目录), cat (查看文件), grep (搜索), cp (复制), mv (移动), rm (删除), mkdir (创建目录)。命令必须与当前操作系统兼容。"
+        "执行系统命令。当前平台：Linux。常用命令：ls、cd、cat、grep、cp、mv、rm、mkdir。请只使用与 Linux 兼容的命令。"
     } else {
         "执行系统命令。请使用适合当前平台的命令。"
     }

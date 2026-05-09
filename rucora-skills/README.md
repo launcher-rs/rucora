@@ -30,8 +30,9 @@ rucora = { version = "0.1", features = ["skills"] }
 ### 从目录加载技能
 
 ```rust
-use rucora_skills::{SkillLoader, SkillExecutor, SkillTool};
+use rucora_skills::{SkillExecutor, SkillLoader, skills_to_tools};
 use rucora_tools::ToolRegistry;
+use std::path::Path;
 use std::sync::Arc;
 
 // 从目录加载技能
@@ -43,11 +44,25 @@ let executor = Arc::new(SkillExecutor::new());
 
 // 注册技能为工具
 let mut registry = ToolRegistry::new();
-for skill in &skills {
-    let tool = SkillTool::new(skill.clone(), executor.clone(), "skills/");
-    registry = registry.register_arc(Arc::new(tool));
+for tool in skills_to_tools(&skills, executor.clone(), Path::new("skills/")) {
+    registry = registry.register_arc(tool);
 }
 ```
+
+### 加载机制
+
+`SkillLoader::load_from_dir()` 会扫描传入目录下的一级子目录，每个子目录视为一个独立 skill。目录名只是本地路径标识，不要求和 `name` 字段一致。
+
+每个 skill 目录内的定义文件按以下顺序读取：
+
+1. 优先读取 `skill.yaml`
+2. 如果 `skill.yaml` 不存在，读取 `SKILL.md` 或 `skill.md` 的 YAML frontmatter
+3. 如果 Markdown 也不存在，再尝试读取 `skill.toml`
+4. 最后尝试读取 `skill.json`
+
+如果 `skill.yaml` 存在但读取或解析失败，加载器会自动回退到 `SKILL.md` / `skill.md` 的 frontmatter。这样可以在 YAML 配置损坏或迁移期间继续使用 Markdown 头部信息。
+
+加载成功后，`SkillDefinition` 会记录真实来源目录。后续通过 `skills_to_tools()` 转换为工具时，会优先使用这个来源目录寻找 `SKILL.py`、`SKILL.js` 或 `SKILL.sh`，因此 skill 名称和目录名不一致也可以正常运行。
 
 ### 技能 YAML 格式
 
@@ -76,9 +91,10 @@ execution:
 
 ```rust
 use rucora_skills::skills_to_tools;
+use std::path::Path;
 
 // 将所有技能转换为工具
-let tools = skills_to_tools(&skills, executor, "skills/");
+let tools = skills_to_tools(&skills, executor, Path::new("skills/"));
 
 // 在 Agent 中使用
 let agent = ToolAgent::builder()

@@ -266,7 +266,8 @@ mod tests {
         assert!(regex.is_ok());
 
         // 无效的正则表达式
-        let regex = Regex::new(r"\[invalid");
+        let invalid_pattern = String::from("[");
+        let regex = Regex::new(&invalid_pattern);
         assert!(regex.is_err());
     }
 }

@@ -31,12 +31,14 @@
 //! 用于执行技能：
 //!
 //! ```rust,no_run
-//! use rucora_skills::{SkillExecutor, SkillContext};
+//! use rucora_skills::{SkillContext, SkillDefinition, SkillExecutor};
+//! use serde_json::json;
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let executor = Arc::new(SkillExecutor::new());
-//! let context = SkillContext::new();
+//! let definition = SkillDefinition::new("my_skill", "My custom skill");
+//! let context = SkillContext::new(json!({}), definition);
 //! // 执行技能...
 //! # Ok(())
 //! # }
@@ -52,12 +54,8 @@
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let executor = Arc::new(SkillExecutor::new());
-//! let skill = SkillDefinition {
-//!     name: "my_skill".to_string(),
-//!     description: "My custom skill".to_string(),
-//!     ..Default::default()
-//! };
-//! let tool = SkillTool::new(skill, executor, "skills/");
+//! let skill = SkillDefinition::new("my_skill", "My custom skill");
+//! let tool = SkillTool::new(skill, executor, "skills/my_skill".into());
 //! # Ok(())
 //! # }
 //! ```
@@ -70,7 +68,7 @@
 //! use rucora_skills::SkillsAutoIntegrator;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! let integrator = SkillsAutoIntegrator::new();
+//! let integrator = SkillsAutoIntegrator::new("skills/");
 //! // 集成技能...
 //! # Ok(())
 //! # }

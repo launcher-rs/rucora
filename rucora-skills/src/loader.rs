@@ -1,5 +1,6 @@
 //! Skill 加载器和执行器模块
 
+use crate::config::SkillConfig;
 use rucora_core::skill::{SkillDefinition, SkillResult};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -109,39 +110,8 @@ impl SkillLoader {
 
     #[allow(clippy::unused_async)]
     pub async fn load_skill(&self, skill_dir: &Path) -> Result<SkillDefinition, SkillLoadError> {
-        // 配置文件优先级：skill.yaml > skill.toml > skill.json > SKILL.md
-        let definition = if skill_dir.join("skill.yaml").exists() {
-            // 读取 skill.yaml
-            let content = std::fs::read_to_string(skill_dir.join("skill.yaml"))
-                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.yaml 失败：{e}")))?;
-            serde_yaml::from_str(&content)
-                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.yaml 失败：{e}")))?
-        } else if skill_dir.join("skill.toml").exists() {
-            // 读取 skill.toml
-            let content = std::fs::read_to_string(skill_dir.join("skill.toml"))
-                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.toml 失败：{e}")))?;
-            toml::from_str(&content)
-                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.toml 失败：{e}")))?
-        } else if skill_dir.join("skill.json").exists() {
-            // 读取 skill.json
-            let content = std::fs::read_to_string(skill_dir.join("skill.json"))
-                .map_err(|e| SkillLoadError::IoError(format!("读取 skill.json 失败：{e}")))?;
-            serde_json::from_str(&content)
-                .map_err(|e| SkillLoadError::ParseError(format!("解析 skill.json 失败：{e}")))?
-        } else {
-            // 读取 SKILL.md
-            let md_path = skill_dir.join("SKILL.md");
-            if !md_path.exists() {
-                return Err(SkillLoadError::NotFound(format!(
-                    "SKILL.md 不存在：{md_path:?}"
-                )));
-            }
-
-            let content = std::fs::read_to_string(&md_path)
-                .map_err(|e| SkillLoadError::IoError(format!("读取 SKILL.md 失败：{e}")))?;
-
-            parse_skill_md(&content)?
-        };
+        let mut definition = load_skill_definition(skill_dir)?;
+        definition.location = Some(skill_dir.to_path_buf());
 
         let implementation = detect_implementation(skill_dir);
         debug!("技能 {} 使用实现：{:?}", definition.name, implementation);
@@ -163,6 +133,117 @@ impl SkillLoader {
             .map(|s| s.to_tool_description())
             .collect()
     }
+}
+
+fn load_skill_definition(skill_dir: &Path) -> Result<SkillDefinition, SkillLoadError> {
+    let yaml_path = skill_dir.join("skill.yaml");
+    if yaml_path.exists() {
+        match parse_skill_config_file(&yaml_path) {
+            Ok(definition) => return Ok(definition),
+            Err(e) => {
+                warn!(
+                    "读取 skill.yaml 失败，尝试读取 Markdown 头部信息 {:?}: {}",
+                    yaml_path, e
+                );
+                if let Ok(definition) = load_skill_md(skill_dir) {
+                    return Ok(definition);
+                }
+                return Err(e);
+            }
+        }
+    }
+
+    if let Ok(definition) = load_skill_md(skill_dir) {
+        return Ok(definition);
+    }
+
+    for config_file in ["skill.toml", "skill.json"] {
+        let path = skill_dir.join(config_file);
+        if path.exists() {
+            return parse_skill_config_file(&path);
+        }
+    }
+
+    Err(SkillLoadError::NotFound(format!(
+        "未找到 skill.yaml、SKILL.md、skill.md、skill.toml 或 skill.json：{skill_dir:?}"
+    )))
+}
+
+fn parse_skill_config_file(path: &Path) -> Result<SkillDefinition, SkillLoadError> {
+    let content = std::fs::read_to_string(path)
+        .map_err(|e| SkillLoadError::IoError(format!("读取 {:?} 失败：{e}", path.file_name())))?;
+
+    match path.extension().and_then(|e| e.to_str()).unwrap_or("") {
+        "yaml" | "yml" => parse_yaml_skill_definition(&content)
+            .map_err(|e| SkillLoadError::ParseError(format!("解析 {path:?} 失败：{e}"))),
+        "toml" => parse_toml_skill_definition(&content)
+            .map_err(|e| SkillLoadError::ParseError(format!("解析 {path:?} 失败：{e}"))),
+        "json" => parse_json_skill_definition(&content)
+            .map_err(|e| SkillLoadError::ParseError(format!("解析 {path:?} 失败：{e}"))),
+        ext => Err(SkillLoadError::ParseError(format!(
+            "不支持的配置格式：{ext}"
+        ))),
+    }
+}
+
+fn parse_yaml_skill_definition(content: &str) -> Result<SkillDefinition, serde_yaml::Error> {
+    serde_yaml::from_str(content).or_else(|_| {
+        let config: SkillConfig = serde_yaml::from_str(content)?;
+        Ok(skill_config_to_definition(config))
+    })
+}
+
+fn parse_toml_skill_definition(content: &str) -> Result<SkillDefinition, toml::de::Error> {
+    toml::from_str(content).or_else(|_| {
+        let config: SkillConfig = toml::from_str(content)?;
+        Ok(skill_config_to_definition(config))
+    })
+}
+
+fn parse_json_skill_definition(content: &str) -> Result<SkillDefinition, serde_json::Error> {
+    serde_json::from_str(content).or_else(|_| {
+        let config: SkillConfig = serde_json::from_str(content)?;
+        Ok(skill_config_to_definition(config))
+    })
+}
+
+fn skill_config_to_definition(config: SkillConfig) -> SkillDefinition {
+    let metadata = if config.metadata.is_empty() {
+        None
+    } else {
+        serde_json::to_value(config.metadata).ok()
+    };
+
+    SkillDefinition {
+        name: config.skill.name,
+        description: config.skill.description,
+        version: config.skill.version,
+        author: config.skill.author,
+        tags: config.skill.tags,
+        timeout: config.execution.map_or(30, |execution| execution.timeout),
+        input_schema: config.input_schema.unwrap_or(Value::Null),
+        output_schema: config.output_schema.unwrap_or(Value::Null),
+        homepage: None,
+        metadata,
+        location: None,
+    }
+}
+
+fn load_skill_md(skill_dir: &Path) -> Result<SkillDefinition, SkillLoadError> {
+    let md_path = find_skill_md(skill_dir).ok_or_else(|| {
+        SkillLoadError::NotFound(format!("SKILL.md 或 skill.md 不存在：{skill_dir:?}"))
+    })?;
+    let content = std::fs::read_to_string(&md_path)
+        .map_err(|e| SkillLoadError::IoError(format!("读取 {md_path:?} 失败：{e}")))?;
+
+    parse_skill_md(&content)
+}
+
+fn find_skill_md(skill_dir: &Path) -> Option<PathBuf> {
+    ["SKILL.md", "skill.md"]
+        .into_iter()
+        .map(|file_name| skill_dir.join(file_name))
+        .find(|path| path.exists())
 }
 
 fn parse_skill_md(content: &str) -> Result<SkillDefinition, SkillLoadError> {
@@ -542,6 +623,40 @@ impl SkillExecutor {
 impl Default for SkillExecutor {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_skill_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("系统时间应晚于 UNIX_EPOCH")
+            .as_nanos();
+        std::env::temp_dir().join(format!("rucora-skills-{name}-{nanos}"))
+    }
+
+    #[test]
+    fn load_definition_falls_back_to_lowercase_skill_md_when_yaml_fails() {
+        let dir = temp_skill_dir("yaml-fallback");
+        fs::create_dir_all(&dir).expect("应能创建临时 skill 目录");
+        fs::write(dir.join("skill.yaml"), "name: [").expect("应能写入损坏的 skill.yaml");
+        fs::write(
+            dir.join("skill.md"),
+            "---\nname: fallback-skill\ndescription: 来自 Markdown 头部\n---\n正文\n",
+        )
+        .expect("应能写入 skill.md");
+
+        let definition = load_skill_definition(&dir).expect("应回退读取 Markdown 头部");
+
+        assert_eq!(definition.name, "fallback-skill");
+        assert_eq!(definition.description, "来自 Markdown 头部");
+
+        fs::remove_dir_all(&dir).expect("应能清理临时 skill 目录");
     }
 }
 

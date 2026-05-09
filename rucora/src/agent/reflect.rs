@@ -436,9 +436,9 @@ where
 
     /// 尝试构建 Agent。
     pub fn try_build(self) -> Result<ReflectAgent<P>, AgentError> {
-        let provider = self
-            .provider
-            .ok_or_else(|| AgentError::Message("构建 ReflectAgent 失败：缺少 provider".to_string()))?;
+        let provider = self.provider.ok_or_else(|| {
+            AgentError::Message("构建 ReflectAgent 失败：缺少 provider".to_string())
+        })?;
         let model = self
             .model
             .ok_or_else(|| AgentError::Message("构建 ReflectAgent 失败：缺少 model".to_string()))?;

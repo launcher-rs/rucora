@@ -1,6 +1,6 @@
 //! Skill 到 Tool 的适配器
 
-use crate::{SkillDefinition, SkillExecutor, SkillsPromptMode};
+use crate::{SkillConfig, SkillDefinition, SkillExecutor, SkillsPromptMode};
 use async_trait::async_trait;
 use rucora_core::error::ToolError;
 use rucora_core::tool::{Tool, ToolCategory};
@@ -18,6 +18,14 @@ pub struct SkillTool {
 
 impl SkillTool {
     pub fn new(skill: SkillDefinition, executor: Arc<SkillExecutor>, skill_path: PathBuf) -> Self {
+        let skill_path = if find_script_file(&skill_path).is_some() {
+            skill_path
+        } else if let Some(location) = skill.location.as_ref() {
+            location.clone()
+        } else {
+            skill_path
+        };
+
         Self {
             skill,
             executor,
@@ -110,12 +118,9 @@ pub fn skills_to_tools(
     let mut tools: Vec<Arc<dyn Tool>> = Vec::new();
 
     for skill in skills {
-        // 查找 skill 目录（支持 skill.name 和文件夹名不一致）
-        let mut skill_path = skills_dir.join(&skill.name);
-        if !skill_path.exists() {
-            // 尝试使用文件夹名作为 skill 名称（去掉连字符后的第一部分）
-            skill_path = skills_dir.join(skill.name.split('-').next().unwrap_or(&skill.name));
-        }
+        let Some(skill_path) = resolve_skill_dir(skill, skills_dir) else {
+            continue;
+        };
 
         // 检查是否有实现文件
         if let Some(_script_path) = find_script_file(&skill_path) {
@@ -142,7 +147,12 @@ fn render_skill_location(
     workspace_dir: &Path,
     prefer_relative: bool,
 ) -> String {
-    if let Some(ref location) = skill.homepage {
+    if let Some(location_path) = skill.location.as_ref() {
+        if prefer_relative && let Ok(relative) = location_path.strip_prefix(workspace_dir) {
+            return relative.display().to_string();
+        }
+        location_path.display().to_string()
+    } else if let Some(ref location) = skill.homepage {
         let location_path = PathBuf::from(location);
         if prefer_relative && let Ok(relative) = location_path.strip_prefix(workspace_dir) {
             return relative.display().to_string();
@@ -267,17 +277,11 @@ pub fn read_skill(
     skill_name: &str,
     skills_dir: &Path,
 ) -> Result<String, Box<dyn std::error::Error>> {
-    // 查找 skill 目录
-    let mut skill_path = skills_dir.join(skill_name);
-    if !skill_path.exists() {
-        skill_path = skills_dir.join(skill_name.split('-').next().unwrap_or(skill_name));
-    }
-
-    if !skill_path.exists() {
+    let Some(skill_path) = find_skill_dir_by_name(skill_name, skills_dir) else {
         return Err(format!("Skill not found: {skill_name}").into());
-    }
+    };
 
-    // 优先级：skill.yaml > skill.toml > skill.json > SKILL.md
+    // 优先级：skill.yaml > skill.toml > skill.json > SKILL.md > skill.md
     for config_file in &["skill.yaml", "skill.toml", "skill.json"] {
         let path = skill_path.join(config_file);
         if path.exists() {
@@ -286,12 +290,155 @@ pub fn read_skill(
         }
     }
 
-    // 读取 SKILL.md
-    let md_path = skill_path.join("SKILL.md");
-    if md_path.exists() {
+    for md_file in ["SKILL.md", "skill.md"] {
+        let md_path = skill_path.join(md_file);
+        if !md_path.exists() {
+            continue;
+        }
         let content = std::fs::read_to_string(&md_path)?;
-        return Ok(format!("=== SKILL.md ===\n{content}"));
+        return Ok(format!("=== {md_file} ===\n{content}"));
     }
 
     Err(format!("No skill file found in {skill_path:?}").into())
+}
+
+fn resolve_skill_dir(skill: &SkillDefinition, skills_dir: &Path) -> Option<PathBuf> {
+    if let Some(location) = skill.location.as_ref()
+        && location.exists()
+    {
+        return Some(location.clone());
+    }
+
+    if let Some(homepage) = skill.homepage.as_ref() {
+        let path = PathBuf::from(homepage);
+        if path.exists() {
+            return Some(path);
+        }
+    }
+
+    find_skill_dir_by_name(&skill.name, skills_dir)
+}
+
+fn find_skill_dir_by_name(skill_name: &str, skills_dir: &Path) -> Option<PathBuf> {
+    let direct_path = skills_dir.join(skill_name);
+    if direct_path.exists() {
+        return Some(direct_path);
+    }
+
+    let entries = std::fs::read_dir(skills_dir).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
+            continue;
+        }
+
+        if read_skill_name_from_dir(&path).as_deref() == Some(skill_name) {
+            return Some(path);
+        }
+    }
+
+    None
+}
+
+fn read_skill_name_from_dir(skill_dir: &Path) -> Option<String> {
+    for config_file in ["skill.yaml", "skill.toml", "skill.json"] {
+        let path = skill_dir.join(config_file);
+        if !path.exists() {
+            continue;
+        }
+
+        if let Some(name) = read_skill_name_from_config(&path) {
+            return Some(name);
+        }
+    }
+
+    for md_file in ["SKILL.md", "skill.md"] {
+        let path = skill_dir.join(md_file);
+        if !path.exists() {
+            continue;
+        }
+
+        if let Some(name) = read_skill_name_from_md(&path) {
+            return Some(name);
+        }
+    }
+
+    None
+}
+
+fn read_skill_name_from_config(path: &Path) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    match path.extension().and_then(|e| e.to_str()).unwrap_or("") {
+        "yaml" | "yml" => serde_yaml::from_str::<SkillDefinition>(&content)
+            .map(|skill| skill.name)
+            .or_else(|_| {
+                serde_yaml::from_str::<SkillConfig>(&content).map(|config| config.skill.name)
+            })
+            .ok(),
+        "toml" => toml::from_str::<SkillDefinition>(&content)
+            .map(|skill| skill.name)
+            .or_else(|_| toml::from_str::<SkillConfig>(&content).map(|config| config.skill.name))
+            .ok(),
+        "json" => serde_json::from_str::<SkillDefinition>(&content)
+            .map(|skill| skill.name)
+            .or_else(|_| {
+                serde_json::from_str::<SkillConfig>(&content).map(|config| config.skill.name)
+            })
+            .ok(),
+        _ => None,
+    }
+}
+
+fn read_skill_name_from_md(path: &Path) -> Option<String> {
+    let content = std::fs::read_to_string(path).ok()?;
+    let mut lines = content.lines();
+    if lines.next()? != "---" {
+        return None;
+    }
+
+    let mut frontmatter = String::new();
+    for line in lines {
+        if line.trim() == "---" {
+            break;
+        }
+        frontmatter.push_str(line);
+        frontmatter.push('\n');
+    }
+
+    serde_yaml::from_str::<SkillDefinition>(&frontmatter)
+        .map(|skill| skill.name)
+        .ok()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::fs;
+    use std::time::{SystemTime, UNIX_EPOCH};
+
+    fn temp_skills_dir(name: &str) -> PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("系统时间应晚于 UNIX_EPOCH")
+            .as_nanos();
+        std::env::temp_dir().join(format!("rucora-skills-adapter-{name}-{nanos}"))
+    }
+
+    #[test]
+    fn skills_to_tools_uses_loaded_location_when_name_differs_from_dir() {
+        let skills_dir = temp_skills_dir("location");
+        let skill_dir = skills_dir.join("weather");
+        fs::create_dir_all(&skill_dir).expect("应能创建临时 skill 目录");
+        fs::write(skill_dir.join("SKILL.py"), "print('{}')").expect("应能写入脚本文件");
+
+        let mut skill = SkillDefinition::new("weather-query", "查询天气");
+        skill.location = Some(skill_dir);
+
+        let tools = skills_to_tools(&[skill], Arc::new(SkillExecutor::new()), &skills_dir);
+
+        assert_eq!(tools.len(), 1);
+        assert_eq!(tools[0].name(), "weather-query");
+
+        fs::remove_dir_all(&skills_dir).expect("应能清理临时 skills 目录");
+    }
 }

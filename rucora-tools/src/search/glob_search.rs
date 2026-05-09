@@ -46,6 +46,10 @@ impl GlobSearchTool {
 
     /// 验证路径安全性
     fn is_path_allowed(&self, path: &Path) -> bool {
+        if path.is_absolute() && self.allowed_root.is_none() {
+            return false;
+        }
+
         // 检查路径遍历攻击
         let path_str = path.to_string_lossy();
         if path_str.contains("..") {
@@ -185,7 +189,12 @@ mod tests {
         let tool = GlobSearchTool::new();
 
         // 绝对路径应该被拒绝
-        assert!(!tool.is_path_allowed(Path::new("/etc/passwd")));
+        let absolute_path = if cfg!(windows) {
+            Path::new("C:\\Windows")
+        } else {
+            Path::new("/etc/passwd")
+        };
+        assert!(!tool.is_path_allowed(absolute_path));
 
         // 路径遍历应该被拒绝
         assert!(!tool.is_path_allowed(Path::new("../secret.txt")));

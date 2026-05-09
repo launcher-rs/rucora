@@ -9,7 +9,7 @@ use rucora::agent::ToolAgent;
 use rucora::agent::ToolRegistry;
 use rucora::prelude::Agent;
 use rucora_providers::OpenAiProvider;
-use rucora_skills::{SkillExecutor, SkillLoader, SkillTool};
+use rucora_skills::{SkillExecutor, SkillLoader, skills_to_tools};
 use rucora_tools::system::ShellTool;
 use std::sync::Arc;
 use tracing::{Level, info};
@@ -80,11 +80,10 @@ async fn main() -> anyhow::Result<()> {
     tool_registry = tool_registry.register(ShellTool::new());
 
     // 注册 Skills 转换的 Tools
-    for skill in &skills {
-        let skill_path = skills_dir.join(&skill.name);
-        let skill_tool = SkillTool::new(skill.clone(), skill_executor.clone(), skill_path);
-        tool_registry = tool_registry.register_arc(Arc::new(skill_tool));
-        info!("  ✓ 注册技能：{}", skill.name);
+    for tool in skills_to_tools(&skills, skill_executor.clone(), &skills_dir) {
+        let tool_name = tool.name().to_string();
+        tool_registry = tool_registry.register_arc(tool);
+        info!("  ✓ 注册技能：{}", tool_name);
     }
     info!("");
 
@@ -97,10 +96,6 @@ async fn main() -> anyhow::Result<()> {
         .model(&model_name)
         .system_prompt(
             "你是一个有用的助手，可以使用各种技能帮助用户解决问题。\n\
-             可用技能包括：\n\
-             - datetime: 获取当前日期和时间\n\
-             - calculator: 执行数学计算\n\
-             - weather-query: 查询天气（需要提供城市英文名，如 Beijing）\n\n\
              请根据用户需求自动选择合适的技能，每个技能只调用一次即可。",
         )
         .tool_registry(tool_registry)
@@ -138,23 +133,6 @@ async fn main() -> anyhow::Result<()> {
             }
         }
     }
-
-    info!("═══════════════════════════════════════");
-    info!("示例完成！");
-    info!("═══════════════════════════════════════\n");
-
-    info!("📝 Skills 使用总结：\n");
-    info!("1. Skills 加载:");
-    info!("   - 使用 SkillLoader 从目录加载");
-    info!("   - 自动识别 SKILL.md 配置文件\n");
-
-    info!("2. Skills 转 Tools:");
-    info!("   - 使用 SkillExecutor 创建工具");
-    info!("   - 注册到 ToolRegistry\n");
-
-    info!("3. Agent 使用:");
-    info!("   - Agent 自动选择合适的技能");
-    info!("   - 支持多步推理和技能组合\n");
 
     Ok(())
 }

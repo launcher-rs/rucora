@@ -16,8 +16,8 @@ default = []
 all = []
 
 [dependencies]
-rucora-core = { path = "../rucora-core", version = "0.1.2" }
-rucora-tools = { path = "../rucora-tools", version = "0.1.2" }
+rucora-core.workspace = true
+rucora-tools.workspace = true
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

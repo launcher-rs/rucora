@@ -19,15 +19,18 @@ rucora 的内置工具实现。
 | FileEditTool | 文件 | 编辑文件内容 |
 | HttpRequestTool | 网络 | HTTP 请求 |
 | WebFetchTool | 网络 | 抓取网页内容 |
-| WebSearchTool | 网络 | 网络搜索 |
 | BrowseTool | 浏览器 | 浏览网页 |
 | BrowserOpenTool | 浏览器 | 打开浏览器 |
 | MemoryStoreTool | 记忆 | 存储信息 |
 | MemoryRecallTool | 记忆 | 检索信息 |
 | DatetimeTool | 工具 | 日期时间操作 |
 | GithubTrendingTool | GitHub | GitHub 趋势 |
-| SerpAPITool | 搜索 | SerpAPI 搜索 |
+| SerpapiTool | 搜索 | SerpAPI 搜索 |
 | TavilyTool | 搜索 | Tavily 搜索 |
+| GlobSearchTool | 搜索 | Glob 文件搜索 |
+| ContentSearchTool | 搜索 | 文件内容搜索 |
+| CalculatorTool | 数学 | 数学计算 |
+| ImageInfoTool | 媒体 | 图片信息读取 |
 
 ## 安装
 
@@ -92,20 +95,20 @@ let store_tool = MemoryStoreTool::new(memory.clone());
 let recall_tool = MemoryRecallTool::new(memory);
 ```
 
-## Feature 配置
+## 模块结构
 
-| Feature | 说明 |
-|---------|------|
-| `basic` | EchoTool（默认） |
-| `system` | Shell、CmdExec、Git 工具 |
-| `file` | 文件读/写/编辑工具 |
-| `network` | HTTP 请求工具 |
-| `browser` | 浏览和打开浏览器工具 |
-| `memory` | 记忆存储和检索工具 |
-| `datetime` | 日期时间工具 |
-| `github` | GitHub 趋势工具 |
-| `web_search` | 网络搜索工具 |
-| `all` | 启用所有工具 |
+| 模块 | 说明 |
+|------|------|
+| `file` | 文件读、写、编辑工具 |
+| `basic` | Echo 等基础工具 |
+| `system` | Shell、受限命令执行、日期时间、Git 工具 |
+| `web` | HTTP、网页抓取、浏览、SerpAPI、Tavily、GitHub Trending |
+| `search` | Glob 文件搜索、内容搜索 |
+| `math` | 数学计算 |
+| `media` | 图片信息读取 |
+| `memory` | 记忆存储和检索 |
+
+当前 crate 默认编译全部内置工具；`Cargo.toml` 暂未定义按模块裁剪的 feature。
 
 ## 安全说明
 

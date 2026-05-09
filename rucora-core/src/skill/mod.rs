@@ -2,6 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::path::PathBuf;
 
 /// Skill 定义
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -24,6 +25,9 @@ pub struct SkillDefinition {
     pub homepage: Option<String>,
     #[serde(default)]
     pub metadata: Option<Value>,
+    /// 技能来源目录，仅用于运行时定位本地实现文件。
+    #[serde(skip)]
+    pub location: Option<PathBuf>,
 }
 
 fn default_version() -> String {
@@ -47,6 +51,7 @@ impl SkillDefinition {
             output_schema: Value::Null,
             homepage: None,
             metadata: None,
+            location: None,
         }
     }
 

@@ -4,8 +4,10 @@
 
 pub mod cmd_exec;
 pub mod datetime;
+pub mod git;
 pub mod shell;
 
 pub use cmd_exec::CmdExecTool;
 pub use datetime::DatetimeTool;
+pub use git::GitTool;
 pub use shell::ShellTool;
