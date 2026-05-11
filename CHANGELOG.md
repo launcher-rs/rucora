@@ -4,36 +4,17 @@
 
 ---
 
-## [0.1.7] - 2026-05-11
+## [0.2.0] - 2026-05-11
 
 ### 新增功能
 
-**Deep Research 增强**
-- 新增 `AgenticStrategy`: Agentic 自主研究策略，LLM 自主决策研究路径
-- 新增 `DefaultCitationHandler`: 默认引用处理器实现
-- 新增 `InMemoryResearchLibrary`: 内存研究库实现
-- 新增 `FileResearchLibrary`: 文件系统研究库实现
-
-**新增示例**
-- `rucora-deep-research-agentic`: Agentic 自主研究示例
-- `rucora-deep-research-library`: 研究库示例
-- `rucora-deep-research-academic`: 学术研究示例
-- `quick_research`: 快速研究示例
-- `iterative_research`: 迭代研究示例
-
----
-
-## [0.1.6] - 2026-05-11
-
-### 新增功能
-
-**Deep Research 核心模块**
+**Deep Research 核心模块 (Breaking Change)**
 - 新增 `rucora-core::research` 模块，提供深度研究核心抽象
-- `ResearchContext`: 研究上下文，贯穿整个研究流程
-- `ResearchPhase`: 研究阶段（初始化、搜索、精读、综合、完成）
-- `ResearchStrategy`: 研究策略枚举（快速、标准、Agentic、研究库、学术）
-- `ResearchReport`: 研究报告结构
-- `ResearchConfig`: 研究配置
+  - `ResearchContext`: 研究上下文，贯穿整个研究流程
+  - `ResearchPhase`: 研究阶段（初始化、搜索、精读、综合、完成）
+  - `ResearchStrategy`: 研究策略枚举（快速、标准、Agentic、研究库、学术）
+  - `ResearchReport`: 研究报告结构
+  - `ResearchConfig`: 研究配置
 
 **Deep Research Trait**
 - `DeepResearchEngine` trait: 深度研究引擎接口
@@ -43,13 +24,35 @@
 
 **rucora 深度研究实现**
 - 新增 `rucora::deep_research` 模块
-- `DefaultResearchEngine`: 默认研究引擎实现
-- `StandardStrategy`: 标准多阶段策略
-- `FastStrategy`: 快速研究策略
+  - `DefaultResearchEngine`: 默认研究引擎实现
+  - `StandardStrategy`: 标准多阶段策略
+  - `FastStrategy`: 快速研究策略
+  - `AgenticStrategy`: Agentic 自主研究策略
+  - `InMemoryResearchLibrary`: 内存研究库
+  - `FileResearchLibrary`: 文件系统研究库
+
+**新增示例**
+- `quick_research`: 快速研究示例（30秒-3分钟）
+- `iterative_research`: 迭代深化研究示例
+- `rucora-deep-research-agentic`: Agentic 自主研究示例
+- `rucora-deep-research-library`: 研究库示例
+- `rucora-deep-research-academic`: 学术研究示例
+
+**ShutdownToken 增强**
+- 新增 `subscribe()` 方法，支持订阅关闭信号广播
+
+**RetryPolicy 增强**
+- 新增 `should_retry_with_error()` 方法，允许根据错误信息决定是否重试
+- `TransientFilter` 现在支持基于错误信息的条件重试过滤
 
 ### 依赖更新
 - 新增 `uuid` crate 用于生成唯一 ID
 - 新增 `chrono` crate 用于时间处理
+
+### 文档新增
+- `docs/deep_research_v2_plan.md`: Deep Research 0.2 实施计划
+- `docs/deep_research_v2_implementation.md`: 实现思路详解
+- `docs/deep_research_v2_quickstart.md`: 快速开始指南
 
 ---
 
