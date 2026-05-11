@@ -4,6 +4,30 @@
 
 ---
 
+## [0.1.5] - 2026-05-11
+
+### 新增功能
+
+**ShutdownToken 增强**
+- 新增 `subscribe()` 方法，支持订阅关闭信号广播
+
+**RetryPolicy 增强**
+- 新增 `should_retry_with_error()` 方法，允许根据错误信息决定是否重试
+- `TransientFilter` 现在支持基于错误信息的条件重试过滤
+
+### 新增示例
+
+**Deep Research 示例**
+- `quick_research`: 快速研究示例（30秒-3分钟获取带引用的答案）
+- `iterative_research`: 迭代深化研究示例（多轮迭代逐步深化研究）
+
+**文档新增**
+- `docs/deep_research_v2_plan.md`: Deep Research 0.2 实施计划
+- `docs/deep_research_v2_implementation.md`: 实现思路详解
+- `docs/deep_research_v2_quickstart.md`: 快速开始指南
+
+---
+
 ## [0.1.4] - 2026-05-11
 
 ### 新增功能

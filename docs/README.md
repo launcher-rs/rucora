@@ -41,6 +41,14 @@
 | [自动对话](agent_auto_conversation.md) | 自动对话功能 |
 | [发布与版本管理](release_versioning.md) | crates.io 发布与版本策略 |
 
+### Deep Research
+
+| 文档 | 说明 |
+|------|------|
+| [Deep Research 0.2 实施计划](deep_research_v2_plan.md) | 0.2 版本功能规划 |
+| [实现思路详解](deep_research_v2_implementation.md) | 技术实现方案 |
+| [快速开始指南](deep_research_v2_quickstart.md) | 使用指南 |
+
 ### 其他
 
 | 文档 | 说明 |

@@ -74,6 +74,14 @@ pub trait RetryPolicy: Send + Sync {
     /// - `None`: 不应该重试
     fn should_retry(&self, attempt: u32) -> Option<Duration>;
 
+    /// 判断是否应该重试（带错误信息）
+    ///
+    /// 默认实现调用 `should_retry`，忽略错误信息。
+    /// 子类可以重写此方法根据错误类型决定是否重试。
+    fn should_retry_with_error(&self, attempt: u32, _error: &str) -> Option<Duration> {
+        self.should_retry(attempt)
+    }
+
     /// 获取最大重试次数
     fn max_retries(&self) -> u32 {
         u32::MAX
@@ -219,6 +227,14 @@ impl<P: RetryPolicy> TransientFilter<P> {
 impl<P: RetryPolicy> RetryPolicy for TransientFilter<P> {
     fn should_retry(&self, attempt: u32) -> Option<Duration> {
         self.inner.should_retry(attempt)
+    }
+
+    fn should_retry_with_error(&self, attempt: u32, error: &str) -> Option<Duration> {
+        if (self.predicate)(error) {
+            self.inner.should_retry_with_error(attempt, error)
+        } else {
+            None
+        }
     }
 
     fn max_retries(&self) -> u32 {

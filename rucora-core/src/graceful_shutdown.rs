@@ -26,6 +26,13 @@ impl ShutdownToken {
     pub fn is_shutdown(&self) -> bool {
         self.is_shutdown.load(Ordering::SeqCst)
     }
+
+    /// 订阅关闭信号。
+    ///
+    /// 返回一个接收器，当触发关闭时会收到通知。
+    pub fn subscribe(&self) -> broadcast::Receiver<()> {
+        self.shutdown_tx.subscribe()
+    }
 }
 
 /// 优雅关闭句柄
