@@ -1,0 +1,121 @@
+//! 研究策略实现
+
+use async_trait::async_trait;
+use rucora_core::provider::LlmProvider;
+use rucora_core::research::{ResearchConfig, ResearchContext, StrategyResult};
+use std::sync::Arc;
+
+/// 标准多阶段研究策略
+///
+/// 典型的三阶段流程：
+/// 1. 搜索收集 - 多轮搜索收集信息
+/// 2. 深度精读 - 对重要 URL 进行深度阅读
+/// 3. 综合报告 - 汇总所有信息生成报告
+pub struct StandardStrategy {
+    config: ResearchConfig,
+}
+
+impl StandardStrategy {
+    pub fn new() -> Self {
+        Self {
+            config: ResearchConfig::default(),
+        }
+    }
+
+    pub fn with_config(config: ResearchConfig) -> Self {
+        Self { config }
+    }
+}
+
+impl Default for StandardStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl rucora_core::research::StrategyTrait for StandardStrategy {
+    fn name(&self) -> &'static str {
+        "standard"
+    }
+
+    fn description(&self) -> &'static str {
+        "标准多阶段研究策略：搜索 → 精读 → 综合报告"
+    }
+
+    async fn search(
+        &self,
+        _provider: &Arc<dyn LlmProvider>,
+        _topic: &str,
+        _context: &mut ResearchContext,
+    ) -> Result<StrategyResult, rucora_core::research::ResearchError> {
+        // 实际实现需要使用 DefaultExecution 和工具
+        // 这里先返回占位实现
+        Ok(StrategyResult::default())
+    }
+
+    fn should_continue(&self, result: &StrategyResult) -> bool {
+        !result.is_complete && result.confidence < 0.8
+    }
+
+    fn max_iterations(&self) -> Option<u32> {
+        Some(self.config.max_iterations)
+    }
+
+    fn config(&self) -> &ResearchConfig {
+        &self.config
+    }
+}
+
+/// 快速研究策略
+///
+/// 适用于简单事实查询，30秒-3分钟内完成。
+pub struct FastStrategy {
+    config: ResearchConfig,
+}
+
+impl FastStrategy {
+    pub fn new() -> Self {
+        Self {
+            config: ResearchConfig::fast(),
+        }
+    }
+}
+
+impl Default for FastStrategy {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+#[async_trait]
+impl rucora_core::research::StrategyTrait for FastStrategy {
+    fn name(&self) -> &'static str {
+        "fast"
+    }
+
+    fn description(&self) -> &'static str {
+        "快速研究策略：单次搜索 + 快速综合"
+    }
+
+    async fn search(
+        &self,
+        _provider: &Arc<dyn LlmProvider>,
+        _topic: &str,
+        _context: &mut ResearchContext,
+    ) -> Result<StrategyResult, rucora_core::research::ResearchError> {
+        Ok(StrategyResult::default())
+    }
+
+    fn should_continue(&self, result: &StrategyResult) -> bool {
+        !result.is_complete && result.search_count < self.config.max_iterations
+    }
+
+    fn max_iterations(&self) -> Option<u32> {
+        Some(self.config.max_iterations)
+    }
+
+    fn config(&self) -> &ResearchConfig {
+        &self.config
+    }
+}

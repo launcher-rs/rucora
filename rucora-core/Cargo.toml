@@ -21,6 +21,8 @@ futures-util = "0.3"
 tokio = { version = "1", features = ["sync", "time", "macros", "rt", "fs", "process"] }
 regex = "1"
 tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 # 注意：contract_vector_store.rs 测试需要在 workspace 级别运行
 # 而非单独发布 rucora-core 时运行

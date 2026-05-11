@@ -122,6 +122,9 @@ pub use rucora_embed as embed;
 // RAG 模块
 pub mod rag;
 
+// Deep Research 模块
+pub mod deep_research;
+
 // 上下文压缩模块
 pub mod compact;
 

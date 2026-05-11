@@ -2394,6 +2394,7 @@ version = "0.1.5"
 dependencies = [
  "anyhow",
  "async-trait",
+ "chrono",
  "futures-util",
  "regex",
  "serde",
@@ -2401,6 +2402,7 @@ dependencies = [
  "thiserror 2.0.18",
  "tokio",
  "tracing",
+ "uuid",
 ]
 
 [[package]]

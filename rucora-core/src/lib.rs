@@ -218,6 +218,9 @@ pub mod graceful_shutdown;
 /// RetryPolicy（重试策略）接口
 pub mod retry;
 
+/// Deep Research（深度研究）核心抽象
+pub mod research;
+
 // 重新导出常用类型
 pub use agent::types::{AgentInput, AgentOutput};
 pub use channel::types::ChannelEvent;
@@ -236,3 +239,14 @@ pub use provider::types::LlmParams;
 pub use tool::Tool;
 pub use graceful_shutdown::{GracefulShutdown, ShutdownHandle, ShutdownState, ShutdownToken};
 pub use retry::{ExponentialBackoff, FixedDelay, NoRetry, RetryPolicy, RetryPolicyExt};
+
+// 重新导出 Deep Research 类型
+pub use research::{
+    Citation, InfoPiece, ResearchConfig, ResearchContext, ResearchPhase, ResearchProgress,
+    ResearchReport, ResearchStrategy, SearchHistory, SourceType, StrategyResult,
+};
+
+// 重新导出 Deep Research trait
+pub use research::{
+    CitationHandler, DeepResearchEngine, ResearchError, ResearchLibrary, StrategyTrait,
+};
