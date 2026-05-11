@@ -4,6 +4,25 @@
 
 ---
 
+## [0.1.7] - 2026-05-11
+
+### 新增功能
+
+**Deep Research 增强**
+- 新增 `AgenticStrategy`: Agentic 自主研究策略，LLM 自主决策研究路径
+- 新增 `DefaultCitationHandler`: 默认引用处理器实现
+- 新增 `InMemoryResearchLibrary`: 内存研究库实现
+- 新增 `FileResearchLibrary`: 文件系统研究库实现
+
+**新增示例**
+- `rucora-deep-research-agentic`: Agentic 自主研究示例
+- `rucora-deep-research-library`: 研究库示例
+- `rucora-deep-research-academic`: 学术研究示例
+- `quick_research`: 快速研究示例
+- `iterative_research`: 迭代研究示例
+
+---
+
 ## [0.1.6] - 2026-05-11
 
 ### 新增功能

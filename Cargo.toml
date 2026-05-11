@@ -13,7 +13,12 @@ members = [
     "examples/a2a-client",
     "examples/a2a-server",
     "examples/rucora-skills-example",
-    "examples/rucora-deep-research"
+    "examples/rucora-deep-research",
+    "examples/quick_research",
+    "examples/iterative_research",
+    "examples/rucora-deep-research-agentic",
+    "examples/rucora-deep-research-library",
+    "examples/rucora-deep-research-academic"
 ]
 
 [workspace.package]

@@ -1476,6 +1476,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "iterative_research"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2017,6 +2035,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "quick_research"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "quinn"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2426,6 +2460,54 @@ dependencies = [
  "serde_json",
  "tokio",
  "toml",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "rucora-deep-research-academic"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "console",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "rucora-deep-research-agentic"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "console",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "rucora-deep-research-library"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "console",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
+ "tokio",
  "tracing",
  "tracing-subscriber",
 ]

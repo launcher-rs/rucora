@@ -262,6 +262,59 @@ pub trait CitationHandler: Send + Sync {
     fn format_reference_list(&self, citations: &[super::Citation]) -> String;
 }
 
+/// 默认引用处理器
+pub struct DefaultCitationHandler;
+
+impl DefaultCitationHandler {
+    pub fn new() -> Self {
+        Self
+    }
+}
+
+impl Default for DefaultCitationHandler {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl CitationHandler for DefaultCitationHandler {
+    fn extract_citations(&self, content: &str) -> Vec<super::Citation> {
+        // 简单的 URL 提取正则
+        let url_regex = regex::Regex::new(r"https?://[^\s\)]+").unwrap();
+        let mut citations = Vec::new();
+
+        for cap in url_regex.find_iter(content) {
+            let url = cap.as_str().to_string();
+            // 避免重复
+            if !citations.iter().any(|c: &super::Citation| c.url == url) {
+                citations.push(super::Citation::new(
+                    url,
+                    "".to_string(),
+                    "".to_string(),
+                ));
+            }
+        }
+
+        citations
+    }
+
+    fn format_citation(&self, citation: &super::Citation) -> String {
+        citation.format_apa()
+    }
+
+    fn format_reference_list(&self, citations: &[super::Citation]) -> String {
+        if citations.is_empty() {
+            return "无可用引用".to_string();
+        }
+
+        let mut result = String::from("## 参考来源\n\n");
+        for (i, citation) in citations.iter().enumerate() {
+            result.push_str(&format!("{}. {}\n\n", i + 1, citation.format_apa()));
+        }
+        result
+    }
+}
+
 /// 搜索策略工厂
 pub trait StrategyFactory: Send + Sync {
     /// 创建策略

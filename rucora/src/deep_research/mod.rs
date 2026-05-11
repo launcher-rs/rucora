@@ -2,8 +2,12 @@
 //!
 //! 提供多种研究策略的实现。
 
+pub mod agentic;
 pub mod engine;
+pub mod library;
 pub mod strategies;
 
 pub use engine::DefaultResearchEngine;
 pub use strategies::{FastStrategy, StandardStrategy};
+pub use agentic::AgenticStrategy;
+pub use library::{FileResearchLibrary, InMemoryResearchLibrary};
