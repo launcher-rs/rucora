@@ -25,6 +25,7 @@ pub struct VectorRecord {
 impl VectorRecord {
     /// 创建新的向量记录。
     pub fn new(id: impl Into<String>, vector: Vec<f32>) -> Self {
+        assert!(!vector.is_empty(), "VectorRecord vector must not be empty");
         Self {
             id: id.into(),
             vector,
@@ -90,6 +91,8 @@ impl VectorQuery {
 
     /// 设置返回数量。
     pub fn with_top_k(mut self, top_k: usize) -> Self {
+        assert!(top_k > 0, "top_k must be greater than 0");
+        assert!(top_k <= 1000, "top_k must not exceed 1000");
         self.top_k = top_k;
         self
     }

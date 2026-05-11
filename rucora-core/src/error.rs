@@ -106,7 +106,7 @@ impl ErrorCategory {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ErrorDiagnostic {
     /// 错误类型
-    pub kind: &'static str,
+    pub kind: String,
     /// 错误消息
     pub message: String,
     /// 是否可重试
@@ -124,7 +124,7 @@ pub struct ErrorDiagnostic {
 impl Default for ErrorDiagnostic {
     fn default() -> Self {
         Self {
-            kind: "unknown",
+            kind: "unknown".to_string(),
             message: String::new(),
             retriable: false,
             source: None,
@@ -271,7 +271,7 @@ impl DiagnosticError for ProviderError {
             ProviderError::Network {
                 message, retriable, ..
             } => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: message.clone(),
                 retriable: *retriable,
                 source: None,
@@ -284,7 +284,7 @@ impl DiagnosticError for ProviderError {
                 message,
                 code,
             } => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: message.clone(),
                 retriable: *status >= 500,
                 source: code.clone(),
@@ -293,7 +293,7 @@ impl DiagnosticError for ProviderError {
                 retry_after: None,
             },
             ProviderError::Authentication { message } => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: message.clone(),
                 retriable: false,
                 source: None,
@@ -305,7 +305,7 @@ impl DiagnosticError for ProviderError {
                 message,
                 retry_after,
             } => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: message.clone(),
                 retriable: true,
                 source: None,
@@ -317,7 +317,7 @@ impl DiagnosticError for ProviderError {
                 message,
                 elapsed: _,
             } => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: message.clone(),
                 retriable: true,
                 source: None,
@@ -326,7 +326,7 @@ impl DiagnosticError for ProviderError {
                 retry_after: None, // elapsed 是已消耗时间，不是建议等待时间
             },
             ProviderError::Model { message } => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: message.clone(),
                 retriable: false, // 模型错误通常是永久性错误（如模型不存在）
                 source: None,
@@ -335,7 +335,7 @@ impl DiagnosticError for ProviderError {
                 retry_after: None,
             },
             ProviderError::Message(msg) => ErrorDiagnostic {
-                kind: "provider",
+                kind: "provider".to_string(),
                 message: msg.clone(),
                 retriable: true,
                 source: None,
@@ -375,7 +375,7 @@ impl DiagnosticError for ToolError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
             ToolError::Message(msg) => ErrorDiagnostic {
-                kind: "tool",
+                kind: "tool".to_string(),
                 message: msg.clone(),
                 retriable: false,
                 source: None,
@@ -384,7 +384,7 @@ impl DiagnosticError for ToolError {
                 retry_after: None,
             },
             ToolError::PolicyDenied { rule_id, reason } => ErrorDiagnostic {
-                kind: "tool",
+                kind: "tool".to_string(),
                 message: format!("policy denied (rule_id={rule_id}): {reason}"),
                 retriable: false,
                 source: Some(rule_id.clone()),
@@ -393,7 +393,7 @@ impl DiagnosticError for ToolError {
                 retry_after: None,
             },
             ToolError::NotFound { name } => ErrorDiagnostic {
-                kind: "tool",
+                kind: "tool".to_string(),
                 message: format!("工具不存在：{name}"),
                 retriable: false,
                 source: None,
@@ -402,7 +402,7 @@ impl DiagnosticError for ToolError {
                 retry_after: None,
             },
             ToolError::ValidationError { message } => ErrorDiagnostic {
-                kind: "tool",
+                kind: "tool".to_string(),
                 message: format!("输入验证失败：{message}"),
                 retriable: false,
                 source: None,
@@ -411,7 +411,7 @@ impl DiagnosticError for ToolError {
                 retry_after: None,
             },
             ToolError::Timeout { message } => ErrorDiagnostic {
-                kind: "tool",
+                kind: "tool".to_string(),
                 message: format!("工具执行超时：{message}"),
                 retriable: false, // 工具超时通常不应该重试
                 source: None,
@@ -440,7 +440,7 @@ impl DiagnosticError for SkillError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
             SkillError::Message(msg) => ErrorDiagnostic {
-                kind: "skill",
+                kind: "skill".to_string(),
                 message: msg.clone(),
                 retriable: false,
                 source: None,
@@ -449,7 +449,7 @@ impl DiagnosticError for SkillError {
                 retry_after: None,
             },
             SkillError::NotFound { name } => ErrorDiagnostic {
-                kind: "skill",
+                kind: "skill".to_string(),
                 message: format!("技能不存在：{name}"),
                 retriable: false,
                 source: None,
@@ -458,7 +458,7 @@ impl DiagnosticError for SkillError {
                 retry_after: None,
             },
             SkillError::Timeout { message } => ErrorDiagnostic {
-                kind: "skill",
+                kind: "skill".to_string(),
                 message: format!("技能执行超时：{message}"),
                 retriable: true,
                 source: None,
@@ -497,7 +497,7 @@ impl DiagnosticError for AgentError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
             AgentError::Message(msg) => ErrorDiagnostic {
-                kind: "runtime",
+                kind: "runtime".to_string(),
                 message: msg.clone(),
                 retriable: false,
                 source: None,
@@ -506,7 +506,7 @@ impl DiagnosticError for AgentError {
                 retry_after: None,
             },
             AgentError::MaxStepsExceeded { max_steps } => ErrorDiagnostic {
-                kind: "runtime",
+                kind: "runtime".to_string(),
                 message: format!("超过最大步数限制：{max_steps}"),
                 retriable: false,
                 source: None,
@@ -516,11 +516,11 @@ impl DiagnosticError for AgentError {
             },
             AgentError::ProviderError { source } => {
                 let mut diag = source.diagnostic();
-                diag.kind = "runtime";
+                diag.kind = "runtime".to_string();
                 diag
             }
             AgentError::RequiresRuntime => ErrorDiagnostic {
-                kind: "runtime",
+                kind: "runtime".to_string(),
                 message: "此决策需要 Runtime 支持，请使用 Runtime 模式运行".to_string(),
                 retriable: false,
                 source: None,
@@ -546,7 +546,7 @@ impl DiagnosticError for MemoryError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
             MemoryError::Message(msg) => ErrorDiagnostic {
-                kind: "memory",
+                kind: "memory".to_string(),
                 message: msg.clone(),
                 retriable: false,
                 source: None,
@@ -555,7 +555,7 @@ impl DiagnosticError for MemoryError {
                 retry_after: None,
             },
             MemoryError::NotFound { id } => ErrorDiagnostic {
-                kind: "memory",
+                kind: "memory".to_string(),
                 message: format!("记忆不存在：{id}"),
                 retriable: false,
                 source: None,
@@ -578,7 +578,7 @@ impl DiagnosticError for ChannelError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
             ChannelError::Message(msg) => ErrorDiagnostic {
-                kind: "channel",
+                kind: "channel".to_string(),
                 message: msg.clone(),
                 retriable: false,
                 source: None,

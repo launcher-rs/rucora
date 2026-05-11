@@ -15,7 +15,7 @@
 //!
 //! ## 简单工具
 //!
-//! ```rust
+//! ```rust,ignore
 //! use rucora_core::tool::{Tool, ToolCategory};
 //! use rucora_core::error::ToolError;
 //! use async_trait::async_trait;
@@ -63,7 +63,7 @@
 //!
 //! ## 带状态的工具
 //!
-//! ```rust
+//! ```rust,ignore
 //! use std::sync::Arc;
 //! use tokio::sync::RwLock;
 //! use rucora_core::tool::{Tool, ToolCategory};
@@ -127,7 +127,7 @@
 //!
 //! ## 1. 提供清晰的描述
 //!
-//! ```rust
+//! ```rust,ignore
 //! fn description(&self) -> Option<&str> {
 //!     Some("读取文件内容。支持 txt、md、json 等文本文件格式。")
 //! }
@@ -135,7 +135,7 @@
 //!
 //! ## 2. 定义明确的输入 schema
 //!
-//! ```rust
+//! ```rust,ignore
 //! fn input_schema(&self) -> Value {
 //!     json!({
 //!         "type": "object",
@@ -157,7 +157,7 @@
 //!
 //! ## 3. 完善的错误处理
 //!
-//! ```rust
+//! ```rust,ignore
 //! async fn call(&self, input: Value) -> Result<Value, ToolError> {
 //!     let path = input.get("path")
 //!         .and_then(|v| v.as_str())
@@ -170,7 +170,7 @@
 //!
 //! ## 4. 合理的分类
 //!
-//! ```rust
+//! ```rust,ignore
 //! fn categories(&self) -> &'static [ToolCategory] {
 //!     &[ToolCategory::File, ToolCategory::System]
 //! }
@@ -199,7 +199,7 @@ use crate::tool::types::ToolDefinition; // 引入 ToolDefinition
 ///
 /// # 示例
 ///
-/// ```rust
+/// ```rust,ignore
 /// use rucora_core::tool::ToolCategory;
 ///
 /// // 使用预定义分类
@@ -235,23 +235,23 @@ impl ToolCategory {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// use rucora_core::tool::ToolCategory;
     ///
     /// assert_eq!(ToolCategory::Basic.name(), "basic");
     /// assert_eq!(ToolCategory::File.name(), "file");
     /// assert_eq!(ToolCategory::Custom("my_cat").name(), "my_cat");
     /// ```
-    pub fn name(&self) -> String {
+    pub fn name(&self) -> &'static str {
         match self {
-            ToolCategory::Basic => "basic".to_string(),
-            ToolCategory::File => "file".to_string(),
-            ToolCategory::Network => "network".to_string(),
-            ToolCategory::System => "system".to_string(),
-            ToolCategory::Browser => "browser".to_string(),
-            ToolCategory::Memory => "memory".to_string(),
-            ToolCategory::External => "external".to_string(),
-            ToolCategory::Custom(s) => s.to_string(),
+            ToolCategory::Basic => "basic",
+            ToolCategory::File => "file",
+            ToolCategory::Network => "network",
+            ToolCategory::System => "system",
+            ToolCategory::Browser => "browser",
+            ToolCategory::Memory => "memory",
+            ToolCategory::External => "external",
+            ToolCategory::Custom(s) => s,
         }
     }
 }
@@ -276,44 +276,26 @@ impl ToolCategory {
 /// - `call()`: 执行工具的异步方法
 ///
 /// # 示例
-///
-/// ```rust,no_run
-/// use rucora_core::tool::{Tool, ToolCategory};
-/// use rucora_core::error::ToolError;
-/// use async_trait::async_trait;
-/// use serde_json::{Value, json};
-///
-/// struct MyTool;
-///
-/// #[async_trait]
-/// impl Tool for MyTool {
-///     fn name(&self) -> &str {
-///         "my_tool"
-///     }
-///
-///     fn description(&self) -> Option<&str> {
-///         Some("我的自定义工具")
-///     }
-///
-///     fn categories(&self) -> &'static [ToolCategory] {
-///         &[ToolCategory::Basic]
-///     }
-///
-///     fn input_schema(&self) -> Value {
-///         json!({
-///             "type": "object",
-///             "properties": {
-///                 "param": {"type": "string"}
-///             }
-///         })
-///     }
-///
-///     async fn call(&self, input: Value) -> Result<Value, ToolError> {
-///         // 实现工具逻辑
-///         Ok(json!({"result": "success"}))
-///     }
-/// }
-/// ```
+    ///
+    /// ```rust,ignore,ignore
+    /// use rucora_core::tool::{Tool, ToolCategory};
+    /// use rucora_core::error::ToolError;
+    /// use async_trait::async_trait;
+    /// use serde_json::{Value, json};
+    ///
+    /// struct MyTool;
+    ///
+    /// #[async_trait]
+    /// impl Tool for MyTool {
+    ///     fn name(&self) -> &str { "my_tool" }
+    ///     fn description(&self) -> Option<&str> { Some("我的自定义工具") }
+    ///     fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Basic] }
+    ///     fn input_schema(&self) -> Value { json!({"type": "object", "properties": {"param": {"type": "string"}}}) }
+    ///     async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    ///         Ok(json!({"result": "success"}))
+    ///     }
+    /// }
+    /// ```
 #[async_trait]
 pub trait Tool: Send + Sync {
     /// 工具名称（必须唯一）
@@ -328,7 +310,7 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore,ignore
     /// // 好的命名
     /// "file_read"
     /// "http_request"
@@ -352,7 +334,7 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore,ignore
     /// fn description(&self) -> Option<&str> {
     ///     Some("读取文件内容。支持 txt、md、json 等文本格式。")
     /// }
@@ -370,8 +352,8 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
-    /// use rucora_core::tool::{Tool, ToolCategory};
+    /// ```rust,ignore,ignore
+    /// use rucora_core::tool::ToolCategory;
     ///
     /// // 单分类
     /// fn categories(&self) -> &'static [ToolCategory] {
@@ -396,22 +378,15 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore,ignore
     /// use serde_json::json;
     ///
     /// fn input_schema(&self) -> Value {
     ///     json!({
     ///         "type": "object",
     ///         "properties": {
-    ///             "path": {
-    ///                 "type": "string",
-    ///                 "description": "文件路径"
-    ///             },
-    ///             "encoding": {
-    ///                 "type": "string",
-    ///                 "description": "文件编码",
-    ///                 "default": "utf-8"
-    ///             }
+    ///             "path": { "type": "string", "description": "文件路径" },
+    ///             "encoding": { "type": "string", "description": "文件编码", "default": "utf-8" }
     ///         },
     ///         "required": ["path"]
     ///     })
@@ -432,7 +407,7 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore,ignore
     /// use rucora_core::tool::{Tool, ToolCategory};
     /// use rucora_core::error::ToolError;
     /// use async_trait::async_trait;

@@ -4,6 +4,51 @@
 
 ---
 
+## [0.1.4] - 2026-05-11
+
+### 新增功能
+
+**graceful_shutdown 模块**
+- 新增 `graceful_shutdown` 模块，提供优雅关闭机制
+- `ShutdownHandle`: 关闭句柄，用于触发和控制关闭流程
+- `ShutdownToken`: 关闭令牌，用于检查是否已收到关闭信号
+- `GracefulShutdown` trait: 统一关闭接口
+
+**retry 模块**
+- 新增 `retry` 模块，提供重试策略抽象
+- `RetryPolicy` trait: 通用重试逻辑抽象
+- `ExponentialBackoff`: 指数退避策略（支持可选抖动）
+- `FixedDelay`: 固定间隔策略
+- `NoRetry`: 不重试策略
+- `RetryPolicyExt` trait: 重试策略扩展方法
+
+### 改进
+
+**并发性能提升**
+- `InMemoryVectorStore` 使用 `DashMap` 替代 `Arc<RwLock<HashMap>>`，提升并发读写性能
+
+**类型一致性改进**
+- `ErrorDiagnostic::kind` 字段类型从 `&'static str` 改为 `String`
+- `ToolCategory::name()` 返回类型从 `String` 改为 `&'static str`，减少不必要的内存分配
+
+**输入验证增强**
+- `LlmParams`: `temperature` 和 `top_p` 添加范围检查
+- `VectorRecord`: 向量非空检查
+- `VectorQuery`: `top_k` 范围检查 (1-1000)
+- `AgentInput`: 文本非空检查
+- `MetricAggregator::percentile`: 参数范围检查 (0-100)
+
+### Bug 修复
+
+**ToolFilterConfig 行为修复**
+- 修复 `is_always_visible()` 和 `is_dynamic()` 方法在禁用过滤器时错误返回可见性状态的问题
+- 修复 `new()` 默认配置的正确行为
+
+**文档修复**
+- 修复 doctest 示例代码标记
+
+---
+
 ## [0.1.3] - 2026-05-09
 
 ### 安全修复

@@ -37,7 +37,12 @@ pub struct ToolFilterConfig {
 impl ToolFilterConfig {
     /// 创建新的过滤器配置
     pub fn new() -> Self {
-        Self::default()
+        Self {
+            visibility: HashMap::new(),
+            dynamic_keywords: HashMap::new(),
+            default_visibility: ToolVisibility::Dynamic, // 默认隐藏未配置的工具
+            enabled: false,                              // 默认关闭过滤
+        }
     }
 
     /// 设置工具为始终可见
@@ -76,9 +81,6 @@ impl ToolFilterConfig {
 
     /// 检查工具是否应该始终可见
     pub fn is_always_visible(&self, tool_name: &str) -> bool {
-        if !self.enabled {
-            return true;
-        }
         match self.visibility.get(tool_name) {
             Some(ToolVisibility::Always) => true,
             Some(ToolVisibility::Dynamic) => false,
@@ -88,9 +90,6 @@ impl ToolFilterConfig {
 
     /// 检查工具是否是动态的
     pub fn is_dynamic(&self, tool_name: &str) -> bool {
-        if !self.enabled {
-            return false;
-        }
         matches!(
             self.visibility.get(tool_name),
             Some(ToolVisibility::Dynamic)

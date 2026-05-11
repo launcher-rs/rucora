@@ -17,7 +17,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.1.3"
+version = "0.1.4"
 license = "MIT"
 repository = "https://github.com/launcher-rs/rucora"
 authors = ["rucora contributors"]
@@ -25,15 +25,15 @@ keywords = ["llm", "agent", "ai", "openai", "rag"]
 categories = ["api-bindings", "asynchronous", "text-processing"]
 
 [workspace.dependencies]
-rucora = { path = "rucora", version = "0.1.3" }
-rucora-core = { path = "rucora-core", version = "0.1.3" }
-rucora-mcp = { path = "rucora-mcp", version = "0.1.3" }
-rucora-a2a = { path = "rucora-a2a", version = "0.1.3" }
-rucora-providers = { path = "rucora-providers", version = "0.1.3" }
-rucora-embed = { path = "rucora-embed", version = "0.1.3" }
-rucora-retrieval = { path = "rucora-retrieval", version = "0.1.3" }
-rucora-tools = { path = "rucora-tools", version = "0.1.3" }
-rucora-skills = { path = "rucora-skills", version = "0.1.3" }
+rucora = { path = "rucora", version = "0.1.4" }
+rucora-core = { path = "rucora-core", version = "0.1.4" }
+rucora-mcp = { path = "rucora-mcp", version = "0.1.4" }
+rucora-a2a = { path = "rucora-a2a", version = "0.1.4" }
+rucora-providers = { path = "rucora-providers", version = "0.1.4" }
+rucora-embed = { path = "rucora-embed", version = "0.1.4" }
+rucora-retrieval = { path = "rucora-retrieval", version = "0.1.4" }
+rucora-tools = { path = "rucora-tools", version = "0.1.4" }
+rucora-skills = { path = "rucora-skills", version = "0.1.4" }
 
 # ===== Workspace 级别的 Lint 配置 =====
 # 这些配置将应用于 workspace 中的所有 crate

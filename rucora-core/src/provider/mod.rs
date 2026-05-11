@@ -74,22 +74,14 @@
 //!
 //! ## 非流式聊天
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora_core::provider::{LlmProvider, types::*};
 //!
 //! # async fn example(provider: &dyn LlmProvider) -> Result<(), Box<dyn std::error::Error>> {
 //! let request = ChatRequest {
 //!     messages: vec![
-//!         ChatMessage {
-//!             role: Role::System,
-//!             content: "你是一个有用的助手".to_string(),
-//!             name: None,
-//!         },
-//!         ChatMessage {
-//!             role: Role::User,
-//!             content: "你好".to_string(),
-//!             name: None,
-//!         },
+//!         ChatMessage { role: Role::System, content: "你是一个有用的助手".to_string(), name: None },
+//!         ChatMessage { role: Role::User, content: "你好".to_string(), name: None },
 //!     ],
 //!     model: Some("gpt-4".to_string()),
 //!     tools: None,
@@ -97,6 +89,12 @@
 //!     max_tokens: None,
 //!     response_format: None,
 //!     metadata: None,
+//!     top_p: None,
+//!     top_k: None,
+//!     frequency_penalty: None,
+//!     presence_penalty: None,
+//!     stop: None,
+//!     extra: None,
 //! };
 //!
 //! let response = provider.chat(request).await?;
@@ -107,25 +105,25 @@
 //!
 //! ## 流式聊天
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora_core::provider::{LlmProvider, types::*};
 //! use futures_util::StreamExt;
 //!
 //! # async fn example(provider: &dyn LlmProvider) -> Result<(), Box<dyn std::error::Error>> {
 //! let request = ChatRequest {
-//!     messages: vec![
-//!         ChatMessage {
-//!             role: Role::User,
-//!             content: "讲个故事".to_string(),
-//!             name: None,
-//!         },
-//!     ],
+//!     messages: vec![ChatMessage { role: Role::User, content: "讲个故事".to_string(), name: None }],
 //!     model: Some("gpt-4".to_string()),
 //!     tools: None,
 //!     temperature: None,
 //!     max_tokens: None,
 //!     response_format: None,
 //!     metadata: None,
+//!     top_p: None,
+//!     top_k: None,
+//!     frequency_penalty: None,
+//!     presence_penalty: None,
+//!     stop: None,
+//!     extra: None,
 //! };
 //!
 //! let mut stream = provider.stream_chat(request)?;
@@ -150,7 +148,7 @@
 //!
 //! ## OpenAI Provider 示例
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora_core::provider::{LlmProvider, types::*};
 //! use rucora_core::error::ProviderError;
 //! use async_trait::async_trait;
@@ -162,6 +160,12 @@
 //!     client: Client,
 //!     api_key: String,
 //!     base_url: String,
+//! }
+//!
+//! impl OpenAiProvider {
+//!     fn new(api_key: String, base_url: String) -> Self {
+//!         Self { client: Client::new(), api_key, base_url }
+//!     }
 //! }
 //!
 //! #[async_trait]

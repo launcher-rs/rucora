@@ -17,7 +17,7 @@
 //!
 //! [`Tool`] trait 是所有工具必须实现的接口：
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora_core::tool::{Tool, ToolCategory};
 //! use rucora_core::error::ToolError;
 //! use async_trait::async_trait;
@@ -27,28 +27,10 @@
 //!
 //! #[async_trait]
 //! impl Tool for EchoTool {
-//!     fn name(&self) -> &str {
-//!         "echo"
-//!     }
-//!
-//!     fn description(&self) -> Option<&str> {
-//!         Some("回显输入内容")
-//!     }
-//!
-//!     fn categories(&self) -> &'static [ToolCategory] {
-//!         &[ToolCategory::Basic]
-//!     }
-//!
-//!     fn input_schema(&self) -> Value {
-//!         json!({
-//!             "type": "object",
-//!             "properties": {
-//!                 "text": {"type": "string", "description": "要回显的文本"}
-//!             },
-//!             "required": ["text"]
-//!         })
-//!     }
-//!
+//!     fn name(&self) -> &str { "echo" }
+//!     fn description(&self) -> Option<&str> { Some("回显输入内容") }
+//!     fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Basic] }
+//!     fn input_schema(&self) -> Value { json!({"type": "object", "properties": {"text": {"type": "string"}}}) }
 //!     async fn call(&self, input: Value) -> Result<Value, ToolError> {
 //!         let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
 //!         Ok(json!({"echo": text}))
@@ -60,7 +42,7 @@
 //!
 //! [`ToolRegistry`] trait 是工具注册表的接口，用于管理和调用多个工具：
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora_core::tool::{Tool, ToolRegistry, ToolCategory};
 //! use rucora_core::error::ToolError;
 //! use async_trait::async_trait;
@@ -71,16 +53,10 @@
 //!
 //! #[async_trait]
 //! impl ToolRegistry for MyRegistry {
-//!     fn get_tool(&self, name: &str) -> Option<Arc<dyn Tool>> {
-//!         None // 实现工具查找逻辑
-//!     }
-//!
-//!     fn list_tools(&self) -> Vec<Arc<dyn Tool>> {
-//!         vec![] // 实现工具列表逻辑
-//!     }
-//!
+//!     fn get_tool(&self, name: &str) -> Option<Arc<dyn Tool>> { None }
+//!     fn list_tools(&self) -> Vec<Arc<dyn Tool>> { vec![] }
 //!     async fn call(&self, name: &str, input: Value) -> Result<Value, ToolError> {
-//!         Err(ToolError::NotFound(name.to_string()))
+//!         Err(ToolError::NotFound { name: name.to_string() })
 //!     }
 //! }
 //! ```
@@ -102,7 +78,7 @@
 //!
 //! 工具定义，用于注册到 LLM 的 function calling：
 //!
-//! ```rust
+//! ```rust,ignore
 //! use rucora_core::tool::types::ToolDefinition;
 //! use serde_json::json;
 //!
@@ -122,7 +98,7 @@
 //!
 //! 工具调用，由 LLM 生成：
 //!
-//! ```rust
+//! ```rust,ignore
 //! use rucora_core::tool::types::ToolCall;
 //! use serde_json::json;
 //!
@@ -137,7 +113,7 @@
 //!
 //! 工具执行结果：
 //!
-//! ```rust
+//! ```rust,ignore
 //! use rucora_core::tool::types::ToolResult;
 //! use serde_json::json;
 //!

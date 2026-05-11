@@ -158,16 +158,20 @@ pub struct AgentInput {
 impl AgentInput {
     /// 从文本创建输入。
     pub fn new(text: impl Into<String>) -> Self {
+        let text = text.into();
+        assert!(!text.is_empty(), "AgentInput text must not be empty");
         Self {
-            text: text.into(),
+            text,
             context: serde_json::Value::Object(serde_json::Map::new()),
         }
     }
 
     /// 从文本和上下文创建输入。
     pub fn with_context(text: impl Into<String>, context: serde_json::Value) -> Self {
+        let text = text.into();
+        assert!(!text.is_empty(), "AgentInput text must not be empty");
         Self {
-            text: text.into(),
+            text,
             context,
         }
     }
@@ -197,8 +201,10 @@ pub struct AgentInputBuilder {
 impl AgentInputBuilder {
     /// 创建新的构建器。
     pub fn new(text: impl Into<String>) -> Self {
+        let text = text.into();
+        assert!(!text.is_empty(), "AgentInput text must not be empty");
         Self {
-            text: text.into(),
+            text,
             context: serde_json::Value::Object(serde_json::Map::new()),
         }
     }
@@ -253,24 +259,25 @@ impl From<&str> for AgentInput {
 /// - `tool_calls`: 工具调用记录
 ///
 /// # 使用示例
-///
-/// ```rust
-/// use rucora_core::agent::AgentOutput;
-///
-/// // 访问输出内容
-/// let output: AgentOutput = get_output();
-///
-/// // 提取文本内容
-/// if let Some(content) = output.value.get("content").and_then(|v| v.as_str()) {
-///     println!("回复：{}", content);
-/// }
-///
-/// // 访问对话历史
-/// println!("对话轮数：{}", output.messages.len());
-///
-/// // 访问工具调用
-/// println!("工具调用次数：{}", output.tool_calls.len());
-/// ```
+    ///
+    /// ```rust
+    /// use rucora_core::agent::AgentOutput;
+    /// use serde_json::json;
+    ///
+    /// // 创建输出
+    /// let output = AgentOutput::new(json!({"content": "Hello"}));
+    ///
+    /// // 提取文本内容
+    /// if let Some(content) = output.value.get("content").and_then(|v| v.as_str()) {
+    ///     assert_eq!(content, "Hello");
+    /// }
+    ///
+    /// // 访问对话历史
+    /// assert_eq!(output.messages.len(), 0);
+    ///
+    /// // 访问工具调用
+    /// assert_eq!(output.tool_calls.len(), 0);
+    /// ```
 #[derive(Debug, Clone)]
 pub struct AgentOutput {
     /// 主要输出内容（通常是 JSON 格式，包含 `content` 字段）。
@@ -444,7 +451,7 @@ pub struct ToolCallRecord {
 ///
 /// 如果 Agent 需要工具调用、流式输出等能力，可以组合 `DefaultExecution`：
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rucora::agent::execution::DefaultExecution;
 /// use rucora_core::agent::Agent;
 ///

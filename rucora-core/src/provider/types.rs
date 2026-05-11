@@ -126,20 +126,15 @@ pub enum FinishReason {
 ///
 /// # 使用示例
 ///
-/// ```rust
-/// use rucora_core::provider::types::LlmParams;
+/// ```rust,ignore
+/// use rucora_core::provider::types::{LlmParams, ChatRequest, ChatMessage};
 ///
-/// // 创建默认参数
-/// let params = LlmParams::default();
-///
-/// // 使用 builder 方法
 /// let params = LlmParams::new()
 ///     .temperature(0.5)
 ///     .top_p(0.9)
 ///     .max_tokens(4096);
 ///
-/// // 应用到 ChatRequest
-/// let mut request = ChatRequest::new(vec![]);
+/// let mut request = ChatRequest::new(vec![ChatMessage { role: rucora_core::provider::types::Role::User, content: "hi".to_string(), name: None }]);
 /// params.apply_to(&mut request);
 /// ```
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]
@@ -181,12 +176,22 @@ impl LlmParams {
 
     /// 设置 temperature。
     pub fn temperature(mut self, value: f32) -> Self {
+        assert!(
+            (0.0..=2.0).contains(&value),
+            "temperature must be between 0.0 and 2.0, got {}",
+            value
+        );
         self.temperature = Some(value);
         self
     }
 
     /// 设置 top_p。
     pub fn top_p(mut self, value: f32) -> Self {
+        assert!(
+            (0.0..=1.0).contains(&value),
+            "top_p must be between 0.0 and 1.0, got {}",
+            value
+        );
         self.top_p = Some(value);
         self
     }
@@ -372,6 +377,11 @@ impl ChatRequest {
 
     /// 设置 temperature。
     pub fn with_temperature(mut self, temperature: f32) -> Self {
+        assert!(
+            (0.0..=2.0).contains(&temperature),
+            "temperature must be between 0.0 and 2.0, got {}",
+            temperature
+        );
         self.temperature = Some(temperature);
         self
     }

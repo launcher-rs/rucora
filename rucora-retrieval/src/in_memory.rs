@@ -31,9 +31,7 @@
 use async_trait::async_trait;
 use rucora_core::error::ProviderError;
 use rucora_core::retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore};
-use std::collections::HashMap;
-use std::sync::Arc;
-use tokio::sync::RwLock;
+use dashmap::DashMap;
 
 /// 内存向量存储
 ///
@@ -41,14 +39,14 @@ use tokio::sync::RwLock;
 /// 相似度计算使用余弦相似度。
 #[derive(Debug, Default, Clone)]
 pub struct InMemoryVectorStore {
-    records: Arc<RwLock<HashMap<String, VectorRecord>>>,
+    records: DashMap<String, VectorRecord>,
 }
 
 impl InMemoryVectorStore {
     /// 创建新的内存向量存储
     pub fn new() -> Self {
         Self {
-            records: Arc::new(RwLock::new(HashMap::new())),
+            records: DashMap::new(),
         }
     }
 
@@ -73,32 +71,31 @@ impl InMemoryVectorStore {
 #[async_trait]
 impl VectorStore for InMemoryVectorStore {
     async fn upsert(&self, records: Vec<VectorRecord>) -> Result<(), ProviderError> {
-        let mut store = self.records.write().await;
         for record in records {
-            store.insert(record.id.clone(), record);
+            self.records.insert(record.id.clone(), record);
         }
         Ok(())
     }
 
     async fn delete(&self, ids: Vec<String>) -> Result<(), ProviderError> {
-        let mut store = self.records.write().await;
         for id in ids {
-            store.remove(&id);
+            self.records.remove(&id);
         }
         Ok(())
     }
 
     async fn get(&self, ids: Vec<String>) -> Result<Vec<VectorRecord>, ProviderError> {
-        let store = self.records.read().await;
-        Ok(ids.iter().filter_map(|id| store.get(id).cloned()).collect())
+        Ok(ids
+            .iter()
+            .filter_map(|id| self.records.get(id).map(|r| r.clone()))
+            .collect())
     }
 
     async fn search(&self, query: VectorQuery) -> Result<Vec<SearchResult>, ProviderError> {
-        let store = self.records.read().await;
-
         // 计算所有向量的相似度
-        let mut results: Vec<SearchResult> = store
-            .values()
+        let mut results: Vec<SearchResult> = self
+            .records
+            .iter()
             .map(|record| {
                 let score = Self::cosine_similarity(&query.vector, &record.vector);
                 SearchResult {
@@ -130,14 +127,12 @@ impl VectorStore for InMemoryVectorStore {
     }
 
     async fn clear(&self) -> Result<(), ProviderError> {
-        let mut store = self.records.write().await;
-        store.clear();
+        self.records.clear();
         Ok(())
     }
 
     async fn count(&self) -> Result<usize, ProviderError> {
-        let store = self.records.read().await;
-        Ok(store.len())
+        Ok(self.records.len())
     }
 }
 

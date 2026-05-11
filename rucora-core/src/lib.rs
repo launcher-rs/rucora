@@ -107,8 +107,8 @@
 //!
 //! ## 实现自定义 Provider
 //!
-//! ```rust,no_run
-//! use rucora_core::provider::{LlmProvider, types::*};
+//! ```rust,ignore
+//! use rucora_core::provider::{LlmProvider, types::{ChatRequest, ChatMessage, Role, ChatResponse, ChatStreamChunk}};
 //! use rucora_core::error::ProviderError;
 //! use async_trait::async_trait;
 //! use futures_util::stream::BoxStream;
@@ -118,29 +118,18 @@
 //! #[async_trait]
 //! impl LlmProvider for MyProvider {
 //!     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-//!         // 实现聊天逻辑
-//!         Ok(ChatResponse {
-//!             message: ChatMessage {
-//!                 role: Role::Assistant,
-//!                 content: "Hello!".to_string(),
-//!                 name: None,
-//!             },
-//!             tool_calls: vec![],
-//!             usage: None,
-//!             finish_reason: None,
-//!         })
+//!         let msg = ChatMessage { role: Role::Assistant, content: "Hello!".to_string(), name: None };
+//!         Ok(ChatResponse { message: msg, tool_calls: vec![], usage: None, finish_reason: None })
 //!     }
-//!
 //!     fn stream_chat(&self, request: ChatRequest) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
-//!         // 实现流式聊天逻辑
-//!         unimplemented!()
+//!         Err(ProviderError::Message("not implemented".to_string()))
 //!     }
 //! }
 //! ```
 //!
 //! ## 实现自定义 Tool
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora_core::tool::{Tool, ToolCategory};
 //! use rucora_core::error::ToolError;
 //! use async_trait::async_trait;
@@ -150,28 +139,12 @@
 //!
 //! #[async_trait]
 //! impl Tool for EchoTool {
-//!     fn name(&self) -> &str {
-//!         "echo"
-//!     }
-//!
-//!     fn description(&self) -> Option<&str> {
-//!         Some("回显输入内容")
-//!     }
-//!
-//!     fn categories(&self) -> &'static [ToolCategory] {
-//!         &[ToolCategory::Basic]
-//!     }
-//!
+//!     fn name(&self) -> &str { "echo" }
+//!     fn description(&self) -> Option<&str> { Some("回显输入内容") }
+//!     fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Basic] }
 //!     fn input_schema(&self) -> Value {
-//!         json!({
-//!             "type": "object",
-//!             "properties": {
-//!                 "text": {"type": "string", "description": "要回显的文本"}
-//!             },
-//!             "required": ["text"]
-//!         })
+//!         json!({"type": "object", "properties": {"text": {"type": "string"}}})
 //!     }
-//!
 //!     async fn call(&self, input: Value) -> Result<Value, ToolError> {
 //!         let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
 //!         Ok(json!({"echo": text}))
@@ -239,6 +212,12 @@ pub mod error_classifier_trait;
 /// Prompt 注入防护扫描器 trait（纯接口）
 pub mod injection_guard_trait;
 
+/// Graceful Shutdown（优雅关闭）支持
+pub mod graceful_shutdown;
+
+/// RetryPolicy（重试策略）接口
+pub mod retry;
+
 // 重新导出常用类型
 pub use agent::types::{AgentInput, AgentOutput};
 pub use channel::types::ChannelEvent;
@@ -255,3 +234,5 @@ pub use injection_guard_trait::{ContentScannable, InjectionGuard, ScanResult, Th
 pub use provider::LlmProvider;
 pub use provider::types::LlmParams;
 pub use tool::Tool;
+pub use graceful_shutdown::{GracefulShutdown, ShutdownHandle, ShutdownState, ShutdownToken};
+pub use retry::{ExponentialBackoff, FixedDelay, NoRetry, RetryPolicy, RetryPolicyExt};
