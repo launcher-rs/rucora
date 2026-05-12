@@ -18,7 +18,3 @@ tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenv = "0.15"
 async-trait = "0.1"
 chrono = "0.4"
-
-[profile.release]
-opt-level = 3
-lto = true

@@ -2486,7 +2486,6 @@ name = "rucora-deep-research-academic"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "console",
  "dotenv",
  "rucora",
  "rucora-core",
@@ -2502,7 +2501,6 @@ name = "rucora-deep-research-agentic"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "console",
  "dotenv",
  "rucora",
  "rucora-core",
@@ -2518,7 +2516,6 @@ name = "rucora-deep-research-library"
 version = "0.2.0"
 dependencies = [
  "anyhow",
- "console",
  "dotenv",
  "rucora",
  "rucora-core",

@@ -108,3 +108,7 @@ filter_map_identity = "warn"           # filter_map 中的恒等函数
 
 # 示例代码允许使用 unwrap()
 # 示例代码中为简洁起见允许 unwrap()
+
+[profile.release]
+opt-level = 3
+lto = true
