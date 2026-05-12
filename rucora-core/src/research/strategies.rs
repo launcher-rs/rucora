@@ -327,6 +327,41 @@ pub trait StrategyFactory: Send + Sync {
 /// 研究质量评估器
 ///
 /// 负责评估研究质量并生成改进建议。
+///
+/// # 功能
+///
+/// 1. **质量评估** (`assess`) - 基于收集的信息和引用评估研究质量
+/// 2. **建议生成** (`suggest`) - 根据评分生成具体的改进建议
+/// 3. **继续判断** (`should_continue`) - 判断是否需要继续搜索
+/// 4. **搜索提示** (`get_next_search_hint`) - 生成下一轮搜索的关键词提示
+///
+/// # 示例
+///
+/// ```rust
+/// use rucora_core::research::ResearchQualityAssessor;
+///
+/// // 方式 1: 使用默认配置
+/// let assessor = ResearchQualityAssessor::with_default("Rust 异步编程");
+///
+/// // 方式 2: 自定义配置
+/// let config = ScoringConfig {
+///     quality_threshold: 0.7,
+///     ..Default::default()
+/// };
+/// let assessor = ResearchQualityAssessor::new(config, vec!["Rust".to_string()]);
+///
+/// // 评估质量
+/// let score = assessor.assess(&info_pieces, &citations, 3);
+///
+/// // 生成建议
+/// let suggestion = assessor.suggest(&score);
+///
+/// // 判断是否继续
+/// if assessor.should_continue(&score, 3, 10) {
+///     let next_hint = assessor.get_next_search_hint(&score, "Rust");
+///     // 使用提示进行下一轮搜索
+/// }
+/// ```
 pub struct ResearchQualityAssessor {
     config: ScoringConfig,
     topic_keywords: Vec<String>,

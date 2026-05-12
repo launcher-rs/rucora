@@ -2325,6 +2325,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "research_quality_assessment"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "dotenv",
+ "rucora",
+ "rucora-core",
+ "rucora-providers",
+ "rucora-tools",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "ring"
 version = "0.17.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

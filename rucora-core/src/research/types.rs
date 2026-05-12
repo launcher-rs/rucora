@@ -407,6 +407,22 @@ impl ResearchConfig {
 }
 
 /// 研究质量评分
+///
+/// 用于评估深度研究的质量，综合考虑信息质量、完整性、置信度等因素。
+///
+/// # 计算公式
+///
+/// - `info_quality`: 高质量信息占比 × 平均相关性分数
+/// - `completeness`: 主题覆盖率（基于关键词匹配）
+/// - `confidence`: 信息质量×0.4 + 完整性×0.3 + 来源多样性×0.3
+/// - `overall`: 信息质量×0.3 + 完整性×0.4 + 置信度×0.3
+///
+/// # 评级
+///
+/// - 优秀: overall >= 0.8
+/// - 良好: overall >= 0.6
+/// - 一般: overall >= 0.4
+/// - 需改进: overall < 0.4
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchQualityScore {
     /// 信息质量评分 (0.0 - 1.0)
@@ -422,13 +438,15 @@ pub struct ResearchQualityScore {
 }
 
 /// 评分详情
+///
+/// 包含评估过程中的各项统计数据，用于分析研究质量的具体方面。
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct ScoreDetails {
     /// 信息数量
     pub info_count: usize,
-    /// 高质量信息数量
+    /// 高质量信息数量（相关性 >= 0.7）
     pub high_quality_count: usize,
-    /// 来源多样性
+    /// 来源多样性（不同来源类型的数量）
     pub source_diversity: usize,
     /// 引用数量
     pub citation_count: usize,
@@ -436,7 +454,7 @@ pub struct ScoreDetails {
     pub search_rounds: usize,
     /// 信息覆盖的主题数
     pub topic_coverage: usize,
-    /// 重复信息比例
+    /// 重复信息比例 (0.0 - 1.0)
     pub duplicate_ratio: f32,
 }
 
@@ -563,6 +581,24 @@ impl ResearchQualityScore {
 }
 
 /// 研究改进建议
+///
+/// 根据当前研究质量评分生成的改进建议，帮助指导后续研究流程。
+///
+/// # 用法
+///
+/// ```rust
+/// let assessor = ResearchQualityAssessor::with_default(topic);
+/// let score = assessor.assess(&info_pieces, &citations, rounds);
+/// let suggestion = assessor.suggest(&score);
+///
+/// match suggestion.suggestion_type {
+///     SuggestionType::Sufficient => { /* 可以停止研究 */ }
+///     SuggestionType::NeedMoreInfo => { /* 继续搜索更多信息 */ }
+///     SuggestionType::NeedMoreSources => { /* 尝试不同来源 */ }
+///     SuggestionType::NeedNewAngle => { /* 换个搜索角度 */ }
+///     SuggestionType::NeedValidation => { /* 验证信息准确性 */ }
+/// }
+/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ResearchSuggestion {
     /// 建议类型
@@ -576,17 +612,29 @@ pub struct ResearchSuggestion {
 }
 
 /// 建议类型
+///
+/// 根据评分结果生成的具体改进建议类型。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum SuggestionType {
     /// 信息不足，需要更多搜索
+    ///
+    /// 当收集的信息数量少于最小要求时触发。
     NeedMoreInfo,
     /// 来源单一，需要多元化
+    ///
+    /// 当来源类型过于单一时触发，建议拓展不同类型的来源。
     NeedMoreSources,
     /// 重复信息过多，需要新角度
+    ///
+    /// 当重复信息比例超过阈值时触发，建议换个角度搜索。
     NeedNewAngle,
     /// 置信度不足，需要深入验证
+    ///
+    /// 当置信度低于阈值时触发，建议通过权威来源验证信息。
     NeedValidation,
     /// 已达到目标
+    ///
+    /// 当研究质量达到预设阈值时触发，可以结束研究流程。
     Sufficient,
 }
 
@@ -661,17 +709,44 @@ impl ResearchSuggestion {
 }
 
 /// 评分配置
+///
+/// 用于配置评分系统的各项阈值和参数。
+///
+/// # 示例
+///
+/// ```rust
+/// use rucora_core::research::ScoringConfig;
+///
+/// // 创建自定义配置
+/// let config = ScoringConfig {
+///     quality_threshold: 0.8,      // 提高质量要求
+///     confidence_threshold: 0.9,   // 提高置信度要求
+///     duplicate_threshold: 0.2,    // 更严格控制重复
+///     min_info_count: 10,          // 要求更多信息
+///     min_source_diversity: 3,    // 要求更多来源类型
+/// };
+/// ```
 #[derive(Debug, Clone)]
 pub struct ScoringConfig {
     /// 质量阈值，低于此值会触发改进建议
+    ///
+    /// 默认值: 0.6
     pub quality_threshold: f32,
     /// 置信度阈值，低于此值会建议继续搜索
+    ///
+    /// 默认值: 0.7
     pub confidence_threshold: f32,
     /// 重复信息阈值，超过此比例会建议换角度
+    ///
+    /// 默认值: 0.3 (30%)
     pub duplicate_threshold: f32,
     /// 最少信息数量
+    ///
+    /// 默认值: 5
     pub min_info_count: usize,
     /// 最少来源多样性
+    ///
+    /// 默认值: 2 (至少2种不同来源类型)
     pub min_source_diversity: usize,
 }
 

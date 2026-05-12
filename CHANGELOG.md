@@ -31,12 +31,19 @@
   - `InMemoryResearchLibrary`: 内存研究库
   - `FileResearchLibrary`: 文件系统研究库
 
+**评分系统**
+- `ResearchQualityScore`: 研究质量评分（信息质量、完整性、置信度、综合评分）
+- `ResearchSuggestion`: 研究改进建议类型
+- `ScoringConfig`: 评分配置（阈值设置）
+- `ResearchQualityAssessor`: 质量评估器，支持自动判断和提供改进建议
+
 **新增示例**
 - `quick_research`: 快速研究示例（30秒-3分钟）
 - `iterative_research`: 迭代深化研究示例
 - `rucora-deep-research-agentic`: Agentic 自主研究示例
 - `rucora-deep-research-library`: 研究库示例
 - `rucora-deep-research-academic`: 学术研究示例
+- `research_quality_assessment`: 研究质量评分示例
 
 **ShutdownToken 增强**
 - 新增 `subscribe()` 方法，支持订阅关闭信号广播

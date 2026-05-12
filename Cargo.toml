@@ -18,7 +18,8 @@ members = [
     "examples/iterative_research",
     "examples/rucora-deep-research-agentic",
     "examples/rucora-deep-research-library",
-    "examples/rucora-deep-research-academic"
+    "examples/rucora-deep-research-academic",
+    "examples/research_quality_assessment"
 ]
 
 [workspace.package]
