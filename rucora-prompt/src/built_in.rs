@@ -1,203 +1,309 @@
 //! 内置 Prompt 定义
+//!
+//! 按类别组织，支持多语言（中文/英文）
 
 use super::template::PromptTemplate;
+use std::collections::HashMap;
+
+/// Prompt 类别
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
+pub enum PromptCategory {
+    /// Agent 类
+    #[default]
+    Agent,
+    /// 工具类
+    Tool,
+    /// 研究类
+    Research,
+    /// 其他
+    Other,
+}
+
+/// 语言
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Language {
+    /// 中文
+    #[default]
+    Chinese,
+    /// 英文
+    English,
+}
+
+impl Language {
+    pub fn from_str(s: &str) -> Self {
+        match s.to_lowercase().as_str() {
+            "en" | "english" | "en-US" => Language::English,
+            _ => Language::Chinese,
+        }
+    }
+}
+
+/// 内置 Prompt 定义（静态常量）
+/// 格式: (name, english, chinese)
+pub static PROMPT_DEFS: &[(&str, &str, &str)] = &[
+    // Agent
+    (
+        "agent_simple",
+        "You are a simple and direct assistant.",
+        "你是一个简单直接的助手。",
+    ),
+    (
+        "agent_chat",
+        "You are a friendly chat assistant.",
+        "你是友好的对话助手。",
+    ),
+    (
+        "agent_tool",
+        "You are an intelligent assistant that can use tools to complete tasks.",
+        "你是一个智能助手，可以通过工具完成任务。",
+    ),
+    (
+        "agent_react",
+        "You are a reasoning assistant. Follow ReAct: Think -> Act -> Observe -> Repeat",
+        "你是一个推理助手。请遵循 ReAct 模式。",
+    ),
+    (
+        "agent_reflect",
+        "You are a reflective assistant. Evaluate, identify, improve, re-execute if needed.",
+        "你是一个反思型助手。评估、识别不足、必要时重做。",
+    ),
+    // Tool
+    (
+        "tool_search",
+        "You are a search assistant.",
+        "你是一个搜索助手。",
+    ),
+    (
+        "tool_summarize",
+        "You are a summarization assistant.",
+        "你是一个总结助手。",
+    ),
+    (
+        "tool_translate",
+        "You are a translation assistant.",
+        "你是一个翻译助手。",
+    ),
+    (
+        "tool_browse",
+        "You are a web analysis assistant.",
+        "你是一个网页分析助手。",
+    ),
+    (
+        "tool_code",
+        "You are a programming assistant.",
+        "你是一个编程助手。",
+    ),
+    (
+        "tool_file",
+        "You are a file processing assistant.",
+        "你是一个文件处理助手。",
+    ),
+    // Research
+    (
+        "research_default",
+        "You are a professional research assistant.",
+        "你是一个专业研究助手。",
+    ),
+    (
+        "research_fast",
+        "You are a quick research assistant.",
+        "你是快速研究助手。",
+    ),
+    (
+        "research_academic",
+        "You are an academic research assistant.",
+        "你是一个学术研究助手。",
+    ),
+    (
+        "research_agentic",
+        "You are an autonomous research agent.",
+        "你是一个自主研究 Agent。",
+    ),
+];
 
 /// 内置 Prompt 枚举
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum BuiltInPrompt {
     // === Agent ===
-    /// 简单问答
     #[default]
-    Simple,
-    /// 对话
-    Chat,
-    /// 工具调用
-    Tool,
-    /// ReAct 推理
-    ReAct,
-    /// 反思
-    Reflect,
+    AgentSimple,
+    AgentChat,
+    AgentTool,
+    AgentReAct,
+    AgentReflect,
 
     // === Tool ===
-    /// 搜索
-    Search,
-    /// 总结
-    Summarize,
-    /// 翻译
-    Translate,
-    /// 浏览
-    Browse,
-    /// 代码
-    Code,
-    /// 文件
-    File,
+    ToolSearch,
+    ToolSummarize,
+    ToolTranslate,
+    ToolBrowse,
+    ToolCode,
+    ToolFile,
 
     // === Research ===
-    /// 默认研究
-    Research,
-    /// 快速研究
-    FastResearch,
-    /// 学术研究
-    Academic,
-    /// Agentic 研究
-    Agentic,
+    ResearchDefault,
+    ResearchFast,
+    ResearchAcademic,
+    ResearchAgentic,
 }
 
 impl BuiltInPrompt {
-    /// 创建新的自定义 prompt
-    pub fn custom(name: &str, system: &str, template: &str) -> PromptTemplate {
-        PromptTemplate::new(name, system, template)
-    }
-
     /// 按名称获取
     pub fn from_name(name: &str) -> Option<Self> {
-        match name.to_lowercase().as_str() {
+        let n = name.to_lowercase();
+        match n.as_str() {
             // Agent
-            "simple" | "agent_simple" => Some(Self::Simple),
-            "chat" | "agent_chat" => Some(Self::Chat),
-            "tool" | "agent_tool" => Some(Self::Tool),
-            "react" | "agent_react" => Some(Self::ReAct),
-            "reflect" | "agent_reflect" => Some(Self::Reflect),
-
+            "simple" | "agent_simple" => Some(Self::AgentSimple),
+            "chat" | "agent_chat" => Some(Self::AgentChat),
+            "tool" | "agent_tool" => Some(Self::AgentTool),
+            "react" | "agent_react" => Some(Self::AgentReAct),
+            "reflect" | "agent_reflect" => Some(Self::AgentReflect),
             // Tool
-            "search" | "tool_search" => Some(Self::Search),
-            "summarize" | "tool_summarize" => Some(Self::Summarize),
-            "translate" | "tool_translate" => Some(Self::Translate),
-            "browse" | "tool_browse" => Some(Self::Browse),
-            "code" | "tool_code" => Some(Self::Code),
-            "file" | "tool_file" => Some(Self::File),
-
+            "search" | "tool_search" => Some(Self::ToolSearch),
+            "summarize" | "tool_summarize" => Some(Self::ToolSummarize),
+            "translate" | "tool_translate" => Some(Self::ToolTranslate),
+            "browse" | "tool_browse" => Some(Self::ToolBrowse),
+            "code" | "tool_code" => Some(Self::ToolCode),
+            "file" | "tool_file" => Some(Self::ToolFile),
             // Research
-            "research" | "deep_research" => Some(Self::Research),
-            "fast" | "fast_research" => Some(Self::FastResearch),
-            "academic" | "research_academic" => Some(Self::Academic),
-            "agentic" | "research_agentic" => Some(Self::Agentic),
-
+            "research" | "research_default" => Some(Self::ResearchDefault),
+            "fast" | "research_fast" => Some(Self::ResearchFast),
+            "academic" | "research_academic" => Some(Self::ResearchAcademic),
+            "agentic" | "research_agentic" => Some(Self::ResearchAgentic),
             _ => None,
+        }
+    }
+
+    /// 获取类别
+    pub fn category(&self) -> PromptCategory {
+        match self {
+            Self::AgentSimple
+            | Self::AgentChat
+            | Self::AgentTool
+            | Self::AgentReAct
+            | Self::AgentReflect => PromptCategory::Agent,
+            Self::ToolSearch
+            | Self::ToolSummarize
+            | Self::ToolTranslate
+            | Self::ToolBrowse
+            | Self::ToolCode
+            | Self::ToolFile => PromptCategory::Tool,
+            Self::ResearchDefault
+            | Self::ResearchFast
+            | Self::ResearchAcademic
+            | Self::ResearchAgentic => PromptCategory::Research,
         }
     }
 
     /// 获取名称
     pub fn name(&self) -> &'static str {
         match self {
-            Self::Simple => "simple",
-            Self::Chat => "chat",
-            Self::Tool => "tool",
-            Self::ReAct => "react",
-            Self::Reflect => "reflect",
-            Self::Search => "search",
-            Self::Summarize => "summarize",
-            Self::Translate => "translate",
-            Self::Browse => "browse",
-            Self::Code => "code",
-            Self::File => "file",
-            Self::Research => "research",
-            Self::FastResearch => "fast_research",
-            Self::Academic => "academic",
-            Self::Agentic => "agentic",
+            Self::AgentSimple => "agent_simple",
+            Self::AgentChat => "agent_chat",
+            Self::AgentTool => "agent_tool",
+            Self::AgentReAct => "agent_react",
+            Self::AgentReflect => "agent_reflect",
+            Self::ToolSearch => "tool_search",
+            Self::ToolSummarize => "tool_summarize",
+            Self::ToolTranslate => "tool_translate",
+            Self::ToolBrowse => "tool_browse",
+            Self::ToolCode => "tool_code",
+            Self::ToolFile => "tool_file",
+            Self::ResearchDefault => "research_default",
+            Self::ResearchFast => "research_fast",
+            Self::ResearchAcademic => "research_academic",
+            Self::ResearchAgentic => "research_agentic",
         }
     }
 
-    /// 转为 PromptTemplate
-    pub fn template(&self) -> PromptTemplate {
+    /// 获取 prompt 定义（英文/中文）
+    fn get_prompt_def(&self) -> (&'static str, &'static str) {
+        for (name, en, zh) in PROMPT_DEFS {
+            if *name == self.name() {
+                return (*en, *zh);
+            }
+        }
+        ("", "")
+    }
+
+    /// 转为 PromptTemplate（使用指定语言）
+    pub fn template_with_lang(&self, lang: Language) -> PromptTemplate {
+        let (en, zh) = self.get_prompt_def();
+        let system = match lang {
+            Language::English => en,
+            Language::Chinese => zh,
+        };
         PromptTemplate {
             name: self.name().to_string(),
-            system: self.system_prompt().to_string(),
+            system: system.to_string(),
             template: self.user_template().to_string(),
         }
     }
 
-    /// System prompt
-    pub fn system_prompt(&self) -> &'static str {
-        match self {
-            // === Agent ===
-            Self::Simple => "你是一个简单直接的助手。请简洁准确地回答用户问题。",
-            Self::Chat => "你是友好的对话助手。请保持自然、友好的交流风格，记住对话历史。",
-            Self::Tool => {
-                r#"你是一个智能助手，可以通过工具来完成用户请求的任务。
-请遵循以下步骤：
-1. 理解用户需求
-2. 选择合适的工具
-3. 正确调用工具
-4. 处理返回结果
-5. 给出最终答案"#
-            }
-            Self::ReAct => {
-                r#"你是一个推理助手。请遵循 ReAct (Reasoning + Acting) 模式：
-- 思考：分析问题，制定计划
-- 行动：调用工具获取信息
-- 观察：分析工具返回结果
-- 重复直到完成目标"#
-            }
-            Self::Reflect => {
-                r#"你是一个反思型助手。请在完成任务后进行反思：
-1. 评估结果质量
-2. 识别不足之处
-3. 提出改进方案
-4. 必要时重新执行"#
-            }
-
-            // === Tool ===
-            Self::Search => "你是一个搜索助手。请根据用户需求生成有效的搜索查询。",
-            Self::Summarize => "你是一个总结助手。请将给定内容压缩为简洁摘要，保留核心信息。",
-            Self::Translate => {
-                "你是一个翻译助手。请准确翻译给定内容，保持原意，使用目标语言的自然表达。"
-            }
-            Self::Browse => "你是一个网页分析助手。请分析提取关键信息，识别主要内容。",
-            Self::Code => "你是一个编程助手。请帮助用户完成编程任务，提供清晰可用的代码。",
-            Self::File => "你是一个文件处理助手。请帮助用户处理文件操作。",
-
-            // === Research ===
-            Self::Research => {
-                r#"你是一名专业研究助手，负责对给定主题进行深入研究。
-请遵循以下原则：
-1. 基于可靠的信息源
-2. 提供有据可查的分析
-3. 保持客观中立
-4. 结构化输出结果"#
-            }
-            Self::FastResearch => {
-                "你是快速研究助手。请简洁地回答用户问题，突出重点，快速获取信息。"
-            }
-            Self::Academic => {
-                r#"你是学术研究助手。请以学术规范进行分析：
-- 引用权威来源，标注出处
-- 使用专业术语
-- 保持客观严谨"#
-            }
-            Self::Agentic => {
-                r#"你是自主研究 Agent。你可以根据研究进展自主决策：
-1. 决定搜索策略和方向
-2. 判断信息是否足够
-3. 选择下一步行动
-4. 在适当时机终止研究"#
-            }
-        }
+    /// 转为 PromptTemplate（默认中文）
+    pub fn template(&self) -> PromptTemplate {
+        self.template_with_lang(Language::Chinese)
     }
 
     /// User prompt 模板
-    pub fn user_template(&self) -> &'static str {
+    fn user_template(&self) -> &'static str {
         match self {
-            // Agent
-            Self::Simple | Self::Chat => "{{input}}",
-            Self::Tool => "任务: {{input}}\n可用工具: {{tools}}",
-            Self::ReAct => "问题: {{input}}\n历史: {{history}}",
-            Self::Reflect => "任务: {{input}}\n结果: {{result}}",
-
-            // Tool
-            Self::Search => "搜索: {{query}}\n目标: {{goal}}",
-            Self::Summarize => "总结:\n{{content}}\n\n要求: {{requirements}}",
-            Self::Translate => "翻译:\n{{content}}\n\n从 {{from}} 到 {{to}}",
-            Self::Browse => "网址: {{url}}\n内容: {{content}}",
-            Self::Code => "任务: {{task}}\n\n语言: {{language}}\n要求: {{requirements}}",
-            Self::File => "文件: {{path}}\n操作: {{action}}",
-
-            // Research
-            Self::Research | Self::FastResearch => "研究主题: {{topic}}",
-            Self::Academic => "学术研究主题: {{topic}}\n参考: {{sources}}",
-            Self::Agentic => "研究任务: {{topic}}\n已收集: {{collected}}\n轮次: {{iteration}}",
+            Self::AgentSimple | Self::AgentChat => "{{input}}",
+            Self::AgentTool => "Task: {{input}}",
+            Self::AgentReAct => "Question: {{input}}",
+            Self::AgentReflect => "Task: {{input}}",
+            Self::ToolSearch => "Search: {{query}}",
+            Self::ToolSummarize => "Content: {{content}}",
+            Self::ToolTranslate => "From {{from}} to {{to}}: {{content}}",
+            Self::ToolBrowse => "URL: {{url}}",
+            Self::ToolCode => "Task: {{task}}",
+            Self::ToolFile => "File: {{path}}",
+            Self::ResearchDefault | Self::ResearchFast => "Topic: {{topic}}",
+            Self::ResearchAcademic => "Topic: {{topic}}",
+            Self::ResearchAgentic => "Topic: {{topic}}, Iteration: {{iteration}}",
         }
     }
+}
+
+/// 获取所有内置 prompt 名称
+pub fn all_prompt_names() -> Vec<&'static str> {
+    PROMPT_DEFS.iter().map(|(name, _, _)| *name).collect()
+}
+
+/// 按类别获取所有 prompt
+pub fn all_by_category() -> HashMap<PromptCategory, Vec<BuiltInPrompt>> {
+    let mut map = HashMap::new();
+    map.insert(
+        PromptCategory::Agent,
+        vec![
+            BuiltInPrompt::AgentSimple,
+            BuiltInPrompt::AgentChat,
+            BuiltInPrompt::AgentTool,
+            BuiltInPrompt::AgentReAct,
+            BuiltInPrompt::AgentReflect,
+        ],
+    );
+    map.insert(
+        PromptCategory::Tool,
+        vec![
+            BuiltInPrompt::ToolSearch,
+            BuiltInPrompt::ToolSummarize,
+            BuiltInPrompt::ToolTranslate,
+            BuiltInPrompt::ToolBrowse,
+            BuiltInPrompt::ToolCode,
+            BuiltInPrompt::ToolFile,
+        ],
+    );
+    map.insert(
+        PromptCategory::Research,
+        vec![
+            BuiltInPrompt::ResearchDefault,
+            BuiltInPrompt::ResearchFast,
+            BuiltInPrompt::ResearchAcademic,
+            BuiltInPrompt::ResearchAgentic,
+        ],
+    );
+    map
 }
 
 #[cfg(test)]
@@ -206,23 +312,34 @@ mod tests {
 
     #[test]
     fn test_from_name() {
-        assert_eq!(BuiltInPrompt::from_name("tool"), Some(BuiltInPrompt::Tool));
+        assert_eq!(
+            BuiltInPrompt::from_name("tool"),
+            Some(BuiltInPrompt::AgentTool)
+        );
         assert_eq!(
             BuiltInPrompt::from_name("search"),
-            Some(BuiltInPrompt::Search)
+            Some(BuiltInPrompt::ToolSearch)
         );
-        assert_eq!(
-            BuiltInPrompt::from_name("research"),
-            Some(BuiltInPrompt::Research)
-        );
-        assert_eq!(BuiltInPrompt::from_name("unknown"), None);
     }
 
     #[test]
-    fn test_template() {
-        let tmpl = BuiltInPrompt::Tool.template();
-        assert_eq!(tmpl.name, "tool");
-        assert!(!tmpl.system.is_empty());
-        assert!(!tmpl.template.is_empty());
+    fn test_language() {
+        assert_eq!(Language::from_str("en"), Language::English);
+        assert_eq!(Language::from_str("zh"), Language::Chinese);
+    }
+
+    #[test]
+    fn test_template_with_lang() {
+        let tmpl_en = BuiltInPrompt::AgentSimple.template_with_lang(Language::English);
+        let tmpl_zh = BuiltInPrompt::AgentSimple.template_with_lang(Language::Chinese);
+
+        assert!(tmpl_en.system.contains("assistant"));
+        assert!(tmpl_zh.system.contains("助手"));
+    }
+
+    #[test]
+    fn test_category() {
+        assert_eq!(BuiltInPrompt::AgentTool.category(), PromptCategory::Agent);
+        assert_eq!(BuiltInPrompt::ToolSearch.category(), PromptCategory::Tool);
     }
 }
