@@ -12,9 +12,12 @@ thiserror = "1"
 regex = "1"
 
 [features]
-default = []
+default = ["fs"]
 # 启用文件加载
 fs = []
 
 [dev-dependencies]
 tokio = { version = "1", features = ["full"] }
+
+[profile.release]
+strip = true

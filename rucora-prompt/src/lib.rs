@@ -48,16 +48,16 @@ pub fn prompt(name: &str) -> PromptTemplate {
 /// - `name`: 内置名称或文件路径
 /// - `lang`: 语言代码 "zh" 或 "en"
 pub fn prompt_with_lang(name: &str, lang: &str) -> PromptTemplate {
-    // 1. 尝试内置
-    if let Some(p) = BuiltInPrompt::from_name(name) {
-        let language = Language::from_str(lang);
-        return p.template_with_lang(language);
-    }
-
-    // 2. 尝试文件 (如果启用了 fs feature)
+    // 1. 尝试文件 (如果启用了 fs feature) - 优先从 prompts 目录加载
     #[cfg(feature = "fs")]
     if let Some(p) = loader::load(name) {
         return p;
+    }
+
+    // 2. 尝试内置
+    if let Some(p) = BuiltInPrompt::from_name(name) {
+        let language = Language::from_str(lang);
+        return p.template_with_lang(language);
     }
 
     // 3. 默认
