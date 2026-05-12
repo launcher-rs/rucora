@@ -1,196 +1,211 @@
-//! rucora-prompt 使用示例
+//! rucora-prompt 与 rucora 结合使用示例
 //!
-//! 展示如何在不同场景下使用 prompt 模板
+//! 展示如何在 rucora Agent 中使用 prompt 模板
+//!
+//! 运行方式:
+//! ```bash
+//! # 设置环境变量
+//! export OPENAI_API_KEY=your_key
+//!
+//! # 运行示例
+//! cargo run --example example_prompt_usage
+//! ```
 
 use rucora_prompt::prompt;
 use std::collections::HashMap;
 
 fn main() -> anyhow::Result<()> {
-    println!("=== rucora-prompt 使用示例 ===\n");
+    println!("\n=== rucora-prompt + rucora 使用示例 ===\n");
 
-    // 示例 1: Agent 简单问答
-    println!("【示例 1】Agent 简单问答");
-    agent_simple_demo()?;
+    // 示例 1: Agent 使用 tool prompt
+    println!("【示例 1】使用 tool prompt 构建搜索指令");
+    tool_prompt_demo()?;
 
-    // 示例 2: Agent 工具调用
-    println!("\n【示例 2】Agent 工具调用");
-    agent_tool_demo()?;
+    // 示例 2: Agent 使用 research prompt
+    println!("\n【示例 2】使用 research prompt 构建研究任务");
+    research_prompt_demo()?;
 
-    // 示例 3: 工具 - 搜索
-    println!("\n【示例 3】工具 - 搜索");
-    tool_search_demo()?;
+    // 示例 3: Agent 使用 summarize prompt
+    println!("\n【示例 3】使用 summarize prompt 构建总结任务");
+    summarize_prompt_demo()?;
 
-    // 示例 4: 工具 - 总结
-    println!("\n【示例 4】工具 - 总结");
-    tool_summarize_demo()?;
+    // 示例 4: 动态 prompt 选择
+    println!("\n【示例 4】根据任务类型动态选择 prompt");
+    dynamic_prompt_demo()?;
 
-    // 示例 5: 工具 - 翻译
-    println!("\n【示例 5】工具 - 翻译");
-    tool_translate_demo()?;
-
-    // 示例 6: 研究 - 默认
-    println!("\n【示例 6】研究 - 默认");
-    research_default_demo()?;
-
-    // 示例 7: 研究 - 学术
-    println!("\n【示例 7】研究 - 学术");
-    research_academic_demo()?;
-
-    // 示例 8: 过滤 - 分类
-    println!("\n【示例 8】过滤 - 分类");
-    filter_classify_demo()?;
-
-    // 示例 9: 英文 prompt
-    println!("\n【示例 9】英文 prompt");
+    // 示例 5: 英文 prompt
+    println!("\n【示例 5】使用英文 prompt");
     english_prompt_demo()?;
 
-    println!("\n=== 完成 ===");
-    Ok(())
-}
+    println!("\n=== 完成 ===\n");
 
-/// Agent 简单问答
-fn agent_simple_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("agent_simple");
-    let mut vars = HashMap::new();
-    vars.insert("input".to_string(), "什么是人工智能?".to_string());
-
-    let output = tmpl.render(&vars);
-    println!("  输入: 什么是人工智能?");
-    println!("  输出:\n{}", output);
+    println!("提示: 要运行完整的 rucora 示例，请设置 OPENAI_API_KEY 环境变量");
+    println!("  export OPENAI_API_KEY=your_key");
 
     Ok(())
 }
 
-/// Agent 工具调用
-fn agent_tool_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("agent_tool");
-    let mut vars = HashMap::new();
-    vars.insert("input".to_string(), "帮我查下北京今天的天气".to_string());
-    vars.insert("tools".to_string(), "search, browse".to_string());
-
-    let msgs = tmpl.messages(&vars);
-    println!(
-        "  System:\n    {}",
-        msgs[0].content.chars().take(50).collect::<String>()
-    );
-    println!(
-        "  User:\n    {}",
-        msgs[1].content.chars().take(100).collect::<String>()
-    );
-
-    Ok(())
-}
-
-/// 工具 - 搜索
-fn tool_search_demo() -> anyhow::Result<()> {
+/// 示例 1: 使用 tool prompt 构建搜索指令
+fn tool_prompt_demo() -> anyhow::Result<()> {
+    // 使用搜索 prompt
     let tmpl = prompt("tool_search");
+    println!("  Prompt 名称: {}", tmpl.name);
+    println!(
+        "  System: {}...",
+        tmpl.system.chars().take(50).collect::<String>()
+    );
+
+    // 渲染变量
     let mut vars = HashMap::new();
     vars.insert("query".to_string(), "Python 异步编程".to_string());
     vars.insert("goal".to_string(), "学习最佳实践".to_string());
 
     let output = tmpl.render(&vars);
-    println!("  模板内容:\n{}", output);
+    println!("  渲染结果:\n    {}", output);
+
+    // 在实际使用中，可以将渲染结果作为 Agent 的输入
+    // let agent = ToolAgent::builder()
+    //     .system_prompt(tmpl.system.as_str())
+    //     .build();
+    // agent.run(output).await?;
 
     Ok(())
 }
 
-/// 工具 - 总结
-fn tool_summarize_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("tool_summarize");
-    let mut vars = HashMap::new();
-    vars.insert(
-        "content".to_string(),
-        "这是一篇关于机器学习的文章。它介绍了监督学习、无监督学习和强化学习三种主要类型..."
-            .to_string(),
-    );
-    vars.insert("requirements".to_string(), "简洁，不超过50字".to_string());
-
-    let output = tmpl.render(&vars);
-    println!("  模板内容:\n{}", output);
-
-    Ok(())
-}
-
-/// 工具 - 翻译
-fn tool_translate_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("tool_translate");
-    let mut vars = HashMap::new();
-    vars.insert("content".to_string(), "Hello, world!".to_string());
-    vars.insert("to".to_string(), "中文".to_string());
-
-    let output = tmpl.render(&vars);
-    println!("  模板内容:\n{}", output);
-
-    Ok(())
-}
-
-/// 研究 - 默认
-fn research_default_demo() -> anyhow::Result<()> {
+/// 示例 2: 使用 research prompt 构建研究任务
+fn research_prompt_demo() -> anyhow::Result<()> {
+    // 使用研究 prompt
     let tmpl = prompt("research_default");
+
+    // 渲染变量
     let mut vars = HashMap::new();
     vars.insert("topic".to_string(), "人工智能在医疗领域的应用".to_string());
-    vars.insert("collected".to_string(), "已收集10条相关信息...".to_string());
+    vars.insert("collected".to_string(), "已收集10条相关信息".to_string());
 
     let msgs = tmpl.messages(&vars);
+
+    println!("  Prompt 名称: {}", tmpl.name);
     println!(
-        "  System (前100字):\n    {}",
-        msgs[0].content.chars().take(100).collect::<String>()
+        "  System Message:\n    {}",
+        msgs[0].content.chars().take(80).collect::<String>()
     );
     println!(
-        "  User:\n    {}",
+        "  User Message:\n    {}",
         msgs[1].content.chars().take(100).collect::<String>()
     );
 
+    // 在实际使用中
+    // let agent = ToolAgent::builder()
+    //     .system_prompt(msgs[0].content.as_str())
+    //     .build();
+    // agent.run(msgs[1].content.clone()).await?;
+
     Ok(())
 }
 
-/// 研究 - 学术
-fn research_academic_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("research_academic");
+/// 示例 3: 使用 summarize prompt 构建总结任务
+fn summarize_prompt_demo() -> anyhow::Result<()> {
+    // 模拟要总结的内容
+    let content = r#"
+    深度学习是机器学习的一个分支，它是一种以人工神经网络为架构，对数据进行表征学习的算法。
+    深度学习在计算机视觉、语音识别、自然语言处理等领域取得了显著的成果。
+    卷积神经网络(CNN)是深度学习中常用的模型之一，特别适用于图像处理。
+    循环神经网络(RNN)适用于序列数据的处理，在自然语言处理中有广泛应用。
+    "#;
+
+    // 使用总结 prompt
+    let tmpl = prompt("tool_summarize");
+
     let mut vars = HashMap::new();
-    vars.insert(
-        "topic".to_string(),
-        "深度学习在图像识别中的应用".to_string(),
-    );
-    vars.insert(
-        "sources".to_string(),
-        "arXiv 论文: 2103.00001, 2103.00002".to_string(),
-    );
+    vars.insert("content".to_string(), content.to_string());
+    vars.insert("requirements".to_string(), "简洁，不超过100字".to_string());
 
     let output = tmpl.render(&vars);
-    println!(
-        "  模板内容 (前200字):\n    {}",
-        output.chars().take(200).collect::<String>()
-    );
+    println!("  Prompt 名称: {}", tmpl.name);
+    println!("  渲染结果:\n    {}", output);
 
     Ok(())
 }
 
-/// 过滤 - 分类
-fn filter_classify_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("filter_classify");
-    let mut vars = HashMap::new();
-    vars.insert(
-        "categories".to_string(),
-        "科技, 娱乐, 体育, 财经".to_string(),
-    );
-    vars.insert("content".to_string(), "苹果发布新款iPhone手机".to_string());
+/// 示例 4: 动态 prompt 选择
+fn dynamic_prompt_demo() -> anyhow::Result<()> {
+    // 定义任务
+    let tasks = vec![
+        ("search", "今天天气怎么样", "获取实时天气信息"),
+        ("summarize", "总结这段话", "提取核心观点"),
+        ("translate", "Hello 翻译成中文", "语言转换"),
+        ("classify", "这篇文章属于哪个类别", "内容分类"),
+    ];
 
-    let output = tmpl.render(&vars);
-    println!("  模板内容:\n{}", output);
+    for (task_type, input, goal) in tasks {
+        // 根据任务类型选择对应的 prompt
+        let prompt_name = match task_type {
+            "search" => "tool_search",
+            "summarize" => "tool_summarize",
+            "translate" => "tool_translate",
+            "classify" => "filter_classify",
+            _ => "agent_simple",
+        };
+
+        let tmpl = prompt(prompt_name);
+
+        // 构建任务变量
+        let mut vars = HashMap::new();
+        match task_type {
+            "search" => {
+                vars.insert("query".to_string(), input.to_string());
+                vars.insert("goal".to_string(), goal.to_string());
+            }
+            "summarize" => {
+                vars.insert("content".to_string(), input.to_string());
+                vars.insert("requirements".to_string(), goal.to_string());
+            }
+            "translate" => {
+                vars.insert("content".to_string(), input.to_string());
+                vars.insert("to".to_string(), goal.to_string());
+            }
+            "classify" => {
+                vars.insert("content".to_string(), input.to_string());
+                vars.insert(
+                    "categories".to_string(),
+                    "科技, 娱乐, 体育, 财经".to_string(),
+                );
+            }
+            _ => {
+                vars.insert("input".to_string(), input.to_string());
+            }
+        }
+
+        let output = tmpl.render(&vars);
+        println!("  任务: {} -> Prompt: {}", task_type, tmpl.name);
+
+        // 实际使用
+        // let agent = ToolAgent::builder().system_prompt(tmpl.system.as_str()).build();
+        // agent.run(output).await?;
+    }
 
     Ok(())
 }
 
-/// 英文 prompt
+/// 示例 5: 使用英文 prompt
 fn english_prompt_demo() -> anyhow::Result<()> {
-    let tmpl = prompt("agent_simple_en");
-    let mut vars = HashMap::new();
-    vars.insert("input".to_string(), "What is AI?".to_string());
+    // 使用英文版 prompt
+    let tmpl = prompt("agent_tool_en");
 
-    let output = tmpl.render(&vars);
-    println!("  使用英文版:");
-    println!("    {}", output);
+    let mut vars = HashMap::new();
+    vars.insert("input".to_string(), "What's the weather today?".to_string());
+    vars.insert("tools".to_string(), "search, browse".to_string());
+
+    let msgs = tmpl.messages(&vars);
+    println!("  英文版 Prompt: {}", tmpl.name);
+    println!(
+        "  System:\n    {}",
+        msgs[0].content.chars().take(60).collect::<String>()
+    );
+    println!(
+        "  User:\n    {}",
+        msgs[1].content.chars().take(60).collect::<String>()
+    );
 
     Ok(())
 }

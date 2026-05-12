@@ -2,13 +2,18 @@
 name = "example_prompt_usage"
 version.workspace = true
 edition = "2024"
-description = "rucora-prompt 使用示例"
+description = "rucora-prompt 使用示例 - 与 rucora 结合"
 publish = false
 
 [dependencies]
+rucora.workspace = true
 rucora-prompt.workspace = true
+rucora-core.workspace = true
 serde_json = "1"
 anyhow = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenv = "0.15"
 
 [profile.release]
 opt-level = 3

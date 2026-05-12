@@ -832,8 +832,13 @@ name = "example_prompt_usage"
 version = "0.2.0"
 dependencies = [
  "anyhow",
+ "dotenv",
+ "rucora",
+ "rucora-core",
  "rucora-prompt",
  "serde_json",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
