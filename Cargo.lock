@@ -2553,6 +2553,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "rucora-prompt"
+version = "0.2.0"
+dependencies = [
+ "regex",
+ "serde",
+ "thiserror 1.0.69",
+ "tokio",
+ "toml",
+]
+
+[[package]]
 name = "rucora-providers"
 version = "0.2.0"
 dependencies = [

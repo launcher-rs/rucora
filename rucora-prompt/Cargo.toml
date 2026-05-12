@@ -1,0 +1,20 @@
+[package]
+name = "rucora-prompt"
+version.workspace = true
+edition = "2024"
+description = "rucora prompt 模板库 - 内置常用 prompt 和模板加载"
+publish = false
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
+thiserror = "1"
+regex = "1"
+
+[features]
+default = []
+# 启用文件加载
+fs = []
+
+[dev-dependencies]
+tokio = { version = "1", features = ["full"] }
