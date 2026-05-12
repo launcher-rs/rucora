@@ -45,7 +45,7 @@ impl ResearchLibrary for InMemoryResearchLibrary {
             })
             .cloned()
             .collect();
-        results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         Ok(results)
     }
 
@@ -57,7 +57,7 @@ impl ResearchLibrary for InMemoryResearchLibrary {
     async fn list(&self, limit: usize) -> Result<Vec<ResearchReport>, ResearchError> {
         let reports = self.reports.read().unwrap();
         let mut list: Vec<ResearchReport> = reports.values().cloned().collect();
-        list.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        list.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         list.truncate(limit);
         Ok(list)
     }
@@ -86,7 +86,7 @@ impl FileResearchLibrary {
     }
 
     fn report_path(&self, id: &str) -> PathBuf {
-        self.base_path.join(format!("{}.json", id))
+        self.base_path.join(format!("{id}.json"))
     }
 }
 
@@ -111,20 +111,17 @@ impl ResearchLibrary for FileResearchLibrary {
         let query_lower = query.to_lowercase();
         while let Some(entry) = entries.next_entry().await.map_err(|e| ResearchError::Storage(e.to_string()))? {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Ok(content) = fs::read_to_string(&path).await {
-                    if let Ok(report) = serde_json::from_str::<ResearchReport>(&content) {
-                        if report.topic.to_lowercase().contains(&query_lower)
-                            || report.summary.to_lowercase().contains(&query_lower)
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Ok(content) = fs::read_to_string(&path).await
+                    && let Ok(report) = serde_json::from_str::<ResearchReport>(&content)
+                        && (report.topic.to_lowercase().contains(&query_lower)
+                            || report.summary.to_lowercase().contains(&query_lower))
                         {
                             results.push(report);
                         }
-                    }
-                }
-            }
         }
 
-        results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         Ok(results)
     }
 
@@ -149,16 +146,14 @@ impl ResearchLibrary for FileResearchLibrary {
 
         while let Some(entry) = entries.next_entry().await.map_err(|e| ResearchError::Storage(e.to_string()))? {
             let path = entry.path();
-            if path.extension().and_then(|s| s.to_str()) == Some("json") {
-                if let Ok(content) = fs::read_to_string(&path).await {
-                    if let Ok(report) = serde_json::from_str::<ResearchReport>(&content) {
+            if path.extension().and_then(|s| s.to_str()) == Some("json")
+                && let Ok(content) = fs::read_to_string(&path).await
+                    && let Ok(report) = serde_json::from_str::<ResearchReport>(&content) {
                         results.push(report);
                     }
-                }
-            }
         }
 
-        results.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        results.sort_by_key(|b| std::cmp::Reverse(b.created_at));
         results.truncate(limit);
         Ok(results)
     }

@@ -99,8 +99,10 @@ pub trait GracefulShutdown: Send + Sync {
 
 /// 运行时关闭状态
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum ShutdownState {
     /// 运行中
+    #[default]
     Running,
     /// 正在关闭
     ShuttingDown,
@@ -108,11 +110,6 @@ pub enum ShutdownState {
     Shutdown,
 }
 
-impl Default for ShutdownState {
-    fn default() -> Self {
-        Self::Running
-    }
-}
 
 #[cfg(test)]
 mod tests {

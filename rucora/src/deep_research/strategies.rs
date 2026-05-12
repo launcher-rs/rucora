@@ -70,7 +70,7 @@ impl rucora_core::research::StrategyTrait for StandardStrategy {
             // 模拟搜索过程（实际实现需要调用搜索工具）
             // 这里生成一些示例数据用于演示评分逻辑
             let dummy_info = InfoPiece::new(
-                format!("关于 {} 的研究信息 #{}", topic, search_round),
+                format!("关于 {topic} 的研究信息 #{search_round}"),
                 Some("https://example.com".to_string()),
                 rucora_core::research::SourceType::Official,
             );
@@ -100,11 +100,13 @@ impl rucora_core::research::StrategyTrait for StandardStrategy {
 
             // 如果达到最大轮次，停止
             if search_round >= max_rounds {
-                let mut result = StrategyResult::default();
-                result.confidence = confidence;
-                result.search_count = search_round;
-                result.new_info = context.collected_info.clone();
-                result.is_complete = true;
+                let result = StrategyResult {
+                    confidence,
+                    search_count: search_round,
+                    new_info: context.collected_info.clone(),
+                    is_complete: true,
+                    ..Default::default()
+                };
                 return Ok(result);
             }
 
@@ -176,7 +178,7 @@ impl rucora_core::research::StrategyTrait for FastStrategy {
 
         // 快速策略：只进行一轮搜索和评估
         let dummy_info = InfoPiece::new(
-            format!("关于 {} 的快速信息", topic),
+            format!("关于 {topic} 的快速信息"),
             Some("https://example.com".to_string()),
             rucora_core::research::SourceType::Official,
         );

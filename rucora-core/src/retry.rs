@@ -143,7 +143,7 @@ impl ExponentialBackoff {
             let now = Instant::now();
             let nanos = now.elapsed().as_nanos() as f64;
             let jitter_range = delay * 0.2;
-            let jitter = nanos as f64 % jitter_range;
+            let jitter = nanos % jitter_range;
             delay - jitter_range / 2.0 + jitter
         } else {
             delay

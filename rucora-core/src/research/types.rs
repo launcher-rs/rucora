@@ -6,9 +6,10 @@ use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 
 /// 研究阶段
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ResearchPhase {
     /// 初始化阶段
+    #[default]
     Init,
     /// 搜索阶段
     Search,
@@ -18,12 +19,6 @@ pub enum ResearchPhase {
     Synthesize,
     /// 完成
     Complete,
-}
-
-impl Default for ResearchPhase {
-    fn default() -> Self {
-        Self::Init
-    }
 }
 
 impl std::fmt::Display for ResearchPhase {
@@ -39,11 +34,12 @@ impl std::fmt::Display for ResearchPhase {
 }
 
 /// 研究策略类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum ResearchStrategy {
     /// 快速模式（30秒-3分钟）
     Fast,
     /// 标准多阶段模式
+    #[default]
     Standard,
     /// Agentic 自主模式
     Agentic,
@@ -51,12 +47,6 @@ pub enum ResearchStrategy {
     Library,
     /// 学术研究模式
     Academic,
-}
-
-impl Default for ResearchStrategy {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 impl std::fmt::Display for ResearchStrategy {
@@ -104,7 +94,7 @@ impl InfoPiece {
 }
 
 /// 来源类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Default)]
 pub enum SourceType {
     /// 新闻
     News,
@@ -117,13 +107,8 @@ pub enum SourceType {
     /// 社交媒体
     SocialMedia,
     /// 未知
+    #[default]
     Unknown,
-}
-
-impl Default for SourceType {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// 引用条目
@@ -232,7 +217,7 @@ pub struct ResearchReport {
 impl ResearchReport {
     pub fn new(topic: String, strategy: ResearchStrategy) -> Self {
         let id = uuid::Uuid::new_v4().to_string();
-        let title = format!("{} - 研究报告", topic);
+        let title = format!("{topic} - 研究报告");
         let now = Utc::now();
 
         Self {
@@ -459,7 +444,7 @@ pub struct ScoreDetails {
 }
 
 impl ResearchQualityScore {
-    pub fn default() -> Self {
+    pub fn zero() -> Self {
         Self {
             info_quality: 0.0,
             completeness: 0.0,
@@ -651,7 +636,7 @@ impl ResearchSuggestion {
     pub fn need_more_info(current_count: usize, target: usize) -> Self {
         Self {
             suggestion_type: SuggestionType::NeedMoreInfo,
-            description: format!("信息量不足 ({}/{}), 建议继续搜索", current_count, target),
+            description: format!("信息量不足 ({current_count}/{target}), 建议继续搜索"),
             suggested_keywords: vec![],
             priority: 4,
         }
@@ -669,7 +654,7 @@ impl ResearchSuggestion {
         };
         Self {
             suggestion_type: SuggestionType::NeedMoreSources,
-            description: format!("来源类型较少 ({}种), 建议拓展来源", diversity),
+            description: format!("来源类型较少 ({diversity}种), 建议拓展来源"),
             suggested_keywords: keywords,
             priority: 3,
         }

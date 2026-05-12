@@ -27,7 +27,7 @@ impl AgenticStrategy {
         }
     }
 
-    pub fn with_config(config: ResearchConfig) -> Self {
+    pub fn with_config(config: &ResearchConfig) -> Self {
         Self {
             config: config.clone(),
             confidence_threshold: 0.8,
@@ -112,6 +112,7 @@ impl rucora_core::research::StrategyTrait for AgenticStrategy {
 
 impl AgenticStrategy {
     /// 让 LLM 决定下一步行动
+    #[allow(clippy::unused_async)]
     async fn decide_next_action(
         &self,
         _provider: &Arc<dyn LlmProvider>,

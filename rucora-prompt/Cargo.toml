@@ -7,17 +7,5 @@ publish = false
 
 [dependencies]
 serde = { version = "1", features = ["derive"] }
-toml = "0.8"
 thiserror = "1"
 regex = "1"
-
-[features]
-default = ["fs"]
-# 启用文件加载
-fs = []
-
-[dev-dependencies]
-tokio = { version = "1", features = ["full"] }
-
-[profile.release]
-strip = true

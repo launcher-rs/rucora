@@ -69,7 +69,7 @@ impl rucora_core::research::DeepResearchEngine for DefaultResearchEngine {
         {
             let mut p = self.progress.write().unwrap();
             p.phase = ResearchPhase::Search;
-            p.description = format!("开始研究: {}", topic);
+            p.description = format!("开始研究: {topic}");
         }
 
         let mut context = ResearchContext::new(topic);
@@ -90,7 +90,7 @@ impl rucora_core::research::DeepResearchEngine for DefaultResearchEngine {
                 );
             }
             Err(e) => {
-                report.summary = format!("研究失败: {}", e);
+                report.summary = format!("研究失败: {e}");
             }
         }
 

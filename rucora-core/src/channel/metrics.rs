@@ -614,8 +614,7 @@ impl MetricAggregator {
     pub fn percentile(&self, p: f64) -> f64 {
         assert!(
             (0.0..=100.0).contains(&p),
-            "percentile p must be between 0.0 and 100.0, got {}",
-            p
+            "percentile p must be between 0.0 and 100.0, got {p}"
         );
         if self.values.is_empty() {
             return 0.0;

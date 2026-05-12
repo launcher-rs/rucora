@@ -178,8 +178,7 @@ impl LlmParams {
     pub fn temperature(mut self, value: f32) -> Self {
         assert!(
             (0.0..=2.0).contains(&value),
-            "temperature must be between 0.0 and 2.0, got {}",
-            value
+            "temperature must be between 0.0 and 2.0, got {value}"
         );
         self.temperature = Some(value);
         self
@@ -189,8 +188,7 @@ impl LlmParams {
     pub fn top_p(mut self, value: f32) -> Self {
         assert!(
             (0.0..=1.0).contains(&value),
-            "top_p must be between 0.0 and 1.0, got {}",
-            value
+            "top_p must be between 0.0 and 1.0, got {value}"
         );
         self.top_p = Some(value);
         self
@@ -379,8 +377,7 @@ impl ChatRequest {
     pub fn with_temperature(mut self, temperature: f32) -> Self {
         assert!(
             (0.0..=2.0).contains(&temperature),
-            "temperature must be between 0.0 and 2.0, got {}",
-            temperature
+            "temperature must be between 0.0 and 2.0, got {temperature}"
         );
         self.temperature = Some(temperature);
         self

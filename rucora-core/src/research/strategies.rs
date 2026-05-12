@@ -98,11 +98,10 @@ impl ResearchContext {
     }
 
     pub fn add_info(&mut self, info: super::InfoPiece) {
-        if let Some(url) = &info.source_url {
-            if !self.visited_urls.contains(url) {
+        if let Some(url) = &info.source_url
+            && !self.visited_urls.contains(url) {
                 self.visited_urls.push(url.clone());
             }
-        }
         self.collected_info.push(info);
     }
 
