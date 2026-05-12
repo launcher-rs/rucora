@@ -828,6 +828,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "example_prompt_usage"
+version = "0.2.0"
+dependencies = [
+ "anyhow",
+ "rucora-prompt",
+ "serde_json",
+]
+
+[[package]]
 name = "fastrand"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

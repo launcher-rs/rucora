@@ -1,0 +1,15 @@
+[package]
+name = "example_prompt_usage"
+version.workspace = true
+edition = "2024"
+description = "rucora-prompt 使用示例"
+publish = false
+
+[dependencies]
+rucora-prompt.workspace = true
+serde_json = "1"
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = true

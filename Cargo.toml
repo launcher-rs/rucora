@@ -20,7 +20,8 @@ members = [
     "examples/rucora-deep-research-agentic",
     "examples/rucora-deep-research-library",
     "examples/rucora-deep-research-academic",
-    "examples/research_quality_assessment"
+    "examples/research_quality_assessment",
+    "examples/example_prompt_usage"
 ]
 
 [workspace.package]
