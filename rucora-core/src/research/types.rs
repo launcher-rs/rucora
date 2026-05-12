@@ -2,6 +2,8 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 /// 研究阶段
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -102,7 +104,7 @@ impl InfoPiece {
 }
 
 /// 来源类型
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum SourceType {
     /// 新闻
     News,
@@ -400,6 +402,287 @@ impl ResearchConfig {
             read_timeout: 60,
             max_output_length: 30000,
             include_citations: true,
+        }
+    }
+}
+
+/// 研究质量评分
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchQualityScore {
+    /// 信息质量评分 (0.0 - 1.0)
+    pub info_quality: f32,
+    /// 研究完整性评分 (0.0 - 1.0)
+    pub completeness: f32,
+    /// 置信度评分 (0.0 - 1.0)
+    pub confidence: f32,
+    /// 综合评分 (0.0 - 1.0)
+    pub overall: f32,
+    /// 评分详情
+    pub details: ScoreDetails,
+}
+
+/// 评分详情
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct ScoreDetails {
+    /// 信息数量
+    pub info_count: usize,
+    /// 高质量信息数量
+    pub high_quality_count: usize,
+    /// 来源多样性
+    pub source_diversity: usize,
+    /// 引用数量
+    pub citation_count: usize,
+    /// 搜索轮次
+    pub search_rounds: usize,
+    /// 信息覆盖的主题数
+    pub topic_coverage: usize,
+    /// 重复信息比例
+    pub duplicate_ratio: f32,
+}
+
+impl ResearchQualityScore {
+    pub fn default() -> Self {
+        Self {
+            info_quality: 0.0,
+            completeness: 0.0,
+            confidence: 0.0,
+            overall: 0.0,
+            details: ScoreDetails::default(),
+        }
+    }
+
+    pub fn calculate(
+        info_pieces: &[InfoPiece],
+        citations: &[Citation],
+        search_rounds: usize,
+        topic_keywords: &[String],
+    ) -> Self {
+        let info_count = info_pieces.len();
+        let citation_count = citations.len();
+
+        // 信息质量评分
+        let high_quality_count = info_pieces
+            .iter()
+            .filter(|i| i.relevance_score >= 0.7)
+            .count();
+        let info_quality = if info_count > 0 {
+            (high_quality_count as f32 / info_count as f32)
+                * info_pieces.iter().map(|i| i.relevance_score).sum::<f32>()
+                / info_count as f32
+        } else {
+            0.0
+        };
+
+        // 来源多样性
+        let source_diversity = info_pieces
+            .iter()
+            .map(|i| i.source_type)
+            .collect::<std::collections::HashSet<_>>()
+            .len();
+
+        // 重复信息检测
+        let mut content_set = std::collections::HashSet::new();
+        let mut duplicate_count = 0;
+        for info in info_pieces {
+            let mut hasher = DefaultHasher::new();
+            info.content.hash(&mut hasher);
+            let hash = hasher.finish();
+            if content_set.contains(&hash) {
+                duplicate_count += 1;
+            } else {
+                content_set.insert(hash);
+            }
+        }
+        let duplicate_ratio = if info_count > 0 {
+            duplicate_count as f32 / info_count as f32
+        } else {
+            0.0
+        };
+
+        // 主题覆盖度 (简化版：检查关键词出现频率)
+        let topic_coverage = topic_keywords
+            .iter()
+            .filter(|kw| {
+                info_pieces
+                    .iter()
+                    .any(|i| i.content.to_lowercase().contains(&kw.to_lowercase()))
+            })
+            .count();
+
+        // 完整性评分
+        let completeness = if !topic_keywords.is_empty() {
+            (topic_coverage as f32 / topic_keywords.len() as f32).min(1.0)
+        } else if info_count > 5 {
+            0.8
+        } else {
+            0.3
+        };
+
+        // 置信度评分
+        let confidence =
+            (info_quality * 0.4 + completeness * 0.3 + (source_diversity as f32 / 10.0).min(0.3))
+                .min(1.0);
+
+        // 综合评分
+        let overall = info_quality * 0.3 + completeness * 0.4 + confidence * 0.3;
+
+        let details = ScoreDetails {
+            info_count,
+            high_quality_count,
+            source_diversity,
+            citation_count,
+            search_rounds,
+            topic_coverage,
+            duplicate_ratio,
+        };
+
+        Self {
+            info_quality: (info_quality * 100.0).round() / 100.0,
+            completeness: (completeness * 100.0).round() / 100.0,
+            confidence: (confidence * 100.0).round() / 100.0,
+            overall: (overall * 100.0).round() / 100.0,
+            details,
+        }
+    }
+
+    pub fn level(&self) -> &'static str {
+        if self.overall >= 0.8 {
+            "优秀"
+        } else if self.overall >= 0.6 {
+            "良好"
+        } else if self.overall >= 0.4 {
+            "一般"
+        } else {
+            "需改进"
+        }
+    }
+
+    pub fn is_sufficient(&self, threshold: f32) -> bool {
+        self.overall >= threshold
+    }
+}
+
+/// 研究改进建议
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ResearchSuggestion {
+    /// 建议类型
+    pub suggestion_type: SuggestionType,
+    /// 建议描述
+    pub description: String,
+    /// 推荐的搜索关键词
+    pub suggested_keywords: Vec<String>,
+    /// 优先级 (1-5, 5为最高)
+    pub priority: u8,
+}
+
+/// 建议类型
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SuggestionType {
+    /// 信息不足，需要更多搜索
+    NeedMoreInfo,
+    /// 来源单一，需要多元化
+    NeedMoreSources,
+    /// 重复信息过多，需要新角度
+    NeedNewAngle,
+    /// 置信度不足，需要深入验证
+    NeedValidation,
+    /// 已达到目标
+    Sufficient,
+}
+
+impl ResearchSuggestion {
+    pub fn sufficient() -> Self {
+        Self {
+            suggestion_type: SuggestionType::Sufficient,
+            description: "研究质量已达到目标要求".to_string(),
+            suggested_keywords: vec![],
+            priority: 5,
+        }
+    }
+
+    pub fn need_more_info(current_count: usize, target: usize) -> Self {
+        Self {
+            suggestion_type: SuggestionType::NeedMoreInfo,
+            description: format!("信息量不足 ({}/{}), 建议继续搜索", current_count, target),
+            suggested_keywords: vec![],
+            priority: 4,
+        }
+    }
+
+    pub fn need_more_sources(diversity: usize) -> Self {
+        let keywords = match diversity {
+            0 | 1 => vec![
+                "官方文档".to_string(),
+                "学术论文".to_string(),
+                "技术博客".to_string(),
+            ],
+            2 => vec!["案例分析".to_string(), "社区讨论".to_string()],
+            _ => vec![],
+        };
+        Self {
+            suggestion_type: SuggestionType::NeedMoreSources,
+            description: format!("来源类型较少 ({}种), 建议拓展来源", diversity),
+            suggested_keywords: keywords,
+            priority: 3,
+        }
+    }
+
+    pub fn need_new_angle(duplicate_ratio: f32) -> Self {
+        Self {
+            suggestion_type: SuggestionType::NeedNewAngle,
+            description: format!(
+                "重复信息较多 ({:.1}%), 建议换个角度搜索",
+                duplicate_ratio * 100.0
+            ),
+            suggested_keywords: vec![
+                "最新".to_string(),
+                "发展趋势".to_string(),
+                "对比分析".to_string(),
+            ],
+            priority: 4,
+        }
+    }
+
+    pub fn need_validation(confidence: f32) -> Self {
+        Self {
+            suggestion_type: SuggestionType::NeedValidation,
+            description: format!(
+                "置信度较低 ({:.0}%), 建议验证信息准确性",
+                confidence * 100.0
+            ),
+            suggested_keywords: vec![
+                "官方".to_string(),
+                "权威来源".to_string(),
+                "数据来源".to_string(),
+            ],
+            priority: 4,
+        }
+    }
+}
+
+/// 评分配置
+#[derive(Debug, Clone)]
+pub struct ScoringConfig {
+    /// 质量阈值，低于此值会触发改进建议
+    pub quality_threshold: f32,
+    /// 置信度阈值，低于此值会建议继续搜索
+    pub confidence_threshold: f32,
+    /// 重复信息阈值，超过此比例会建议换角度
+    pub duplicate_threshold: f32,
+    /// 最少信息数量
+    pub min_info_count: usize,
+    /// 最少来源多样性
+    pub min_source_diversity: usize,
+}
+
+impl Default for ScoringConfig {
+    fn default() -> Self {
+        Self {
+            quality_threshold: 0.6,
+            confidence_threshold: 0.7,
+            duplicate_threshold: 0.3,
+            min_info_count: 5,
+            min_source_diversity: 2,
         }
     }
 }

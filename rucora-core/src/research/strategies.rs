@@ -4,7 +4,10 @@ use crate::provider::LlmProvider;
 use async_trait::async_trait;
 use std::sync::Arc;
 
-use super::{ResearchConfig, ResearchPhase, ResearchProgress, ResearchReport};
+use super::{
+    InfoPiece, ResearchConfig, ResearchPhase, ResearchProgress, ResearchReport, 
+    ScoringConfig, SuggestionType,
+};
 
 /// 深度研究引擎 trait
 ///
@@ -209,12 +212,12 @@ pub enum ResearchError {
 impl std::fmt::Display for ResearchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResearchError::Provider(msg) => write!(f, "Provider 错误: {}", msg),
-            ResearchError::Tool(msg) => write!(f, "工具错误: {}", msg),
+            ResearchError::Provider(msg) => write!(f, "Provider 错误: {msg}"),
+            ResearchError::Tool(msg) => write!(f, "工具错误: {msg}"),
             ResearchError::Timeout => write!(f, "超时"),
-            ResearchError::InvalidConfig(msg) => write!(f, "无效配置: {}", msg),
-            ResearchError::Failed(msg) => write!(f, "研究失败: {}", msg),
-            ResearchError::Storage(msg) => write!(f, "存储错误: {}", msg),
+            ResearchError::InvalidConfig(msg) => write!(f, "无效配置: {msg}"),
+            ResearchError::Failed(msg) => write!(f, "研究失败: {msg}"),
+            ResearchError::Storage(msg) => write!(f, "存储错误: {msg}"),
         }
     }
 }
@@ -319,4 +322,142 @@ impl CitationHandler for DefaultCitationHandler {
 pub trait StrategyFactory: Send + Sync {
     /// 创建策略
     fn create(&self, config: &ResearchConfig) -> Box<dyn StrategyTrait>;
+}
+
+/// 研究质量评估器
+///
+/// 负责评估研究质量并生成改进建议。
+pub struct ResearchQualityAssessor {
+    config: ScoringConfig,
+    topic_keywords: Vec<String>,
+}
+
+impl ResearchQualityAssessor {
+    pub fn new(config: ScoringConfig, topic_keywords: Vec<String>) -> Self {
+        Self {
+            config,
+            topic_keywords,
+        }
+    }
+
+    pub fn with_default(topic: &str) -> Self {
+        Self {
+            config: ScoringConfig::default(),
+            topic_keywords: extract_keywords(topic),
+        }
+    }
+
+    /// 评估研究质量
+    pub fn assess(
+        &self,
+        info_pieces: &[InfoPiece],
+        citations: &[super::Citation],
+        search_rounds: usize,
+    ) -> super::ResearchQualityScore {
+        super::ResearchQualityScore::calculate(
+            info_pieces,
+            citations,
+            search_rounds,
+            &self.topic_keywords,
+        )
+    }
+
+    /// 生成改进建议
+    pub fn suggest(
+        &self,
+        score: &super::ResearchQualityScore,
+    ) -> super::ResearchSuggestion {
+        // 检查是否已达到目标
+        if score.is_sufficient(self.config.quality_threshold) {
+            return super::ResearchSuggestion::sufficient();
+        }
+
+        // 检查信息数量
+        if score.details.info_count < self.config.min_info_count {
+            return super::ResearchSuggestion::need_more_info(
+                score.details.info_count,
+                self.config.min_info_count,
+            );
+        }
+
+        // 检查重复率
+        if score.details.duplicate_ratio > self.config.duplicate_threshold {
+            return super::ResearchSuggestion::need_new_angle(score.details.duplicate_ratio);
+        }
+
+        // 检查来源多样性
+        if score.details.source_diversity < self.config.min_source_diversity {
+            return super::ResearchSuggestion::need_more_sources(score.details.source_diversity);
+        }
+
+        // 检查置信度
+        if score.confidence < self.config.confidence_threshold {
+            return super::ResearchSuggestion::need_validation(score.confidence);
+        }
+
+        // 默认：信息不足
+        super::ResearchSuggestion::need_more_info(
+            score.details.info_count,
+            self.config.min_info_count,
+        )
+    }
+
+    /// 检查是否应该继续搜索
+    pub fn should_continue(&self, score: &super::ResearchQualityScore, current_round: u32, max_rounds: u32) -> bool {
+        // 达到最大轮次，不再继续
+        if current_round >= max_rounds {
+            return false;
+        }
+
+        // 已达到质量阈值，可以停止
+        if score.is_sufficient(self.config.quality_threshold) {
+            return false;
+        }
+
+        // 质量不足但还有轮次，继续
+        true
+    }
+
+    /// 根据评分获取下一轮搜索建议
+    pub fn get_next_search_hint(&self, score: &super::ResearchQualityScore, current_topic: &str) -> String {
+        let suggestion = self.suggest(score);
+        
+        let mut hints = vec![current_topic.to_string()];
+        
+        // 添加主题关键词
+        if !self.topic_keywords.is_empty() {
+            hints.extend(self.topic_keywords.iter().take(2).cloned());
+        }
+
+        // 根据建议类型添加关键词
+        match suggestion.suggestion_type {
+            SuggestionType::NeedMoreInfo => {
+                hints.push("详细介绍".to_string());
+                hints.push("详细说明".to_string());
+            }
+            SuggestionType::NeedMoreSources => {
+                hints.extend(suggestion.suggested_keywords);
+            }
+            SuggestionType::NeedNewAngle => {
+                hints.extend(suggestion.suggested_keywords);
+            }
+            SuggestionType::NeedValidation => {
+                hints.push("官方".to_string());
+                hints.push("验证".to_string());
+            }
+            SuggestionType::Sufficient => {
+                return "研究已完成".to_string();
+            }
+        }
+
+        hints.join(" ")
+    }
+}
+
+fn extract_keywords(topic: &str) -> Vec<String> {
+    topic.split(&[' ', ',', '，', '。', '、', '？', '?'][..])
+        .filter(|s| !s.is_empty() && s.len() > 1)
+        .take(5)
+        .map(|s| s.to_string())
+        .collect()
 }

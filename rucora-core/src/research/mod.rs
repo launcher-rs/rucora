@@ -14,5 +14,5 @@ pub use types::*;
 // 导出 strategies 中的类型和 trait
 pub use strategies::{
     CitationHandler, DeepResearchEngine, ResearchContext, ResearchError, ResearchLibrary,
-    StrategyFactory, StrategyResult, StrategyTrait,
+    ResearchQualityAssessor, StrategyFactory, StrategyResult, StrategyTrait,
 };
