@@ -18,7 +18,7 @@ members = [
     "examples/quick_research",
     "examples/iterative_research",
     "examples/rucora-deep-research-agentic",
-    "examples/rucora-deep-research-library",
+    "examples/deep_research_storage",
     "examples/rucora-deep-research-academic",
     "examples/research_quality_assessment",
     "examples/example_prompt_usage"

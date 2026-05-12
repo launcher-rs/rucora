@@ -1,8 +1,8 @@
-# 研究库示例 (rucora-deep-research-library)
+# 深度研究存储示例 (deep-research-storage)
 
 ## 原理
 
-研究库示例展示了如何使用 `ResearchLibrary` trait 来存储和检索历史研究成果。通过将研究结果持久化，可以实现知识的积累和复用。
+存储示例展示了如何使用 `ResearchLibrary` trait 来存储和检索历史研究成果。通过将研究结果持久化，可以实现知识的积累和复用。
 
 ## 核心组件
 
@@ -26,7 +26,7 @@
 ## 运行
 
 ```bash
-cargo run --example rucora-deep-research-library
+cargo run --example deep-research-storage
 ```
 
 ## 环境变量

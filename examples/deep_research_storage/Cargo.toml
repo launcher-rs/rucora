@@ -1,8 +1,8 @@
 [package]
-name = "rucora-deep-research-library"
+name = "deep-research-storage"
 version.workspace = true
 edition = "2024"
-description = "rucora 研究库示例"
+description = "rucora 深度研究存储示例"
 publish = false
 
 [dependencies]
