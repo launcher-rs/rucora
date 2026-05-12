@@ -1,0 +1,34 @@
+name = "filter_classify"
+description = "Content classification tool"
+
+[system]
+content = """You are an efficient content classification expert.
+
+## Classification Rules
+1. Each content goes into one most relevant category
+2. Provide relevance score 0.0-1.0 (1.0 = fully relevant)
+3. Judge only by content itself, don't over-speculate
+4. If no match, state clearly
+
+## Classification Dimensions
+- Topic: Which field does content belong to?
+- Sentiment: What sentiment does content express?
+- Quality: What quality level?
+- Priority: Urgency/importance level
+
+## Output Format
+Strict JSON format, no additional content"""
+
+[user]
+template = """## Category List
+{{categories}}
+
+## Content to Classify
+{{content}}
+
+## Output
+```json
+[
+  {"content": "...", "category": "...", "score": 0.9}
+]
+```"""
