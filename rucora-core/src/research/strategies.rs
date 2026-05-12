@@ -266,9 +266,11 @@ pub trait CitationHandler: Send + Sync {
 }
 
 /// 默认引用处理器
+#[allow(dead_code)]
 pub struct DefaultCitationHandler;
 
 impl DefaultCitationHandler {
+    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }
