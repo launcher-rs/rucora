@@ -6,6 +6,7 @@ use anyhow::Result;
 use rucora::deep_research::{AgenticStrategy, DefaultResearchEngine};
 use rucora::provider::OpenAiProvider;
 use rucora_core::provider::LlmProvider;
+use rucora_core::research::DeepResearchEngine;
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -23,43 +24,33 @@ async fn main() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    print_banner();
+    println!("\n╔══════════════════════════════════════════════════════════╗");
+    println!("║       rucora Agentic 自主研究示例 v1.0            ║");
+    println!("║  LLM 自主决定研究路径，多轮迭代深化分析            ║");
+    println!("╚══════════════════════════════════════════════════════════╝\n");
 
     let provider = create_provider()?;
     let topic = DEFAULT_TOPIC;
 
-    println!("{}", console::style("━━━ 研究主题 ━━━").green().bold());
-    println!("  {}", console::style(topic).cyan().bold());
+    println!("【研究主题】");
+    println!("  {}", topic);
 
-    println!(
-        "\n{}",
-        console::style("━━━ 使用 Agentic 自主研究策略 ━━━").blue().bold()
-    );
-    info!("开始 Agentic 研究: {}", topic);
+    println!("\n【执行 Agentic 自主研究】");
+    info!("开始自主研究: {}", topic);
 
-    let result = run_agentic_research(&provider, topic).await?;
+    let report = run_agentic_research(&provider, topic).await?;
 
-    println!("\n{}", console::style("━━━ 研究结果 ━━━").green().bold());
-    println!("{}", result.to_markdown());
+    println!("\n【研究完成】");
+    println!("\n{}", report.summary);
 
+    println!("\n=== 完成 ===");
     Ok(())
 }
 
-fn print_banner() {
-    println!("╔══════════════════════════════════════════════════════════╗");
-    println!("║       rucora Agentic 自主研究示例 v1.0                   ║");
-    println!("║  LLM 自主决策，动态调整研究路径                          ║");
-    println!("╚══════════════════════════════════════════════════════════╝\n");
-}
-
-fn create_provider() -> Result<Arc<dyn LlmProvider + Send + Sync>> {
+fn create_provider() -> Result<Arc<dyn LlmProvider>> {
     let api_key = std::env::var("OPENAI_API_KEY")
-        .or_else(|_| std::env::var("API_KEY"))
-        .expect("请设置 OPENAI_API_KEY 或 API_KEY 环境变量");
-
-    let model = std::env::var("OPENAI_DEFAULT_MODEL")
-        .or_else(|_| std::env::var("MODEL"))
-        .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        .or_else(|_| std::env::var("OPENAI_KEY"))?;
+    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
     let base_url = std::env::var("OPENAI_BASE_URL")
         .or_else(|_| std::env::var("BASE_URL"))
@@ -71,7 +62,7 @@ fn create_provider() -> Result<Arc<dyn LlmProvider + Send + Sync>> {
 }
 
 async fn run_agentic_research(
-    provider: &Arc<dyn LlmProvider + Send + Sync>,
+    provider: &Arc<dyn LlmProvider>,
     topic: &str,
 ) -> Result<rucora_core::research::ResearchReport> {
     let strategy = AgenticStrategy::new();

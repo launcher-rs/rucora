@@ -3,10 +3,7 @@
 //! 专注于学术论文搜索和引用格式。
 
 use anyhow::Result;
-use rucora::provider::OpenAiProvider;
-use rucora_core::provider::LlmProvider;
 use rucora_core::research::{Citation, ResearchReport, ResearchStrategy};
-use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
 
@@ -23,58 +20,32 @@ async fn main() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    print_banner();
+    println!("\n╔══════════════════════════════════════════════════════════╗");
+    println!("║          rucora 学术研究示例 v1.0                        ║");
+    println!("║  专注学术论文搜索和引用                                   ║");
+    println!("╚══════════════════════════════════════════════════════════╝\n");
 
-    let provider = create_provider()?;
     let topic = DEFAULT_TOPIC;
 
-    println!("{}", console::style("━━━ 研究主题 ━━━").green().bold());
-    println!("  {}", console::style(topic).cyan().bold());
+    println!("【研究主题】");
+    println!("  {}", topic);
 
-    println!(
-        "\n{}",
-        console::style("━━━ 执行学术研究 ━━━").blue().bold()
-    );
+    println!("\n【执行学术研究】");
     info!("开始学术研究: {}", topic);
 
     let report = run_academic_research(topic).await;
 
-    println!("\n{}", console::style("━━━ 研究报告 ━━━").green().bold());
+    println!("\n【研究报告】");
     println!("{}", report.to_markdown());
 
+    println!("\n=== 完成 ===");
     Ok(())
-}
-
-fn print_banner() {
-    println!("╔══════════════════════════════════════════════════════════╗");
-    println!("║          rucora 学术研究示例 v1.0                        ║");
-    println!("║  专注学术论文搜索和引用                                   ║");
-    println!("╚══════════════════════════════════════════════════════════╝\n");
-}
-
-fn create_provider() -> Result<Arc<dyn LlmProvider + Send + Sync>> {
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .or_else(|_| std::env::var("API_KEY"))
-        .expect("请设置 OPENAI_API_KEY 或 API_KEY 环境变量");
-
-    let model = std::env::var("OPENAI_DEFAULT_MODEL")
-        .or_else(|_| std::env::var("MODEL"))
-        .unwrap_or_else(|_| "gpt-4o-mini".to_string());
-
-    let base_url = std::env::var("OPENAI_BASE_URL")
-        .or_else(|_| std::env::var("BASE_URL"))
-        .unwrap_or_else(|_| "https://api.openai.com/v1".to_string());
-
-    Ok(Arc::new(
-        OpenAiProvider::new(&base_url, &api_key).with_default_model(&model),
-    ))
 }
 
 /// 模拟学术研究（实际需要使用 Arxiv/PubMed 工具）
 async fn run_academic_research(topic: &str) -> ResearchReport {
     let mut report = ResearchReport::new(topic.to_string(), ResearchStrategy::Academic);
 
-    // 模拟学术引用
     let citations = vec![
         Citation::new(
             "https://arxiv.org/abs/2103.00001".to_string(),
@@ -100,7 +71,6 @@ async fn run_academic_research(topic: &str) -> ResearchReport {
         report.add_citation(c);
     }
 
-    // 模拟研究内容
     let content = format!(
         r#"# {} - 学术研究报告
 

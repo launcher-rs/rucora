@@ -6,7 +6,7 @@ use anyhow::Result;
 use rucora::deep_research::{InMemoryResearchLibrary, StandardStrategy};
 use rucora::provider::OpenAiProvider;
 use rucora_core::provider::LlmProvider;
-use rucora_core::research::ResearchLibrary;
+use rucora_core::research::{DeepResearchEngine, ResearchLibrary};
 use std::sync::Arc;
 use tracing::{info, Level};
 use tracing_subscriber::FmtSubscriber;
@@ -22,61 +22,40 @@ async fn main() -> Result<()> {
         .finish();
     tracing::subscriber::set_global_default(subscriber)?;
 
-    print_banner();
+    println!("\n=== 研究库示例 ===\n");
 
     let provider = create_provider()?;
     let library = InMemoryResearchLibrary::new();
 
-    println!("{}", console::style("━━━ 研究主题 ━━━").green().bold());
-    println!("  {}", console::style("人工智能的发展历史").cyan().bold());
+    println!("【研究主题】");
+    println!("  人工智能的发展历史");
 
-    // 执行研究
-    println!("\n{}", console::style("━━━ 执行研究并保存到库 ━━━").blue().bold());
+    println!("\n【执行研究并保存到库】");
     let report = run_research_with_library(&provider, "人工智能的发展历史").await?;
 
-    // 保存到库
     let id = library.save(&report).await?;
     info!("研究报告已保存，ID: {}", id);
 
-    // 搜索历史研究
-    println!(
-        "\n{}",
-        console::style("━━━ 搜索研究库 ━━━").blue().bold()
-    );
+    println!("\n【搜索研究库】");
     let results = library.search("人工智能").await?;
     println!("找到 {} 条相关研究", results.len());
 
-    // 列出所有研究
-    println!(
-        "\n{}",
-        console::style("━━━ 研究库内容 ━━━").blue().bold()
-    );
+    println!("\n【研究库内容】");
     let all = library.list(10).await?;
-    for r in &all {
-        println!("  - {} ({})", r.topic, r.created_at.format("%Y-%m-%d"));
+    println!("共存储 {} 项研究", all.len());
+
+    for (i, r) in all.iter().enumerate() {
+        println!("  {}. {}", i + 1, r.topic);
     }
 
-    println!("\n{}", console::style("━━━ 研究报告 ━━━").green().bold());
-    println!("{}", report.to_markdown());
-
+    println!("\n=== 完成 ===");
     Ok(())
 }
 
-fn print_banner() {
-    println!("╔══════════════════════════════════════════════════════════╗");
-    println!("║          rucora 研究库示例 v1.0                         ║");
-    println!("║  存储和检索研究结果，建立个人知识库                     ║");
-    println!("╚══════════════════════════════════════════════════════════╝\n");
-}
-
-fn create_provider() -> Result<Arc<dyn LlmProvider + Send + Sync>> {
+fn create_provider() -> Result<Arc<dyn LlmProvider>> {
     let api_key = std::env::var("OPENAI_API_KEY")
-        .or_else(|_| std::env::var("API_KEY"))
-        .expect("请设置 OPENAI_API_KEY 或 API_KEY 环境变量");
-
-    let model = std::env::var("OPENAI_DEFAULT_MODEL")
-        .or_else(|_| std::env::var("MODEL"))
-        .unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        .or_else(|_| std::env::var("OPENAI_KEY"))?;
+    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
     let base_url = std::env::var("OPENAI_BASE_URL")
         .or_else(|_| std::env::var("BASE_URL"))
@@ -88,7 +67,7 @@ fn create_provider() -> Result<Arc<dyn LlmProvider + Send + Sync>> {
 }
 
 async fn run_research_with_library(
-    provider: &Arc<dyn LlmProvider + Send + Sync>,
+    provider: &Arc<dyn LlmProvider>,
     topic: &str,
 ) -> Result<rucora_core::research::ResearchReport> {
     use rucora::deep_research::DefaultResearchEngine;
