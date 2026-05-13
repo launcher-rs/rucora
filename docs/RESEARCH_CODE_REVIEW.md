@@ -10,11 +10,10 @@
 
 ### 1.1 架构设计问题
 
-#### 1.1.1 `DefaultResearchEngine` + `StandardStrategy` 是纯模拟实现
-- **文件**: `rucora/rucora-core/src/research/strategies.rs:53-98`
-- **问题**: `StandardStrategy::search()` 完全不调用 LLM，而是生成硬编码的 dummy `InfoPiece`。代码注释明确写着"模拟搜索过程（实际实现需要调用搜索工具）"。这导致 `deep_research_storage` 示例无法展示真实的研究能力。
-- **影响**: 用户运行示例时看不到任何 API 调用，直接得到结果，违背了示例的演示目的。
-- **建议**: 要么在文档中明确标注这是占位实现（已做），要么提供真正的 LLM 驱动实现。
+#### 1.1.1 `DefaultResearchEngine` + `StandardStrategy` 是纯模拟实现 ✅ 已修复
+- **文件**: `rucora/rucora-core/src/research/strategies.rs`, `rucora/rucora/src/deep_research/strategies.rs`
+- **修复**: 在 `StandardStrategy` 和 `FastStrategy` 的文档中明确标注为 **模拟占位实现**，不实际调用 LLM。`AgenticStrategy` 提供真实的 LLM 驱动决策流程。
+- **文档**: 在 `rucora-core/src/research/mod.rs` 中明确了 core 与 rucora crate 之间的职责划分。
 
 #### 1.1.2 评分系统在第一轮就判定"完成" ✅ 已修复
 - **文件**: `rucora-core/src/research/types.rs:85`
@@ -22,15 +21,17 @@
 - **文件**: `rucora-core/src/research/types.rs:139`
 - **修复**: 将 `Citation::new()` 的默认 `relevance_score` 从 `1.0` 改为 `0.5`，保持一致性。
 
-#### 1.1.3 `rucora-core` 和 `rucora` 之间模块职责划分不清
-- **问题**: `rucora-core::research` 定义了 `DeepResearchEngine` trait，但 `rucora` crate 中又有独立的 `deep_research` 模块提供 `DefaultResearchEngine` 的默认实现。这两个层次的划分不够清晰。
-- **具体表现**: `rucora-core/src/research/mod.rs` 使用 `pub use types::*` 导出所有类型，使用者需要知道哪些是 core 的、哪些是 rucora crate 的。
-- **建议**: 考虑把默认实现也放到 core 的 `strategies.rs` 中，或明确在 core 中声明"默认实现在 rucora crate 中"。
+#### 1.1.3 `rucora-core` 和 `rucora` 之间模块职责划分不清 ✅ 已修复
+- **文件**: `rucora-core/src/research/mod.rs`
+- **修复**: 添加了详细的模块职责说明，明确 core 只定义抽象接口和核心类型，具体实现在 `rucora` crate 的 `deep_research` 模块中。
+- **文档**: 新增了 core 与 rucora crate 之间的职责边界说明，帮助第三方开发者理解如何只依赖 core 实现自定义策略。
 
-#### 1.1.4 `Agent` trait 的 `run` 和 `run_stream` 默认实现不够实用
-- **文件**: `rucora-core/src/agent/mod.rs:510-585`
-- **问题**: `Agent::run()` 的默认实现只能处理 `Return`/`Stop`/`ThinkAgain`，遇到 `Chat` 或 `ToolCall` 决策就返回 `RequiresRuntime` 错误。虽然文档说明了这一点，但对于新手来说容易困惑。
-- **建议**: `run_stream` 的默认实现返回一个包含错误的 stream，不如返回 `once(Err(...))` 时附带更多上下文。
+#### 1.1.4 `Agent::run` 和 `run_stream` 默认实现不够实用 ✅ 已修复
+- **文件**: `rucora-core/src/agent/mod.rs`
+- **修复**:
+  - `run()` 文档新增了"何时使用默认 run() vs run_with()"的指导，包含纯推理 Agent 和带工具 Agent 的示例代码
+  - `run_stream()` 文档新增了使用 `DefaultExecution` 提供流式支持的示例
+  - 错误提示信息从"默认实现无法处理"改为引导用户使用 `run_with(executor, input)`
 
 #### 1.1.5 `ChannelEvent` 中缺少 `#[non_exhaustive]` 属性 ✅ 已修复
 - **文件**: `rucora-core/src/channel/types.rs:368`
@@ -321,6 +322,7 @@
 13. ✅ **[中]** `AgentContext` 添加 `has_visited`、`set_state`、`get_state`、`total_content_length` 等方法文档
 14. ⏳ **[低]** Agent 构建器代码重复（暂未提取公共逻辑，影响范围大需谨慎）
 15. ✅ **[中]** `Tool::call` 添加 `ToolContext` 参数（已完成，涉及 20+ 个文件全部更新）
+16. ✅ **[低]** 修复 1.1.1 模拟实现标注、1.1.3 模块职责划分、1.1.4 Agent 默认实现文档
 
 ### 运行验证
 

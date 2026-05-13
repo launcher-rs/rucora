@@ -493,12 +493,15 @@ pub trait Agent: Send + Sync {
     /// 默认实现会循环调用 `think()` 直到返回 `Return` 或 `Stop`。
     /// 如果返回 `Chat` 或 `ToolCall`，会返回错误（需要 Runtime 支持）。
     ///
-    /// # 配置
+    /// # 何时使用默认 `run()` vs `run_with()`
     ///
-    /// 默认最大步骤数为 20。如果需要自定义，请使用 `run_with()` 方法。
+    /// - **纯推理 Agent**（无需工具调用）：直接使用 `run()` 即可，例如 ReAct Agent 的思考部分。
+    /// - **需要工具调用的 Agent**：使用 `run_with(executor, input)`，传入一个 `AgentExecutor` 实现（如 `DefaultExecution`）。
+    /// - **需要流式输出的 Agent**：使用 `run_stream()` 或 `run_with().run_stream()`。
     ///
     /// # 示例
     ///
+    /// ## 简单推理 Agent（无需工具）
     /// ```rust,no_run
     /// use rucora_core::agent::{Agent, AgentInput};
     ///
@@ -507,56 +510,77 @@ pub trait Agent: Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
-        // 默认最大步骤数：20
-        const DEFAULT_MAX_STEPS: usize = 20;
+    ///
+    /// ## 带工具执行的 Agent
+    /// ```rust,no_run
+    /// use rucora::agent::execution::DefaultExecution;
+    /// use rucora::agent::ToolAgent;
+    /// use rucora_core::agent::{Agent, AgentInput, AgentExecutor};
+    ///
+    /// # async fn example(agent: &impl Agent, executor: &dyn AgentExecutor) -> Result<(), Box<dyn std::error::Error>> {
+    /// let output = agent.run_with(executor, AgentInput::new("你好")).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
+         // 默认最大步骤数：20
+         // 需要自定义请使用 `run_with(executor, input)` 方法
+         const DEFAULT_MAX_STEPS: usize = 20;
 
-        let mut context = AgentContext::new(input.clone(), DEFAULT_MAX_STEPS);
+         let mut context = AgentContext::new(input.clone(), DEFAULT_MAX_STEPS);
 
-        loop {
-            let decision = self.think(&context).await;
+         loop {
+             let decision = self.think(&context).await;
 
-            match decision {
-                AgentDecision::Return(value) => {
-                    return Ok(AgentOutput::with_history(
-                        value,
-                        context.messages,
-                        Vec::new(),
-                    ));
-                }
-                AgentDecision::Stop => {
-                    return Ok(AgentOutput::with_history(
-                        Value::Null,
-                        context.messages,
-                        Vec::new(),
-                    ));
-                }
-                AgentDecision::ThinkAgain => {
-                    context.step += 1;
-                    if context.step >= context.max_steps {
-                        return Err(AgentError::MaxStepsExceeded {
-                            max_steps: context.max_steps,
-                        });
-                    }
-                }
-                AgentDecision::Chat { request: _ } => {
-                    // Chat 决策需要 LLM 调用，默认实现无法处理
-                    return Err(AgentError::RequiresRuntime);
-                }
-                AgentDecision::ToolCall { .. } => {
-                    // ToolCall 决策需要工具执行，默认实现无法处理
-                    return Err(AgentError::RequiresRuntime);
-                }
-            }
-        }
-    }
+             match decision {
+                 AgentDecision::Return(value) => {
+                     return Ok(AgentOutput::with_history(
+                         value,
+                         context.messages,
+                         Vec::new(),
+                     ));
+                 }
+                 AgentDecision::Stop => {
+                     return Ok(AgentOutput::with_history(
+                         Value::Null,
+                         context.messages,
+                         Vec::new(),
+                     ));
+                 }
+                 AgentDecision::ThinkAgain => {
+                     context.step += 1;
+                     if context.step >= context.max_steps {
+                         return Err(AgentError::MaxStepsExceeded {
+                             max_steps: context.max_steps,
+                         });
+                     }
+                 }
+                 AgentDecision::Chat { request: _ } => {
+                     // Chat 决策需要 LLM 调用，请使用 `run_with(executor, input)` 方法
+                     return Err(AgentError::RequiresRuntime);
+                 }
+                 AgentDecision::ToolCall { .. } => {
+                     // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
+                     return Err(AgentError::RequiresRuntime);
+                 }
+             }
+         }
+     }
 
     /// 运行 Agent（流式）。
     ///
-    /// 默认实现返回错误（需要具体实现提供流式能力）。
+    /// 默认实现返回一个包含错误信息的 stream，表示此 Agent 不支持流式输出。
+    /// 需要流式支持的 Agent 应重写此方法，或使用 `run_with()` 配合流式执行器。
+    ///
+    /// # 何时重写此方法
+    ///
+    /// - Agent 需要流式输出 Token 级增量
+    /// - Agent 需要流式工具调用反馈
+    /// - 构建聊天机器人等需要实时交互的场景
     ///
     /// # 示例
     ///
+    /// ## 使用默认实（不支持流式）
     /// ```rust,no_run
     /// use rucora_core::agent::{Agent, AgentInput};
     /// use futures_util::StreamExt;
@@ -571,6 +595,17 @@ pub trait Agent: Send + Sync {
     ///         _ => {}
     ///     }
     /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ## 使用 `DefaultExecution` 提供流式支持
+    /// ```rust,no_run
+    /// use rucora::agent::execution::DefaultExecution;
+    /// use rucora_core::agent::{Agent, AgentInput, AgentExecutor};
+    ///
+    /// # async fn example(agent: &impl Agent, executor: &dyn AgentExecutor) -> Result<(), Box<dyn std::error::Error>> {
+    /// let stream = executor.run_stream(agent, AgentInput::new("你好"));
     /// # Ok(())
     /// # }
     /// ```

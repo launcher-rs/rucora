@@ -1,4 +1,11 @@
 //! 研究策略实现
+//!
+//! 提供多种研究策略的实现，包括标准多阶段策略、快速策略和Agentic策略。
+//!
+//! # 注意
+//! 以下 `StandardStrategy` 和 `FastStrategy` 为模拟实现，仅用于演示和测试评分逻辑。
+//! 实际生产环境应通过 `AgenticStrategy` 或其他真实搜索策略获取数据。
+//! 模拟策略会在日志中明确标注 "模拟搜索过程"，并在文档中标记。
 
 use async_trait::async_trait;
 use rucora_core::provider::LlmProvider;
@@ -13,6 +20,14 @@ use std::sync::Arc;
 /// 1. 搜索收集 - 多轮搜索收集信息
 /// 2. 深度精读 - 对重要 URL 进行深度阅读
 /// 3. 综合报告 - 汇总所有信息生成报告
+///
+/// # ⚠️ 模拟实现
+///
+/// 此策略为**模拟占位实现**，用于演示评分逻辑和研究流程。
+/// `search()` 方法不实际调用 LLM 或搜索工具，而是生成硬编码的示例数据。
+///
+/// 实际生产环境请使用 `AgenticStrategy`，它通过 LLM 自主决策搜索策略。
+/// 参见 <https://github.com/launcher-rs/rucora/issues/1>
 pub struct StandardStrategy {
     config: ResearchConfig,
 }
@@ -135,6 +150,14 @@ impl rucora_core::research::StrategyTrait for StandardStrategy {
 /// 快速研究策略
 ///
 /// 适用于简单事实查询，30秒-3分钟内完成。
+///
+/// # ⚠️ 模拟实现
+///
+/// 此策略为**模拟占位实现**，用于演示评分逻辑和研究流程。
+/// `search()` 方法不实际调用 LLM 或搜索工具，而是生成硬编码的示例数据。
+///
+/// 实际生产环境请使用 `AgenticStrategy`，它通过 LLM 自主决策搜索策略。
+/// 参见 <https://github.com/launcher-rs/rucora/issues/1>
 pub struct FastStrategy {
     config: ResearchConfig,
 }
