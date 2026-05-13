@@ -630,10 +630,11 @@ where
         serde_json::to_value(&schema).unwrap_or_else(|_| json!({}))
     }
 
-    async fn call(
-        &self,
-        input: serde_json::Value,
-    ) -> Result<serde_json::Value, rucora_core::error::ToolError> {
+async fn call(
+         &self,
+         input: serde_json::Value,
+         _context: &rucora_core::tool::types::ToolContext,
+     ) -> Result<serde_json::Value, rucora_core::error::ToolError> {
         // SubmitTool 只是返回输入的数据
         Ok(input)
     }

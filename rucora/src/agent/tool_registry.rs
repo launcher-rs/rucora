@@ -95,7 +95,7 @@ use std::sync::Arc;
 
 use rucora_core::tool::Tool;
 use rucora_core::tool::ToolCategory;
-use rucora_core::tool::types::ToolDefinition;
+use rucora_core::tool::types::{ToolContext, ToolDefinition};
 
 /// 工具来源类型枚举
 ///
@@ -574,7 +574,7 @@ impl ToolRegistry {
 
     /// 从另一个 ToolRegistry 合并工具
     ///
-    /// 如果名称冲突，会自动添加对方的命名空间或前缀。
+    /// 如果名称冲突，会自动添加对方的命名空间或添加前缀。
     ///
     /// # 示例
     ///
@@ -891,12 +891,13 @@ impl ToolRegistry {
         self.tools.clear();
     }
 
-    /// 调用指定工具。
+    /// 调用指定工具
     ///
     /// # 参数
     ///
     /// * `name` - 工具名称
     /// * `input` - 工具输入参数
+    /// * `context` - 工具上下文，包含工作目录、调用信息等
     ///
     /// # 返回
     ///
@@ -905,13 +906,14 @@ impl ToolRegistry {
         &self,
         name: &str,
         input: serde_json::Value,
+        context: &ToolContext,
     ) -> Result<serde_json::Value, rucora_core::error::ToolError> {
         let tool = self
             .get(name)
             .ok_or_else(|| rucora_core::error::ToolError::NotFound {
                 name: name.to_string(),
             })?;
-        tool.call(input).await
+        tool.call(input, context).await
     }
 }
 
@@ -940,7 +942,7 @@ mod tests {
             json!({"type": "object"})
         }
 
-        async fn call(&self, _input: Value) -> Result<Value, ToolError> {
+        async fn call(&self, _input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
             Ok(json!({"ok": true}))
         }
     }

@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use rucora_core::{
     error::{MemoryError, ToolError},
     memory::{Memory, MemoryItem, MemoryQuery},
-    tool::{Tool, ToolCategory},
+    tool::{Tool, ToolCategory, types::ToolContext},
 };
 use serde_json::{Value, json};
 use std::collections::HashMap;
@@ -113,40 +113,40 @@ impl Tool for MemoryStoreTool {
     }
 
     /// 执行记忆存储。
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
-        let key = input
-            .get("key")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'key' 字段".to_string()))?;
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
+         let key = input
+             .get("key")
+             .and_then(|v| v.as_str())
+             .ok_or_else(|| ToolError::Message("缺少必需的 'key' 字段".to_string()))?;
 
-        let content = input
-            .get("content")
-            .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'content' 字段".to_string()))?;
+         let content = input
+             .get("content")
+             .and_then(|v| v.as_str())
+             .ok_or_else(|| ToolError::Message("缺少必需的 'content' 字段".to_string()))?;
 
-        let category = input
-            .get("category")
-            .and_then(|v| v.as_str())
-            .unwrap_or("core");
+         let category = input
+             .get("category")
+             .and_then(|v| v.as_str())
+             .unwrap_or("core");
 
-        // 存储
-        let full_key = format!("{category}:{key}");
-        self.memory
-            .add(MemoryItem {
-                id: full_key,
-                content: content.to_string(),
-                metadata: None,
-            })
-            .await
-            .map_err(|e| ToolError::Message(e.to_string()))?;
+         // 存储
+         let full_key = format!("{category}:{key}");
+         self.memory
+             .add(MemoryItem {
+                 id: full_key,
+                 content: content.to_string(),
+                 metadata: None,
+             })
+             .await
+             .map_err(|e| ToolError::Message(e.to_string()))?;
 
-        Ok(json!({
-            "success": true,
-            "key": key,
-            "category": category,
-            "message": format!("已存储记忆: {}", key)
-        }))
-    }
+         Ok(json!({
+             "success": true,
+             "key": key,
+             "category": category,
+             "message": format!("已存储记忆: {}", key)
+         }))
+     }
 }
 
 /// 记忆回忆工具：从长期记忆中检索信息。
@@ -224,7 +224,7 @@ impl Tool for MemoryRecallTool {
     }
 
     /// 执行记忆检索。
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let key = input
             .get("key")
             .and_then(|v| v.as_str())

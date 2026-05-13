@@ -10,13 +10,14 @@
 //! - **自描述**: 每个工具提供自己的名称、描述和输入 schema
 //! - **分类管理**: 支持工具分类，便于按类别加载和过滤
 //! - **异步执行**: 所有工具异步执行，支持 IO 密集型操作
+//! - **上下文感知**: 通过 `ToolContext` 提供运行时上下文信息
 //!
 //! # 实现示例
 //!
 //! ## 简单工具
 //!
 //! ```rust,ignore
-//! use rucora_core::tool::{Tool, ToolCategory};
+//! use rucora_core::tool::{Tool, ToolCategory, ToolContext};
 //! use rucora_core::error::ToolError;
 //! use async_trait::async_trait;
 //! use serde_json::{Value, json};
@@ -51,11 +52,11 @@
 //!         })
 //!     }
 //!
-//!     async fn call(&self, input: Value) -> Result<Value, ToolError> {
+//!     async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
 //!         let text = input.get("text")
 //!             .and_then(|v| v.as_str())
 //!             .ok_or_else(|| ToolError::Message("缺少 'text' 字段".to_string()))?;
-//!         
+//!
 //!         Ok(json!({"echo": text}))
 //!     }
 //! }
@@ -66,7 +67,7 @@
 //! ```rust,ignore
 //! use std::sync::Arc;
 //! use tokio::sync::RwLock;
-//! use rucora_core::tool::{Tool, ToolCategory};
+//! use rucora_core::tool::{Tool, ToolCategory, ToolContext};
 //! use rucora_core::error::ToolError;
 //! use async_trait::async_trait;
 //! use serde_json::{Value, json};
@@ -110,14 +111,14 @@
 //!         })
 //!     }
 //!
-//!     async fn call(&self, input: Value) -> Result<Value, ToolError> {
+//!     async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
 //!         let increment = input.get("increment")
 //!             .and_then(|v| v.as_i64())
 //!             .unwrap_or(1) as i32;
-//!         
+//!
 //!         let mut count = self.count.write().await;
 //!         *count += increment;
-//!         
+//!
 //!         Ok(json!({"count": *count}))
 //!     }
 //! }
@@ -158,11 +159,11 @@
 //! ## 3. 完善的错误处理
 //!
 //! ```rust,ignore
-//! async fn call(&self, input: Value) -> Result<Value, ToolError> {
+//! async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
 //!     let path = input.get("path")
 //!         .and_then(|v| v.as_str())
 //!         .ok_or_else(|| ToolError::Message("缺少必需的 'path' 字段".to_string()))?;
-//!     
+//!
 //!     // 执行操作...
 //!     Ok(json!({"result": "success"}))
 //! }
@@ -180,7 +181,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use crate::error::ToolError;
-use crate::tool::types::ToolDefinition; // 引入 ToolDefinition
+use crate::tool::types::{ToolContext, ToolDefinition};
 
 /// 工具分类枚举
 ///
@@ -188,31 +189,26 @@ use crate::tool::types::ToolDefinition; // 引入 ToolDefinition
 ///
 /// # 变体说明
 ///
-/// - `Basic`: 基础工具，用于测试、调试等通用功能
-/// - `File`: 文件操作，读取、写入、编辑文件
-/// - `Network`: 网络请求，HTTP、网页获取等网络操作
-/// - `System`: 系统命令，执行 shell 命令、Git 操作等
-/// - `Browser`: 浏览器操作，打开浏览器、网页自动化等
-/// - `Memory`: 记忆存储，存储和检索长期记忆
-/// - `External`: 外部服务，与第三方 API 交互
-/// - `Custom(&'static str)`: 自定义分类
+/// - `BuiltIn`: 内置工具，如 shell、file、http 等基础工具
+/// - `Skill`: 从 Skills 目录加载的技能转换的工具
+/// - `Mcp`: 从 MCP（Model Context Protocol）服务器加载的工具
+/// - `A2A`: 从 A2A（Agent-to-Agent）协议加载的工具
+/// - `Custom`: 用户自定义工具
 ///
 /// # 示例
 ///
 /// ```rust,ignore
-/// use rucora_core::tool::ToolCategory;
+/// use rucora_core::ToolSource;
 ///
-/// // 使用预定义分类
-/// let category = ToolCategory::File;
-/// assert_eq!(category.name(), "file");
+/// let source = ToolSource::BuiltIn;
+/// assert_eq!(source.as_str(), "builtin");
 ///
-/// // 使用自定义分类
-/// let custom = ToolCategory::Custom("ai_tool");
-/// assert_eq!(custom.name(), "ai_tool");
+/// let skill_source = ToolSource::Skill;
+/// assert_eq!(skill_source.as_str(), "skill");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum ToolCategory {
-    /// 基础工具：用于测试、调试等通用功能
+    /// 内置工具（如 shell、file、http 等）
     Basic,
     /// 文件操作：读取、写入、编辑文件
     File,
@@ -266,6 +262,7 @@ impl ToolCategory {
 /// - **自描述**: 提供名称、描述和输入 schema
 /// - **异步执行**: 支持 IO 密集型操作
 /// - **线程安全**: 实现 `Send + Sync`
+/// - **上下文感知**: 通过 `ToolContext` 获取运行时上下文
 ///
 /// # 字段说明
 ///
@@ -273,29 +270,31 @@ impl ToolCategory {
 /// - `description()`: 工具描述，帮助 LLM 理解工具用途
 /// - `categories()`: 工具分类，支持多标签
 /// - `input_schema()`: 输入参数的 JSON Schema
-/// - `call()`: 执行工具的异步方法
+/// - `call()`: 执行工具的异步方法，接收运行时上下文
 ///
 /// # 示例
-    ///
-    /// ```rust,ignore,ignore
-    /// use rucora_core::tool::{Tool, ToolCategory};
-    /// use rucora_core::error::ToolError;
-    /// use async_trait::async_trait;
-    /// use serde_json::{Value, json};
-    ///
-    /// struct MyTool;
-    ///
-    /// #[async_trait]
-    /// impl Tool for MyTool {
-    ///     fn name(&self) -> &str { "my_tool" }
-    ///     fn description(&self) -> Option<&str> { Some("我的自定义工具") }
-    ///     fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Basic] }
-    ///     fn input_schema(&self) -> Value { json!({"type": "object", "properties": {"param": {"type": "string"}}}) }
-    ///     async fn call(&self, input: Value) -> Result<Value, ToolError> {
-    ///         Ok(json!({"result": "success"}))
-    ///     }
-    /// }
-    /// ```
+///
+/// ```rust,ignore
+/// use rucora_core::tool::{Tool, ToolCategory, ToolContext};
+/// use rucora_core::error::ToolError;
+/// use async_trait::async_trait;
+/// use serde_json::{Value, json};
+///
+/// struct MyTool;
+///
+/// #[async_trait]
+/// impl Tool for MyTool {
+///     fn name(&self) -> &str { "my_tool" }
+///     fn description(&self) -> Option<&str> { Some("我的自定义工具") }
+///     fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Basic] }
+///     fn input_schema(&self) -> Value { json!({"type": "object", "properties": {"param": {"type": "string"}}}) }
+///
+///     async fn call(&self, input: Value, ctx: &ToolContext) -> Result<Value, ToolError> {
+///         // ctx.get("working_dir") 获取工作目录
+///         Ok(json!({"result": "success"}))
+///     }
+/// }
+/// ```
 #[async_trait]
 pub trait Tool: Send + Sync {
     /// 工具名称（必须唯一）
@@ -310,7 +309,7 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust,ignore,ignore
+    /// ```rust,ignore
     /// // 好的命名
     /// "file_read"
     /// "http_request"
@@ -331,14 +330,6 @@ pub trait Tool: Send + Sync {
     /// - 简洁明了
     /// - 说明工具的功能
     /// - 包含使用示例（可选）
-    ///
-    /// # 示例
-    ///
-    /// ```rust,ignore,ignore
-    /// fn description(&self) -> Option<&str> {
-    ///     Some("读取文件内容。支持 txt、md、json 等文本格式。")
-    /// }
-    /// ```
     fn description(&self) -> Option<&str> {
         None
     }
@@ -349,22 +340,6 @@ pub trait Tool: Send + Sync {
     ///
     /// 返回工具所属的所有分类，支持多标签分类。
     /// 调用方可根据分类进行工具筛选、加载或禁用。
-    ///
-    /// # 示例
-    ///
-    /// ```rust,ignore,ignore
-    /// use rucora_core::tool::ToolCategory;
-    ///
-    /// // 单分类
-    /// fn categories(&self) -> &'static [ToolCategory] {
-    ///     &[ToolCategory::File]
-    /// }
-    ///
-    /// // 多分类
-    /// fn categories(&self) -> &'static [ToolCategory] {
-    ///     &[ToolCategory::System, ToolCategory::File]
-    /// }
-    /// ```
     fn categories(&self) -> &'static [ToolCategory] {
         &[ToolCategory::Basic]
     }
@@ -375,23 +350,6 @@ pub trait Tool: Send + Sync {
     ///
     /// 上层 runtime/provider 可以基于该 schema 做 function-calling 工具注册。
     /// Schema 应该符合 JSON Schema 规范。
-    ///
-    /// # 示例
-    ///
-    /// ```rust,ignore,ignore
-    /// use serde_json::json;
-    ///
-    /// fn input_schema(&self) -> Value {
-    ///     json!({
-    ///         "type": "object",
-    ///         "properties": {
-    ///             "path": { "type": "string", "description": "文件路径" },
-    ///             "encoding": { "type": "string", "description": "文件编码", "default": "utf-8" }
-    ///         },
-    ///         "required": ["path"]
-    ///     })
-    /// }
-    /// ```
     fn input_schema(&self) -> Value;
 
     /// 执行工具
@@ -399,6 +357,7 @@ pub trait Tool: Send + Sync {
     /// # 参数
     ///
     /// - `input`: 输入参数，应符合 `input_schema()` 定义的 schema
+    /// - `context`: 工具上下文，包含工作目录、会话信息等运行时数据
     ///
     /// # 返回值
     ///
@@ -407,8 +366,8 @@ pub trait Tool: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust,ignore,ignore
-    /// use rucora_core::tool::{Tool, ToolCategory};
+    /// ```rust,ignore
+    /// use rucora_core::tool::{Tool, ToolCategory, ToolContext};
     /// use rucora_core::error::ToolError;
     /// use async_trait::async_trait;
     /// use serde_json::{Value, json};
@@ -422,25 +381,17 @@ pub trait Tool: Send + Sync {
     ///     fn categories(&self) -> &'static [ToolCategory] { &[ToolCategory::Basic] }
     ///     fn input_schema(&self) -> Value { json!({"type": "object"}) }
     ///
-    ///     async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    ///     async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
     ///         Ok(input)
     ///     }
     /// }
     /// ```
-    async fn call(&self, input: Value) -> Result<Value, ToolError>;
+    async fn call(&self, input: Value, context: &ToolContext) -> Result<Value, ToolError>;
 
     /// 获取工具定义 (ToolDefinition)
     ///
     /// 该方法将工具的名称、描述和输入 Schema 聚合为一个结构体，
     /// 通常用于注册到 LLM 的 Function Calling 接口中。
-    ///
-    /// # 返回值
-    ///
-    /// - `ToolDefinition`: 包含工具元数据的结构体
-    ///
-    /// # 默认实现
-    ///
-    /// 默认实现会自动调用 `name()`, `description()`, `input_schema()` 组装。
     fn definition(&self) -> ToolDefinition {
         ToolDefinition {
             name: self.name().to_string(),

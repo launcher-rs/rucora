@@ -7,7 +7,7 @@ use backon::{ExponentialBuilder, Retryable};
 use reqwest::Client;
 use rucora_core::{
     error::ToolError,
-    tool::{Tool, ToolCategory},
+    tool::{Tool, ToolCategory, types::ToolContext},
 };
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
@@ -120,7 +120,7 @@ impl Tool for SerpapiTool {
         })
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let args: SerpapiArgs = serde_json::from_value(input)
             .map_err(|e| ToolError::Message(format!("解析参数失败：{e}")))?;
 
@@ -317,7 +317,7 @@ impl Tool for TavilyTool {
         })
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let args: TavilyArgs = serde_json::from_value(input)
             .map_err(|e| ToolError::Message(format!("解析参数失败：{e}")))?;
 
@@ -535,7 +535,7 @@ impl Tool for GithubTrendingTool {
         })
     }
 
-    async fn call(&self, _input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, _input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let data = self.get_github_trending().await?;
         Ok(json!({
             "total": data.len(),

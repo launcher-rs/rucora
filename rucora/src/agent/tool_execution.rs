@@ -8,13 +8,19 @@ use regex::Regex;
 use rucora_core::channel::ChannelObserver;
 use rucora_core::error::{AgentError, ToolError};
 use rucora_core::provider::types::{ChatMessage, Role};
-use rucora_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolResult};
+use rucora_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolContext, ToolResult};
 use serde_json::{Value, json};
 use tracing::{debug, info, warn};
 
-// ========== Credential 清洗 ==========
-
 /// 敏感凭据匹配正则（参考 zeroclaw scrub_credentials）
+///
+/// 用于在工具输出中检测并脱敏 API 密钥、令牌等敏感信息，
+/// 防止凭据通过 LLM 上下文泄露给下游模型或日志系统。
+///
+/// 匹配模式（不区分大小写）:
+/// - `token/api_key/password/secret/bearer/credential` 后跟 `=` 或 `:` 及值
+/// - 支持双引号或单引号包裹的值
+/// - 至少匹配 8 个字符的值（避免误匹配短字符串）
 static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
         r#"(?i)(token|api[_-]?key|password|secret|user[_-]?key|bearer|credential)["']?\s*[:=]\s*(?:"([^"]{8,})"|'([^']{8,})'|([a-zA-Z0-9_\-\.]{8,}))"#,
@@ -86,6 +92,17 @@ fn truncate_utf8_to_bytes(s: &str, max_bytes: usize) -> String {
     out
 }
 
+/// 对工具输出进行长度裁剪，防止过大的输出占用过多上下文窗口。
+///
+/// # 参数
+///
+/// - `payload`: 原始 JSON 值
+/// - `max_bytes`: 最大字节数限制
+///
+/// # 返回
+///
+/// 如果原始值超过限制，裁剪后追加 `[output truncated, max N bytes]` 标记，
+/// 并设置 `truncated=true` 和 `max_bytes` 字段到结果对象中。
 fn apply_output_limit(payload: Value, max_bytes: usize) -> Value {
     let serialized = payload.to_string();
     let truncated = serialized.len() > max_bytes;
@@ -249,7 +266,12 @@ pub(crate) async fn execute_tool_call_with_middleware(
         ))
     })?;
 
-    let tool_output = match tool.call(call.input.clone()).await {
+    // 创建工具上下文，包含工作目录、调用 ID 等信息
+    let tool_ctx = ToolContext::new()
+        .with("tool_call_id", &call.id)
+        .with("tool_name", &call.name);
+
+    let tool_output = match tool.call(call.input.clone(), &tool_ctx).await {
         Ok(v) => {
             // 对字符串输出进行凭据清洗
             let cleaned_v = match &v {
@@ -634,7 +656,17 @@ async fn execute_single_with_timeout(
     }
 }
 
-pub(crate) fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {
+/// 将 ToolResult 转换为 ChatMessage 格式，用于添加到对话历史。
+///
+/// # 参数
+///
+/// - `result`: 工具执行结果
+/// - `tool_name`: 工具名称（用于设置消息的 `name` 字段）
+///
+/// # 返回
+///
+/// 角色为 `Tool` 的 ChatMessage，内容包含 `tool_call_id` 和 `output`
+pub fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {
     let payload = Value::Object(
         [
             (

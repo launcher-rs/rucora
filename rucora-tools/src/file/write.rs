@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
-    tool::{Tool, ToolCategory},
+    tool::{Tool, ToolCategory, types::ToolContext},
 };
 use serde_json::{Value, json};
 use std::path::PathBuf;
@@ -95,7 +95,7 @@ impl Tool for FileWriteTool {
     }
 
     /// 执行工具的核心逻辑。
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let path_str = input
             .get("path")
             .and_then(|v| v.as_str())

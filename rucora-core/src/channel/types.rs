@@ -366,6 +366,7 @@ pub struct ErrorEvent {
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", content = "payload")]
+#[non_exhaustive]
 pub enum ChannelEvent {
     /// 对话消息事件
     Message(ChatMessage),

@@ -3,7 +3,7 @@
 use crate::{SkillConfig, SkillDefinition, SkillExecutor, SkillsPromptMode};
 use async_trait::async_trait;
 use rucora_core::error::ToolError;
-use rucora_core::tool::{Tool, ToolCategory};
+use rucora_core::tool::{Tool, ToolCategory, types::ToolContext};
 use serde_json::{Value, json};
 use std::fmt::Write;
 use std::path::{Path, PathBuf};
@@ -65,7 +65,7 @@ impl Tool for SkillTool {
         schema
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         // 查找脚本文件
         let script_path = find_script_file(&self.skill_path);
 
@@ -259,7 +259,7 @@ impl Tool for ReadSkillTool {
         })
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let skill_name = input
             .get("skill_name")
             .and_then(|v| v.as_str())

@@ -37,7 +37,7 @@
 //!
 //! ```rust
 //! use rucora::mcp::McpToolAdapter;
-//! use rucora_core::tool::Tool;
+//! use rucora_core::tool::{Tool, ToolContext};
 //!
 //! // MCP 工具可以直接作为 rucora 的 Tool 使用
 //! let adapter: McpToolAdapter = ...;
@@ -93,7 +93,7 @@
 //!
 //! ```rust,no_run
 //! use rucora::mcp::{McpClient, McpToolAdapter, StdioTransport};
-//! use rucora_core::tool::Tool;
+//! use rucora_core::tool::{Tool, ToolContext};
 //! use std::sync::Arc;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {

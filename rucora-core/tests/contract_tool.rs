@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use rucora_core::error::ToolError;
-use rucora_core::tool::Tool;
+use rucora_core::tool::{Tool, ToolContext};
 use serde_json::{Value, json};
 
 struct EchoTool;
@@ -21,7 +21,7 @@ impl Tool for EchoTool {
         })
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
         let text = input
             .get("text")
             .and_then(|v| v.as_str())
@@ -39,11 +39,12 @@ async fn tool_contract_should_have_non_empty_name() {
 #[tokio::test]
 async fn tool_contract_call_should_return_json_value_or_tool_error() {
     let t = EchoTool;
+    let ctx = ToolContext::new();
 
-    let ok = t.call(json!({"text": "hi"})).await.unwrap();
+    let ok = t.call(json!({"text": "hi"}), &ctx).await.unwrap();
     assert_eq!(ok.get("success").and_then(|v| v.as_bool()), Some(true));
 
-    let err = t.call(json!({})).await.unwrap_err();
+    let err = t.call(json!({}), &ctx).await.unwrap_err();
     match err {
         ToolError::Message(msg) => assert!(msg.contains("text")),
         _ => panic!("unexpected ToolError variant"),

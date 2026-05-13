@@ -1,20 +1,23 @@
-use rucora_core::tool::Tool;
+use rucora_core::tool::{Tool, ToolContext};
 use serde_json::json;
 
 #[tokio::test]
 async fn http_request_tool_should_fetch_rustcc_article() {
     let tool = rucora::tools::HttpRequestTool::new();
 
-    let out = tool
-        .call(json!({
-            "method": "GET",
-            "url": "https://rustcc.cn/article?id=a122f1ed-44bd-4e72-9dd5-ca901331370b",
-            "headers": {
-                "Accept": "text/html",
-                "User-Agent": "rucora-http-tool-smoke-test"
-            },
-            "timeout": 30
-        }))
+let out = tool
+        .call(
+            json!({
+                "method": "GET",
+                "url": "https://rustcc.cn/article?id=a122f1ed-44bd-4e72-9dd5-ca901331370b",
+                "headers": {
+                    "Accept": "text/html",
+                    "User-Agent": "rucora-http-tool-smoke-test"
+                },
+                "timeout": 30
+            }),
+            &ToolContext::new(),
+        )
         .await
         .expect("http_request tool call failed");
 

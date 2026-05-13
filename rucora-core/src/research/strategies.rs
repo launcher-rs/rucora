@@ -1,13 +1,25 @@
 //! Deep Research 核心 trait 定义
+//!
+//! 本模块定义了深度研究的核心抽象，包括：
+//! - `DeepResearchEngine` - 研究引擎 trait
+//! - `StrategyTrait` - 搜索策略 trait
+//! - `ResearchQualityAssessor` - 研究质量评估器
+//! - `CitationHandler` - 引用处理器
 
 use crate::provider::LlmProvider;
 use async_trait::async_trait;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 
 use super::{
-    InfoPiece, ResearchConfig, ResearchPhase, ResearchProgress, ResearchReport, 
+    InfoPiece, ResearchConfig, ResearchPhase, ResearchProgress, ResearchReport,
     ScoringConfig, SuggestionType,
 };
+
+/// 提取 URL 的正则表达式，使用 OnceLock 避免重复编译。
+fn url_regex() -> &'static regex::Regex {
+    static INSTANCE: OnceLock<regex::Regex> = OnceLock::new();
+    INSTANCE.get_or_init(|| regex::Regex::new(r"https?://[^\s\)]+").unwrap())
+}
 
 /// 深度研究引擎 trait
 ///
@@ -99,9 +111,10 @@ impl ResearchContext {
 
     pub fn add_info(&mut self, info: super::InfoPiece) {
         if let Some(url) = &info.source_url
-            && !self.visited_urls.contains(url) {
-                self.visited_urls.push(url.clone());
-            }
+            && !self.visited_urls.contains(url)
+        {
+            self.visited_urls.push(url.clone());
+        }
         self.collected_info.push(info);
     }
 
@@ -175,6 +188,14 @@ impl StrategyResult {
         }
     }
 
+    pub fn complete_with(mut self, confidence: f32, tokens_used: u32, search_count: u32) -> Self {
+        self.is_complete = true;
+        self.confidence = confidence;
+        self.tokens_used = tokens_used;
+        self.search_count = search_count;
+        self
+    }
+
     pub fn with_info(mut self, info: Vec<super::InfoPiece>) -> Self {
         self.new_info = info;
         self
@@ -192,40 +213,59 @@ impl StrategyResult {
 }
 
 /// 研究错误
-#[derive(Debug)]
+///
+/// 在深度研究过程中可能出现的各类错误。
+#[derive(Debug, thiserror::Error)]
 pub enum ResearchError {
     /// Provider 错误
-    Provider(String),
+    Provider {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
     /// 工具错误
-    Tool(String),
+    Tool {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
     /// 超时
     Timeout,
     /// 无效配置
     InvalidConfig(String),
     /// 研究失败
-    Failed(String),
+    Failed {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
     /// 存储错误
-    Storage(String),
+    Storage {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 }
 
 impl std::fmt::Display for ResearchError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            ResearchError::Provider(msg) => write!(f, "Provider 错误: {msg}"),
-            ResearchError::Tool(msg) => write!(f, "工具错误: {msg}"),
+            ResearchError::Provider { message, .. } => write!(f, "Provider 错误: {message}"),
+            ResearchError::Tool { message, .. } => write!(f, "工具错误: {message}"),
             ResearchError::Timeout => write!(f, "超时"),
             ResearchError::InvalidConfig(msg) => write!(f, "无效配置: {msg}"),
-            ResearchError::Failed(msg) => write!(f, "研究失败: {msg}"),
-            ResearchError::Storage(msg) => write!(f, "存储错误: {msg}"),
+            ResearchError::Failed { message, .. } => write!(f, "研究失败: {message}"),
+            ResearchError::Storage { message, .. } => write!(f, "存储错误: {message}"),
         }
     }
 }
 
-impl std::error::Error for ResearchError {}
-
 impl From<crate::error::AgentError> for ResearchError {
     fn from(e: crate::error::AgentError) -> Self {
-        ResearchError::Failed(e.to_string())
+        ResearchError::Failed {
+            message: e.to_string(),
+            source: Some(Box::new(e)),
+        }
     }
 }
 
@@ -265,10 +305,13 @@ pub trait CitationHandler: Send + Sync {
 }
 
 /// 默认引用处理器
+///
+/// 提供基于正则表达式的 URL 提取和引用格式化功能。
 #[allow(dead_code)]
 pub struct DefaultCitationHandler;
 
 impl DefaultCitationHandler {
+    /// 创建新的默认引用处理器实例
     #[allow(dead_code)]
     pub fn new() -> Self {
         Self
@@ -283,11 +326,9 @@ impl Default for DefaultCitationHandler {
 
 impl CitationHandler for DefaultCitationHandler {
     fn extract_citations(&self, content: &str) -> Vec<super::Citation> {
-        // 简单的 URL 提取正则
-        let url_regex = regex::Regex::new(r"https?://[^\s\)]+").unwrap();
         let mut citations = Vec::new();
 
-        for cap in url_regex.find_iter(content) {
+        for cap in url_regex().find_iter(content) {
             let url = cap.as_str().to_string();
             // 避免重复
             if !citations.iter().any(|c: &super::Citation| c.url == url) {
@@ -320,6 +361,8 @@ impl CitationHandler for DefaultCitationHandler {
 }
 
 /// 搜索策略工厂
+///
+/// 用于创建不同类型的搜索策略实例。
 pub trait StrategyFactory: Send + Sync {
     /// 创建策略
     fn create(&self, config: &ResearchConfig) -> Box<dyn StrategyTrait>;
@@ -339,7 +382,7 @@ pub trait StrategyFactory: Send + Sync {
 /// # 示例
 ///
 /// ```rust
-/// use rucora_core::research::ResearchQualityAssessor;
+/// use rucora_core::research::{ResearchQualityAssessor, ScoringConfig, InfoPiece, SourceType, Citation};
 ///
 /// // 方式 1: 使用默认配置
 /// let assessor = ResearchQualityAssessor::with_default("Rust 异步编程");
@@ -352,6 +395,12 @@ pub trait StrategyFactory: Send + Sync {
 /// let assessor = ResearchQualityAssessor::new(config, vec!["Rust".to_string()]);
 ///
 /// // 评估质量
+/// let info_pieces = vec![
+///     InfoPiece::new("test content".to_string(), None, SourceType::News),
+/// ];
+/// let citations = vec![
+///     Citation::new("https://example.com".to_string(), "Test".to_string(), "snippet".to_string()),
+/// ];
 /// let score = assessor.assess(&info_pieces, &citations, 3);
 ///
 /// // 生成建议
@@ -457,9 +506,9 @@ impl ResearchQualityAssessor {
     /// 根据评分获取下一轮搜索建议
     pub fn get_next_search_hint(&self, score: &super::ResearchQualityScore, current_topic: &str) -> String {
         let suggestion = self.suggest(score);
-        
+
         let mut hints = vec![current_topic.to_string()];
-        
+
         // 添加主题关键词
         if !self.topic_keywords.is_empty() {
             hints.extend(self.topic_keywords.iter().take(2).cloned());
@@ -490,7 +539,26 @@ impl ResearchQualityAssessor {
     }
 }
 
-fn extract_keywords(topic: &str) -> Vec<String> {
+/// 提取中文/英文关键词用于主题分析。
+///
+/// 按常见分隔符（空格、逗号、中文标点等）分割主题文本，
+/// 过滤短词（<=1字符），最多返回 5 个关键词。
+///
+/// # 参数
+///
+/// - `topic`: 研究主题文本
+///
+/// # 返回
+///
+/// 关键词列表，最多 5 个
+///
+/// # 示例
+///
+/// ```
+/// let keywords = extract_keywords("Rust 异步编程");
+/// assert!(keywords.len() <= 5);
+/// ```
+pub(crate) fn extract_keywords(topic: &str) -> Vec<String> {
     topic.split(&[' ', ',', '，', '。', '、', '？', '?'][..])
         .filter(|s| !s.is_empty() && s.len() > 1)
         .take(5)

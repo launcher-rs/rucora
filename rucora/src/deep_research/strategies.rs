@@ -91,11 +91,9 @@ impl rucora_core::research::StrategyTrait for StandardStrategy {
 
             // 检查是否应该继续
             if !assessor.should_continue(&score, search_round, max_rounds) {
-                let mut result = StrategyResult::complete();
-                result.confidence = confidence;
-                result.search_count = search_round;
-                result.new_info = context.collected_info.clone();
-                return Ok(result);
+                return Ok(StrategyResult::complete()
+                    .with_confidence(confidence)
+                    .with_tokens(search_round));
             }
 
             // 如果达到最大轮次，停止
@@ -190,10 +188,10 @@ impl rucora_core::research::StrategyTrait for FastStrategy {
             search_count as usize,
         );
 
-        let mut result = StrategyResult::complete();
-        result.confidence = score.overall;
-        result.search_count = search_count;
-        result.new_info = context.collected_info.clone();
+        let result = StrategyResult::complete()
+            .with_confidence(score.overall)
+            .with_tokens(search_count)
+            .with_info(context.collected_info.clone());
 
         Ok(result)
     }

@@ -37,7 +37,7 @@
 //!
 //! ```rust,no_run
 //! use rucora::mcp::{McpClient, McpTool};
-//! use rucora_core::tool::Tool;
+//! use rucora_core::tool::{Tool, ToolContext};
 //!
 //! # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
 //! // 获取 MCP 工具定义
@@ -86,7 +86,7 @@ use rmcp::{
 };
 use rucora_core::{
     error::ToolError,
-    tool::{Tool, ToolCategory},
+    tool::{Tool, ToolCategory, types::ToolContext},
 };
 use serde_json::{Value, json};
 use tracing::{debug, trace};
@@ -290,7 +290,7 @@ impl McpClient {
 ///
 /// ```rust,no_run
 /// use rucora::mcp::{McpClient, McpTool};
-/// use rucora_core::tool::Tool;
+/// use rucora_core::tool::{Tool, ToolContext};
 ///
 /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
 /// // 获取 MCP 工具定义
@@ -375,7 +375,7 @@ impl Tool for McpTool {
     /// 1. 调用远端 MCP 工具
     /// 2. 如果有 structured_content，直接返回
     /// 3. 否则拼接文本内容返回
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let result = self
             .client
             .call_tool(self.spec.name.as_ref(), input)

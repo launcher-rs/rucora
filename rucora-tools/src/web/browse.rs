@@ -7,7 +7,7 @@ use dom_smoothie::{Config, Readability, TextMode};
 use html2text::from_read;
 use rucora_core::{
     error::ToolError,
-    tool::{Tool, ToolCategory},
+    tool::{Tool, ToolCategory, types::ToolContext},
 };
 use serde_json::{Value, json};
 use std::{
@@ -129,8 +129,8 @@ impl Tool for BrowseTool {
         })
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
-        let action = input
+async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
+         let action = input
             .get("action")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::Message("缺少必需的 'action' 字段".to_string()))?;
@@ -334,7 +334,7 @@ impl Tool for BrowserOpenTool {
         })
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let url = input
             .get("url")
             .and_then(|v| v.as_str())

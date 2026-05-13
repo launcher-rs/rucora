@@ -49,34 +49,29 @@ use crate::middleware::MiddlewareChain;
 /// 注意：ChatMessage 不包含 tool_calls 字段（tool_calls 在 ChatResponse
 /// 中作为独立字段返回），因此本函数基于消息顺序和角色来判定配对关系，
 /// 而非检查 content 中是否包含 "tool_calls" 文本。
+///
+/// # 性能
+///
+/// 使用从后向前扫描的 drain-filter 风格算法，每个元素最多移动一次，
+/// 避免了 `remove(i)` 在最坏情况下 O(n²) 的时间复杂度。
 pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> usize {
     let mut removed = 0usize;
-    let mut i = 0;
-
-    while i < messages.len() {
-        // 只检查 tool 角色的消息
+    // 从后向前扫描，安全地移除元素（不影响未处理的索引）
+    let mut i = messages.len();
+    while i > 0 {
+        i -= 1;
         if messages[i].role != Role::Tool {
-            i += 1;
             continue;
         }
-
         // 向前查找最近的非-tool 消息
         let parent_idx = (0..i).rev().find(|&j| messages[j].role != Role::Tool);
-
         let is_orphan = match parent_idx {
-            None => true, // 前面没有任何消息，肯定是孤儿
-            Some(idx) => {
-                // 如果最近的非-tool 消息不是 assistant，则该 tool 消息是孤儿
-                messages[idx].role != Role::Assistant
-            }
+            None => true,
+            Some(idx) => messages[idx].role != Role::Assistant,
         };
-
         if is_orphan {
             messages.remove(i);
             removed += 1;
-            // 不递增 i，因为删除后当前位置是下一条消息
-        } else {
-            i += 1;
         }
     }
 
@@ -109,10 +104,19 @@ fn is_context_overflow_error(message: &str) -> bool {
 
 /// 快速裁剪旧 tool 消息内容以释放 context 空间。
 ///
-/// 将除最近 `protect_last_n` 条之外的所有 tool 消息内容截断到 2000 字符。
+/// 将除最近 `protect_last_n` 条之外的所有 tool 消息内容截断到 2000 字符，
 /// 返回节省的总字符数。
 ///
 /// 参考实现: zeroclaw `fast_trim_tool_results`
+///
+/// # 参数
+///
+/// - `messages`: 可变引用的消息列表
+/// - `protect_last_n`: 需要保护的最近消息数量（不参与裁剪）
+///
+/// # 返回
+///
+/// 裁剪后节省的总字符数
 fn fast_trim_tool_results(messages: &mut [ChatMessage], protect_last_n: usize) -> usize {
     const TRIM_TO: usize = 2000;
     let mut saved = 0;
@@ -129,11 +133,20 @@ fn fast_trim_tool_results(messages: &mut [ChatMessage], protect_last_n: usize) -
 
 /// 紧急删除最旧的非系统消息（约 1/3 历史）。
 ///
+/// 当 context overflow 恢复需要更多空间时使用。
 /// Tool 组（assistant + 紧跟的 tool 消息）作为原子单元整体删除，
 /// 保证 tool_calls/tool_results 配对完整性。
-/// 返回删除的消息数。
 ///
 /// 参考实现: zeroclaw `emergency_history_trim`
+///
+/// # 参数
+///
+/// - `messages`: 可变引用的消息列表
+/// - `keep_recent`: 需要保留的最近消息数量
+///
+/// # 返回
+///
+/// 删除的消息总数
 fn emergency_history_trim(messages: &mut Vec<ChatMessage>, keep_recent: usize) -> usize {
     let mut dropped = 0;
     let target_drop = (messages.len() / 3).max(1);
@@ -162,7 +175,16 @@ fn emergency_history_trim(messages: &mut Vec<ChatMessage>, keep_recent: usize) -
     dropped
 }
 
-/// 裁剪 tool 消息内容，保留头部 2/3 + 尾部 1/3，中间插入省略标记
+/// 裁剪 tool 消息内容，保留头部 2/3 + 尾部 1/3，中间插入省略标记。
+///
+/// # 参数
+///
+/// - `content`: 原始内容
+/// - `max_chars`: 裁剪后的最大字符数
+///
+/// # 返回
+///
+/// 裁剪后的字符串（如果需要裁剪，会在中间插入 `[... N 字符已截断 ...]` 标记）
 fn truncate_tool_content(content: &str, max_chars: usize) -> String {
     if content.len() <= max_chars {
         return content.to_string();
@@ -187,7 +209,18 @@ fn truncate_tool_content(content: &str, max_chars: usize) -> String {
     )
 }
 
-/// 找 `<= i` 处最近的 char boundary（MSRV 兼容替代 `str::floor_char_boundary`）
+/// 找 `<= i` 处最近的 char boundary（MSRV 兼容替代 `str::floor_char_boundary`）。
+///
+/// 从位置 `i` 开始向前扫描，返回最近的 UTF-8 字符边界位置。
+///
+/// # 参数
+///
+/// - `s`: 输入字符串
+/// - `i`: 目标位置（包含）
+///
+/// # 返回
+///
+/// `<= i` 处最近的字符边界索引
 fn floor_char_boundary(s: &str, i: usize) -> usize {
     if i >= s.len() {
         return s.len();
@@ -705,6 +738,11 @@ impl DefaultExecution {
     }
 
     /// 执行工具调用列表
+    ///
+    /// 该方法实现了并发工具执行逻辑，支持部分失败恢复：
+    /// - 当部分工具调用失败时，成功的结果仍然会被收集和处理
+    /// - 失败的调用会记录警告日志并发送错误事件
+    /// - 不会因为单个工具失败而中断整个批次的处理
     async fn _execute_tool_calls(
         &self,
         calls: &[ToolCall],
@@ -808,58 +846,86 @@ impl DefaultExecution {
             .collect()
             .await;
 
-        // 收集结果
+        // 改进的错误处理：收集所有结果（包括成功和失败），而不是遇到第一个错误就中断
         let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
-        for r in results {
-            let (idx, result) = r.map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
+        let mut errors: Vec<AgentError> = Vec::new();
 
-            // 循环检测（并发路径：串行处理检测结果）
-            let detection = loop_detector.record(
-                &calls[idx].name,
-                &calls[idx].input,
-                &result.output.to_string(),
-            );
-            match detection {
-                LoopDetectionResult::Ok => {
-                    ok.push((idx, result.clone()));
-                    records.push(ToolCallRecord {
-                        name: calls[idx].name.clone(),
-                        input: calls[idx].input.clone(),
-                        result: result.output.clone(),
-                    });
-                    messages.push(tool_result_to_message(&result, &calls[idx].name));
+        for r in results {
+            match r {
+                Ok((idx, result)) => {
+                    // 循环检测（并发路径：串行处理检测结果）
+                    let detection = loop_detector.record(
+                        &calls[idx].name,
+                        &calls[idx].input,
+                        &result.output.to_string(),
+                    );
+                    match detection {
+                        LoopDetectionResult::Ok => {
+                            ok.push((idx, result));
+                        }
+                        LoopDetectionResult::Warning(ref msg) => {
+                            tracing::warn!(tool = %calls[idx].name, "{}", msg);
+                            ok.push((idx, result));
+                        }
+                        LoopDetectionResult::Block(msg) => {
+                            tracing::warn!(tool = %calls[idx].name, "{}", msg);
+                            let blocked = ToolResult {
+                                tool_call_id: result.tool_call_id.clone(),
+                                output: serde_json::Value::String(msg),
+                            };
+                            ok.push((idx, blocked));
+                        }
+                        LoopDetectionResult::Break(msg) => {
+                            tracing::error!(tool = %calls[idx].name, "{}", msg);
+                            return Err(AgentError::Message(format!("[LoopDetector] {msg}")));
+                        }
+                    }
                 }
-                LoopDetectionResult::Warning(ref msg) => {
-                    tracing::warn!(tool = %calls[idx].name, "{}", msg);
-                    ok.push((idx, result.clone()));
-                    records.push(ToolCallRecord {
-                        name: calls[idx].name.clone(),
-                        input: calls[idx].input.clone(),
-                        result: result.output.clone(),
-                    });
-                    messages.push(tool_result_to_message(&result, &calls[idx].name));
-                }
-                LoopDetectionResult::Block(msg) => {
-                    tracing::warn!(tool = %calls[idx].name, "{}", msg);
-                    let blocked = ToolResult {
-                        tool_call_id: result.tool_call_id.clone(),
-                        output: serde_json::Value::String(msg),
-                    };
-                    ok.push((idx, blocked.clone()));
-                    records.push(ToolCallRecord {
-                        name: calls[idx].name.clone(),
-                        input: calls[idx].input.clone(),
-                        result: blocked.output.clone(),
-                    });
-                    messages.push(tool_result_to_message(&blocked, &calls[idx].name));
-                }
-                LoopDetectionResult::Break(msg) => {
-                    tracing::error!(tool = %calls[idx].name, "{}", msg);
-                    return Err(AgentError::Message(format!("[LoopDetector] {msg}")));
+                Err(e) => {
+                    // 收集错误信息但不中断流程
+                    tracing::warn!(error = %e, "并发工具调用中某个工具执行失败");
+                    errors.push(e);
                 }
             }
         }
+
+        // 按索引排序
         ok.sort_by_key(|(idx, _)| *idx);
+
+        // 如果有失败的调用，记录错误事件但不中断流程
+        if !errors.is_empty() {
+            let error_messages: Vec<String> = errors
+                .iter()
+                .map(|e| e.to_string())
+                .collect();
+            tracing::warn!(
+                errors = ?error_messages,
+                "{} 个工具调用失败，继续处理成功的结果",
+                errors.len()
+            );
+
+            let ev = ChannelEvent::Error(ErrorEvent {
+                kind: "tool_batch_partial_failure".to_string(),
+                message: format!("{} 个工具调用失败: {}", errors.len(), error_messages.join("; ")),
+                data: Some(json!({
+                    "failed_count": errors.len(),
+                    "total_count": calls.len(),
+                })),
+            });
+            self.observer.on_event(ev);
+        }
+
+        // 处理成功的工具调用结果（需要在循环检测后添加记录和消息）
+        for (idx, result) in &ok {
+            let call = &calls[*idx];
+            records.push(ToolCallRecord {
+                name: call.name.clone(),
+                input: call.input.clone(),
+                result: result.output.clone(),
+            });
+            messages.push(tool_result_to_message(result, &call.name));
+        }
+
         Ok(ok.into_iter().map(|(_, v)| v).collect())
     }
 
@@ -1079,23 +1145,38 @@ impl DefaultExecution {
                 .collect()
                 .await;
 
+                // 改进的错误处理：收集所有结果（成功和失败），而不是遇到错误就中断
                 let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
+                let mut errors: Vec<AgentError> = Vec::new();
                 for r in results {
                     match r {
                         Ok(v) => ok.push(v),
                         Err(e) => {
-                            let ev = ChannelEvent::Error(ErrorEvent {
-                                kind: "tool".to_string(),
-                                message: e.to_string(),
-                                data: Some(json!({"step": step})),
-                            });
-                            observer.on_event(ev.clone());
-                            yield ev;
-                            break;
+                            errors.push(e);
                         }
                     }
                 }
                 ok.sort_by_key(|(idx, _)| *idx);
+
+                // 如果有失败的调用，记录错误事件但不中断流程
+                if !errors.is_empty() {
+                    let error_messages: Vec<String> = errors
+                        .iter()
+                        .map(|e| e.to_string())
+                        .collect();
+                    tracing::warn!(
+                        errors = ?error_messages,
+                        "{} 个工具调用失败，继续处理成功的结果",
+                        errors.len()
+                    );
+                    let ev = ChannelEvent::Error(ErrorEvent {
+                        kind: "tool_batch_partial_failure".to_string(),
+                        message: format!("{} 个工具调用失败: {}", errors.len(), error_messages.join("; ")),
+                        data: Some(json!({"step": step})),
+                    });
+                    observer.on_event(ev.clone());
+                    yield ev;
+                }
 
                 for (idx, result) in ok {
                     let call = &tool_calls[idx];

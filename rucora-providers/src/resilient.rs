@@ -9,9 +9,9 @@ use rucora_core::provider::types::ChatRequest;
 use tokio::time::{Duration, sleep, timeout};
 use tracing::warn;
 
-/// 错误类型分类
+/// Provider 错误类型分类
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ErrorCategory {
+pub enum ProviderErrorCategory {
     /// 网络错误（可重试）
     Network,
     /// 超时错误（可重试）
@@ -28,15 +28,15 @@ pub enum ErrorCategory {
     Other,
 }
 
-impl ErrorCategory {
+impl ProviderErrorCategory {
     /// 判断是否可重试
     pub fn is_retriable(&self) -> bool {
         matches!(
             self,
-            ErrorCategory::Network
-                | ErrorCategory::Timeout
-                | ErrorCategory::RateLimit
-                | ErrorCategory::Unavailable
+            ProviderErrorCategory::Network
+                | ProviderErrorCategory::Timeout
+                | ProviderErrorCategory::RateLimit
+                | ProviderErrorCategory::Unavailable
         )
     }
 
@@ -51,7 +51,7 @@ impl ErrorCategory {
             || lower.contains("api key")
             || lower.contains("permission")
         {
-            return ErrorCategory::Auth;
+            return ProviderErrorCategory::Auth;
         }
 
         // 无效请求
@@ -61,7 +61,7 @@ impl ErrorCategory {
             || lower.contains("not found")
             || lower.contains("404")
         {
-            return ErrorCategory::InvalidRequest;
+            return ProviderErrorCategory::InvalidRequest;
         }
 
         // 限流
@@ -69,12 +69,12 @@ impl ErrorCategory {
             || lower.contains("too many requests")
             || lower.contains("429")
         {
-            return ErrorCategory::RateLimit;
+            return ProviderErrorCategory::RateLimit;
         }
 
         // 超时
         if lower.contains("timeout") || lower.contains("timed out") {
-            return ErrorCategory::Timeout;
+            return ProviderErrorCategory::Timeout;
         }
 
         // 网络错误
@@ -85,7 +85,7 @@ impl ErrorCategory {
             || lower.contains("reset")
             || lower.contains("unreachable")
         {
-            return ErrorCategory::Network;
+            return ProviderErrorCategory::Network;
         }
 
         // 服务不可用
@@ -94,21 +94,21 @@ impl ErrorCategory {
             || lower.contains("502")
             || lower.contains("504")
         {
-            return ErrorCategory::Unavailable;
+            return ProviderErrorCategory::Unavailable;
         }
 
-        ErrorCategory::Other
+        ProviderErrorCategory::Other
     }
 
     /// 从 HTTP 状态码分类错误
     pub fn from_status_code(status: u16) -> Self {
         match status {
-            400 => ErrorCategory::InvalidRequest,
-            401 | 403 => ErrorCategory::Auth,
-            404 => ErrorCategory::InvalidRequest,
-            429 => ErrorCategory::RateLimit,
-            500 | 502 | 503 | 504 => ErrorCategory::Unavailable,
-            _ => ErrorCategory::Other,
+            400 => ProviderErrorCategory::InvalidRequest,
+            401 | 403 => ProviderErrorCategory::Auth,
+            404 => ProviderErrorCategory::InvalidRequest,
+            429 => ProviderErrorCategory::RateLimit,
+            500 | 502 | 503 | 504 => ProviderErrorCategory::Unavailable,
+            _ => ProviderErrorCategory::Other,
         }
     }
 }
@@ -221,7 +221,7 @@ impl ResilientProvider {
         }
 
         let msg = error.to_string();
-        let category = ErrorCategory::from_error_message(&msg);
+        let category = ProviderErrorCategory::from_error_message(&msg);
 
         if category.is_retriable() {
             return true;
@@ -302,7 +302,7 @@ impl LlmProvider for ResilientProvider {
                         warn!(
                             attempt,
                             error = %e,
-                            category = ?ErrorCategory::from_error_message(&e.to_string()),
+                            category = ?ProviderErrorCategory::from_error_message(&e.to_string()),
                             "resilient: 错误不可重试，直接返回"
                         );
                         return Err(e);
@@ -325,7 +325,7 @@ impl LlmProvider for ResilientProvider {
                         attempt,
                         delay_ms = delay,
                         error = %e,
-                        category = ?ErrorCategory::from_error_message(&e.to_string()),
+                        category = ?ProviderErrorCategory::from_error_message(&e.to_string()),
                         "resilient: 重试中"
                     );
                     sleep(Duration::from_millis(delay)).await;

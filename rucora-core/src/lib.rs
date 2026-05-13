@@ -145,7 +145,7 @@
 //!     fn input_schema(&self) -> Value {
 //!         json!({"type": "object", "properties": {"text": {"type": "string"}}})
 //!     }
-//!     async fn call(&self, input: Value) -> Result<Value, ToolError> {
+//!     async fn call(&self, input: Value, context: &ToolContext) -> Result<Value, ToolError> {
 //!         let text = input.get("text").and_then(|v| v.as_str()).unwrap_or("");
 //!         Ok(json!({"echo": text}))
 //!     }

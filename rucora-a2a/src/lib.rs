@@ -2,7 +2,7 @@
 
 use async_trait::async_trait;
 use rucora_core::error::ToolError;
-use rucora_core::tool::{Tool, ToolCategory};
+use rucora_core::tool::{Tool, ToolCategory, types::ToolContext};
 use serde_json::Value;
 use std::sync::Arc;
 
@@ -62,7 +62,7 @@ impl Tool for A2AToolAdapter {
         self.parameters.clone()
     }
 
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         use ra2a::types::{Message, Part, SendMessageRequest};
 
         let message_text = input.get("message").and_then(|v| v.as_str()).unwrap_or("");

@@ -16,7 +16,7 @@
 use ra2a::client::Client;
 use rucora::a2a::A2AToolAdapter;
 use rucora::agent::ToolRegistry;
-use rucora::core::tool::Tool;
+use rucora::core::tool::{Tool, ToolContext};
 use rucora_providers::OllamaProvider;
 use std::sync::Arc;
 use tracing::Level;
@@ -110,7 +110,7 @@ async fn main() -> anyhow::Result<()> {
         call_client,
     );
 
-    match call_tool.call(input).await {
+    match call_tool.call(input, &ToolContext::new()).await {
         Ok(result) => {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             let result: serde_json::Value = result;

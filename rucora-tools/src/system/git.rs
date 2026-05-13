@@ -5,7 +5,7 @@
 use async_trait::async_trait;
 use rucora_core::{
     error::ToolError,
-    tool::{Tool, ToolCategory},
+    tool::{Tool, ToolCategory, types::ToolContext},
 };
 use serde_json::{Value, json};
 use std::path::{Path, PathBuf};
@@ -282,7 +282,7 @@ impl Tool for GitTool {
     }
 
     /// 执行 Git 命令。
-    async fn call(&self, input: Value) -> Result<Value, ToolError> {
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let command = input
             .get("command")
             .and_then(|v| v.as_str())

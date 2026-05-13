@@ -82,7 +82,7 @@ impl InfoPiece {
             content,
             source_url,
             source_type,
-            relevance_score: 1.0,
+            relevance_score: 0.5,
             collected_at: Utc::now(),
         }
     }
@@ -136,7 +136,7 @@ impl Citation {
             source_type: SourceType::Unknown,
             accessed_at: Utc::now(),
             snippet,
-            relevance_score: 1.0,
+            relevance_score: 0.5,
         }
     }
 
@@ -247,6 +247,11 @@ impl ResearchReport {
 
     pub fn add_citation(&mut self, citation: Citation) {
         self.citations.push(citation);
+    }
+
+    /// 批量添加引用
+    pub fn add_citations(&mut self, citations: impl IntoIterator<Item = Citation>) {
+        self.citations.extend(citations);
     }
 
     pub fn set_tokens(&mut self, tokens: u32) {
@@ -572,8 +577,14 @@ impl ResearchQualityScore {
 /// # 用法
 ///
 /// ```rust
-/// let assessor = ResearchQualityAssessor::with_default(topic);
-/// let score = assessor.assess(&info_pieces, &citations, rounds);
+/// use rucora_core::research::{ResearchQualityAssessor, SuggestionType, InfoPiece, SourceType};
+///
+/// let assessor = ResearchQualityAssessor::with_default("test topic");
+/// let info_pieces = vec![
+///     InfoPiece::new("content".to_string(), None, SourceType::News),
+/// ];
+/// let citations = vec![];
+/// let score = assessor.assess(&info_pieces, &citations, 1);
 /// let suggestion = assessor.suggest(&score);
 ///
 /// match suggestion.suggestion_type {
