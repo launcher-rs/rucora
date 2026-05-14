@@ -167,6 +167,38 @@ impl RetryConfig {
     }
 }
 
+/// 取消句柄（CancellationToken）
+///
+/// 用于从外部取消正在进行的流式 Agent 调用。
+///
+/// # 使用场景
+///
+/// - 用户点击"停止"按钮中断长时间运行的 Agent 任务
+/// - 超时后强制取消正在进行的流式响应
+/// - 在多客户端环境中隔离取消操作
+///
+/// # 示例
+///
+/// ```rust,no_run
+/// use rucora_providers::resilient::CancelHandle;
+/// use std::sync::Arc;
+/// use std::time::Duration;
+///
+/// # async fn example() {
+/// let (handle, stream) = { /* 创建可取消的流 */ };
+/// let cancel_handle = Arc::new(handle);
+///
+/// // 在另一个线程中取消
+/// let handle_clone = cancel_handle.clone();
+/// tokio::spawn(async move {
+///     tokio::time::sleep(Duration::from_secs(30)).await;
+///     handle_clone.cancel(); // 30秒后取消
+/// });
+///
+/// // 消费流（会自动检查取消状态）
+/// // ...
+/// # }
+/// ```
 #[derive(Clone, Debug)]
 pub struct CancelHandle {
     cancelled: Arc<AtomicBool>,

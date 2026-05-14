@@ -165,10 +165,10 @@ impl ToolSource {
 ///
 /// # 字段说明
 ///
-/// - `source`: 工具来源
-/// - `categories`: 工具分类列表（支持多标签）
-/// - `enabled`: 是否启用（禁用的工具不会被执行）
-/// - `tags`: 额外标签，用于自定义过滤
+/// - `source`: 工具来源（BuiltIn/Skill/Mcp/A2A/Custom）
+/// - `categories`: 工具分类列表（支持多标签，如 System/File/Http）
+/// - `enabled`: 是否启用（禁用的工具不会被执行，但仍保留在注册表中）
+/// - `tags`: 额外标签，用于自定义过滤（如 "critical"、"experimental"）
 ///
 /// # 示例
 ///
@@ -185,6 +185,7 @@ impl ToolSource {
 ///
 /// assert_eq!(metadata.source, ToolSource::BuiltIn);
 /// assert!(metadata.enabled);
+/// assert!(metadata.tags.contains(&"critical".to_string()));
 /// ```
 #[derive(Debug, Clone)]
 pub struct ToolMetadata {

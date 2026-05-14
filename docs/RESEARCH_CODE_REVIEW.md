@@ -3,7 +3,7 @@
 > 审查日期: 2026-05-13
 > 审查范围: 全部 crate（rucora-core, rucora, rucora-providers, rucora-tools, rucora-mcp, rucora-a2a, rucora-embed, rucora-retrieval, rucora-skills, rucora-prompt, examples）
 > 最后更新: 2026-05-15（所有代码级修复已完成）
-> 本次更新: 2026-05-15（2.1/1.3.3/5.4/5.5/3.1/3.4/4.1/6.2 修复完成）
+> 本次更新: 2026-05-15（1.2.4 Agent构建器重构完成）
 
 ---
 
