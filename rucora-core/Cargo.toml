@@ -24,6 +24,9 @@ tracing = "0.1"
 uuid = { version = "1", features = ["v4"] }
 chrono = { version = "0.4", features = ["serde"] }
 
+[dev-dependencies]
+proptest = "1"
+
 # 注意：contract_vector_store.rs 测试需要在 workspace 级别运行
 # 而非单独发布 rucora-core 时运行
 

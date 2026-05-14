@@ -23,6 +23,7 @@ mod strategies;
 
 pub use types::*;
 pub use strategies::{
-    CitationHandler, DeepResearchEngine, ResearchContext, ResearchError, ResearchLibrary,
-    ResearchQualityAssessor, StrategyFactory, StrategyResult, StrategyTrait,
+    CitationHandler, DefaultCitationHandler, DeepResearchEngine, ResearchContext,
+    ResearchError, ResearchLibrary, ResearchQualityAssessor, StrategyFactory, StrategyResult,
+    StrategyTrait,
 };
