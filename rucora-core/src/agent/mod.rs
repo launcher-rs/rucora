@@ -559,15 +559,49 @@ async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
                      // Chat 决策需要 LLM 调用，请使用 `run_with(executor, input)` 方法
                      return Err(AgentError::RequiresRuntime);
                  }
-                 AgentDecision::ToolCall { .. } => {
-                     // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
-                     return Err(AgentError::RequiresRuntime);
-                 }
-             }
-         }
+AgentDecision::ToolCall { .. } => {
+                      // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
+                      return Err(AgentError::RequiresRuntime);
+                  }
+              }
+          }
+      }
+
+     /// 运行 Agent（带超时控制）。
+     ///
+     /// 此方法允许设置 Agent 级别的整体超时时间。超时后，Agent 会停止执行
+     /// 并返回 `AgentError::Timeout` 错误。
+     ///
+     /// # 参数
+     ///
+     /// - `input`: 用户输入
+     /// - `timeout`: 超时时间
+     ///
+     /// # 示例
+     ///
+     /// ```rust,no_run
+     /// use rucora_core::agent::{Agent, AgentInput};
+     /// use std::time::Duration;
+     ///
+     /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
+     /// let input = AgentInput::new("请在30秒内完成这个任务");
+     /// let output = agent.run_with_timeout(input, Duration::from_secs(30)).await?;
+     /// # Ok(())
+     /// # }
+     /// ```
+     async fn run_with_timeout(
+         &self,
+         input: AgentInput,
+         timeout: std::time::Duration,
+     ) -> Result<AgentOutput, AgentError> {
+         tokio::time::timeout(timeout, self.run(input))
+             .await
+             .map_err(|_| AgentError::Timeout {
+                 duration: timeout,
+             })?
      }
 
-    /// 运行 Agent（流式）。
+     /// 运行 Agent（流式）。
     ///
     /// 默认实现返回一个包含错误信息的 stream，表示此 Agent 不支持流式输出。
     /// 需要流式支持的 Agent 应重写此方法，或使用 `run_with()` 配合流式执行器。

@@ -41,6 +41,26 @@ pub trait EmbeddingProvider: Send + Sync {
         Ok(results)
     }
 
+    /// 分块批量文本向量化。
+    ///
+    /// 对于大批量文本，按指定 chunk_size 分块处理，避免单次请求过大。
+    /// 默认实现为直接调用 `embed_batch`。
+    ///
+    /// # 参数
+    /// * `texts` - 要向量化的文本列表
+    /// * `chunk_size` - 每块的最大文本数量
+    ///
+    /// # 返回
+    /// * `Result<Vec<Vec<f32>>, ProviderError>` - 向量列表，顺序与输入一致
+    async fn embed_chunked(&self, texts: &[String], chunk_size: usize) -> Result<Vec<Vec<f32>>, ProviderError> {
+        let mut results = Vec::with_capacity(texts.len());
+        for chunk in texts.chunks(chunk_size) {
+            let chunk_results = self.embed_batch(chunk).await?;
+            results.extend(chunk_results);
+        }
+        Ok(results)
+    }
+
     /// 获取嵌入向量的维度。
     ///
     /// 返回 None 表示维度未知或可变。

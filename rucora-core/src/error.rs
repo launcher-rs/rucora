@@ -491,6 +491,10 @@ pub enum AgentError {
     /// 需要 Runtime 支持（Agent 返回了需要 Runtime 执行的决策）
     #[error("此决策需要 Runtime 支持，请使用 Runtime 模式运行")]
     RequiresRuntime,
+
+    /// 超时错误
+    #[error("Agent 执行超时（{duration:?}）")]
+    Timeout { duration: std::time::Duration },
 }
 
 impl DiagnosticError for AgentError {
@@ -525,6 +529,15 @@ impl DiagnosticError for AgentError {
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Configuration,
+                status_code: None,
+                retry_after: None,
+            },
+            AgentError::Timeout { duration } => ErrorDiagnostic {
+                kind: "timeout".to_string(),
+                message: format!("Agent 执行超时（{duration:?}）"),
+                retriable: true,
+                source: None,
+                category: ErrorCategory::Timeout,
                 status_code: None,
                 retry_after: None,
             },

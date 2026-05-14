@@ -68,11 +68,48 @@ impl CommandPolicyConfig {
 #[derive(Debug, Clone)]
 /// 默认工具策略。
 ///
-/// 目前主要针对两类“命令执行”工具：
+/// 目前主要针对两类"命令执行"工具：
 /// - `shell`：包含命令与参数
 /// - `cmd_exec`：直接执行命令
 ///
 /// 默认会拦截危险命令，并阻止常见 shell 操作符（防止链式/重定向）。
+///
+/// # 安全防护机制
+///
+/// ## 命令注入防护
+///
+/// 策略会检测并阻止以下 shell 操作符，防止命令链注入攻击：
+/// - 管道符 `|`
+/// - 逻辑与 `&&`
+/// - 分号 `;`
+/// - 重定向 `>` `<`
+/// - 命令替换 `` ` `` 和 `$(...)`
+/// - 换行符 `\n` `\r`
+///
+/// ## 危险命令黑名单
+///
+/// 以下命令会被默认拦截，无法通过策略检查：
+/// - `rm`, `del`, `erase` - 删除文件
+/// - `rmdir`, `rd` - 删除目录
+/// - `format`, `mkfs`, `dd` - 磁盘操作
+/// - `shutdown`, `reboot`, `poweroff` - 系统操作
+/// - `reg`, `diskpart`, `bcdedit` - Windows 系统管理
+/// - `sc`, `net` - 系统服务管理
+///
+/// ## 使用示例
+///
+/// ```rust,no_run
+/// use rucora::agent::policy::{DefaultToolPolicy, CommandPolicyConfig};
+///
+/// // 创建自定义策略
+/// let policy = DefaultToolPolicy::new()
+///     .with_shell_config(
+///         CommandPolicyConfig::new()
+///             .allow_command("ls")
+///             .allow_command("cat")
+///             .deny_command("rm")
+///     );
+/// ```
 pub struct DefaultToolPolicy {
     shell: CommandPolicyConfig,
     cmd_exec: CommandPolicyConfig,

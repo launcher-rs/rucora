@@ -124,10 +124,42 @@ pub trait VectorStore: Send + Sync {
     /// 根据 ID 查询记录。
     async fn get(&self, ids: Vec<String>) -> Result<Vec<VectorRecord>, ProviderError>;
 
-    /// 向量相似度搜索。
-    async fn search(&self, query: VectorQuery) -> Result<Vec<SearchResult>, ProviderError>;
+/// 向量相似度搜索。
+     async fn search(&self, query: VectorQuery) -> Result<Vec<SearchResult>, ProviderError>;
 
-    /// 清空所有数据。
+     /// 根据文本进行混合搜索（关键词 + 向量）。
+     ///
+     /// 默认实现返回空结果，具体实现可重写此方法以支持文本搜索。
+     ///
+     /// # 参数
+     ///
+     /// - `text`: 查询文本
+     /// - `top_k`: 返回结果数量
+     /// - `score_threshold`: 最小相似度阈值
+     async fn search_by_text(
+         &self,
+         text: &str,
+         top_k: usize,
+         score_threshold: Option<f32>,
+     ) -> Result<Vec<SearchResult>, ProviderError> {
+         let _ = (text, top_k, score_threshold);
+         Ok(Vec::new())
+     }
+
+     /// 更新现有记录。
+     ///
+     /// 如果记录不存在，默认实现先删除再添加（upsert 语义）。
+     /// 具体实现可重写以提供原子更新操作。
+     ///
+     /// # 参数
+     ///
+     /// - `record`: 要更新的向量记录
+     async fn update(&self, record: VectorRecord) -> Result<(), ProviderError> {
+         self.delete(vec![record.id.clone()]).await?;
+         self.upsert(vec![record]).await
+     }
+
+     /// 清空所有数据。
     async fn clear(&self) -> Result<(), ProviderError>;
 
     /// 获取记录数量。

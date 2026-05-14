@@ -78,6 +78,22 @@ pub trait RetryPolicy: Send + Sync {
     ///
     /// 默认实现调用 `should_retry`，忽略错误信息。
     /// 子类可以重写此方法根据错误类型决定是否重试。
+    ///
+    /// # 示例
+    ///
+    /// ```rust
+    /// use rucora_core::retry::{RetryPolicy, ExponentialBackoff};
+    /// use std::time::Duration;
+    ///
+    /// let policy = ExponentialBackoff::new(3, Duration::from_millis(100));
+    ///
+    /// // 根据错误内容决定是否重试
+    /// let attempt = 0;
+    /// let error = "connection timeout";
+    /// if let Some(delay) = policy.should_retry_with_error(attempt, error) {
+    ///     println!("将在 {:?} 后重试", delay);
+    /// }
+    /// ```
     fn should_retry_with_error(&self, attempt: u32, _error: &str) -> Option<Duration> {
         self.should_retry(attempt)
     }

@@ -52,11 +52,18 @@ pub const DEFAULT_TOOL_OUTPUT_MAX_BYTES: usize = 64 * 1024;
 ///
 /// 用于注册到 provider 的 function-calling / tool-calling 机制。
 ///
+/// # 版本控制
+///
+/// - `version`: 工具定义的版本号。当工具 schema 变更时递增，
+///   可用于兼容旧版本的工具调用。
+/// - 默认版本为 `1`。
+///
 /// # 字段说明
 ///
 /// - `name`: 工具名称（必须唯一，用于 LLM 识别和调用）
 /// - `description`: 工具描述（帮助 LLM 理解工具用途）
 /// - `input_schema`: 输入参数的 JSON Schema（定义工具接受的参数）
+/// - `version`: 工具定义版本号
 ///
 /// # 示例
 ///
@@ -77,9 +84,11 @@ pub const DEFAULT_TOOL_OUTPUT_MAX_BYTES: usize = 64 * 1024;
 ///         },
 ///         "required": ["path"]
 ///     }),
+///     version: 1,
 /// };
 ///
 /// assert_eq!(def.name, "file_read");
+/// assert_eq!(def.version, 1);
 /// ```
 ///
 /// # 与 LLM 集成
@@ -126,6 +135,13 @@ pub struct ToolDefinition {
     /// 通常为 JSON Schema 兼容结构，定义工具接受的参数。
     /// LLM 会根据这个 schema 生成正确的工具调用参数。
     pub input_schema: Value,
+
+    /// 工具定义版本号
+    ///
+    /// 用于版本控制和兼容性管理。当工具 schema 发生变更时，
+    /// 递增此版本号。默认值为 `1`。
+    #[serde(default = "default_tool_version")]
+    pub version: u32,
 }
 
 /// 工具调用
@@ -264,6 +280,11 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+/// 默认工具版本号
+const fn default_tool_version() -> u32 {
+    1
+}
+
 /// 工具调用上下文
 ///
 /// 在 `Tool::call` 时由执行器注入，工具可从中获取运行时信息。
@@ -349,11 +370,12 @@ mod tests {
 
     #[test]
     fn test_tool_definition_serialization() {
-        let def = ToolDefinition {
-            name: "test_tool".to_string(),
-            description: Some("测试工具".to_string()),
-            input_schema: json!({"type": "object"}),
-        };
+let def = ToolDefinition {
+             name: "test_tool".to_string(),
+             description: Some("测试工具".to_string()),
+             input_schema: json!({"type": "object"}),
+             version: 1,
+         };
 
         let serialized = serde_json::to_string(&def).unwrap();
         let deserialized: ToolDefinition = serde_json::from_str(&serialized).unwrap();

@@ -707,11 +707,12 @@ impl ToolRegistry {
         self.tools
             .values()
             .filter(|w| w.metadata.enabled)
-            .map(|wrapper| ToolDefinition {
-                name: wrapper.tool.name().to_string(),
-                description: wrapper.tool.description().map(|s| s.to_string()),
-                input_schema: wrapper.tool.input_schema(),
-            })
+.map(|wrapper| ToolDefinition {
+                 name: wrapper.tool.name().to_string(),
+                 description: wrapper.tool.description().map(|s| s.to_string()),
+                 input_schema: wrapper.tool.input_schema(),
+                 version: 1,
+             })
             .collect()
     }
 

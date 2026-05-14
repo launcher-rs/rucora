@@ -189,6 +189,26 @@
 //! ## Raw
 //!
 //! 原始事件，用于透传自定义数据。
+//!
+//! # 使用场景
+//!
+//! 当需要传递 core 未预定义的自定义事件时使用。例如：
+//! - 第三方集成特有的事件类型
+//! - 实验性功能的事件传递
+//! - 调试/追踪时携带额外的结构化数据
+//!
+//! # 示例
+//!
+//! ```rust
+//! use rucora_core::channel::types::ChannelEvent;
+//! use serde_json::json;
+//!
+//! // 透传自定义数据
+//! let custom_event = ChannelEvent::Raw(json!({
+//!     "type": "my_custom_event",
+//!     "data": {"key": "value"}
+//! }));
+//! ```
 
 /// Channel trait 定义（可选实现）
 pub mod r#trait;

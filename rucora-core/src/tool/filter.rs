@@ -331,6 +331,7 @@ mod tests {
                 "type": "object",
                 "properties": {}
             }),
+            version: 1,
         }
     }
 

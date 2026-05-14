@@ -31,6 +31,31 @@ static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// 清洗工具输出中的敏感凭据，防止 API key、token 等通过 LLM 上下文泄露。
 ///
 /// 保留凭据值前 4 个字符作为调试上下文，剩余部分替换为 `[REDACTED]`。
+///
+/// # 安全机制
+///
+/// 本函数使用正则表达式检测工具输出中的敏感信息模式：
+/// - 匹配 `token/api_key/password/secret/bearer/credential` 等关键字
+/// - 支持 `=` 和 `:` 作为键值分隔符
+/// - 支持双引号或单引号包裹的值
+/// - 至少匹配 8 个字符的值（避免误匹配短字符串）
+///
+/// # 局限性
+///
+/// - 仅检测键值对模式，不检测裸密钥
+/// - 依赖正则表达式匹配，可能有误报或漏报
+/// - 清洗后的值保留前 4 个字符用于调试，可能存在信息泄露风险
+/// - 对嵌套 JSON 中的密钥仅在字符串值层面清洗
+///
+/// # 示例
+///
+/// ```rust
+/// use rucora::agent::tool_execution::scrub_credentials;
+///
+/// let output = r#"API key is: sk-abc123xyz789"#;
+/// let cleaned = scrub_credentials(output);
+/// assert!(cleaned.contains("[REDACTED]"));
+/// ```
 pub(crate) fn scrub_credentials(input: &str) -> String {
     SENSITIVE_KV_REGEX
         .replace_all(input, |caps: &regex::Captures| {

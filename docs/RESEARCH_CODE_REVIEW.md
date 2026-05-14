@@ -3,6 +3,7 @@
 > 审查日期: 2026-05-13
 > 审查范围: 全部 crate（rucora-core, rucora, rucora-providers, rucora-tools, rucora-mcp, rucora-a2a, rucora-embed, rucora-retrieval, rucora-skills, rucora-prompt, examples）
 > 最后更新: 2026-05-15（所有代码级修复已完成）
+> 本次更新: 2026-05-15（2.1/1.3.3/5.4/5.5/3.1/3.4/4.1/6.2 修复完成）
 
 ---
 
@@ -73,10 +74,9 @@
 - **文件**: `rucora-core/src/research/types.rs:252`
 - **修复**: 添加了 `add_citations(&mut self, citations: impl IntoIterator<Item = Citation>)` 方法，支持批量添加引用。
 
-#### 1.3.3 `VectorStore::search` 参数不够灵活
-- **文件**: `rucora-core/src/retrieval/trait.rs:128`
-- **问题**: 搜索只接受 `VectorQuery`，不支持直接传入文本（需要先 embedding 再搜索）。对于只想要简单文本搜索的用户不够友好。
-- **建议**: 考虑添加一个 `search_by_text` 的便捷方法。
+#### 1.3.3 `VectorStore::search` 参数不够灵活 ✅ 已修复
+- **文件**: `rucora-core/src/retrieval/trait.rs`
+- **修复**: 添加了 `search_by_text(text, top_k, score_threshold)` 便捷方法（默认返回空，可由具体实现重写），以及 `update(record)` 方法（默认先删后插实现 upsert 语义）。
 
 #### 1.3.4 `InMemoryResearchLibrary` 使用 `RwLock<HashMap>` 而非 `DashMap` ✅ 已修复
 - **文件**: `rucora/src/deep_research/library.rs`
@@ -99,10 +99,9 @@
 
 ### 2.1 核心功能缺失
 
-#### 2.1.1 缺少 `Agent` 的 `run_with_timeout` 方法
+#### 2.1.1 缺少 `Agent` 的 `run_with_timeout` 方法 ✅ 已修复
 - **文件**: `rucora-core/src/agent/mod.rs`
-- **问题**: `Agent::run()` 没有超时参数。虽然 `DefaultExecution` 支持通过 `TimeoutConfig` 控制工具超时，但 Agent 级别的整体超时缺失。
-- **建议**: 添加 `run_with_timeout()` 或在 `run()` 中接受超时参数。
+- **修复**: 添加 `async fn run_with_timeout(&self, input: AgentInput, timeout: Duration) -> Result<AgentOutput, AgentError>` 默认实现，使用 `tokio::time::timeout` 包装 `self.run(input)` 调用，超时后返回 `AgentError::Timeout` 错误。
 
 #### 2.1.2 缺少 `Agent` trait 的 `async fn run_stream` 默认实现
 - **文件**: `rucora-core/src/agent/mod.rs:577-585`
@@ -253,11 +252,13 @@
 - **文件**: `rucora-core/src/research/strategies.rs:171-175`
 - **修复**: 保留了原始的 `complete()` 方法，同时新增了 `complete_with(confidence, tokens_used, search_count)` 实例方法，允许链式设置完整结果。
 
-### 5.4 `ToolDefinition` 缺少版本控制
-- **问题**: 工具定义没有版本号字段，当工具 schema 变更时缺少兼容性管理。
+### 5.4 `ToolDefinition` 缺少版本控制 ✅ 已修复
+- **文件**: `rucora-core/src/tool/types.rs`
+- **修复**: 添加 `version: u32` 字段（默认值为 1），用于工具定义的版本控制和兼容性管理。更新了所有构造位置。添加了 `default_tool_version()` 常量函数。
 
-### 5.5 `ChannelEvent::Raw` 的使用场景缺少文档
-- **问题**: `Raw(Value)` 变体作为 escape hatch，但在文档中没有说明应该在什么情况下使用。
+### 5.5 `ChannelEvent::Raw` 的使用场景缺少文档 ✅ 已修复
+- **文件**: `rucora-core/src/channel/mod.rs`
+- **修复**: 为 `Raw` 变体添加了使用场景说明（第三方集成、实验性功能、调试追踪）和代码示例。
 
 ---
 
@@ -268,10 +269,9 @@
 - **问题**: `std::sync::RwLock` 在 async 上下文中会阻塞运行时。
 - **修复**: 已替换为 `tokio::sync::RwLock`，使用 `.await` 而非阻塞锁。
 
-### 6.2 `InMemoryMemory` 使用 `VecDeque` 线性搜索
-- **文件**: `rucora/src/memory/in_memory.rs:113-131`
-- **问题**: 查询操作是 O(n) 的全表扫描。对于大量记忆条目性能不佳。
-- **建议**: 对于生产用途，应使用向量索引（如 `VectorStore`）替代。
+### 6.2 `InMemoryMemory` 使用 `VecDeque` 线性搜索 ✅ 已修复（补充文档）
+- **文件**: `rucora/src/memory/in_memory.rs`
+- **修复**: 添加了生产环境注意事项文档，建议对于生产用途使用基于 `VectorStore` 的记忆实现以获得更好的检索性能。
 
 ### 6.3 `DefaultExecution._execute_tool_calls` 并发路径中的错误处理 ✅ 已修复
 - **文件**: `rucora/src/agent/execution.rs:781-863`
