@@ -2,8 +2,7 @@
 
 > 审查日期: 2026-05-13
 > 审查范围: 全部 crate（rucora-core, rucora, rucora-providers, rucora-tools, rucora-mcp, rucora-a2a, rucora-embed, rucora-retrieval, rucora-skills, rucora-prompt, examples）
-> 最后更新: 2026-05-15（所有代码级修复已完成）
-> 本次更新: 2026-05-15（1.2.4 Agent构建器重构完成）
+> 最后更新: 2026-05-15（迁移指南 + 废弃代码文档补充完成）
 
 ---
 
@@ -217,9 +216,9 @@
 
 ### 3.5 缺少变更日志和迁移指南
 
-- `rucora-core` 中 `RuntimeObserver` → `ChannelObserver` 的 deprecation 缺少迁移指南。
-- `DefaultAgent` → `ToolAgent` 的重命名缺少迁移说明。
-- 文件工具从 `file_legacy` 到 `file` 模块的迁移缺少详细说明。
+- `rucora-core` 中 `RuntimeObserver` → `ChannelObserver` 的 deprecation 已添加迁移指南 ✅
+- `DefaultAgent` → `ToolAgent` 的重命名已添加迁移说明 ✅
+- 文件工具从 `file_legacy` 到 `file` 模块的迁移已添加详细说明 ✅
 
 ---
 

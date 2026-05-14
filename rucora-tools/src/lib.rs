@@ -78,6 +78,23 @@ pub mod echo {
 }
 
 // ===== 向后兼容：保留顶层模块 =====
+//
+// # 迁移指南 (0.1 → 0.2)
+//
+// 旧模块路径 | 新模块路径
+// ----------|----------
+// `rucora_tools::file_legacy` | `rucora_tools::file`
+// `rucora_tools::system_legacy` | `rucora_tools::system`
+// `rucora_tools::web_legacy` | `rucora_tools::web`
+//
+// 示例迁移：
+// ```rust,ignore
+// // 旧代码
+// use rucora_tools::file_legacy::FileReadTool;
+//
+// // 新代码
+// use rucora_tools::file::FileReadTool;
+// ```
 
 /// 文件工具（向后兼容，建议使用 `file` 模块）
 #[deprecated(since = "0.2.0", note = "请使用 `file` 模块代替")]

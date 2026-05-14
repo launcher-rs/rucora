@@ -477,6 +477,22 @@ impl<P> Default for ToolAgentBuilder<P> {
 }
 
 /// 向后兼容：DefaultAgent 作为 ToolAgent 的别名
+///
+/// # 迁移指南 (0.1 → 0.2)
+///
+/// - 将 `DefaultAgent<P>` 替换为 `ToolAgent<P>`
+/// - 构建器方法签名完全兼容，只需更改类型名
+/// - `DefaultAgentBuilder` 已重命名为 `ToolAgentBuilder`
+///
+/// # 示例
+///
+/// ```rust,ignore
+/// // 旧代码（仍然可用，但已标记为 deprecated）
+/// use rucora::agent::DefaultAgent;
+///
+/// // 新代码
+/// use rucora::agent::ToolAgent;
+/// ```
 #[deprecated(
     since = "0.2.0",
     note = "DefaultAgent 已重命名为 ToolAgent，请使用 ToolAgent"

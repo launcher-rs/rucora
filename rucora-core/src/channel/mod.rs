@@ -260,6 +260,13 @@ impl ChannelObserver for NoopChannelObserver {
 
 // 为了向后兼容，将 RuntimeObserver 作为 ChannelObserver 的别名
 // 注意：这是一个类型别名，实际使用时应该使用 dyn ChannelObserver
+//
+// # 迁移指南 (0.1 → 0.2)
+//
+// - 将 `RuntimeObserver` trait 替换为 `ChannelObserver` trait
+// - 将 `NoopRuntimeObserver` 替换为 `NoopChannelObserver`
+// - 将 `RuntimeEvent` 替换为 `ChannelEvent`
+// - `on_event` 方法签名保持不变
 #[deprecated(since = "0.2.0", note = "使用 ChannelObserver 代替")]
 pub trait RuntimeObserver: ChannelObserver {}
 

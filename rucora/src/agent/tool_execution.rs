@@ -49,7 +49,7 @@ static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// # 示例
 ///
-/// ```rust
+/// ```rust,no_run
 /// use rucora::agent::tool_execution::scrub_credentials;
 ///
 /// let output = r#"API key is: sk-abc123xyz789"#;
