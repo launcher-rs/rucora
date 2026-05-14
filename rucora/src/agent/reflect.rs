@@ -49,7 +49,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent::ToolRegistry;
-use crate::agent::execution::DefaultExecution;
+use crate::agent::execution::{build_default_execution, DefaultExecution};
 use crate::conversation::ConversationManager;
 
 /// ReflectAgent - 反思迭代 Agent
@@ -452,15 +452,20 @@ where
             None
         };
 
-        // 创建执行能力
+// 创建执行能力
         let provider_arc = Arc::new(provider);
-        let execution =
-            DefaultExecution::new(provider_arc.clone(), model.clone(), self.tools.clone())
-                .with_system_prompt_opt(self.system_prompt.clone())
-                .with_max_steps(self.max_iterations * 2) // 每次迭代需要 2 步
-                .with_conversation_manager(conversation_manager.clone())
-                .with_middleware_chain(self.middleware_chain)
-                .with_llm_params(self.llm_params.clone());
+        let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
+            provider: provider_arc.clone(),
+            model: model.clone(),
+            tools: self.tools.clone(),
+            system_prompt: self.system_prompt.clone(),
+            max_steps: self.max_iterations * 2, // 每次迭代需要 2 步
+            max_tool_concurrency: 1,
+            conversation_manager: conversation_manager.clone(),
+            middleware_chain: self.middleware_chain.clone(),
+            enhanced_config: crate::agent::tool_call_config::ToolCallEnhancedConfig::default(),
+            llm_params: self.llm_params.clone(),
+        });
 
         Ok(ReflectAgent {
             provider: provider_arc,

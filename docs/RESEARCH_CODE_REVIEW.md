@@ -54,10 +54,9 @@
 - **文件**: `rucora/rucora/src/agent/tool.rs:63-79`
 - **修复**: 将 `ToolAgent` 结构体中仅在调试/API 暴露时使用的字段改为 `pub(crate)` 可见性，并添加文档说明这些字段的用途。
 
-#### 1.2.4 重复的模式：Agent 构建器代码高度重复
+#### 1.2.4 重复的模式：Agent 构建器代码高度重复 ✅ 已修复
 - **文件**: `rucora/src/agent/simple.rs`, `chat.rs`, `tool.rs`, `react.rs`, `reflect.rs`
-- **问题**: 每个 Agent 的构建器都有几乎相同的 `try_build()` 逻辑：检查 provider、model、创建对话管理器、创建 `DefaultExecution`。
-- **建议**: 提取公共的构建逻辑到一个宏或辅助函数中。
+- **修复**: 提取 `build_execution()` 辅助函数到 `execution.rs`，各 Agent 构建器通过参数组合调用，消除重复代码。
 
 #### 1.2.5 `ErrorCategory` 在两个 crate 中重复定义 ✅ 已修复
 - **文件**: `rucora-providers/src/resilient.rs:14`
@@ -320,7 +319,7 @@
 11. ✅ **[中]** `ResearchError` 添加 `source()` 错误链支持
 12. ✅ **[中]** 增强 `ChannelError` 信息，新增 `Closed`、`Serialization`、`Timeout` 变体
 13. ✅ **[中]** `AgentContext` 添加 `has_visited`、`set_state`、`get_state`、`total_content_length` 等方法文档
-14. ⏳ **[低]** Agent 构建器代码重复（暂未提取公共逻辑，影响范围大需谨慎）
+14. ✅ **[低]** Agent 构建器代码重复（已提取 `build_execution()` 辅助函数到 `execution.rs`）
 15. ✅ **[中]** `Tool::call` 添加 `ToolContext` 参数（已完成，涉及 20+ 个文件全部更新）
 16. ✅ **[低]** 修复 1.1.1 模拟实现标注、1.1.3 模块职责划分、1.1.4 Agent 默认实现文档
 

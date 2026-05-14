@@ -47,7 +47,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent::ToolRegistry;
-use crate::agent::execution::DefaultExecution;
+use crate::agent::execution::{build_default_execution, DefaultExecution};
 use crate::agent::tool_call_config::ToolCallEnhancedConfig;
 use crate::conversation::ConversationManager;
 
@@ -433,17 +433,20 @@ where
             None
         };
 
-        // 创建执行能力
+// 创建执行能力
         let provider_arc = Arc::new(provider);
-        let execution =
-            DefaultExecution::new(provider_arc.clone(), model.clone(), self.tools.clone())
-                .with_system_prompt_opt(self.system_prompt.clone())
-                .with_max_steps(self.max_steps)
-                .with_max_tool_concurrency(self.max_tool_concurrency)
-                .with_conversation_manager(conversation_manager.clone())
-                .with_middleware_chain(self.middleware_chain)
-                .with_enhanced_config(self.enhanced_config)
-                .with_llm_params(self.llm_params.clone());
+        let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
+            provider: provider_arc.clone(),
+            model: model.clone(),
+            tools: self.tools.clone(),
+            system_prompt: self.system_prompt.clone(),
+            max_steps: self.max_steps,
+            max_tool_concurrency: self.max_tool_concurrency,
+            conversation_manager: conversation_manager.clone(),
+            middleware_chain: self.middleware_chain.clone(),
+            enhanced_config: self.enhanced_config,
+            llm_params: self.llm_params.clone(),
+        });
 
         Ok(ToolAgent {
             provider: provider_arc,

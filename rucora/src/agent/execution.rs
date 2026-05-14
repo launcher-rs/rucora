@@ -299,6 +299,41 @@ pub struct DefaultExecution {
     pub(crate) llm_params: rucora_core::provider::types::LlmParams,
 }
 
+/// 构建 DefaultExecution 的配置参数。
+///
+/// 由各 Agent 构建器使用，避免 `build_default_execution` 函数参数过多。
+pub struct ExecutionBuildConfig {
+    pub provider: Arc<dyn LlmProvider>,
+    pub model: String,
+    pub tools: ToolRegistry,
+    pub system_prompt: Option<String>,
+    pub max_steps: usize,
+    pub max_tool_concurrency: usize,
+    pub conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    pub middleware_chain: MiddlewareChain,
+    pub enhanced_config: ToolCallEnhancedConfig,
+    pub llm_params: rucora_core::provider::types::LlmParams,
+}
+
+/// 构建默认的 DefaultExecution 实例。
+///
+/// 由各 Agent 构建器复用，避免代码重复。
+pub(crate) fn build_default_execution(cfg: ExecutionBuildConfig) -> DefaultExecution {
+    let mut execution = DefaultExecution::new(cfg.provider, cfg.model, cfg.tools)
+        .with_max_steps(cfg.max_steps)
+        .with_max_tool_concurrency(cfg.max_tool_concurrency)
+        .with_conversation_manager(cfg.conversation_manager)
+        .with_middleware_chain(cfg.middleware_chain)
+        .with_enhanced_config(cfg.enhanced_config)
+        .with_llm_params(cfg.llm_params);
+
+    if let Some(prompt) = cfg.system_prompt {
+        execution = execution.with_system_prompt(prompt);
+    }
+
+    execution
+}
+
 impl DefaultExecution {
     /// 创建新的执行实例
     ///

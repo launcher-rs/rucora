@@ -47,7 +47,7 @@ use rucora_core::provider::types::{ChatMessage, LlmParams};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::agent::execution::DefaultExecution;
+use crate::agent::execution::{build_default_execution, DefaultExecution};
 use crate::conversation::ConversationManager;
 
 /// ChatAgent - 纯对话 Agent
@@ -329,17 +329,20 @@ where
             None
         };
 
-        // 创建执行能力（ChatAgent 不使用工具）
+// 创建执行能力（ChatAgent 不使用工具）
         let provider_arc = Arc::new(provider);
-        let execution = DefaultExecution::new(
-            provider_arc.clone(),
-            model.clone(),
-            crate::agent::ToolRegistry::new(),
-        )
-        .with_system_prompt_opt(self.system_prompt.clone())
-        .with_conversation_manager(conversation_manager.clone())
-        .with_middleware_chain(self.middleware_chain)
-        .with_llm_params(self.llm_params.clone());
+        let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
+            provider: provider_arc.clone(),
+            model: model.clone(),
+            tools: crate::agent::ToolRegistry::new(),
+            system_prompt: self.system_prompt.clone(),
+            max_steps: 10,
+            max_tool_concurrency: 1,
+            conversation_manager: conversation_manager.clone(),
+            middleware_chain: self.middleware_chain.clone(),
+            enhanced_config: crate::agent::tool_call_config::ToolCallEnhancedConfig::default(),
+            llm_params: self.llm_params.clone(),
+        });
 
         Ok(ChatAgent {
             provider: provider_arc,

@@ -197,6 +197,9 @@
 // 执行能力模块
 pub mod execution;
 
+// 重新导出执行能力相关类型
+pub use execution::{DefaultExecution, ExecutionBuildConfig};
+
 // 工具相关模块
 pub mod loop_detector;
 pub mod policy;
@@ -217,7 +220,6 @@ pub mod react;
 pub mod reflect;
 
 // 重新导出主要类型
-pub use execution::DefaultExecution;
 pub use loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 pub use policy::{DefaultToolPolicy, ToolPolicy};
 pub use tool_call_config::{
