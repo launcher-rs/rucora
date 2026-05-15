@@ -5,4 +5,5 @@ temp
 memory_test.json
 .env
 *.log
-*.txt
+*.tx
+t

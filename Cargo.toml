@@ -3,6 +3,7 @@ resolver = "3"
 members = [
     "rucora",
     "rucora-core",
+    "rucora-macros",
     "rucora-prompt",
     "rucora-mcp",
     "rucora-a2a",
@@ -35,6 +36,7 @@ categories = ["api-bindings", "asynchronous", "text-processing"]
 [workspace.dependencies]
 rucora = { path = "rucora", version = "0.2.0" }
 rucora-core = { path = "rucora-core", version = "0.2.0" }
+rucora-macros = { path = "rucora-macros", version = "0.2.0" }
 rucora-prompt = { path = "rucora-prompt", version = "0.2.0" }
 rucora-mcp = { path = "rucora-mcp", version = "0.2.0" }
 rucora-a2a = { path = "rucora-a2a", version = "0.2.0" }

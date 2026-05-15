@@ -852,6 +852,7 @@ impl DefaultExecution {
                         let blocked_result = ToolResult {
                             tool_call_id: result.tool_call_id.clone(),
                             output: serde_json::Value::String(msg.clone()),
+                            ..Default::default()
                         };
                         results.push(blocked_result.clone());
                         records.push(ToolCallRecord {
@@ -939,6 +940,7 @@ impl DefaultExecution {
                             let blocked = ToolResult {
                                 tool_call_id: result.tool_call_id.clone(),
                                 output: serde_json::Value::String(msg),
+                                ..Default::default()
                             };
                             ok.push((idx, blocked));
                         }
@@ -1037,6 +1039,7 @@ impl DefaultExecution {
                 let blocked = ToolResult {
                     tool_call_id: result.tool_call_id,
                     output: serde_json::Value::String(msg),
+                    ..Default::default()
                 };
                 records.push(ToolCallRecord {
                     name: name.to_string(),

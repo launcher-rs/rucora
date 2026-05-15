@@ -181,7 +181,7 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use crate::error::ToolError;
-use crate::tool::types::{ToolContext, ToolDefinition};
+use crate::tool::types::{ToolContext, ToolDefinition, ToolRiskLevel};
 
 /// 工具分类枚举
 ///
@@ -400,4 +400,19 @@ fn definition(&self) -> ToolDefinition {
              version: 1,
          }
      }
+
+    /// 工具风险等级。
+    ///
+    /// 默认返回 `Caution`。实现者可覆盖此方法以标记工具的风险级别。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,ignore
+    /// fn risk_level(&self) -> ToolRiskLevel {
+    ///     ToolRiskLevel::Dangerous  // 需要人工审批
+    /// }
+    /// ```
+    fn risk_level(&self) -> ToolRiskLevel {
+        ToolRiskLevel::default()
+    }
 }

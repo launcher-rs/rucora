@@ -29,6 +29,54 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
+/// 工具风险等级
+///
+/// 用于标记工具操作的潜在风险，便于 Agent 在执行前进行风险评估和权限控制。
+///
+/// # 变体说明
+///
+/// - `Safe`: 安全操作，无副作用（如查询、读取、计算）
+/// - `Caution`: 需谨慎，可能产生副作用但可恢复（如写入文件、发送请求）
+/// - `Dangerous`: 危险操作，可能产生不可逆后果（如删除数据、执行 shell 命令）
+///
+/// # 示例
+///
+/// ```rust
+/// use rucora_core::tool::types::ToolRiskLevel;
+///
+/// assert_eq!(ToolRiskLevel::Safe.as_str(), "safe");
+/// assert_eq!(ToolRiskLevel::Dangerous.as_str(), "dangerous");
+/// ```
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum ToolRiskLevel {
+    /// 安全操作，无副作用（如查询、读取、计算）
+    Safe,
+    /// 需谨慎，可能产生副作用但可恢复（如写入文件、发送 HTTP 请求）
+    #[default]
+    Caution,
+    /// 危险操作，可能产生不可逆后果（如删除文件、执行 shell 命令、SQL 写入）
+    Dangerous,
+}
+
+impl ToolRiskLevel {
+    /// 返回风险等级的字符串表示。
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ToolRiskLevel::Safe => "safe",
+            ToolRiskLevel::Caution => "caution",
+            ToolRiskLevel::Dangerous => "dangerous",
+        }
+    }
+
+    /// 是否需要人工审批。
+    ///
+    /// `Dangerous` 级别的操作建议在执行前进行人工确认。
+    pub fn requires_approval(&self) -> bool {
+        matches!(self, ToolRiskLevel::Dangerous)
+    }
+}
+
 /// 默认的工具输出最大字节数
 ///
 /// 用于 runtime 统一截断与标记，防止工具输出过大导致上下文溢出。
@@ -272,6 +320,91 @@ pub struct ToolResult {
     /// - 简洁（避免过大）
     /// - 包含必要信息（成功/失败、结果数据、错误信息等）
     pub output: Value,
+
+    /// 是否执行成功（可选，默认为 true）。
+    ///
+    /// 当为 `Some(false)` 时表示工具执行失败。
+    #[serde(default, skip_serializing_if = "is_default_tool_success")]
+    pub success: Option<bool>,
+
+    /// 错误信息（可选）。
+    ///
+    /// 当 `success` 为 `Some(false)` 时，包含错误描述。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+
+    /// 结构化数据（可选）。
+    ///
+    /// 当工具返回结构化数据（如表格、图表数据）时，
+    /// 可直接在此字段携带，避免解析 `output` 字符串。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub data: Option<Value>,
+
+    /// 二进制数据（可选）。
+    ///
+    /// 当工具返回二进制内容（如图片、文件）时使用。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub bytes: Option<Vec<u8>>,
+}
+
+fn is_default_tool_success(v: &Option<bool>) -> bool {
+    *v == Some(true)
+}
+
+impl Default for ToolResult {
+    fn default() -> Self {
+        Self {
+            tool_call_id: String::new(),
+            output: Value::Null,
+            success: Some(true),
+            error: None,
+            data: None,
+            bytes: None,
+        }
+    }
+}
+
+impl ToolResult {
+    /// 创建成功的结果。
+    pub fn success(tool_call_id: impl Into<String>, output: Value) -> Self {
+        Self {
+            tool_call_id: tool_call_id.into(),
+            output,
+            success: Some(true),
+            error: None,
+            data: None,
+            bytes: None,
+        }
+    }
+
+    /// 创建失败的结果。
+    pub fn failure(tool_call_id: impl Into<String>, error: impl Into<String>) -> Self {
+        Self {
+            tool_call_id: tool_call_id.into(),
+            output: Value::Null,
+            success: Some(false),
+            error: Some(error.into()),
+            data: None,
+            bytes: None,
+        }
+    }
+
+    /// 创建带结构化数据的结果。
+    pub fn with_data(mut self, data: Value) -> Self {
+        self.data = Some(data);
+        self
+    }
+
+    /// 创建带二进制数据的结果。
+    pub fn with_bytes(mut self, bytes: Vec<u8>) -> Self {
+        self.bytes = Some(bytes);
+        self
+    }
+
+    /// 检查是否成功。
+    pub fn is_success(&self) -> bool {
+        self.success.unwrap_or(true)
+    }
 }
 
 use crate::Tool;
@@ -399,14 +532,65 @@ let def = ToolDefinition {
 
     #[test]
     fn test_tool_result_serialization() {
-        let result = ToolResult {
-            tool_call_id: "call_123".to_string(),
-            output: json!({"result": "success"}),
-        };
+        let result = ToolResult::success("call_123", json!({"result": "success"}));
 
         let serialized = serde_json::to_string(&result).unwrap();
         let deserialized: ToolResult = serde_json::from_str(&serialized).unwrap();
 
-        assert_eq!(result, deserialized);
+        assert_eq!(result.tool_call_id, deserialized.tool_call_id);
+        assert_eq!(result.output, deserialized.output);
+        assert!(deserialized.is_success());
+    }
+
+    #[test]
+    fn test_tool_result_failure_serialization() {
+        let result = ToolResult::failure("call_456", "something went wrong");
+
+        let serialized = serde_json::to_string(&result).unwrap();
+        let deserialized: ToolResult = serde_json::from_str(&serialized).unwrap();
+
+        assert_eq!(result.tool_call_id, deserialized.tool_call_id);
+        assert!(!deserialized.is_success());
+        assert_eq!(deserialized.error, Some("something went wrong".to_string()));
+    }
+
+    #[test]
+    fn test_tool_risk_level() {
+        assert_eq!(ToolRiskLevel::Safe.as_str(), "safe");
+        assert_eq!(ToolRiskLevel::Caution.as_str(), "caution");
+        assert_eq!(ToolRiskLevel::Dangerous.as_str(), "dangerous");
+
+        assert!(!ToolRiskLevel::Safe.requires_approval());
+        assert!(!ToolRiskLevel::Caution.requires_approval());
+        assert!(ToolRiskLevel::Dangerous.requires_approval());
+
+        assert!(ToolRiskLevel::Safe < ToolRiskLevel::Dangerous);
+    }
+
+    #[test]
+    fn test_tool_result_with_data() {
+        let result = ToolResult::success("call_1", json!({}))
+            .with_data(json!({ "key": "value" }));
+
+        assert!(result.is_success());
+        assert_eq!(result.data, Some(json!({ "key": "value" })));
+    }
+
+    #[test]
+    fn test_tool_result_with_bytes() {
+        let bytes = vec![1, 2, 3, 4];
+        let result = ToolResult::success("call_2", json!({}))
+            .with_bytes(bytes.clone());
+
+        assert!(result.is_success());
+        assert_eq!(result.bytes, Some(bytes));
+    }
+
+    #[test]
+    fn test_tool_result_default() {
+        let result = ToolResult::default();
+        assert!(result.is_success());
+        assert_eq!(result.tool_call_id, "");
+        assert_eq!(result.output, Value::Null);
     }
 }

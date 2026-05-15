@@ -274,6 +274,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
                 return Ok(ToolResult {
                     tool_call_id: call.id.clone(),
                     output: out,
+                    ..Default::default()
                 });
             }
             _ => {
@@ -306,6 +307,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
                 return Ok(ToolResult {
                     tool_call_id: call.id.clone(),
                     output: out,
+                    ..Default::default()
                 });
             }
         }
@@ -427,6 +429,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
     let mut result = ToolResult {
         tool_call_id: call.id.clone(),
         output: tool_output,
+        ..Default::default()
     };
 
     // 执行工具调用后中间件钩子
@@ -470,6 +473,7 @@ pub(crate) async fn execute_tool_call_enhanced(
         return Ok(ToolResult {
             tool_call_id: call.id.clone(),
             output: cached,
+            ..Default::default()
         });
     }
 
@@ -510,6 +514,7 @@ pub(crate) async fn execute_tool_call_enhanced(
         return Ok(ToolResult {
             tool_call_id: call.id.clone(),
             output: out,
+            ..Default::default()
         });
     }
 
@@ -700,6 +705,7 @@ async fn execute_single_with_timeout(
                     Ok(ToolResult {
                         tool_call_id: call.id.clone(),
                         output: out,
+                        ..Default::default()
                     })
                 }
             }

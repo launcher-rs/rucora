@@ -32,6 +32,7 @@ full = ["providers", "tools", "embed", "retrieval", "mcp", "a2a", "skills"]
 [dependencies]
 # 核心层
 rucora-core.workspace = true
+rucora-macros.workspace = true
 
 # 子模块（可选，通过 feature 启用）
 rucora-mcp = { workspace = true, optional = true }

@@ -60,6 +60,32 @@
 
 ### 新增功能
 
+**宏系统 (Macros)**
+- 新增 `rucora-macros` crate，提供过程宏与声明式宏支持
+  - `#[rucora_tool]`: 从异步函数自动生成 `Tool` trait 实现（含参数结构体、JSON Schema）
+  - `agent!`: 声明式构建各类 Agent（ToolAgent, SimpleAgent, ChatAgent, ReActAgent, ReflectAgent）
+  - `messages!`: 快速构建 `Vec<ChatMessage>`
+  - `chat_request!`: 快速构建 `ChatRequest`
+  - `tool_params!`: 快速构建工具参数 JSON Schema
+- 新增示例 `26_macros.rs` 演示所有宏系统用法
+
+**类型增强**
+- `rucora-core::tool::types`:
+  - 新增 `ToolRiskLevel` 枚举（`Safe`, `Caution`, `Dangerous`），用于标记工具风险等级
+  - `ToolResult` 增强：支持结构化数据 (`data`) 和二进制数据 (`bytes`)
+  - 新增 `ToolResult::success()`, `failure()`, `with_data()`, `with_bytes()` 辅助构造函数
+  - `ToolResult` 序列化默认 `success` 为 `true`
+- `rucora-core::tool::trait`:
+  - `Tool` trait 新增 `risk_level()` 方法，默认返回 `ToolRiskLevel::Safe`
+
+**测试覆盖**
+- 新增 `rucora-core` 单元测试（风险等级、ToolResult 增强）
+- 新增 `rucora` 单元测试（宏系统验证）
+- 新增 `rucora/tests/macro_integration.rs` 集成测试（过程宏展开、参数验证、错误处理）
+
+**文档**
+- 新增 `docs/macros.md` 宏系统完整文档
+
 **Deep Research 核心模块 (Breaking Change)**
 - 新增 `rucora-core::research` 模块，提供深度研究核心抽象
   - `ResearchContext`: 研究上下文，贯穿整个研究流程

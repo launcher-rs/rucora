@@ -91,6 +91,13 @@
 
 pub use rucora_core as core;
 
+// 过程宏重新导出
+pub use rucora_macros::{rucora_guard, rucora_tool};
+
+// 声明式宏
+#[macro_use]
+pub mod macros;
+
 // Agent 模块
 pub mod agent;
 
@@ -164,4 +171,10 @@ pub mod prelude {
     pub use rucora_core::provider::LlmProvider;
     pub use rucora_core::provider::types::LlmParams;
     pub use rucora_core::tool::Tool;
+    pub use rucora_core::tool::types::ToolRiskLevel;
+
+    // 过程宏
+    pub use rucora_macros::{rucora_guard, rucora_tool};
+
+    // 声明式宏（通过 #[macro_export] 自动可用）
 }
