@@ -47,6 +47,9 @@ rucora-skills = { path = "rucora-skills", version = "0.2.0" }
 # ===== Workspace 级别的 Lint 配置 =====
 # 这些配置将应用于 workspace 中的所有 crate
 
+[workspace.lints.rust]
+dead_code = "allow"                       # 允许未使用的代码（开发阶段保留）
+
 [workspace.lints.clippy]
 # ===== 必须修复的警告（视为错误） =====
 # 这些 lint 级别设为 "deny"，违反将导致编译失败

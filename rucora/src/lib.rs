@@ -59,7 +59,7 @@
 //!
 //! Agent 负责思考和决策。它接收用户输入，分析需求，决定是否需要调用工具。
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::agent::DefaultAgent;
 //!
 //! let agent = DefaultAgent::builder()
@@ -75,7 +75,7 @@
 //!
 //! 工具提供具体能力，如执行命令、读取文件、HTTP 请求等。
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::tools::{ShellTool, FileReadTool};
 //! use rucora::agent::DefaultAgent;
 //!

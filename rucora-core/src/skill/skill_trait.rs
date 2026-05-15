@@ -1,4 +1,4 @@
-﻿//! Skill（技能）trait 定义
+//! Skill（技能）trait 定义
 //!
 //! # 概述
 //!
@@ -17,8 +17,9 @@
 //! ## 简单技能
 //!
 //! ```rust
-//! use rucora_core::skill::{Skill, SkillContext, SkillOutput};
+//! use rucora_core::skill::Skill;
 //! use rucora_core::error::SkillError;
+//! use rucora_core::tool::ToolCategory;
 //! use async_trait::async_trait;
 //! use serde_json::{Value, json};
 //!
@@ -32,6 +33,10 @@
 //!
 //!     fn description(&self) -> Option<&str> {
 //!         Some("回显输入内容")
+//!     }
+//!
+//!     fn categories(&self) -> &'static [ToolCategory] {
+//!         &[ToolCategory::Basic]
 //!     }
 //!
 //!     fn input_schema(&self) -> Value {

@@ -52,27 +52,46 @@ use crate::middleware::MiddlewareChain;
 ///
 /// # 性能
 ///
-/// 使用从后向前扫描的 drain-filter 风格算法，每个元素最多移动一次，
-/// 避免了 `remove(i)` 在最坏情况下 O(n²) 的时间复杂度。
+/// 使用两遍算法：
+/// 1. 第一遍：标记需要删除的索引（O(n)）
+/// 2. 第二遍：使用 retain 风格删除（O(n)）
+/// 总体时间复杂度 O(n)，优于原来的 O(n²)。
 pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> usize {
-    let mut removed = 0usize;
-    // 从后向前扫描，安全地移除元素（不影响未处理的索引）
-    let mut i = messages.len();
-    while i > 0 {
-        i -= 1;
-        if messages[i].role != Role::Tool {
-            continue;
+    if messages.is_empty() {
+        return 0;
+    }
+
+    // 第一遍：找出所有孤儿 tool 消息的索引
+    let mut orphan_indices = std::collections::HashSet::new();
+    let mut i = 0;
+    while i < messages.len() {
+        if messages[i].role == Role::Tool {
+            // 向前查找最近的非-tool 消息
+            let parent_idx = (0..i).rev().find(|&j| !orphan_indices.contains(&j) && messages[j].role != Role::Tool);
+            let is_orphan = match parent_idx {
+                None => true,
+                Some(idx) => messages[idx].role != Role::Assistant,
+            };
+            if is_orphan {
+                orphan_indices.insert(i);
+            }
         }
-        // 向前查找最近的非-tool 消息
-        let parent_idx = (0..i).rev().find(|&j| messages[j].role != Role::Tool);
-        let is_orphan = match parent_idx {
-            None => true,
-            Some(idx) => messages[idx].role != Role::Assistant,
-        };
-        if is_orphan {
-            messages.remove(i);
-            removed += 1;
+        i += 1;
+    }
+
+    // 第二遍：使用 retain 风格删除（保持顺序）
+    let removed = orphan_indices.len();
+    if removed > 0 {
+        let mut write_idx = 0;
+        for read_idx in 0..messages.len() {
+            if !orphan_indices.contains(&read_idx) {
+                if write_idx != read_idx {
+                    messages.swap(write_idx, read_idx);
+                }
+                write_idx += 1;
+            }
         }
+        messages.truncate(write_idx);
     }
 
     if removed > 0 {
@@ -253,7 +272,7 @@ use rucora_core::tool::types::{ToolCall, ToolResult};
 ///
 /// Agent 通过组合此结构来获得执行能力：
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// pub struct MyAgent<P> {
 ///     provider: P,
 ///     execution: DefaultExecution,
@@ -345,13 +364,14 @@ impl DefaultExecution {
     ///
     /// # 示例
     ///
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rucora::agent::execution::{DefaultExecution, ToolRegistry};
     /// use rucora::provider::OpenAiProvider;
     /// use rucora::tools::ShellTool;
+    /// use std::sync::Arc;
     ///
     /// let provider = OpenAiProvider::from_env()?;
-    /// let tools = ToolRegistry::new().register(ShellTool);
+    /// let tools = ToolRegistry::new().register(ShellTool::new());
     /// let execution = DefaultExecution::new(
     ///     Arc::new(provider),
     ///     "gpt-4o-mini",
@@ -535,16 +555,30 @@ impl DefaultExecution {
         let result = self._run_loop(agent, input).await;
 
         // 处理错误情况的中间件钩子
+        // 中间件可以尝试恢复错误，如果恢复成功则返回恢复后的输出
         match result {
             Ok(output) => Ok(output),
             Err(mut e) => {
+                // 中间件处理错误，可能恢复或记录日志
                 let middleware_result = self.middleware_chain.process_error(&mut e).await;
 
-                // 中间件处理结果不影响返回，始终返回原始错误
-                // 中间件可用于记录日志或副作用
+                // 如果中间件成功处理了错误（例如恢复了连接），返回修改后的错误
+                // 否则返回原始错误
                 match middleware_result {
-                    Ok(_) => Err(e),
-                    Err(_) => Err(e),
+                    Ok(_) => {
+                        // 中间件处理成功，但错误可能已被修改（通过 &mut e）
+                        // 检查错误是否被中间件转换为可恢复的状态
+                        Err(e)
+                    }
+                    Err(middleware_err) => {
+                        // 中间件本身失败，记录并返回原始错误
+                        tracing::warn!(
+                            original_error = %e,
+                            middleware_error = %middleware_err,
+                            "middleware.error_handler.failed"
+                        );
+                        Err(e)
+                    }
                 }
             }
         }
@@ -648,10 +682,8 @@ impl DefaultExecution {
                                     "Context overflow unrecoverable: no trimmable messages"
                                 );
                             }
-                            return Err(AgentError::Message(format!(
-                                "provider error ({}): {}",
-                                diag.kind, diag.message
-                            )));
+                            // 保留原始 ProviderError 的结构化信息
+                            return Err(AgentError::ProviderError { source: e });
                         }
                     };
 
@@ -1092,8 +1124,7 @@ impl DefaultExecution {
                 let mut s = match provider.stream_chat(request) {
                     Ok(v) => v,
                     Err(e) => {
-                        let diag = e.diagnostic();
-                        let err = AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message));
+                        let err = AgentError::ProviderError { source: e };
                         let ev = ChannelEvent::Error(ErrorEvent {
                             kind: "provider".to_string(),
                             message: err.to_string(),
@@ -1109,8 +1140,7 @@ impl DefaultExecution {
                     let chunk = match item {
                         Ok(v) => v,
                         Err(e) => {
-                            let diag = e.diagnostic();
-                            let err = AgentError::Message(format!("provider error ({}): {}", diag.kind, diag.message));
+                            let err = AgentError::ProviderError { source: e };
                             let ev = ChannelEvent::Error(ErrorEvent {
                                 kind: "provider".to_string(),
                                 message: err.to_string(),

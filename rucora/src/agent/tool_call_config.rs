@@ -408,13 +408,15 @@ impl ConcurrencyConfig {
 
 // ========== 结果缓存 ==========
 
-/// 缓存条目
+/// 缓存条目（包含最后访问时间用于 LRU）
 #[derive(Debug, Clone)]
 struct CacheEntry {
     /// 缓存的结果值
     value: Value,
     /// 缓存时间
     cached_at: Instant,
+    /// 最后访问时间（用于 LRU 淘汰）
+    last_accessed: Instant,
     /// TTL
     ttl: Duration,
 }
@@ -422,6 +424,10 @@ struct CacheEntry {
 impl CacheEntry {
     fn is_expired(&self) -> bool {
         self.cached_at.elapsed() > self.ttl
+    }
+
+    fn touch(&mut self) {
+        self.last_accessed = Instant::now();
     }
 }
 
@@ -503,11 +509,13 @@ impl ToolResultCache {
     pub async fn get(&self, tool_name: &str, input: &Value) -> Option<Value> {
         let key = Self::make_key(tool_name, input);
         let mut entries = self.entries.lock().await;
-        let entry = entries.get(&key)?;
+        let entry = entries.get_mut(&key)?;
         if entry.is_expired() {
             entries.remove(&key);
             return None;
         }
+        // 更新最后访问时间（LRU）
+        entry.touch();
         Some(entry.value.clone())
     }
 
@@ -526,21 +534,27 @@ impl ToolResultCache {
         // 先清理过期条目
         entries.retain(|_, v| !v.is_expired());
 
-        // 如果还是超出限制，移除最旧的条目
+        // 如果还是超出限制，使用 LRU 淘汰策略移除最少使用的条目
         while entries.len() >= max_entries {
-            // 简单策略：移除第一个（实际是随机一个，HashMap 无序）
-            if let Some(oldest_key) = entries.keys().next().cloned() {
+            // 找到最后访问时间最早的条目（LRU）
+            if let Some(oldest_key) = entries
+                .iter()
+                .min_by_key(|(_, v)| v.last_accessed)
+                .map(|(k, _)| k.clone())
+            {
                 entries.remove(&oldest_key);
             } else {
                 break;
             }
         }
 
+        let now = Instant::now();
         entries.insert(
             key,
             CacheEntry {
                 value,
-                cached_at: Instant::now(),
+                cached_at: now,
+                last_accessed: now,
                 ttl,
             },
         );

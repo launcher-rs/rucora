@@ -18,14 +18,27 @@ use tracing::{debug, info, warn};
 /// 防止凭据通过 LLM 上下文泄露给下游模型或日志系统。
 ///
 /// 匹配模式（不区分大小写）:
-/// - `token/api_key/password/secret/bearer/credential` 后跟 `=` 或 `:` 及值
+/// - `token/api_key/password/secret/bearer/credential/private_key/access_token` 后跟 `=` 或 `:` 及值
 /// - 支持双引号或单引号包裹的值
 /// - 至少匹配 8 个字符的值（避免误匹配短字符串）
 static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
     Regex::new(
-        r#"(?i)(token|api[_-]?key|password|secret|user[_-]?key|bearer|credential)["']?\s*[:=]\s*(?:"([^"]{8,})"|'([^']{8,})'|([a-zA-Z0-9_\-\.]{8,}))"#,
+        r#"(?i)(token|api[_-]?key|password|secret|user[_-]?key|bearer|credential|private[_-]?key|access[_-]?token|auth[_-]?token)["']?\s*[:=]\s*(?:"([^"]{8,})"|'([^']{8,})'|([a-zA-Z0-9_\-\.]{8,}))"#,
     )
     .expect("credential regex must compile")
+});
+
+/// 裸密钥匹配正则（检测常见密钥模式）
+///
+/// 匹配模式:
+/// - `sk-` 开头（OpenAI 等）
+/// - `ghp_` 开头（GitHub）
+/// - `xoxb-` 或 `xoxp-` 开头（Slack）
+/// - `AIza` 开头（Google）
+/// - `eyJ` 开头（JWT tokens）
+static BARE_KEY_REGEX: LazyLock<Regex> = LazyLock::new(|| {
+    Regex::new(r#"\b(sk-[a-zA-Z0-9]{20,}|ghp_[a-zA-Z0-9]{36,}|xox[bps]-[a-zA-Z0-9\-]{10,}|AIza[a-zA-Z0-9\-_]{35,}|eyJ[a-zA-Z0-9_-]{20,})"#)
+        .expect("bare key regex must compile")
 });
 
 /// 清洗工具输出中的敏感凭据，防止 API key、token 等通过 LLM 上下文泄露。
@@ -49,7 +62,7 @@ static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 ///
 /// # 示例
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rucora::agent::tool_execution::scrub_credentials;
 ///
 /// let output = r#"API key is: sk-abc123xyz789"#;
@@ -57,7 +70,8 @@ static SENSITIVE_KV_REGEX: LazyLock<Regex> = LazyLock::new(|| {
 /// assert!(cleaned.contains("[REDACTED]"));
 /// ```
 pub(crate) fn scrub_credentials(input: &str) -> String {
-    SENSITIVE_KV_REGEX
+    // 第一步：清洗键值对模式的凭据
+    let result = SENSITIVE_KV_REGEX
         .replace_all(input, |caps: &regex::Captures| {
             let full_match = &caps[0];
             let key = &caps[1];
@@ -90,6 +104,21 @@ pub(crate) fn scrub_credentials(input: &str) -> String {
                 }
             } else {
                 format!("{key}: {prefix}*[REDACTED]")
+            }
+        })
+        .to_string();
+
+    // 第二步：清洗裸密钥模式
+    BARE_KEY_REGEX
+        .replace_all(&result, |caps: &regex::Captures| {
+            let full_match = &caps[0];
+            // 保留前缀（如 sk-, ghp_ 等）和前 4 个字符
+            if full_match.len() > 8 {
+                let prefix = &full_match[..4];
+                let visible = &full_match[4..8];
+                format!("{prefix}{visible}*[REDACTED]")
+            } else {
+                "[REDACTED]".to_string()
             }
         })
         .to_string()

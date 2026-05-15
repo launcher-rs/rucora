@@ -16,10 +16,11 @@
 //!
 //! # 使用示例
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::agent::ReActAgent;
 //! use rucora::provider::OpenAiProvider;
-//! use rucora::tools::{ShellTool, FileReadTool, HttpTool};
+//! use rucora::tools::{ShellTool, FileReadTool};
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -28,12 +29,13 @@
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是一个善于推理的助手")
-//!     .tools(vec![ShellTool, FileReadTool, HttpTool])
+//!     .tool(ShellTool::new())
+//!     .tool(FileReadTool::new())
 //!     .max_steps(15)
 //!     .try_build()?;
 //!
 //! // 复杂任务：先分析，再分步执行
-//! let output = agent.run("帮我分析这个项目的代码结构，找出所有 Rust 文件并统计行数").await?;
+//! let output = agent.run("帮我分析这个项目的代码结构，找出所有 Rust 文件并统计行数".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -149,6 +151,7 @@ where
     P: LlmProvider,
 {
     /// 创建新的构建器
+    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
     pub fn builder() -> ReActAgentBuilder<P> {
         ReActAgentBuilder::new()
     }

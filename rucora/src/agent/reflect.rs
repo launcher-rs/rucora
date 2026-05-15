@@ -21,6 +21,7 @@
 //! use rucora::agent::ReflectAgent;
 //! use rucora::provider::OpenAiProvider;
 //! use rucora::tools::FileWriteTool;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -29,12 +30,12 @@
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是一个追求卓越的程序员")
-//!     .tool(FileWriteTool)
+//!     .tool(FileWriteTool::new())
 //!     .max_iterations(3)
 //!     .quality_threshold(0.9)
 //!     .try_build()?;
 //!
-//! let output = agent.run("帮我写一个快速排序算法，要求有详细注释").await?;
+//! let output = agent.run("帮我写一个快速排序算法，要求有详细注释".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -160,6 +161,7 @@ where
     P: LlmProvider,
 {
     /// 创建新的构建器
+    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
     pub fn builder() -> ReflectAgentBuilder<P> {
         ReflectAgentBuilder::new()
     }

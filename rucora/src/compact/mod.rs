@@ -11,7 +11,7 @@
 //!
 //! # 使用示例
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::compact::{CompactConfig, CompactStrategy, ContextManager};
 //! use rucora::provider::OpenAiProvider;
 //!
@@ -28,7 +28,7 @@
 //! if manager.should_compact("gpt-4o-mini") {
 //!     // 执行压缩
 //!     let provider = OpenAiProvider::from_env()?;
-//!     manager.compact(&provider).await?;
+//!     manager.compact(&provider, "gpt-4o-mini").await?;
 //! }
 //! # Ok(())
 //! # }

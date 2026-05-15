@@ -43,7 +43,7 @@
 //!
 //! ## 索引文本
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::embed::OpenAiEmbedding;
 //! use rucora::retrieval::ChromaVectorStore;
 //! use rucora::rag::{index_text, chunk_text};
@@ -69,7 +69,7 @@
 //!
 //! ## 检索引用
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::embed::OpenAiEmbedding;
 //! use rucora::retrieval::ChromaVectorStore;
 //! use rucora::rag::retrieve;
@@ -114,7 +114,7 @@
 //!
 //! 将分块嵌入并索引到向量存储：
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::rag::index_chunks;
 //! # use rucora::embed::OpenAiEmbedding;
 //! # use rucora::retrieval::ChromaVectorStore;
@@ -133,7 +133,7 @@
 //!
 //! 检索相关片段并生成引用：
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::rag::retrieve;
 //! # use rucora::embed::OpenAiEmbedding;
 //! # use rucora::retrieval::ChromaVectorStore;
@@ -317,7 +317,7 @@ pub fn chunk_text(
 ///
 /// # 示例
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rucora::rag::{chunk_text, index_chunks};
 /// use rucora::embed::OpenAiEmbedding;
 /// use rucora::retrieval::ChromaVectorStore;
@@ -387,7 +387,7 @@ where
 ///
 /// # 示例
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rucora::rag::index_text;
 /// use rucora::embed::OpenAiEmbedding;
 /// use rucora::retrieval::ChromaVectorStore;
@@ -507,7 +507,7 @@ impl Citation {
 ///
 /// # 示例
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rucora::rag::retrieve;
 /// use rucora::embed::OpenAiEmbedding;
 /// use rucora::retrieval::ChromaVectorStore;

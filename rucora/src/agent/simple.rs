@@ -16,6 +16,7 @@
 //! ```rust,no_run
 //! use rucora::agent::SimpleAgent;
 //! use rucora::provider::OpenAiProvider;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -27,7 +28,7 @@
 //!     .temperature(0.3)
 //!     .try_build()?;
 //!
-//! let output = agent.run("把'Hello'翻译成中文").await?;
+//! let output = agent.run("把'Hello'翻译成中文".into()).await?;
 //! println!("{}", output.text().unwrap_or("无回复"));
 //! # Ok(())
 //! # }
@@ -121,6 +122,7 @@ where
 
 impl<P> SimpleAgent<P> {
     /// 创建新的构建器
+    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
     pub fn builder() -> SimpleAgentBuilder<P> {
         SimpleAgentBuilder::new()
     }

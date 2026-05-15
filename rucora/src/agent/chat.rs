@@ -16,6 +16,7 @@
 //! ```rust,no_run
 //! use rucora::agent::ChatAgent;
 //! use rucora::provider::OpenAiProvider;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -29,13 +30,13 @@
 //!     .try_build()?;
 //!
 //! // 第一轮
-//! agent.run("我今天心情不好").await?;
+//! agent.run("我今天心情不好".into()).await?;
 //!
 //! // 第二轮（自动记住上一轮）
-//! agent.run("因为工作压力大").await?;
+//! agent.run("因为工作压力大".into()).await?;
 //!
 //! // 第三轮
-//! agent.run("有什么建议吗？").await?;
+//! agent.run("有什么建议吗？".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -128,6 +129,7 @@ where
 
 impl<P> ChatAgent<P> {
     /// 创建新的构建器
+    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
     pub fn builder() -> ChatAgentBuilder<P> {
         ChatAgentBuilder::new()
     }

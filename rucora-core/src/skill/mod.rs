@@ -1,5 +1,10 @@
 //! Skill（技能）核心定义模块
 
+pub mod skill_trait;
+pub mod types;
+
+pub use skill_trait::Skill;
+
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::path::PathBuf;

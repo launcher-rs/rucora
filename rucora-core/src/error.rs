@@ -603,6 +603,38 @@ impl DiagnosticError for ChannelError {
     }
 }
 
+// ========== 错误类型转换实现 ==========
+
+impl From<ProviderError> for AgentError {
+    fn from(error: ProviderError) -> Self {
+        AgentError::ProviderError { source: error }
+    }
+}
+
+impl From<ToolError> for AgentError {
+    fn from(error: ToolError) -> Self {
+        AgentError::Message(format!("工具错误：{error}"))
+    }
+}
+
+impl From<MemoryError> for AgentError {
+    fn from(error: MemoryError) -> Self {
+        AgentError::Message(format!("记忆错误：{error}"))
+    }
+}
+
+impl From<SkillError> for AgentError {
+    fn from(error: SkillError) -> Self {
+        AgentError::Message(format!("技能错误：{error}"))
+    }
+}
+
+impl From<ChannelError> for AgentError {
+    fn from(error: ChannelError) -> Self {
+        AgentError::Message(format!("渠道错误：{error}"))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

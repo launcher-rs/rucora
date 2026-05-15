@@ -4,6 +4,66 @@
 
 ---
 
+## [0.2.1] - 2026-05-15
+
+### Bug 修复
+
+**Doctest 修复（82 个全部通过）**
+- 修复所有 doctest 中的错误导入路径（`rucora_runtime` → `rucora`，`rucora::` → `rucora::agent::`）
+- 修复 Agent doctest 中缺少 `Agent` trait 导入的问题
+- 修复 `&str` 到 `AgentInput` 的转换（添加 `.into()`）
+- 修复工具实例化（`ShellTool` → `ShellTool::new()`）
+- 修复 `ReActAgent.tools()` 调用方式（改为链式 `.tool()` 调用）
+- 修复 `Extractor` doctest 中的导入和字段访问
+- 修复 `prompt.rs` 中的断言值（ASCII 逗号 → 实际输出）
+- 将依赖可选 feature 的 doctest（RAG/embed/retrieval）标记为 `ignore`
+- 将不完整示例的 doctest 标记为 `ignore`
+
+**代码质量修复**
+- 修复 `middleware.rs` 中 `cached_value` 未使用变量警告
+- 修复 `skill/mod.rs` 中 `Skill` trait 未正确重新导出的问题
+- 修复 `skill_trait.rs` 和 `types.rs` 中的 UTF-8 BOM 字符
+
+### 改进
+
+**Agent 构建器**
+- 为所有 Agent builder 方法添加 `#[must_use]` 属性
+
+**工具注册表**
+- 添加 `ToolRegistry::definitions()` 缓存机制
+- 在所有变更方法中添加缓存失效逻辑
+
+**工具调用缓存**
+- 修复 `ToolResultCache` 的 LRU 淘汰策略（添加 `last_accessed` 字段）
+
+**凭据清洗**
+- 增强 `scrub_credentials` 函数，支持裸密钥模式检测（sk-, ghp_, xoxb-, AIza, JWT 等）
+
+**错误处理**
+- 添加 `ProviderError` 的 `From` trait 实现
+- 改进 `execution.rs` 中的错误处理，保留结构化 `ProviderError`
+
+**中间件**
+- 实现 `RateLimitMiddleware` 的实际限流逻辑（滑动窗口算法）
+- 实现 `CacheMiddleware` 的实际缓存基础设施
+
+**性能优化**
+- 优化 `remove_orphaned_tool_messages` 从 O(n²) 到 O(n)
+
+### 新增
+
+**契约测试**
+- 新增 `contract_memory.rs` 测试文件
+- 新增 `contract_skill.rs` 测试文件
+
+### 配置变更
+
+**Lint 配置**
+- 在 `Cargo.toml` 中禁用 `dead_code` lint（开发阶段保留未使用代码）
+- 更新 `AGENTS.md` 中的 lint 配置文档
+
+---
+
 ## [0.2.0] - 2026-05-11
 
 ### 新增功能

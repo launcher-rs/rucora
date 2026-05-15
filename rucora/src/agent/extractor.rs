@@ -54,6 +54,7 @@
 //! ## 带 Usage 追踪
 //!
 //! ```rust,no_run
+//! # use rucora::agent::extractor::Extractor;
 //! # use rucora::provider::OpenAiProvider;
 //! # use serde::{Deserialize, Serialize};
 //! # use schemars::JsonSchema;
@@ -76,8 +77,10 @@
 //!     .await?;
 //!
 //! println!("提取的数据：{:?}", response.data);
-//! println!("输入 token: {}", response.usage.input_tokens);
-//! println!("输出 token: {}", response.usage.output_tokens);
+//! if let Some(usage) = response.usage {
+//!     println!("输入 token: {}", usage.input_tokens);
+//!     println!("输出 token: {}", usage.output_tokens);
+//! }
 //! # Ok(())
 //! # }
 //! ```
@@ -85,6 +88,7 @@
 //! ## 自定义提示词
 //!
 //! ```rust,no_run
+//! # use rucora::agent::extractor::Extractor;
 //! # use rucora::provider::OpenAiProvider;
 //! # use serde::{Deserialize, Serialize};
 //! # use schemars::JsonSchema;
@@ -205,6 +209,7 @@ where
     /// # 示例
     ///
     /// ```rust,no_run
+    /// # use rucora::agent::extractor::Extractor;
     /// # use rucora::provider::OpenAiProvider;
     /// # use serde::{Deserialize, Serialize};
     /// # use schemars::JsonSchema;
@@ -478,7 +483,7 @@ where
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use rucora::LlmParams;
+    /// use rucora::core::provider::types::LlmParams;
     /// use rucora::agent::extractor::Extractor;
     /// # use rucora::provider::OpenAiProvider;
     /// # use serde::{Deserialize, Serialize};

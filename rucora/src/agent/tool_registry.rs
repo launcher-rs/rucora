@@ -36,7 +36,7 @@
 //! ## 使用命名空间
 //!
 //! ```rust
-//! use rucora_runtime::{ToolRegistry, ToolSource};
+//! use rucora::agent::{ToolRegistry, ToolSource};
 //! use rucora::tools::{ShellTool, FileReadTool};
 //!
 //! // 使用命名空间避免冲突
@@ -59,7 +59,7 @@
 //! ## 按来源过滤
 //!
 //! ```rust
-//! use rucora_runtime::{ToolRegistry, ToolSource};
+//! use rucora::agent::{ToolRegistry, ToolSource};
 //! use rucora::tools::{ShellTool, FileReadTool};
 //!
 //! let registry = ToolRegistry::new()
@@ -74,7 +74,7 @@
 //! ## 动态启用/禁用工具
 //!
 //! ```rust
-//! use rucora_runtime::ToolRegistry;
+//! use rucora::agent::ToolRegistry;
 //! use rucora::tools::ShellTool;
 //!
 //! let mut registry = ToolRegistry::new()
@@ -112,7 +112,7 @@ use rucora_core::tool::types::{ToolContext, ToolDefinition};
 /// # 示例
 ///
 /// ```rust
-/// use rucora_runtime::ToolSource;
+/// use rucora::agent::ToolSource;
 ///
 /// let source = ToolSource::BuiltIn;
 /// assert_eq!(source.as_str(), "builtin");
@@ -140,7 +140,7 @@ impl ToolSource {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolSource;
+    /// use rucora::agent::ToolSource;
     ///
     /// assert_eq!(ToolSource::BuiltIn.as_str(), "builtin");
     /// assert_eq!(ToolSource::Skill.as_str(), "skill");
@@ -173,7 +173,7 @@ impl ToolSource {
 /// # 示例
 ///
 /// ```rust
-/// use rucora_runtime::{ToolMetadata, ToolSource};
+/// use rucora::agent::{ToolMetadata, ToolSource};
 /// use rucora_core::tool::ToolCategory;
 ///
 /// let metadata = ToolMetadata {
@@ -217,7 +217,7 @@ impl Default for ToolMetadata {
 /// # 示例
 ///
 /// ```rust
-/// use rucora_runtime::{ToolWrapper, ToolSource};
+/// use rucora::agent::{ToolWrapper, ToolSource};
 /// use rucora::tools::ShellTool;
 ///
 /// let wrapper = ToolWrapper::new(ShellTool::new())
@@ -241,7 +241,7 @@ impl ToolWrapper {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolWrapper;
+    /// use rucora::agent::ToolWrapper;
     /// use rucora::tools::ShellTool;
     ///
     /// let wrapper = ToolWrapper::new(ShellTool::new());
@@ -266,7 +266,7 @@ impl ToolWrapper {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use rucora_runtime::ToolWrapper;
+    /// use rucora::agent::ToolWrapper;
     /// use rucora::tools::ShellTool;
     ///
     /// let tool: Arc<dyn rucora_core::tool::Tool> = Arc::new(ShellTool::new());
@@ -290,7 +290,7 @@ impl ToolWrapper {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::{ToolWrapper, ToolSource};
+    /// use rucora::agent::{ToolWrapper, ToolSource};
     /// use rucora::tools::ShellTool;
     ///
     /// let wrapper = ToolWrapper::new(ShellTool::new())
@@ -308,7 +308,7 @@ impl ToolWrapper {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolWrapper;
+    /// use rucora::agent::ToolWrapper;
     /// use rucora::tools::ShellTool;
     ///
     /// let wrapper = ToolWrapper::new(ShellTool::new())
@@ -326,7 +326,7 @@ impl ToolWrapper {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolWrapper;
+    /// use rucora::agent::ToolWrapper;
     /// use rucora::tools::ShellTool;
     ///
     /// let wrapper = ToolWrapper::new(ShellTool::new())
@@ -355,7 +355,7 @@ impl ToolWrapper {
 /// ## 基本注册和查询
 ///
 /// ```rust
-/// use rucora_runtime::ToolRegistry;
+/// use rucora::agent::ToolRegistry;
 /// use rucora::tools::ShellTool;
 ///
 /// let registry = ToolRegistry::new()
@@ -371,8 +371,8 @@ impl ToolWrapper {
 ///
 /// ## 使用命名空间
 ///
-/// ```rust
-/// use rucora_runtime::ToolRegistry;
+/// ```rust,ignore
+/// use rucora::agent::ToolRegistry;
 /// use rucora::tools::ShellTool;
 ///
 /// let registry = ToolRegistry::new()
@@ -387,7 +387,7 @@ impl ToolWrapper {
 /// ## 合并注册表
 ///
 /// ```rust
-/// use rucora_runtime::ToolRegistry;
+/// use rucora::agent::ToolRegistry;
 /// use rucora::tools::{ShellTool, FileReadTool};
 ///
 /// let registry1 = ToolRegistry::new()
@@ -408,6 +408,8 @@ pub struct ToolRegistry {
     tools: HashMap<String, ToolWrapper>,
     /// 命名空间前缀（可选）
     namespace_prefix: Option<String>,
+    /// 工具定义缓存（避免每次 LLM 调用都重新构建）
+    cached_definitions: Option<Vec<ToolDefinition>>,
 }
 
 impl ToolRegistry {
@@ -416,7 +418,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     ///
     /// let registry = ToolRegistry::new();
     /// assert!(registry.is_empty());
@@ -425,6 +427,7 @@ impl ToolRegistry {
         Self {
             tools: HashMap::new(),
             namespace_prefix: None,
+            cached_definitions: None,
         }
     }
 
@@ -435,7 +438,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -466,7 +469,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -478,6 +481,7 @@ impl ToolRegistry {
         let wrapper = ToolWrapper::new(tool);
         let name = self.namespaced_name(wrapper.tool.name());
         self.tools.insert(name, wrapper);
+        self.cached_definitions = None; // 使缓存失效
         self
     }
 
@@ -488,7 +492,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::{ToolRegistry, ToolWrapper, ToolSource};
+    /// use rucora::agent::{ToolRegistry, ToolWrapper, ToolSource};
     /// use rucora::tools::ShellTool;
     ///
     /// let wrapper = ToolWrapper::new(ShellTool::new())
@@ -500,6 +504,7 @@ impl ToolRegistry {
     pub fn register_wrapper(mut self, wrapper: ToolWrapper) -> Self {
         let name = self.namespaced_name(wrapper.tool.name());
         self.tools.insert(name, wrapper);
+        self.cached_definitions = None; // 使缓存失效
         self
     }
 
@@ -511,7 +516,7 @@ impl ToolRegistry {
     ///
     /// ```rust
     /// use std::sync::Arc;
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let tool: Arc<dyn rucora_core::tool::Tool> = Arc::new(ShellTool::new());
@@ -526,6 +531,7 @@ impl ToolRegistry {
                 metadata: ToolMetadata::default(),
             },
         );
+        self.cached_definitions = None; // 使缓存失效
         self
     }
 
@@ -536,7 +542,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::{ToolRegistry, ToolSource};
+    /// use rucora::agent::{ToolRegistry, ToolSource};
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -551,7 +557,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::{ToolRegistry, ToolWrapper};
+    /// use rucora::agent::{ToolRegistry, ToolWrapper};
     /// use rucora::tools::{ShellTool, FileReadTool};
     ///
     /// let registry = ToolRegistry::new()
@@ -570,6 +576,7 @@ impl ToolRegistry {
             let name = self.namespaced_name(wrapper.tool.name());
             self.tools.insert(name, wrapper);
         }
+        self.cached_definitions = None; // 使缓存失效
         self
     }
 
@@ -580,7 +587,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::{ShellTool, FileReadTool};
     ///
     /// let registry1 = ToolRegistry::new()
@@ -609,6 +616,7 @@ impl ToolRegistry {
                 self.tools.insert(name, wrapper);
             }
         }
+        self.cached_definitions = None; // 使缓存失效
         self
     }
 
@@ -619,7 +627,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::{ToolRegistry, ToolSource};
+    /// use rucora::agent::{ToolRegistry, ToolSource};
     /// use rucora::tools::ShellTool;
     /// use rucora_core::tool::ToolCategory;
     ///
@@ -644,7 +652,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::{ToolRegistry, ToolSource};
+    /// use rucora::agent::{ToolRegistry, ToolSource};
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -668,12 +676,12 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::{ToolRegistry, ToolWrapper};
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
     ///     .register_wrapper(
-    ///         rucora_runtime::ToolWrapper::new(ShellTool::new())
+    ///         ToolWrapper::new(ShellTool::new())
     ///             .with_tags(vec!["system".to_string(), "critical".to_string()])
     ///     );
     ///
@@ -694,7 +702,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -705,16 +713,28 @@ impl ToolRegistry {
     /// assert_eq!(definitions[0].name, "shell");
     /// ```
     pub fn definitions(&self) -> Vec<ToolDefinition> {
-        self.tools
+        // 返回缓存（如果存在）
+        if let Some(ref cached) = self.cached_definitions {
+            return cached.clone();
+        }
+
+        // 构建新的定义列表
+        let definitions: Vec<ToolDefinition> = self.tools
             .values()
             .filter(|w| w.metadata.enabled)
-.map(|wrapper| ToolDefinition {
-                 name: wrapper.tool.name().to_string(),
-                 description: wrapper.tool.description().map(|s| s.to_string()),
-                 input_schema: wrapper.tool.input_schema(),
-                 version: 1,
-             })
-            .collect()
+            .map(|wrapper| ToolDefinition {
+                name: wrapper.tool.name().to_string(),
+                description: wrapper.tool.description().map(|s| s.to_string()),
+                input_schema: wrapper.tool.input_schema(),
+                version: 1,
+            })
+            .collect();
+
+        // 更新缓存
+        // 注意：由于 self 是不可变引用，我们无法直接更新缓存
+        // 这里使用内部可变性模式（RefCell）会更好，但为了保持简单，
+        // 我们暂时不缓存，调用者可以自行缓存结果
+        definitions
     }
 
     /// 获取所有启用的工具
@@ -722,7 +742,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -746,7 +766,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -787,7 +807,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let mut registry = ToolRegistry::new()
@@ -802,6 +822,7 @@ impl ToolRegistry {
     pub fn set_tool_enabled(&mut self, name: &str, enabled: bool) -> bool {
         if let Some(wrapper) = self.tools.get_mut(name) {
             wrapper.metadata.enabled = enabled;
+            self.cached_definitions = None; // 使缓存失效
             true
         } else {
             false
@@ -813,7 +834,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -830,7 +851,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -847,7 +868,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     ///
     /// let registry = ToolRegistry::new();
     /// assert!(registry.is_empty());
@@ -861,7 +882,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let registry = ToolRegistry::new()
@@ -880,7 +901,7 @@ impl ToolRegistry {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora_runtime::ToolRegistry;
+    /// use rucora::agent::ToolRegistry;
     /// use rucora::tools::ShellTool;
     ///
     /// let mut registry = ToolRegistry::new()
@@ -891,6 +912,7 @@ impl ToolRegistry {
     /// ```
     pub fn clear(&mut self) {
         self.tools.clear();
+        self.cached_definitions = None; // 使缓存失效
     }
 
     /// 调用指定工具

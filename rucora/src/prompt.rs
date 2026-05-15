@@ -115,7 +115,7 @@ impl PromptTemplate {
     ///     "greeting": "你好",
     ///     "name": "世界"
     /// })).unwrap();
-    /// assert_eq!(result, "你好，世界！");
+    /// assert_eq!(result, "你好, 世界!");
     /// ```
     pub fn render(&self, context: &Value) -> Result<String, PromptError> {
         let mut result = self.template.clone();

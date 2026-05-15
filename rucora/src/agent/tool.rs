@@ -17,6 +17,7 @@
 //! use rucora::agent::ToolAgent;
 //! use rucora::provider::OpenAiProvider;
 //! use rucora::tools::{ShellTool, FileReadTool};
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -25,13 +26,13 @@
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
-//!     .tool(ShellTool)
-//!     .tool(FileReadTool)
+//!     .tool(ShellTool::new())
+//!     .tool(FileReadTool::new())
 //!     .max_steps(10)
 //!     .max_tool_concurrency(3)
 //!     .try_build()?;
 //!
-//! let output = agent.run("帮我列出当前目录的文件").await?;
+//! let output = agent.run("帮我列出当前目录的文件".into()).await?;
 //! println!("{}", output.text().unwrap_or("无回复"));
 //! # Ok(())
 //! # }
@@ -146,6 +147,7 @@ where
     P: LlmProvider,
 {
     /// 创建新的构建器
+    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
     pub fn builder() -> ToolAgentBuilder<P> {
         ToolAgentBuilder::new()
     }

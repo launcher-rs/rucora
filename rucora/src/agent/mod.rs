@@ -50,6 +50,7 @@
 //! ```rust,no_run
 //! use rucora::agent::SimpleAgent;
 //! use rucora::provider::OpenAiProvider;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -61,7 +62,7 @@
 //!     .temperature(0.3)
 //!     .try_build()?;
 //!
-//! let output = agent.run("把'Hello'翻译成中文").await?;
+//! let output = agent.run("把'Hello'翻译成中文".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -71,6 +72,7 @@
 //! ```rust,no_run
 //! use rucora::agent::ChatAgent;
 //! use rucora::provider::OpenAiProvider;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -82,8 +84,8 @@
 //!     .with_conversation(true)
 //!     .try_build()?;
 //!
-//! agent.run("你好").await?;
-//! agent.run("今天天气怎么样？").await?;
+//! agent.run("你好".into()).await?;
+//! agent.run("今天天气怎么样？".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -94,6 +96,7 @@
 //! use rucora::agent::ToolAgent;
 //! use rucora::provider::OpenAiProvider;
 //! use rucora::tools::ShellTool;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -102,20 +105,21 @@
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
-//!     .tool(ShellTool)
+//!     .tool(ShellTool::new())
 //!     .try_build()?;
 //!
-//! let output = agent.run("帮我列出当前目录的文件").await?;
+//! let output = agent.run("帮我列出当前目录的文件".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! ### ReActAgent - 推理 + 行动
 //!
-//! ```rust,no_run
+//! ```rust,ignore
 //! use rucora::agent::ReActAgent;
 //! use rucora::provider::OpenAiProvider;
 //! use rucora::tools::{ShellTool, FileReadTool};
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -123,11 +127,12 @@
 //! let agent = ReActAgent::builder()
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
-//!     .tools(vec![ShellTool, FileReadTool])
+//!     .tool(ShellTool::new())
+//!     .tool(FileReadTool::new())
 //!     .max_steps(15)
 //!     .try_build()?;
 //!
-//! let output = agent.run("帮我分析这个项目的代码结构").await?;
+//! let output = agent.run("帮我分析这个项目的代码结构".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -138,6 +143,7 @@
 //! use rucora::agent::ReflectAgent;
 //! use rucora::provider::OpenAiProvider;
 //! use rucora::tools::FileWriteTool;
+//! use rucora::prelude::Agent;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
@@ -145,11 +151,11 @@
 //! let agent = ReflectAgent::builder()
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
-//!     .tool(FileWriteTool)
+//!     .tool(FileWriteTool::new())
 //!     .max_iterations(3)
 //!     .try_build()?;
 //!
-//! let output = agent.run("帮我写一个快速排序算法").await?;
+//! let output = agent.run("帮我写一个快速排序算法".into()).await?;
 //! # Ok(())
 //! # }
 //! ```
@@ -158,7 +164,7 @@
 //!
 //! ## 决策与执行分离
 //!
-//! ```
+//! ```text
 //! ┌─────────────────────────────────────────────────────────┐
 //! │                      Agent Trait                        │
 //! │  ┌─────────────────┐    ┌─────────────────────────┐    │
@@ -226,7 +232,7 @@ pub use tool_call_config::{
     CacheConfig, CircuitBreakerConfig, ConcurrencyConfig, RetryConfig, RetryStrategy,
     TimeoutConfig, ToolCallEnhancedConfig, ToolCallEnhancedRuntime,
 };
-pub use tool_registry::{ToolRegistry, ToolSource, ToolWrapper};
+pub use tool_registry::{ToolMetadata, ToolRegistry, ToolSource, ToolWrapper};
 
 // 基础层
 pub use chat::{ChatAgent, ChatAgentBuilder};
@@ -287,6 +293,7 @@ use std::task::{Context, Poll};
 ///
 /// ```rust,no_run
 /// use rucora::agent::AgentStream;
+/// use rucora::prelude::Agent;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let agent = rucora::agent::SimpleAgent::builder()
@@ -338,13 +345,14 @@ impl AgentStream {
     ///
     /// ```rust,no_run
     /// use rucora::prelude::*;
+    /// use rucora::agent::AgentStream;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let agent = rucora::agent::SimpleAgent::builder()
     /// #     .provider(rucora::provider::OpenAiProvider::from_env()?)
     /// #     .model("gpt-4o-mini")
     /// #     .build();
-    /// let text = agent.run_stream("你好".into()).collect_text().await?;
+    /// let text = AgentStream::new(agent.run_stream("你好".into())).collect_text().await?;
     /// println!("{}", text);
     /// # Ok(())
     /// # }
