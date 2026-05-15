@@ -4,9 +4,11 @@
 
 ---
 
-## [0.2.1] - 2026-05-15
+## [0.2.0] - 未发布
 
-### Bug 修复
+> **注意**：此版本尚未正式发布，当前内容仍在开发中。
+
+### 待发布修改
 
 **Doctest 修复（82 个全部通过）**
 - 修复所有 doctest 中的错误导入路径（`rucora_runtime` → `rucora`，`rucora::` → `rucora::agent::`）
@@ -23,8 +25,6 @@
 - 修复 `middleware.rs` 中 `cached_value` 未使用变量警告
 - 修复 `skill/mod.rs` 中 `Skill` trait 未正确重新导出的问题
 - 修复 `skill_trait.rs` 和 `types.rs` 中的 UTF-8 BOM 字符
-
-### 改进
 
 **Agent 构建器**
 - 为所有 Agent builder 方法添加 `#[must_use]` 属性
@@ -50,21 +50,13 @@
 **性能优化**
 - 优化 `remove_orphaned_tool_messages` 从 O(n²) 到 O(n)
 
-### 新增
-
 **契约测试**
 - 新增 `contract_memory.rs` 测试文件
 - 新增 `contract_skill.rs` 测试文件
 
-### 配置变更
-
 **Lint 配置**
 - 在 `Cargo.toml` 中禁用 `dead_code` lint（开发阶段保留未使用代码）
 - 更新 `AGENTS.md` 中的 lint 配置文档
-
----
-
-## [0.2.0] - 2026-05-11
 
 ### 新增功能
 
