@@ -43,7 +43,7 @@
 use async_trait::async_trait;
 use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams};
 use rucora_core::tool::Tool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -160,7 +160,7 @@ where
     fn _build_react_prompt(&self, context: &AgentContext, phase: &str) -> ChatRequest {
         let prompt = match phase {
             "think" => format!(
-                "请分析问题：{}\n\
+                "请分析用户问题，规划解题步骤。\n\
                  \n\
                  思考步骤：\n\
                  1. 理解用户需求\n\
@@ -170,7 +170,6 @@ where
                  可用工具：{:?}\n\
                  \n\
                  请详细分析并规划步骤。",
-                context.input.text(),
                 self.tools.tool_names()
             ),
             "act" => format!(
@@ -192,17 +191,10 @@ where
             _ => unreachable!(),
         };
 
-        // 构建消息历史
+        // 构建消息历史（context.messages 已包含用户输入，无需重新注入）
         let mut messages = context.messages.clone();
 
-        // 添加系统提示词
-        if let Some(ref sys_prompt) = self.system_prompt
-            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System))
-        {
-            messages.insert(0, ChatMessage::system(sys_prompt.clone()));
-        }
-
-        // 添加 ReAct 提示词
+        // 添加 ReAct 提示词（使用 assistant 角色前缀以保持对话连贯）
         messages.push(ChatMessage::user(prompt));
 
         let mut request = ChatRequest {
@@ -441,36 +433,7 @@ impl<P> Default for ReActAgentBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures_util::stream;
-    use futures_util::stream::BoxStream;
-    use rucora_core::error::ProviderError;
-    use rucora_core::provider::types::{ChatResponse, ChatStreamChunk};
-
-    struct MockProvider;
-
-    #[async_trait]
-    impl LlmProvider for MockProvider {
-        async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-            Ok(ChatResponse {
-                message: ChatMessage {
-                    role: Role::Assistant,
-                    content: "Mock response".to_string(),
-                    name: None,
-                },
-                tool_calls: vec![],
-                usage: None,
-                finish_reason: None,
-            })
-        }
-
-        fn stream_chat(
-            &self,
-            _request: ChatRequest,
-        ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError>
-        {
-            Ok(Box::pin(stream::empty()))
-        }
-    }
+    use rucora_core::test_utils::MockProvider;
 
     #[test]
     fn test_react_agent_builder() {

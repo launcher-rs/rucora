@@ -105,7 +105,7 @@ fn test_standard_strategy_config() {
 #[test]
 fn test_standard_strategy_with_config() {
     let config = rucora_core::research::ResearchConfig::fast();
-    let strategy = rucora::deep_research::StandardStrategy::with_config(config.clone());
+    let strategy = rucora::deep_research::StandardStrategy::with_config(config);
     assert_eq!(strategy.config().max_iterations, 3);
 }
 
@@ -355,7 +355,7 @@ async fn test_in_memory_research_library_list() {
 
     for i in 0..5 {
         let report = ResearchReport::new(
-            format!("topic_{}", i),
+            format!("topic_{i}"),
             rucora_core::research::ResearchStrategy::Fast,
         );
         lib.save(&report).await.expect("save should succeed");
@@ -418,7 +418,7 @@ fn test_report_add_citations() {
         "Snippet 2".to_string(),
     );
 
-    report.add_citations(vec![citation1.clone(), citation2.clone()]);
+    report.add_citations(vec![citation1, citation2]);
     assert_eq!(report.citations.len(), 2);
 }
 

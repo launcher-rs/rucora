@@ -91,7 +91,7 @@
 //! ```
 
 use std::collections::HashMap;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use rucora_core::tool::Tool;
 use rucora_core::tool::ToolCategory;
@@ -402,14 +402,24 @@ impl ToolWrapper {
 /// assert!(merged.get("sys::shell").is_some());
 /// assert!(merged.get("file::file_read").is_some());
 /// ```
-#[derive(Default, Clone)]
+#[derive(Default)]
 pub struct ToolRegistry {
     /// 工具映射表（名称 -> 包装）
     tools: HashMap<String, ToolWrapper>,
     /// 命名空间前缀（可选）
     namespace_prefix: Option<String>,
-    /// 工具定义缓存（避免每次 LLM 调用都重新构建）
-    cached_definitions: Option<Vec<ToolDefinition>>,
+    /// 工具定义缓存（避免每次 LLM 调用都重新构建，使用 Mutex 实现内部可变性）
+    cached_definitions: Mutex<Option<Vec<ToolDefinition>>>,
+}
+
+impl Clone for ToolRegistry {
+    fn clone(&self) -> Self {
+        Self {
+            tools: self.tools.clone(),
+            namespace_prefix: self.namespace_prefix.clone(),
+            cached_definitions: Mutex::new(None),
+        }
+    }
 }
 
 impl ToolRegistry {
@@ -427,7 +437,7 @@ impl ToolRegistry {
         Self {
             tools: HashMap::new(),
             namespace_prefix: None,
-            cached_definitions: None,
+            cached_definitions: Mutex::new(None),
         }
     }
 
@@ -481,7 +491,7 @@ impl ToolRegistry {
         let wrapper = ToolWrapper::new(tool);
         let name = self.namespaced_name(wrapper.tool.name());
         self.tools.insert(name, wrapper);
-        self.cached_definitions = None; // 使缓存失效
+        *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
         self
     }
 
@@ -504,7 +514,7 @@ impl ToolRegistry {
     pub fn register_wrapper(mut self, wrapper: ToolWrapper) -> Self {
         let name = self.namespaced_name(wrapper.tool.name());
         self.tools.insert(name, wrapper);
-        self.cached_definitions = None; // 使缓存失效
+        *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
         self
     }
 
@@ -531,7 +541,7 @@ impl ToolRegistry {
                 metadata: ToolMetadata::default(),
             },
         );
-        self.cached_definitions = None; // 使缓存失效
+        *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
         self
     }
 
@@ -576,7 +586,7 @@ impl ToolRegistry {
             let name = self.namespaced_name(wrapper.tool.name());
             self.tools.insert(name, wrapper);
         }
-        self.cached_definitions = None; // 使缓存失效
+        *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
         self
     }
 
@@ -616,7 +626,7 @@ impl ToolRegistry {
                 self.tools.insert(name, wrapper);
             }
         }
-        self.cached_definitions = None; // 使缓存失效
+        *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
         self
     }
 
@@ -714,7 +724,7 @@ impl ToolRegistry {
     /// ```
     pub fn definitions(&self) -> Vec<ToolDefinition> {
         // 返回缓存（如果存在）
-        if let Some(ref cached) = self.cached_definitions {
+        if let Some(ref cached) = *self.cached_definitions.lock().unwrap() {
             return cached.clone();
         }
 
@@ -730,10 +740,8 @@ impl ToolRegistry {
             })
             .collect();
 
-        // 更新缓存
-        // 注意：由于 self 是不可变引用，我们无法直接更新缓存
-        // 这里使用内部可变性模式（RefCell）会更好，但为了保持简单，
-        // 我们暂时不缓存，调用者可以自行缓存结果
+        // 更新缓存供后续使用
+        *self.cached_definitions.lock().unwrap() = Some(definitions.clone());
         definitions
     }
 
@@ -822,7 +830,7 @@ impl ToolRegistry {
     pub fn set_tool_enabled(&mut self, name: &str, enabled: bool) -> bool {
         if let Some(wrapper) = self.tools.get_mut(name) {
             wrapper.metadata.enabled = enabled;
-            self.cached_definitions = None; // 使缓存失效
+            *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
             true
         } else {
             false
@@ -912,7 +920,7 @@ impl ToolRegistry {
     /// ```
     pub fn clear(&mut self) {
         self.tools.clear();
-        self.cached_definitions = None; // 使缓存失效
+        *self.cached_definitions.lock().unwrap() = None; // 使缓存失效
     }
 
     /// 调用指定工具

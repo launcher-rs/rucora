@@ -309,37 +309,7 @@ impl<P> Default for SimpleAgentBuilder<P> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use futures_util::stream;
-    use futures_util::stream::BoxStream;
-    use rucora_core::error::ProviderError;
-    use rucora_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk};
-    use rucora_core::provider::{ChatMessage, Role};
-
-    struct MockProvider;
-
-    #[async_trait]
-    impl LlmProvider for MockProvider {
-        async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-            Ok(ChatResponse {
-                message: ChatMessage {
-                    role: Role::Assistant,
-                    content: "Mock response".to_string(),
-                    name: None,
-                },
-                tool_calls: vec![],
-                usage: None,
-                finish_reason: None,
-            })
-        }
-
-        fn stream_chat(
-            &self,
-            _request: ChatRequest,
-        ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError>
-        {
-            Ok(Box::pin(stream::empty()))
-        }
-    }
+    use rucora_core::test_utils::MockProvider;
 
     #[test]
     fn test_simple_agent_builder() {

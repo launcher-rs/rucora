@@ -221,6 +221,9 @@ pub mod retry;
 /// Deep Research（深度研究）核心抽象
 pub mod research;
 
+/// 共享测试工具（用于测试，发布构建时需要保留以供下游 crate 的测试使用）
+pub mod test_utils;
+
 // 重新导出常用类型
 pub use agent::types::{AgentInput, AgentOutput};
 pub use channel::types::ChannelEvent;

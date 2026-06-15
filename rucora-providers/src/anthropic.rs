@@ -167,16 +167,42 @@ impl AnthropicProvider {
         messages
             .iter()
             .filter(|m| m.role != Role::System) // System prompt 单独处理
-            .map(|m| {
-                let role = match m.role {
-                    Role::User => "user",
-                    Role::Assistant => "assistant",
-                    _ => "user", // Tool role 在 Anthropic 中映射为 user
-                };
-                json!({
-                    "role": role,
-                    "content": m.content,
-                })
+            .map(|m| match m.role {
+                Role::Tool => {
+                    // Anthropic 要求工具结果使用 tool_result content block 格式
+                    let parsed = serde_json::from_str::<Value>(&m.content).ok();
+                    let tool_call_id = parsed
+                        .as_ref()
+                        .and_then(|v| v.get("tool_call_id"))
+                        .and_then(|s| s.as_str())
+                        .map(String::from)
+                        .unwrap_or_default();
+                    let output = parsed
+                        .as_ref()
+                        .and_then(|v| v.get("output"))
+                        .and_then(|v| v.as_str())
+                        .map(String::from)
+                        .unwrap_or_else(|| m.content.clone());
+                    json!({
+                        "role": "user",
+                        "content": [{
+                            "type": "tool_result",
+                            "tool_use_id": tool_call_id,
+                            "content": output
+                        }]
+                    })
+                }
+                _ => {
+                    let role = match m.role {
+                        Role::User => "user",
+                        Role::Assistant => "assistant",
+                        _ => "user",
+                    };
+                    json!({
+                        "role": role,
+                        "content": m.content,
+                    })
+                }
             })
             .collect()
     }
@@ -524,6 +550,43 @@ impl LlmProvider for AnthropicProvider {
                         .and_then(|v| v.as_str())
                         .unwrap_or("");
 
+                    if event_type == "content_block_start" {
+                        // tool_use content block 开始
+                        if json.get("content_block")
+                            .and_then(|b| b.get("type"))
+                            .and_then(|t| t.as_str())
+                            == Some("tool_use")
+                        {
+                            let tool_call_id = json
+                                .get("content_block")
+                                .and_then(|b| b.get("id"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let tool_name = json
+                                .get("content_block")
+                                .and_then(|b| b.get("name"))
+                                .and_then(|v| v.as_str())
+                                .unwrap_or("")
+                                .to_string();
+                            let tool_input = json
+                                .get("content_block")
+                                .and_then(|b| b.get("input"))
+                                .cloned()
+                                .unwrap_or_else(|| json!({}));
+                            yield ChatStreamChunk {
+                                delta: None,
+                                tool_calls: vec![(ToolCall {
+                                    id: tool_call_id,
+                                    name: tool_name,
+                                    input: tool_input,
+                                })],
+                                usage: None,
+                                finish_reason: None,
+                            };
+                        }
+                    }
+
                     if event_type == "content_block_delta" {
                         let delta = json
                             .get("delta")
@@ -539,6 +602,20 @@ impl LlmProvider for AnthropicProvider {
                                 finish_reason: None,
                             };
                         }
+                    }
+
+                    if event_type == "message_delta" {
+                        let finish_reason = json
+                            .get("delta")
+                            .and_then(|d| d.get("stop_reason"))
+                            .and_then(|v| v.as_str())
+                            .map(|s| parse_finish_reason(s));
+                        yield ChatStreamChunk {
+                            delta: None,
+                            tool_calls: vec![],
+                            usage: None,
+                            finish_reason,
+                        };
                     }
                 }
 

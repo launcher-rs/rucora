@@ -131,7 +131,7 @@ impl LlmProvider for MockProvider {
         let record = StreamCallRecord {
             messages: request.messages.clone(),
             model: request.model.clone(),
-            tools: request.tools.clone(),
+            tools: request.tools,
             chunks: Vec::new(),
         };
         self.stream_records.lock().unwrap().push(record);

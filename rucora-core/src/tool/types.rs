@@ -281,6 +281,10 @@ pub struct ToolCall {
 ///         "content": "文件内容...",
 ///         "size": 1024
 ///     }),
+///     success: Some(true),
+///     error: None,
+///     data: None,
+///     bytes: None,
 /// };
 ///
 /// assert_eq!(result.tool_call_id, "call_abc123");

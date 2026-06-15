@@ -39,6 +39,10 @@ fn bench_tool_result_serialize(c: &mut Criterion) {
     let result = ToolResult {
         tool_call_id: call.id,
         output: json!({"success": true, "output": "hello"}),
+        success: Some(true),
+        error: None,
+        data: None,
+        bytes: None,
     };
 
     c.bench_function("tool_result serialize", |b| {

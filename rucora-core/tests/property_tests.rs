@@ -3,7 +3,7 @@
 //! 这些测试通过具体的输入组合验证 `ResearchQualityScore::calculate()`
 //! 的关键不变式，相当于属性测试的手动展开。
 
-use rucora_core::research::{Citation, InfoPiece, ResearchQualityScore, ScoreDetails, SourceType};
+use rucora_core::research::{Citation, InfoPiece, ResearchQualityScore, SourceType};
 
 // ===== 辅助函数 =====
 
@@ -57,7 +57,7 @@ fn prop_score_many_infos_bounds() {
     let infos: Vec<InfoPiece> = (0..50)
         .map(|i| {
             make_info(
-                &format!("content number {}", i),
+                &format!("content number {i}"),
                 (i as f32) / 50.0,
                 if i % 3 == 0 {
                     SourceType::Official
@@ -145,7 +145,7 @@ fn prop_score_details_no_high_quality() {
 fn prop_score_details_duplicate_ratio() {
     // 两个完全相同的信息产生一个重复
     let info = make_info("duplicate content", 0.8, SourceType::Official);
-    let infos = vec![info.clone(), info.clone()];
+    let infos = vec![info.clone(), info];
     let score = ResearchQualityScore::calculate(&infos, &[], 1, &[]);
     // 1 duplicate out of 2 = 0.5
     assert_eq!(score.details.duplicate_ratio, 0.5);

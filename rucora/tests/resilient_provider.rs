@@ -346,7 +346,7 @@ async fn resilient_provider_backoff_increases_delay() {
 
     // With retries, the total time should be at least the number of retries * min delay
     // (there is jitter so we don't check exact values)
-    assert!(elapsed >= Duration::from_millis(3), "backoff should introduce delays: elapsed={:?}", elapsed);
+    assert!(elapsed >= Duration::from_millis(3), "backoff should introduce delays: elapsed={elapsed:?}");
 }
 
 // ====== 流式取消测试 ======

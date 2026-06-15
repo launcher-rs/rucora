@@ -46,8 +46,8 @@ impl Default for CompactConfig {
         Self {
             auto_compact_enabled: true,
             auto_compact_buffer_tokens: 13_000, // Claude Code 默认值
-            warning_buffer_tokens: 20_000,      // 警告阈值
-            error_buffer_tokens: 20_000,        // 错误阈值
+            warning_buffer_tokens: 20_000,      // 警告阈值（保留 20K 余量时告警）
+            error_buffer_tokens: 5_000,         // 错误阈值（仅剩 5K 余量时报错）
             manual_compact_buffer_tokens: 3_000, // 手动压缩缓冲区
             strategy: CompactStrategy::Auto,
             micro_compact_interval: 10,           // 每 10 条消息微压缩
@@ -144,7 +144,7 @@ mod tests {
 
         assert_eq!(config.get_auto_compact_threshold(context_window), 187_000);
         assert_eq!(config.get_warning_threshold(context_window), 180_000);
-        assert_eq!(config.get_error_threshold(context_window), 180_000);
+        assert_eq!(config.get_error_threshold(context_window), 195_000);
     }
 
     #[test]

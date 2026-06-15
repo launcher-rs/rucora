@@ -242,7 +242,7 @@ impl ProviderError {
             ProviderError::Network { retriable, .. } => *retriable,
             ProviderError::RateLimit { .. } => true,
             ProviderError::Timeout { .. } => true,
-            ProviderError::Model { .. } => true,
+            ProviderError::Model { .. } => false, // 模型错误通常是永久性错误（如模型不存在）
             ProviderError::Api { status, .. } => {
                 // 5xx 错误可重试
                 *status >= 500 && *status < 600
@@ -337,7 +337,7 @@ impl DiagnosticError for ProviderError {
             ProviderError::Message(msg) => ErrorDiagnostic {
                 kind: "provider".to_string(),
                 message: msg.clone(),
-                retriable: true,
+                retriable: false, // Message 是通用兜底错误，默认不可重试
                 source: None,
                 category: ErrorCategory::Other,
                 status_code: None,

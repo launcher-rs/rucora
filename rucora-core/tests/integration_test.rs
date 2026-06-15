@@ -28,7 +28,7 @@ fn test_research_context_add_info() {
     let mut ctx = ResearchContext::new("test");
     let info = InfoPiece::new("content".to_string(), None, SourceType::News);
 
-    ctx.add_info(info.clone());
+    ctx.add_info(info);
     assert_eq!(ctx.collected_info.len(), 1);
     assert_eq!(ctx.collected_info[0].content, "content");
     assert_eq!(ctx.total_content_length(), 7);
@@ -106,7 +106,7 @@ fn test_strategy_result_complete_with() {
 fn test_strategy_result_builder_methods() {
     let info = InfoPiece::new("test".to_string(), None, SourceType::News);
     let result = StrategyResult::default()
-        .with_info(vec![info.clone()])
+        .with_info(vec![info])
         .with_confidence(0.7);
 
     assert_eq!(result.new_info.len(), 1);
