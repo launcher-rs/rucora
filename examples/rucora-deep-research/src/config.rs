@@ -82,22 +82,6 @@ impl ProviderType {
             ProviderType::Nvidia => Some("https://integrate.api.nvidia.com/v1"),
         }
     }
-
-    /// 获取环境变量前缀
-    #[allow(dead_code)]
-    pub fn env_prefix(&self) -> &'static str {
-        match self {
-            ProviderType::OpenAI => "OPENAI",
-            ProviderType::Anthropic => "ANTHROPIC",
-            ProviderType::Gemini => "GOOGLE",
-            ProviderType::AzureOpenAI => "AZURE_OPENAI",
-            ProviderType::OpenRouter => "OPENROUTER",
-            ProviderType::DeepSeek => "DEEPSEEK",
-            ProviderType::Moonshot => "MOONSHOT",
-            ProviderType::Ollama => "OLLAMA",
-            ProviderType::Nvidia => "NVIDIA",
-        }
-    }
 }
 
 /// 用户配置

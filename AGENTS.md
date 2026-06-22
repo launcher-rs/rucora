@@ -205,9 +205,10 @@ cargo run --example 12_mcp --all-features
 - `manual_strip` - 手动实现 strip_prefix/suffix
 - `manual_let_else` - 使用 let-else 模式
 - `needless_collect` - 避免不必要的 collect()
+- `dead_code` - 禁止未使用的代码（所有函数、结构体、枚举、模块等必须被使用，否则删除）
 
 已禁用的 lint：
-- `dead_code` - 允许未使用的代码（开发阶段保留，避免频繁删除可能后续使用的代码）
+（无）
 
 ### 契约测试
 位于 `rucora-core/tests/`：

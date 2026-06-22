@@ -27,3 +27,6 @@ toml = "0.8"
 dirs = "5.0"
 dialoguer = "0.11"
 console = "0.15"
+
+[lints]
+workspace = true

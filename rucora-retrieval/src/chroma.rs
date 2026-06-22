@@ -10,16 +10,7 @@ use rucora_core::{
     error::ProviderError,
     retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore},
 };
-use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
-
-/// Chroma 集合信息。
-#[derive(Debug, Clone, Deserialize, Serialize)]
-#[allow(dead_code)]
-struct ChromaCollection {
-    id: String,
-    name: String,
-}
 
 /// Chroma Vector Store。
 pub struct ChromaVectorStore {

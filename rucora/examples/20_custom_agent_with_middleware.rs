@@ -103,10 +103,8 @@ impl Middleware for InputValidationMiddleware {
 // ═══════════════════════════════════════════════════════════
 
 pub struct TimestampAgent<P> {
-    #[allow(dead_code)]
-    provider: Arc<P>,
-    #[allow(dead_code)]
-    system_prompt: Option<String>,
+    _provider: Arc<P>,
+    _system_prompt: Option<String>,
     model: String,
     execution: DefaultExecution,
 }
@@ -215,8 +213,8 @@ where
         .with_middleware_chain(self.middleware_chain);
 
         TimestampAgent {
-            provider,
-            system_prompt,
+            _provider: provider,
+            _system_prompt: system_prompt,
             model,
             execution,
         }

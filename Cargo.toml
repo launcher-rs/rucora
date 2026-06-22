@@ -50,7 +50,7 @@ rucora-skills = { path = "rucora-skills", version = "0.2.0" }
 # 这些配置将应用于 workspace 中的所有 crate
 
 [workspace.lints.rust]
-dead_code = "allow"                       # 允许未使用的代码（开发阶段保留）
+dead_code = "deny"                        # 禁止未使用的代码（所有函数、结构体、枚举、模块等必须被使用，否则删除）
 
 [workspace.lints.clippy]
 # ===== 必须修复的警告（视为错误） =====

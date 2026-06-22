@@ -313,12 +313,10 @@ pub trait CitationHandler: Send + Sync {
 /// 默认引用处理器
 ///
 /// 提供基于正则表达式的 URL 提取和引用格式化功能。
-#[allow(dead_code)]
 pub struct DefaultCitationHandler;
 
 impl DefaultCitationHandler {
     /// 创建新的默认引用处理器实例
-    #[allow(dead_code)]
     pub fn new() -> Self {
         Self
     }

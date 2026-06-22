@@ -60,23 +60,17 @@ use crate::conversation::ConversationManager;
 /// - 适合多步推理任务
 pub struct ReActAgent<P> {
     /// LLM Provider
-    #[allow(dead_code)]
-    provider: Arc<P>,
+    _provider: Arc<P>,
     /// 默认使用的模型
-    #[allow(dead_code)]
     model: String,
     /// 系统提示词
-    #[allow(dead_code)]
-    system_prompt: Option<String>,
+    _system_prompt: Option<String>,
     /// 工具注册表
-    #[allow(dead_code)]
     tools: ToolRegistry,
     /// 最大步骤数
-    #[allow(dead_code)]
     max_steps: usize,
     /// 对话管理器（可选）
-    #[allow(dead_code)]
-    conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    _conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// LLM 请求参数
     llm_params: LlmParams,
     /// 执行能力（内聚）
@@ -403,12 +397,12 @@ where
         });
 
         Ok(ReActAgent {
-            provider: provider_arc,
+            _provider: provider_arc,
             model,
-            system_prompt: self.system_prompt,
+            _system_prompt: self.system_prompt,
             tools: self.tools,
             max_steps: self.max_steps,
-            conversation_manager,
+            _conversation_manager: conversation_manager,
             llm_params: self.llm_params,
             execution,
         })

@@ -61,22 +61,16 @@ use crate::conversation::ConversationManager;
 /// - 支持工具策略
 pub struct ToolAgent<P> {
     /// LLM Provider（用于外部访问）
-    #[allow(dead_code)]
     provider: Arc<P>,
     /// 默认使用的模型
-    #[allow(dead_code)]
     model: String,
     /// 系统提示词
-    #[allow(dead_code)]
     system_prompt: Option<String>,
     /// 工具注册表
-    #[allow(dead_code)]
     tools: ToolRegistry,
     /// 最大步骤数
-    #[allow(dead_code)]
-    max_steps: usize,
+    _max_steps: usize,
     /// 对话管理器（可选）
-    #[allow(dead_code)]
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// LLM 请求参数
     llm_params: LlmParams,
@@ -455,7 +449,7 @@ where
             model,
             system_prompt: self.system_prompt,
             tools: self.tools,
-            max_steps: self.max_steps,
+            _max_steps: self.max_steps,
             conversation_manager,
             llm_params: self.llm_params,
             execution,

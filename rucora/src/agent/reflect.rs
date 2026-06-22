@@ -61,26 +61,19 @@ use crate::conversation::ConversationManager;
 /// - 适合需要高质量输出的任务
 pub struct ReflectAgent<P> {
     /// LLM Provider
-    #[allow(dead_code)]
-    provider: Arc<P>,
+    _provider: Arc<P>,
     /// 默认使用的模型
-    #[allow(dead_code)]
     model: String,
     /// 系统提示词
-    #[allow(dead_code)]
     system_prompt: Option<String>,
     /// 工具注册表
-    #[allow(dead_code)]
     tools: ToolRegistry,
     /// 最大迭代次数
-    #[allow(dead_code)]
     max_iterations: usize,
     /// 质量阈值（0.0-1.0）
-    #[allow(dead_code)]
     quality_threshold: f32,
     /// 对话管理器（可选）
-    #[allow(dead_code)]
-    conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
+    _conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// LLM 请求参数
     llm_params: LlmParams,
     /// 执行能力（内聚）
@@ -470,13 +463,13 @@ where
         });
 
         Ok(ReflectAgent {
-            provider: provider_arc,
+            _provider: provider_arc,
             model,
             system_prompt: self.system_prompt,
             tools: self.tools,
             max_iterations: self.max_iterations,
             quality_threshold: self.quality_threshold,
-            conversation_manager,
+            _conversation_manager: conversation_manager,
             llm_params: self.llm_params,
             execution,
         })

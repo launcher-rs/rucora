@@ -51,14 +51,11 @@ use crate::agent::execution::{build_default_execution, DefaultExecution};
 /// - 适合简单任务
 pub struct SimpleAgent<P> {
     /// LLM Provider
-    #[allow(dead_code)]
     provider: Arc<P>,
     /// 默认使用的模型
-    #[allow(dead_code)]
     model: String,
     /// 系统提示词
-    #[allow(dead_code)]
-    system_prompt: Option<String>,
+    _system_prompt: Option<String>,
     /// LLM 请求参数
     llm_params: LlmParams,
     /// 执行能力（内聚）
@@ -284,7 +281,7 @@ where
         Ok(SimpleAgent {
             provider: provider_arc,
             model,
-            system_prompt: self.system_prompt,
+            _system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             execution,
         })

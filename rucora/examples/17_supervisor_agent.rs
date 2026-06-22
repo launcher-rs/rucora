@@ -29,10 +29,8 @@ use tracing_subscriber::FmtSubscriber;
 
 /// 主管 Agent - 负责任务分析和分配
 struct SupervisorAgent<P> {
-    #[allow(dead_code)]
-    provider: Arc<P>,
-    #[allow(dead_code)]
-    model: String,
+    _provider: Arc<P>,
+    _model: String,
     experts: Vec<ExpertInfo>,
 }
 
@@ -51,8 +49,8 @@ where
     /// 创建新的主管 Agent
     fn new(provider: Arc<P>, model: String) -> Self {
         Self {
-            provider,
-            model,
+            _provider: provider,
+            _model: model,
             experts: Vec::new(),
         }
     }
