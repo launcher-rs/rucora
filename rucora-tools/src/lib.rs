@@ -65,48 +65,7 @@ pub mod basic;
 /// 提供长期记忆存储和检索能力
 pub mod memory;
 
-/// Git 工具兼容模块，建议使用 `system::git`。
-#[deprecated(since = "0.2.0", note = "请使用 `system::git` 模块代替")]
-pub mod git {
-    pub use crate::system::git::*;
-}
 
-/// Echo 工具兼容模块，建议使用 `basic::echo`。
-#[deprecated(since = "0.2.0", note = "请使用 `basic::echo` 模块代替")]
-pub mod echo {
-    pub use crate::basic::echo::*;
-}
-
-// ===== 向后兼容：保留顶层模块 =====
-//
-// # 迁移指南 (0.1 → 0.2)
-//
-// 旧模块路径 | 新模块路径
-// ----------|----------
-// `rucora_tools::file_legacy` | `rucora_tools::file`
-// `rucora_tools::system_legacy` | `rucora_tools::system`
-// `rucora_tools::web_legacy` | `rucora_tools::web`
-//
-// 示例迁移：
-// ```rust,ignore
-// // 旧代码
-// use rucora_tools::file_legacy::FileReadTool;
-//
-// // 新代码
-// use rucora_tools::file::FileReadTool;
-// ```
-
-/// 文件工具（向后兼容，建议使用 `file` 模块）
-#[deprecated(since = "0.2.0", note = "请使用 `file` 模块代替")]
-pub use file as file_legacy;
-
-/// Shell 工具（向后兼容，建议使用 `system` 模块）
-#[deprecated(since = "0.2.0", note = "请使用 `system` 模块代替")]
-pub use system as system_legacy;
-
-/// Web 工具（向后兼容，建议使用 `web` 模块）
-#[deprecated(since = "0.2.0", note = "请使用 `web` 模块代替")]
-pub use web as web_legacy;
 
 // ===== 重新导出常用工具类型 =====
 

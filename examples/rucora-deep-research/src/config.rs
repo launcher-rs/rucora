@@ -202,8 +202,7 @@ impl AppConfig {
             .filter(|v| !v.is_empty());
 
         println!(
-            "api_key: {:?} model: {:?}, base_url: {:?}",
-            api_key, model, base_url
+            "api_key: {api_key:?} model: {model:?}, base_url: {base_url:?}",
         );
 
         // 只有当至少有一个配置项时才返回
@@ -240,6 +239,7 @@ impl AppConfig {
         // 其次从配置文件加载
         let path = Self::config_path()?;
         println!("读取配置文件 {}....", path.display());
+
         let content = fs::read_to_string(path).ok()?;
         toml::from_str(&content).ok()
     }
@@ -267,7 +267,7 @@ impl AppConfig {
         println!("\n{}", style("━━━ 当前配置 ━━━").green().bold());
 
         if let Some(ref provider) = self.provider {
-            println!("  Provider: {}", provider);
+            println!("  Provider: {provider}");
         }
 
         if let Some(ref api_key) = self.api_key {
@@ -276,15 +276,15 @@ impl AppConfig {
             } else {
                 "****".to_string()
             };
-            println!("  API Key: {}", masked_key);
+            println!("  API Key: {masked_key}");
         }
 
         if let Some(ref model) = self.model {
-            println!("  模型：{}", model);
+            println!("  模型：{model}");
         }
 
         if let Some(ref url) = self.base_url {
-            println!("  Base URL: {}", url);
+            println!("  Base URL: {url}");
         }
 
         if self.serpapi_keys.is_some() {
@@ -293,6 +293,7 @@ impl AppConfig {
 
         if let Some(ref keys) = self.tavily_keys {
             println!("  Tavily: 已配置 ({} 个 Key)", keys.len());
+
         } else {
             println!("  Tavily: 未配置（将使用 Browse+DuckDuckGo 降级方案）");
         }

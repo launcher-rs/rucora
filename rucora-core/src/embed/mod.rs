@@ -13,7 +13,7 @@
 //!
 //! ## EmbeddingProvider trait
 //!
-//! [`EmbeddingProvider`] trait 定义了向量嵌入的接口：
+//! [`crate::embed::EmbeddingProvider`] trait 定义了向量嵌入的接口：
 //!
 //! ```rust,no_run
 //! use rucora_core::embed::EmbeddingProvider;

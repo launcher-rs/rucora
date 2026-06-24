@@ -4,11 +4,18 @@
 
 ---
 
-## [0.2.0] - 未发布
+## [0.2.0] - 2026-06-25
 
-> **注意**：此版本尚未正式发布，当前内容仍在开发中。
+**SummaryAgent 摘要生成 Agent**
+- 新增 `SummaryAgent`，支持 4 种内置摘要模式（Concise、BulletPoints、Detailed、TlDr）及自定义模式
+- 3 级可配置模板系统：`prompt_template`/`chunk_template`/`combine_template`
+- 基于 `text-splitter` 的长文本 map-reduce 分块策略
+- 新增示例 `22_summary_agent` 演示 4 种场景用法
 
-### 待发布修改
+**移除废弃 API**
+- 移除 `DefaultAgent` 类型别名（改用 `ToolAgent`）
+- 移除 `RuntimeObserver` trait（改用 `ChannelObserver`）
+- 移除废弃的工具模块重导出（`git`、`echo`、`file_legacy`、`system_legacy`、`web_legacy`）
 
 **Doctest 修复（82 个全部通过）**
 - 修复所有 doctest 中的错误导入路径（`rucora_runtime` → `rucora`，`rucora::` → `rucora::agent::`）
@@ -25,6 +32,9 @@
 - 修复 `middleware.rs` 中 `cached_value` 未使用变量警告
 - 修复 `skill/mod.rs` 中 `Skill` trait 未正确重新导出的问题
 - 修复 `skill_trait.rs` 和 `types.rs` 中的 UTF-8 BOM 字符
+- 修复 23 处 doc 链接警告（无效 intra-doc 链接、未闭合 HTML 标签）
+- 修复 12 处格式参数警告（`uninlined_format_args`）在 `rucora-deep-research` 示例中
+- 修复 `collapsible_if`、`map_unwrap_or`、`redundant_closure` 等 clippy 警告
 
 **Agent 构建器**
 - 为所有 Agent builder 方法添加 `#[must_use]` 属性
@@ -32,6 +42,10 @@
 **工具注册表**
 - 添加 `ToolRegistry::definitions()` 缓存机制
 - 在所有变更方法中添加缓存失效逻辑
+
+**MCP 工具适配**
+- `McpToolAdapter` 重命名为 `McpTool`（与代码一致），更新所有文档引用
+- 修复 `rucora-mcp` doc 中对真实传输类型的引用
 
 **工具调用缓存**
 - 修复 `ToolResultCache` 的 LRU 淘汰策略（添加 `last_accessed` 字段）
@@ -133,6 +147,9 @@
 ### 依赖更新
 - 新增 `uuid` crate 用于生成唯一 ID
 - 新增 `chrono` crate 用于时间处理
+- 新增 `text-splitter` 0.29 替代自定义分块逻辑（用于 SummaryAgent）
+- 升级 `html2text` 适配 `from_read` 返回 `Result` 的 API 变更
+- 升级 `ra2a` 从 0.9 到 0.10 以匹配 `rucora-a2a`
 
 ### 文档新增
 - `docs/deep_research_v2_plan.md`: Deep Research 0.2 实施计划

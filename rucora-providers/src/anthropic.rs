@@ -181,8 +181,7 @@ impl AnthropicProvider {
                         .as_ref()
                         .and_then(|v| v.get("output"))
                         .and_then(|v| v.as_str())
-                        .map(String::from)
-                        .unwrap_or_else(|| m.content.clone());
+                        .map_or_else(|| m.content.clone(), String::from);
                     json!({
                         "role": "user",
                         "content": [{
@@ -609,7 +608,7 @@ impl LlmProvider for AnthropicProvider {
                             .get("delta")
                             .and_then(|d| d.get("stop_reason"))
                             .and_then(|v| v.as_str())
-                            .map(|s| parse_finish_reason(s));
+                            .map(parse_finish_reason);
                         yield ChatStreamChunk {
                             delta: None,
                             tool_calls: vec![],

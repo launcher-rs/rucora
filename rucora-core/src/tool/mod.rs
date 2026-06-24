@@ -40,7 +40,7 @@
 //!
 //! ## ToolRegistry trait
 //!
-//! [`ToolRegistry`] trait 是工具注册表的接口，用于管理和调用多个工具：
+//! [`crate::tool::ToolRegistry`] trait 是工具注册表的接口，用于管理和调用多个工具：
 //!
 //! ```rust,ignore
 //! use rucora_core::tool::{Tool, ToolRegistry, ToolCategory};
@@ -65,14 +65,14 @@
 //!
 //! 工具分类枚举，用于对工具进行分类管理：
 //!
-//! - [`ToolCategory::Basic`]: 基础工具（测试、调试等）
-//! - [`ToolCategory::File`]: 文件操作（读取、写入、编辑）
-//! - [`ToolCategory::Network`]: 网络请求（HTTP、网页获取）
-//! - [`ToolCategory::System`]: 系统命令（shell、Git）
-//! - [`ToolCategory::Browser`]: 浏览器操作
-//! - [`ToolCategory::Memory`]: 记忆存储
-//! - [`ToolCategory::External`]: 外部服务
-//! - [`ToolCategory::Custom`]: 自定义分类
+//! - `ToolCategory::Basic`：基础工具（测试、调试等）
+//! - `ToolCategory::File`：文件操作（读取、写入、编辑）
+//! - `ToolCategory::Network`：网络请求（HTTP、网页获取）
+//! - `ToolCategory::System`：系统命令（shell、Git）
+//! - `ToolCategory::Browser`：浏览器操作
+//! - `ToolCategory::Memory`：记忆存储
+//! - `ToolCategory::External`：外部服务
+//! - `ToolCategory::Custom`：自定义分类
 //!
 //! ## ToolDefinition
 //!

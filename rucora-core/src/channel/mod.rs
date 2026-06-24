@@ -14,7 +14,7 @@
 //!
 //! ## ChannelEvent
 //!
-//! [`types::ChannelEvent`] 是统一的事件类型，支持：
+//! [`crate::channel::types::ChannelEvent`] 是统一的事件类型，支持：
 //!
 //! - `Message`: 对话消息事件
 //! - `TokenDelta`: Token 流式输出事件
@@ -28,7 +28,7 @@
 //!
 //! ## ChannelObserver trait
 //!
-//! [`ChannelObserver`] trait 用于观测渠道中的事件：
+//! [`crate::channel::ChannelObserver`] trait 用于观测渠道中的事件：
 //!
 //! ```rust
 //! use rucora_core::channel::{ChannelObserver, ChannelEvent};
@@ -44,7 +44,7 @@
 //!
 //! ## Channel trait
 //!
-//! [`Channel`] trait 定义了事件发送和订阅的接口（可选实现）。
+//! [`crate::channel::Channel`] trait 定义了事件发送和订阅的接口（可选实现）。
 //!
 //! # 事件流转
 //!
@@ -257,25 +257,6 @@ pub struct NoopChannelObserver;
 impl ChannelObserver for NoopChannelObserver {
     fn on_event(&self, _event: ChannelEvent) {}
 }
-
-// 为了向后兼容，将 RuntimeObserver 作为 ChannelObserver 的别名
-// 注意：这是一个类型别名，实际使用时应该使用 dyn ChannelObserver
-//
-// # 迁移指南 (0.1 → 0.2)
-//
-// - 将 `RuntimeObserver` trait 替换为 `ChannelObserver` trait
-// - 将 `NoopRuntimeObserver` 替换为 `NoopChannelObserver`
-// - 将 `RuntimeEvent` 替换为 `ChannelEvent`
-// - `on_event` 方法签名保持不变
-#[deprecated(since = "0.2.0", note = "使用 ChannelObserver 代替")]
-pub trait RuntimeObserver: ChannelObserver {}
-
-// 为所有实现 ChannelObserver 的类型自动实现 RuntimeObserver
-#[allow(deprecated)]
-impl<T: ChannelObserver> RuntimeObserver for T {}
-
-#[deprecated(since = "0.2.0", note = "使用 NoopChannelObserver 代替")]
-pub type NoopRuntimeObserver = NoopChannelObserver;
 
 /// 重新导出 channel 相关 trait，方便 `rucora_core::channel::*` 使用
 pub use r#trait::*;

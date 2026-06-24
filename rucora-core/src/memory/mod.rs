@@ -13,7 +13,7 @@
 //!
 //! ## Memory trait
 //!
-//! [`Memory`] trait 定义了记忆存储和检索的接口：
+//! [`crate::memory::Memory`] trait 定义了记忆存储和检索的接口：
 //!
 //! ```rust,no_run
 //! use rucora_core::memory::{Memory, MemoryItem, MemoryQuery};

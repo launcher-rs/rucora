@@ -182,7 +182,7 @@
 //!
 //! ## 性能优化
 //!
-//! - 使用 [`CachedEmbeddingProvider`] 减少重复嵌入
+//! - 使用 `CachedEmbeddingProvider` 减少重复嵌入
 //! - 批量嵌入（`embed_batch`）优于单次嵌入
 //! - 定期清理向量存储（`clear`）
 

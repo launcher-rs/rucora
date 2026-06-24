@@ -26,6 +26,5 @@ serde_json = "1"
 tracing = "0.1"
 thiserror = "2"
 
-# ?? workspace ??? lint ??
 [lints]
 workspace = true

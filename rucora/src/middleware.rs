@@ -380,7 +380,7 @@ pub struct RateLimitMiddleware {
     max_requests: usize,
     /// 时间窗口（秒）
     window_secs: u64,
-    /// 请求时间戳记录（使用 Arc<Mutex> 实现线程安全共享）
+    /// 请求时间戳记录（使用 `Arc<Mutex>` 实现线程安全共享）
     request_timestamps: Arc<std::sync::Mutex<Vec<std::time::Instant>>>,
 }
 

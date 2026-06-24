@@ -39,6 +39,6 @@ thiserror = "2"
 url = "2"
 backon = "1.5"
 
-# ?? workspace ??? lint ??
+
 [lints]
 workspace = true

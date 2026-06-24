@@ -56,6 +56,7 @@ thiserror = "2"
 anyhow = "1"
 schemars = "1.2"
 regex = "1"
+text-splitter = "0.32"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt","rt-multi-thread"] }
@@ -163,6 +164,11 @@ path = "examples/19_code_assistant.rs"
 [[example]]
 name = "21_unified_conversation"
 path = "examples/21_unified_conversation.rs"
+
+# Agent 类型（22-23）
+[[example]]
+name = "22_summary_agent"
+path = "examples/22_summary_agent.rs"
 
 # Hermes Agent 特性（24）
 [[example]]

@@ -20,8 +20,8 @@
 //!
 //! 支持多种 MCP 传输方式：
 //!
-//! - [`StdioTransport`][]: 标准输入输出（用于本地进程）
-//! - [`StreamableHttpTransport`][]: HTTP 流式传输
+//! - `StdioTransport`：标准输入输出（用于本地进程）
+//! - `StreamableHttpClientTransport`: HTTP 流式传输
 //!
 //! ## 协议层（Protocol）
 //!
@@ -33,14 +33,14 @@
 //!
 //! ## 工具适配（Tool Adapter）
 //!
-//! [`McpToolAdapter`] 将远程 MCP 工具包装为 [`rucora_core::tool::Tool`]：
+//! [`crate::tool::McpTool`] 将远程 MCP 工具包装为 [`rucora_core::tool::Tool`]：
 //!
 //! ```rust
-//! use rucora::mcp::McpToolAdapter;
+//! use rucora::mcp::McpTool;
 //! use rucora_core::tool::{Tool, ToolContext};
 //!
 //! // MCP 工具可以直接作为 rucora 的 Tool 使用
-//! let adapter: McpToolAdapter = ...;
+//! let adapter: McpTool = ...;
 //! let result = adapter.call(input).await?;
 //! ```
 //!
@@ -92,7 +92,7 @@
 //! ## 将 MCP 工具转换为 rucora Tool
 //!
 //! ```rust,no_run
-//! use rucora::mcp::{McpClient, McpToolAdapter, StdioTransport};
+//! use rucora::mcp::{McpClient, McpTool, StdioTransport};
 //! use rucora_core::tool::{Tool, ToolContext};
 //! use std::sync::Arc;
 //!
@@ -105,7 +105,7 @@
 //! let mcp_tool = tools.into_iter().next().unwrap();
 //!
 //! // 创建适配器
-//! let adapter = McpToolAdapter::new(client.clone(), mcp_tool);
+//! let adapter = McpTool::new(client.clone(), mcp_tool);
 //!
 //! // 现在可以作为 rucora Tool 使用
 //! let result = adapter.call(serde_json::json!({})).await?;

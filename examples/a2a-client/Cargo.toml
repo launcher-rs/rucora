@@ -6,7 +6,7 @@ description = "rucora A2A 客户端示例 - 使用 rucora 调用 A2A server"
 publish = false
 
 [dependencies]
-ra2a = { version = "0.9", default-features = false, features = ["client"] }
+ra2a = { version = "0.10", default-features = false, features = ["client"] }
 rucora = { workspace = true, features = ["full"] }
 rucora-core.workspace = true
 rucora-providers.workspace = true

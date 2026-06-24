@@ -260,7 +260,7 @@ impl ToolWrapper {
         }
     }
 
-    /// 从 Arc<dyn Tool> 创建包装
+    /// 从 `Arc<dyn Tool>` 创建包装
     ///
     /// # 示例
     ///
@@ -518,7 +518,7 @@ impl ToolRegistry {
         self
     }
 
-    /// 注册一个 Arc<dyn Tool>
+    /// 注册一个 `Arc<dyn Tool>`
     ///
     /// 用于注册已经包装为 trait 对象的工具。
     ///

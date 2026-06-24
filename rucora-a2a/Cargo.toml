@@ -13,7 +13,7 @@ categories.workspace = true
 
 [dependencies]
 rucora-core.workspace = true
-ra2a = { version = "0.9", default-features = false, features = ["client", "server"] }
+ra2a = { version = "0.10", default-features = false, features = ["client", "server"] }
 async-trait = "0.1"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
@@ -21,6 +21,5 @@ tracing = "0.1"
 thiserror = "2"
 tokio = { version = "1", features = ["sync"] }
 
-# ?? workspace ??? lint ??
 [lints]
 workspace = true

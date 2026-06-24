@@ -27,14 +27,14 @@
 //!
 //! ```rust,no_run
 //! use rucora::provider::OpenAiProvider;
-//! use rucora::agent::DefaultAgent;
+//! use rucora::agent::ToolAgent;
 //! use rucora::prelude::Agent;
 //!
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     let provider = OpenAiProvider::new("https://api.openai.com/v1","sk-*******************");
 //!     
-//!     let agent = DefaultAgent::builder()
+//!     let agent = ToolAgent::builder()
 //!         .provider(provider)
 //!         .model("gpt-4o-mini")
 //!         .system_prompt("你是有用的助手")
@@ -60,9 +60,9 @@
 //! Agent 负责思考和决策。它接收用户输入，分析需求，决定是否需要调用工具。
 //!
 //! ```rust,ignore
-//! use rucora::agent::DefaultAgent;
+//! use rucora::agent::ToolAgent;
 //!
-//! let agent = DefaultAgent::builder()
+//! let agent = ToolAgent::builder()
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
@@ -77,9 +77,9 @@
 //!
 //! ```rust,ignore
 //! use rucora::tools::{ShellTool, FileReadTool};
-//! use rucora::agent::DefaultAgent;
+//! use rucora::agent::ToolAgent;
 //!
-//! let agent = DefaultAgent::builder()
+//! let agent = ToolAgent::builder()
 //!     .provider(provider)
 //!     .model("gpt-4o-mini")
 //!      .tool(ShellTool::new())
@@ -161,7 +161,7 @@ pub use rucora_a2a as a2a;
 ///
 /// 使用 `use rucora::prelude::*;` 可以快速导入常用类型。
 pub mod prelude {
-    pub use crate::agent::DefaultAgent;
+    pub use crate::agent::ToolAgent;
     pub use crate::agent::{AgentStream, StreamExt};
     #[cfg(feature = "providers")]
     pub use crate::provider::OpenAiProvider;

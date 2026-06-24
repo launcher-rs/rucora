@@ -59,8 +59,9 @@ impl BrowseTool {
         // 对"列表页/聚合页"，text_content 可能非常短；此时把 content(HTML片段) 转成纯文本作为兜底。
         if text.chars().count() < 500 {
             let html_fragment = article.content.to_string();
-            let plain = from_read(html_fragment.as_bytes(), 120);
-            if plain.chars().count() > text.chars().count() {
+            if let Ok(plain) = from_read(html_fragment.as_bytes(), 120)
+                && plain.chars().count() > text.chars().count()
+            {
                 text = plain;
             }
         }
@@ -225,7 +226,10 @@ async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, Tool
                     raw_html
                 };
 
-                let raw_text = from_read(out_raw_html.as_bytes(), 120);
+                let raw_text: Value = match from_read(out_raw_html.as_bytes(), 120) {
+                    Ok(t) => Value::String(t),
+                    Err(e) => json!({"error": e.to_string()}),
+                };
 
                 Ok(json!({
                     "success": true,

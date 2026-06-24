@@ -84,7 +84,7 @@ async fn main() -> anyhow::Result<()> {
                 }
                 Err(e) => {
                     warn!("保存报告失败：{}，直接打印到标准输出", e);
-                    println!("\n{}", report);
+                    println!("\n{report}");
                 }
             }
         }

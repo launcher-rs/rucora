@@ -18,6 +18,7 @@
 //! |------------|------|----------|
 //! | [`ReActAgent`] | 推理 + 行动 | 多步推理任务 |
 //! | [`ReflectAgent`] | 反思迭代 | 代码生成、写作 |
+//! | [`SummaryAgent`] | 文本摘要 | 长文档总结、要点提取 |
 //!
 //! # 快速开始
 //!
@@ -188,17 +189,7 @@
 //! - 策略检查
 //! - 观测器协议
 //!
-//! # 向后兼容
-//!
-//! `DefaultAgent` 作为 [`ToolAgent`] 的别名保留，但已标记为 deprecated：
-//!
-//! ```rust
-//! // 旧代码（仍然可用）
-//! use rucora::agent::DefaultAgent;
-//!
-//! // 新代码（推荐）
-//! use rucora::agent::ToolAgent;
-//! ```
+
 
 // 执行能力模块
 pub mod execution;
@@ -225,6 +216,9 @@ pub mod tool;
 pub mod react;
 pub mod reflect;
 
+// 摘要 Agent
+pub mod summary;
+
 // 重新导出主要类型
 pub use loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 pub use policy::{DefaultToolPolicy, ToolPolicy};
@@ -243,15 +237,11 @@ pub use tool::{ToolAgent, ToolAgentBuilder};
 pub use react::{ReActAgent, ReActAgentBuilder};
 pub use reflect::{ReflectAgent, ReflectAgentBuilder};
 
+// 摘要 Agent
+pub use summary::{SummaryAgent, SummaryAgentBuilder, SummaryMode};
+
 // Extractor
 pub use extractor::{ExtractionError, ExtractionResponse, Extractor, ExtractorBuilder, TokenUsage};
-
-// 向后兼容
-#[deprecated(
-    since = "0.2.0",
-    note = "DefaultAgent 已重命名为 ToolAgent，请使用 ToolAgent"
-)]
-pub use tool::ToolAgent as DefaultAgent;
 
 // ========== 流式输出便捷类型 ==========
 

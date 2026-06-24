@@ -55,6 +55,7 @@ use crate::middleware::MiddlewareChain;
 /// 使用两遍算法：
 /// 1. 第一遍：标记需要删除的索引（O(n)）
 /// 2. 第二遍：使用 retain 风格删除（O(n)）
+///
 /// 总体时间复杂度 O(n)，优于原来的 O(n²)。
 pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> usize {
     if messages.is_empty() {

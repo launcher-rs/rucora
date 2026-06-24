@@ -36,11 +36,12 @@ impl Reporter {
         // 生成文件名（主题 + 时间戳）
         let safe_topic = sanitize_filename(topic);
         let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("research_{}_{}.md", safe_topic, timestamp);
+        let filename = format!("research_{safe_topic}_{timestamp}.md");
         let path = self.output_dir.join(&filename);
 
         std::fs::write(&path, report_content)?;
         info!("💾 报告已保存: {}", path.display());
+
 
         Ok(path)
     }
@@ -55,7 +56,7 @@ impl Reporter {
 
         let safe_topic = sanitize_filename(topic);
         let timestamp = Local::now().format("%Y%m%d_%H%M%S");
-        let filename = format!("research_phases_{}_{}.md", safe_topic, timestamp);
+        let filename = format!("research_phases_{safe_topic}_{timestamp}.md");
         let path = self.output_dir.join(&filename);
 
         let mut content = format!("# 研究阶段记录：{topic}\n\n生成时间：{}\n\n", Local::now());
@@ -67,17 +68,16 @@ impl Reporter {
                 crate::research_agent::ResearchPhase::Synthesize => "阶段 3：综合报告",
             };
 
+            let i_plus_1 = i + 1;
             content.push_str(&format!(
-                "---\n\n## {} (第 {} 阶段)\n\n**Token 消耗**: {}\n\n{}\n\n",
-                phase_name,
-                i + 1,
-                phase.tokens,
-                phase.content
+                "---\n\n## {phase_name} (第 {i_plus_1} 阶段)\n\n**Token 消耗**: {}\n\n{}\n\n",
+                phase.tokens, phase.content
             ));
         }
 
         std::fs::write(&path, &content)?;
         info!("💾 阶段记录已保存: {}", path.display());
+
 
         Ok(path)
     }
@@ -88,18 +88,18 @@ impl Reporter {
         let total_chars: usize = phases.iter().map(|p| p.content.len()).sum();
 
         println!("\n{}", "═".repeat(60));
-        println!("  研究完成：{}", topic);
+        println!("  研究完成：{topic}");
         println!("{}", "═".repeat(60));
         println!("  阶段数量：{}", phases.len());
-        println!("  总 Token：{}", total_tokens);
-        println!("  总字符数：{}", total_chars);
+        println!("  总 Token：{total_tokens}");
+        println!("  总字符数：{total_chars}");
         println!("  报告路径：{}", report_path.display());
         println!("{}", "═".repeat(60));
 
         // 打印报告前 800 字作为预览
         if let Some(last_phase) = phases.last() {
             let preview: String = last_phase.content.chars().take(800).collect();
-            println!("\n报告预览：\n\n{}", preview);
+            println!("\n报告预览：\n\n{preview}");
             if last_phase.content.len() > 800 {
                 println!("\n... [报告较长，请查看完整文件] ...\n");
             }

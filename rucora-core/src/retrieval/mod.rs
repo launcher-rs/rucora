@@ -16,7 +16,7 @@
 //!
 //! ## VectorStore trait
 //!
-//! [`VectorStore`] trait 定义了向量存储的接口：
+//! [`crate::retrieval::VectorStore`] trait 定义了向量存储的接口：
 //!
 //! ```rust,no_run
 //! use rucora_core::retrieval::{VectorStore, VectorRecord, VectorQuery, SearchResult};
