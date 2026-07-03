@@ -60,7 +60,6 @@ impl LlmProvider for FlakyProvider {
         }
         Ok(ChatResponse {
             message: ChatMessage::assistant("ok"),
-            tool_calls: vec![],
             usage: None,
             finish_reason: None,
         })
@@ -138,7 +137,7 @@ async fn resilient_provider_should_retry_chat() {
         .chat(make_request("hi"))
         .await
         .expect("chat should succeed after retries");
-    assert_eq!(resp.message.content, "ok");
+    assert_eq!(resp.message.content_text(), "ok");
     // 验证确实进行了重试（失败 2 次 + 第 3 次成功 = 共 3 次调用）
     let attempts = inner.attempts.lock().unwrap();
     assert_eq!(*attempts, 3);
@@ -344,7 +343,7 @@ async fn resilient_provider_with_timeout_config() {
         .chat(make_request("hi"))
         .await
         .expect("chat should succeed");
-    assert_eq!(resp.message.content, "ok");
+    assert_eq!(resp.message.content_text(), "ok");
 }
 
 // ====== 指数退避测试 ======

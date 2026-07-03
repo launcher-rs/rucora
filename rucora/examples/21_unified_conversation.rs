@@ -105,7 +105,7 @@ async fn main() -> anyhow::Result<()> {
             rucora_core::provider::types::Role::System => "系统",
             rucora_core::provider::types::Role::Tool => "工具",
         };
-        let preview = msg.content.chars().take(30).collect::<String>();
+        let preview = msg.content_text().chars().take(30).collect::<String>();
         info!("   {}. [{}] {}", i + 1, role, preview);
     }
     info!("");

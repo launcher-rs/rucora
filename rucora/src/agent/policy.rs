@@ -6,14 +6,16 @@ use async_trait::async_trait;
 use serde_json::Value;
 
 use rucora_core::error::ToolError;
-use rucora_core::tool::types::ToolCall;
+use rucora_core::tool::types::{ToolCall, ToolIdentity, ToolRiskLevel};
 
 #[derive(Debug, Clone)]
 /// 单次工具调用的上下文信息。
 ///
-/// 主要用于把 `ToolCall` 传递给策略（policy）做安全检查。
+/// 用于把 `ToolCall` 和工具身份信息传递给策略做安全检查。
 pub struct ToolCallContext {
     pub tool_call: ToolCall,
+    /// 工具身份信息，用于基于身份的策略匹配
+    pub identity: Option<ToolIdentity>,
 }
 
 #[async_trait]
@@ -259,6 +261,14 @@ impl ToolPolicy for DefaultToolPolicy {
     async fn check(&self, ctx: &ToolCallContext) -> Result<(), ToolError> {
         let name = ctx.tool_call.name.as_str();
         let input = &ctx.tool_call.input;
+
+        // 基于风险等级的最外层过滤
+        if let Some(identity) = &ctx.identity {
+            if identity.risk_level == ToolRiskLevel::Safe {
+                return Ok(());
+            }
+        }
+
         let Some(command_line) = Self::extract_command_line(name, input) else {
             return Ok(());
         };

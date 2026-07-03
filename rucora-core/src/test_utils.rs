@@ -14,7 +14,6 @@ impl LlmProvider for MockProvider {
     async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
         Ok(ChatResponse {
             message: ChatMessage::assistant("Mock response"),
-            tool_calls: vec![],
             usage: None,
             finish_reason: None,
         })

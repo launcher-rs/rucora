@@ -160,35 +160,35 @@ impl AnthropicProvider {
         messages
             .iter()
             .find(|m| m.role == Role::System)
-            .map(|m| m.content.clone())
+            .map(|m| m.content_text().to_string())
     }
 
     fn build_messages(messages: &[ChatMessage]) -> Vec<Value> {
         messages
             .iter()
-            .filter(|m| m.role != Role::System) // System prompt 单独处理
+            .filter(|m| m.role != Role::System)
             .map(|m| match m.role {
                 Role::Tool => {
-                    // Anthropic 要求工具结果使用 tool_result content block 格式
-                    let tool_call_id = m.tool_call_id.clone().unwrap_or_default();
+                    let tool_call_id = m.tool_call_id().unwrap_or_default();
                     json!({
                         "role": "user",
                         "content": [{
                             "type": "tool_result",
                             "tool_use_id": tool_call_id,
-                            "content": m.content
+                            "content": m.content_text()
                         }]
                     })
                 }
-                Role::Assistant if !m.tool_calls.is_empty() => {
+                Role::Assistant if !m.tool_calls().is_empty() => {
                     let mut content = Vec::new();
-                    if !m.content.trim().is_empty() {
+                    let text = m.content_text();
+                    if !text.trim().is_empty() {
                         content.push(json!({
                             "type": "text",
-                            "text": m.content,
+                            "text": text,
                         }));
                     }
-                    for call in &m.tool_calls {
+                    for call in m.tool_calls() {
                         content.push(json!({
                             "type": "tool_use",
                             "id": call.id,
@@ -209,7 +209,7 @@ impl AnthropicProvider {
                     };
                     json!({
                         "role": role,
-                        "content": m.content,
+                        "content": m.content_text(),
                     })
                 }
             })
@@ -304,7 +304,7 @@ impl LlmProvider for AnthropicProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| preview(&m.content, 600));
+            .map(|m| preview(m.content_text(), 600));
 
         debug!(
             provider = "anthropic",
@@ -430,8 +430,7 @@ impl LlmProvider for AnthropicProvider {
             .to_string();
 
         Ok(ChatResponse {
-            message: ChatMessage::assistant_with_tool_calls(text_content, tool_calls.clone()),
-            tool_calls,
+            message: ChatMessage::assistant_with_tool_calls(text_content, tool_calls),
             usage,
             finish_reason: Some(parse_finish_reason(&finish_reason)),
         })

@@ -27,7 +27,6 @@ impl LlmProvider for TestProvider {
     ) -> Result<rucora_core::provider::types::ChatResponse, rucora_core::error::ProviderError> {
         Ok(rucora_core::provider::types::ChatResponse {
             message: rucora_core::provider::types::ChatMessage::assistant("test response"),
-            tool_calls: vec![],
             usage: None,
             finish_reason: None,
         })

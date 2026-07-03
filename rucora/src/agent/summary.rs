@@ -458,7 +458,7 @@ impl<P> SummaryAgent<P> {
                 .iter()
                 .rev()
                 .find(|m| m.role == Role::User)
-                .map_or(0, |m| m.content.len()),
+                .map_or(0, |m| m.content_text().len()),
             "构建多块请求"
         );
 
@@ -478,7 +478,7 @@ impl<P> SummaryAgent<P> {
             .iter()
             .rev()
             .find(|m| m.role == Role::Assistant)
-            .map(|m| m.content.clone())
+            .map(|m| m.content_text().to_string())
             .unwrap_or_default();
         AgentDecision::Return(json!({"content": content}))
     }
@@ -492,8 +492,8 @@ impl<P> SummaryAgent<P> {
         let mut chunk_index = 1;
 
         for msg in &context.messages {
-            if msg.role == Role::Assistant && !msg.content.trim().is_empty() {
-                summaries.push(format!("【部分 {}】\n{}", chunk_index, msg.content));
+            if msg.role == Role::Assistant && !msg.content_text().trim().is_empty() {
+                summaries.push(format!("【部分 {}】\n{}", chunk_index, msg.content_text()));
                 chunk_index += 1;
             }
         }

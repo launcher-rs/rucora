@@ -388,7 +388,7 @@ where
 
         // 解析工具调用
         let submit_call = response
-            .tool_calls
+            .tool_calls()
             .iter()
             .find(|call| call.name == SUBMIT_TOOL_NAME);
 

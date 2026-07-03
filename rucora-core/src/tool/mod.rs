@@ -159,6 +159,9 @@ pub use types::*;
 /// 重新导出工具风险等级
 pub use types::ToolRiskLevel;
 
+/// 重新导出工具来源和身份信息
+pub use types::{ToolIdentity, ToolSource};
+
 /// 重新导出工具过滤相关类型
 pub use filter::{
     ToolFilter, ToolFilterConfig, ToolFilterStats, ToolGroup, ToolGroupManager, ToolVisibility,

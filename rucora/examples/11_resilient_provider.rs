@@ -102,7 +102,7 @@ async fn main() -> anyhow::Result<()> {
                     "  响应：{}",
                     response
                         .message
-                        .content
+                        .content_text()
                         .chars()
                         .take(50)
                         .collect::<String>()

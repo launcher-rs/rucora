@@ -79,7 +79,6 @@ impl LlmProvider for MockProvider {
         // 模拟 LLM 响应
         Ok(ChatResponse {
             message: ChatMessage::assistant("你好！我是 Mock Provider，这是我的模拟响应。"),
-            tool_calls: vec![],
             usage: Some(Usage {
                 prompt_tokens: 10,
                 completion_tokens: 20,
@@ -144,18 +143,17 @@ struct EchoProvider;
 impl LlmProvider for EchoProvider {
     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
         // 获取最后一条用户消息
-        let user_message = request
+        let user_message: String = request
             .messages
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| m.content.clone())
+            .map(|m| m.content_text().to_string())
             .unwrap_or_default();
 
         // 回显用户输入
         Ok(ChatResponse {
             message: ChatMessage::assistant(format!("Echo: {user_message}")),
-            tool_calls: vec![],
             usage: Some(Usage {
                 prompt_tokens: user_message.len() as u32 / 4,
                 completion_tokens: user_message.len() as u32 / 4,
@@ -169,12 +167,12 @@ impl LlmProvider for EchoProvider {
         &self,
         request: ChatRequest,
     ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
-        let user_message = request
+        let user_message: String = request
             .messages
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| m.content.clone())
+            .map(|m| m.content_text().to_string())
             .unwrap_or_default();
 
         // 逐字返回

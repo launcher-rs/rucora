@@ -136,15 +136,15 @@ impl OllamaProvider {
             .map(|m| {
                 let mut obj = json!({
                     "role": Self::map_role(&m.role),
-                    "content": m.content,
+                    "content": m.content_text(),
                 });
                 if let Some(map) = obj.as_object_mut() {
                     if let Some(name) = &m.name {
                         map.insert("name".to_string(), Value::String(name.clone()));
                     }
-                    if m.role == Role::Assistant && !m.tool_calls.is_empty() {
-                        let calls = m
-                            .tool_calls
+                    let tool_calls = m.tool_calls();
+                    if m.role == Role::Assistant && !tool_calls.is_empty() {
+                        let calls = tool_calls
                             .iter()
                             .map(|call| {
                                 json!({
@@ -160,9 +160,9 @@ impl OllamaProvider {
                         map.insert("tool_calls".to_string(), Value::Array(calls));
                     }
                     if m.role == Role::Tool
-                        && let Some(id) = &m.tool_call_id
+                        && let Some(id) = m.tool_call_id()
                     {
-                        map.insert("tool_call_id".to_string(), Value::String(id.clone()));
+                        map.insert("tool_call_id".to_string(), Value::String(id.to_string()));
                     }
                 }
                 obj
@@ -263,7 +263,7 @@ impl LlmProvider for OllamaProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| preview(&m.content, 600));
+            .map(|m| preview(m.content_text(), 600));
 
         debug!(
             provider = "ollama",
@@ -376,8 +376,7 @@ impl LlmProvider for OllamaProvider {
             });
 
         Ok(ChatResponse {
-            message: ChatMessage::assistant_with_tool_calls(content, tool_calls.clone()),
-            tool_calls,
+            message: ChatMessage::assistant_with_tool_calls(content, tool_calls),
             usage,
             finish_reason,
         })

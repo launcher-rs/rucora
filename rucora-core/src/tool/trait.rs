@@ -415,4 +415,16 @@ pub trait Tool: Send + Sync {
     fn risk_level(&self) -> ToolRiskLevel {
         ToolRiskLevel::default()
     }
+
+    /// 获取工具身份信息。
+    ///
+    /// 聚合工具的名称、来源、分类和风险等级为统一的身份标识。
+    fn identity(&self) -> crate::tool::types::ToolIdentity {
+        crate::tool::types::ToolIdentity::new(
+            self.name(),
+            crate::tool::types::ToolSource::Custom,
+            self.categories().to_vec(),
+            self.risk_level(),
+        )
+    }
 }

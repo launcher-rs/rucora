@@ -330,7 +330,7 @@ impl LayeredCompressor {
                 Role::System => "system",
                 Role::Tool => "tool",
             };
-            let tokens = token_counter.estimate_message(&msg.content, role_str);
+            let tokens = token_counter.estimate_message(msg.content_text(), role_str);
             if tail_tokens + tokens > self.config.protect_tail_tokens {
                 break;
             }
@@ -374,7 +374,7 @@ impl LayeredCompressor {
         let request = rucora_core::provider::types::ChatRequest::from_user_text(prompt);
 
         let response = provider.chat(request).await?;
-        Ok(response.message.content)
+        Ok(response.message.content_text().to_string())
     }
 
     /// 获取角色名称
@@ -434,13 +434,13 @@ mod tests {
         let messages = vec![
             ChatMessage::user("Hello"),
             ChatMessage::assistant("Hi"),
-            ChatMessage::tool("tool1", "call1", "result1"),
+            ChatMessage::tool_result("tool1", "call1", "result1"),
             ChatMessage::assistant("Done"),
-            ChatMessage::tool("tool2", "call2", "result2"),
+            ChatMessage::tool_result("tool2", "call2", "result2"),
             ChatMessage::assistant("Done2"),
-            ChatMessage::tool("tool3", "call3", "result3"),
-            ChatMessage::tool("tool4", "call4", "result4"),
-            ChatMessage::tool("tool5", "call5", "result5"),
+            ChatMessage::tool_result("tool3", "call3", "result3"),
+            ChatMessage::tool_result("tool4", "call4", "result4"),
+            ChatMessage::tool_result("tool5", "call5", "result5"),
         ];
 
         let trimmed = engine.trim_old_tool_results(messages);

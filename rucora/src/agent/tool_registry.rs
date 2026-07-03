@@ -95,69 +95,12 @@ use std::sync::{Arc, Mutex};
 
 use rucora_core::tool::Tool;
 use rucora_core::tool::ToolCategory;
-use rucora_core::tool::types::{ToolContext, ToolDefinition};
+use rucora_core::tool::types::{ToolContext, ToolDefinition, ToolIdentity};
 
 /// 工具来源类型枚举
 ///
 /// 用于标识工具的来源，便于管理和过滤。
-///
-/// # 变体说明
-///
-/// - `BuiltIn`: 内置工具，如 shell、file、http 等基础工具
-/// - `Skill`: 从 Skills 目录加载的技能转换的工具
-/// - `Mcp`: 从 MCP（Model Context Protocol）服务器加载的工具
-/// - `A2A`: 从 A2A（Agent-to-Agent）协议加载的工具
-/// - `Custom`: 用户自定义工具
-///
-/// # 示例
-///
-/// ```rust
-/// use rucora::agent::ToolSource;
-///
-/// let source = ToolSource::BuiltIn;
-/// assert_eq!(source.as_str(), "builtin");
-///
-/// let skill_source = ToolSource::Skill;
-/// assert_eq!(skill_source.as_str(), "skill");
-/// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum ToolSource {
-    /// 内置工具（如 shell、file、http 等）
-    BuiltIn,
-    /// 从 Skill 转换的工具
-    Skill,
-    /// 从 MCP 服务器加载的工具
-    Mcp,
-    /// 从 A2A 协议加载的工具
-    A2A,
-    /// 用户自定义工具
-    Custom,
-}
-
-impl ToolSource {
-    /// 获取来源的字符串表示
-    ///
-    /// # 示例
-    ///
-    /// ```rust
-    /// use rucora::agent::ToolSource;
-    ///
-    /// assert_eq!(ToolSource::BuiltIn.as_str(), "builtin");
-    /// assert_eq!(ToolSource::Skill.as_str(), "skill");
-    /// assert_eq!(ToolSource::Mcp.as_str(), "mcp");
-    /// assert_eq!(ToolSource::A2A.as_str(), "a2a");
-    /// assert_eq!(ToolSource::Custom.as_str(), "custom");
-    /// ```
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            ToolSource::BuiltIn => "builtin",
-            ToolSource::Skill => "skill",
-            ToolSource::Mcp => "mcp",
-            ToolSource::A2A => "a2a",
-            ToolSource::Custom => "custom",
-        }
-    }
-}
+pub use rucora_core::tool::types::ToolSource;
 
 /// 工具元数据
 ///
@@ -337,6 +280,16 @@ impl ToolWrapper {
     pub fn with_enabled(mut self, enabled: bool) -> Self {
         self.metadata.enabled = enabled;
         self
+    }
+
+    /// 获取工具身份信息
+    ///
+    /// 将工具实例与元数据聚合为统一的身份标识。
+    pub fn identity(&self) -> ToolIdentity {
+        let source = self.metadata.source;
+        let categories = self.metadata.categories.clone();
+        let risk_level = self.tool.risk_level();
+        ToolIdentity::new(self.tool.name(), source, categories, risk_level)
     }
 }
 
@@ -801,6 +754,46 @@ impl ToolRegistry {
                 && wrapper.metadata.enabled
             {
                 return Some(wrapper.tool.clone());
+            }
+        }
+
+        None
+    }
+
+    /// 获取工具包装（包含元数据）
+    ///
+    /// 与 `get()` 不同，此方法返回完整的 `ToolWrapper` 引用，
+    /// 包含来源、分类等元数据信息。
+    ///
+    /// # 示例
+    ///
+    /// ```rust
+    /// use rucora::agent::ToolRegistry;
+    /// use rucora::tools::ShellTool;
+    ///
+    /// let registry = ToolRegistry::new()
+    ///     .register(ShellTool::new());
+    ///
+    /// let wrapper = registry.get_wrapper("shell");
+    /// assert!(wrapper.is_some());
+    /// assert_eq!(wrapper.unwrap().tool.name(), "shell");
+    /// ```
+    pub fn get_wrapper(&self, name: &str) -> Option<&ToolWrapper> {
+        // 先尝试直接查找
+        if let Some(wrapper) = self.tools.get(name) {
+            if wrapper.metadata.enabled {
+                return Some(wrapper);
+            }
+            return None;
+        }
+
+        // 尝试带命名空间查找
+        if let Some(prefix) = &self.namespace_prefix {
+            let namespaced = format!("{prefix}__{name}");
+            if let Some(wrapper) = self.tools.get(&namespaced)
+                && wrapper.metadata.enabled
+            {
+                return Some(wrapper);
             }
         }
 

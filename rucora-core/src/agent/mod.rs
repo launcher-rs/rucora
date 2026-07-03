@@ -20,6 +20,7 @@ pub mod runtime_adapter;
 
 use async_trait::async_trait;
 use futures_util::stream::BoxStream;
+use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
 use crate::channel::types::ChannelEvent;
@@ -417,10 +418,12 @@ impl std::fmt::Display for AgentOutput {
 }
 
 /// 工具调用记录。
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ToolCallRecord {
     /// 工具名称。
     pub name: String,
+    /// 工具调用 ID，用于关联调用与结果。
+    pub tool_call_id: String,
     /// 输入参数。
     pub input: Value,
     /// 返回结果。

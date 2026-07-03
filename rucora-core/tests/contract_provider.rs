@@ -18,7 +18,6 @@ impl LlmProvider for MockProvider {
 
         Ok(ChatResponse {
             message: ChatMessage::assistant(format!("echo: {last_user}")),
-            tool_calls: vec![],
             usage: None,
             finish_reason: None,
         })
@@ -47,7 +46,7 @@ async fn provider_contract_chat_should_return_assistant_message() {
 
     let resp = p.chat(req).await.unwrap();
     assert_eq!(resp.message.role, Role::Assistant);
-    assert!(resp.message.content.contains("hi"));
+    assert!(resp.message.content_text().contains("hi"));
 }
 
 #[tokio::test]

@@ -1,6 +1,6 @@
 //! Provider 辅助函数模块
 
-use rucora_core::provider::types::FinishReason;
+use rucora_core::provider::types::{ChatMessage, FinishReason, Role};
 use serde_json::{Map, Value, json};
 
 /// 将 provider 特定的 finish_reason 字符串转换为 FinishReason 枚举。
@@ -11,6 +11,68 @@ pub fn parse_finish_reason(reason: &str) -> FinishReason {
         "tool_calls" | "function_call" | "tool_use" => FinishReason::ToolCall,
         _ => FinishReason::Other,
     }
+}
+
+/// 将 `Role` 映射为 OpenAI 兼容的 role 字符串。
+pub fn map_role(role: &Role) -> &'static str {
+    match role {
+        Role::System => "system",
+        Role::User => "user",
+        Role::Assistant => "assistant",
+        Role::Tool => "tool",
+    }
+}
+
+/// 构建 OpenAI 兼容格式的消息数组。
+///
+/// 处理 assistant 的 tool_calls（`message.tool_calls()`）和 tool 的 tool_call_id。
+/// 统一所有 OpenAI 兼容 provider 的消息转换逻辑。
+///
+/// # 参数
+///
+/// - `messages`: 内部 `ChatMessage` 列表
+///
+/// # 返回
+///
+/// OpenAI 兼容的 `Vec<Value>`，每个元素是一个消息对象。
+pub fn build_openai_messages(messages: &[ChatMessage]) -> Vec<Value> {
+    messages
+        .iter()
+        .map(|m| {
+            let mut obj = json!({
+                "role": map_role(&m.role),
+                "content": m.content_text(),
+            });
+            if let Some(map) = obj.as_object_mut() {
+                if let Some(name) = &m.name {
+                    map.insert("name".to_string(), Value::String(name.clone()));
+                }
+                let tool_calls = m.tool_calls();
+                if m.role == Role::Assistant && !tool_calls.is_empty() {
+                    let calls: Vec<Value> = tool_calls
+                        .iter()
+                        .map(|call| {
+                            json!({
+                                "id": call.id,
+                                "type": "function",
+                                "function": {
+                                    "name": call.name,
+                                    "arguments": call.input.to_string(),
+                                }
+                            })
+                        })
+                        .collect();
+                    map.insert("tool_calls".to_string(), Value::Array(calls));
+                }
+                if m.role == Role::Tool {
+                    if let Some(id) = m.tool_call_id() {
+                        map.insert("tool_call_id".to_string(), Value::String(id.to_string()));
+                    }
+                }
+            }
+            obj
+        })
+        .collect()
 }
 
 /// 将 ChatRequest 中的采样参数添加到 JSON 对象中。

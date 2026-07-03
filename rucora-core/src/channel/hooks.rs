@@ -362,7 +362,7 @@ impl VoidHook for LoggingVoidHook {
 
     async fn on_llm_output(&self, response: &ChatResponse) {
         tracing::debug!(
-            content_len = response.message.content.len(),
+            content_len = response.message.content_text().len(),
             "hook.llm.output"
         );
     }

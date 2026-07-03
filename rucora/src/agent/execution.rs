@@ -144,10 +144,20 @@ fn fast_trim_tool_results(messages: &mut [ChatMessage], protect_last_n: usize) -
     let mut saved = 0;
     let cutoff = messages.len().saturating_sub(protect_last_n);
     for msg in &mut messages[..cutoff] {
-        if msg.role == Role::Tool && msg.content.len() > TRIM_TO {
-            let original_len = msg.content.len();
-            msg.content = truncate_tool_content(&msg.content, TRIM_TO);
-            saved += original_len - msg.content.len();
+        if msg.role == Role::Tool {
+                if let Some((name, tool_call_id, content)) = msg.content.as_tool_result() {
+                if content.len() > TRIM_TO {
+                    let original_len = content.len();
+                    let trimmed = truncate_tool_content(content, TRIM_TO);
+                    let trimmed_len = trimmed.len();
+                    msg.content = MessageContent::ToolResult {
+                        name: name.to_string(),
+                        tool_call_id: tool_call_id.to_string(),
+                        content: trimmed,
+                    };
+                    saved += original_len - trimmed_len;
+                }
+            }
         }
     }
     saved
@@ -259,7 +269,7 @@ use rucora_core::channel::types::{ChannelEvent, ErrorEvent, TokenDeltaEvent};
 use rucora_core::channel::{ChannelObserver, NoopChannelObserver};
 use rucora_core::error::DiagnosticError;
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, Role, Usage};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, MessageContent, Role, Usage};
 use rucora_core::tool::types::{ToolCall, ToolResult};
 
 /// 默认执行实现（内聚所有 Runtime 能力）
@@ -702,9 +712,7 @@ impl DefaultExecution {
                         }
                     };
 
-                    let mut assistant_message = response.message.clone();
-                    assistant_message.tool_calls = response.tool_calls.clone();
-                    messages.push(assistant_message);
+                    messages.push(response.message.clone());
 
                     // 累计 usage
                     if let Some(u) = &response.usage {
@@ -719,10 +727,10 @@ impl DefaultExecution {
                     }
 
                     // 3. 检查工具调用
-                    if response.tool_calls.is_empty() {
+                    if response.tool_calls().is_empty() {
                         // 无工具调用，返回最终结果
                         let mut output = Ok(AgentOutput::with_usage(
-                            json!({"content": response.message.content}),
+                            json!({"content": response.text()}),
                             messages.clone(),
                             tool_call_records.clone(),
                             total_usage,
@@ -742,7 +750,7 @@ impl DefaultExecution {
                         if let Some(ref conv_arc) = self.conversation_manager {
                             let mut conv = conv_arc.lock().await;
                             conv.add_user_message(input.text.clone());
-                            conv.add_assistant_message(response.message.content.clone());
+                            conv.add_assistant_message(response.text().to_string());
                         }
 
                         info!("execution.run.done");
@@ -752,7 +760,7 @@ impl DefaultExecution {
                     // 4. 执行工具调用
                     let _tool_results = self
                         ._execute_tool_calls(
-                            &response.tool_calls,
+                            response.tool_calls(),
                             &mut messages,
                             &mut tool_call_records,
                             &mut loop_detector,
@@ -819,9 +827,7 @@ impl DefaultExecution {
                         .await
                         .map_err(|e| AgentError::ProviderError { source: e })?;
 
-                    let mut assistant_message = response.message.clone();
-                    assistant_message.tool_calls = response.tool_calls.clone();
-                    messages.push(assistant_message);
+                    messages.push(response.message.clone());
 
                     if let Some(u) = &response.usage {
                         total_usage = Some(match &total_usage {
@@ -836,7 +842,7 @@ impl DefaultExecution {
 
                     info!("execution.run.reduce.done");
                     return Ok(AgentOutput::with_usage(
-                        json!({"content": response.message.content}),
+                        json!({"content": response.text()}),
                         messages,
                         tool_call_records,
                         total_usage,
@@ -955,6 +961,7 @@ impl DefaultExecution {
                         results.push(blocked_result.clone());
                         records.push(ToolCallRecord {
                             name: call.name.clone(),
+                            tool_call_id: result.tool_call_id.clone(),
                             input: call.input.clone(),
                             result: blocked_result.output.clone(),
                         });
@@ -972,6 +979,7 @@ impl DefaultExecution {
                 // 添加到记录
                 records.push(ToolCallRecord {
                     name: call.name.clone(),
+                    tool_call_id: result.tool_call_id.clone(),
                     input: call.input.clone(),
                     result: result.output.clone(),
                 });
@@ -1088,6 +1096,7 @@ impl DefaultExecution {
             let call = &calls[*idx];
             records.push(ToolCallRecord {
                 name: call.name.clone(),
+                tool_call_id: result.tool_call_id.clone(),
                 input: call.input.clone(),
                 result: result.output.clone(),
             });
@@ -1136,12 +1145,13 @@ impl DefaultExecution {
             LoopDetectionResult::Block(msg) => {
                 tracing::warn!(tool = %name, "{}", msg);
                 let blocked = ToolResult {
-                    tool_call_id: result.tool_call_id,
+                    tool_call_id: result.tool_call_id.clone(),
                     output: serde_json::Value::String(msg),
                     ..Default::default()
                 };
                 records.push(ToolCallRecord {
                     name: name.to_string(),
+                    tool_call_id: result.tool_call_id.clone(),
                     input: tool_input,
                     result: blocked.output.clone(),
                 });
@@ -1156,6 +1166,7 @@ impl DefaultExecution {
 
         records.push(ToolCallRecord {
             name: name.to_string(),
+            tool_call_id: result.tool_call_id.clone(),
             input: tool_input.clone(),
             result: result.output.clone(),
         });
@@ -1186,10 +1197,11 @@ impl DefaultExecution {
         let policy = self.policy.clone();
         let observer = self.observer.clone();
         let max_steps = self.max_steps;
-        let max_tool_concurrency = self.max_tool_concurrency;
         let model = self.model.clone();
         let system_prompt = self.system_prompt.clone();
         let llm_params = self.llm_params.clone();
+        let loop_detector_config = self.loop_detector_config.clone();
+        let conversation_manager = self.conversation_manager.clone();
 
         let stream = try_stream! {
             let mut messages = Vec::new();
@@ -1202,12 +1214,19 @@ impl DefaultExecution {
             // 添加用户消息
             messages.push(ChatMessage::user(input.text.clone()));
 
+            // 保存用户消息到会话管理器
+            if let Some(ref conv_arc) = conversation_manager {
+                let mut conv = conv_arc.lock().await;
+                conv.add_user_message(input.text.clone());
+            }
+
             let tool_defs = tools.definitions();
+            let mut tool_call_records: Vec<ToolCallRecord> = Vec::new();
+            let mut loop_detector = LoopDetector::new(loop_detector_config);
 
             info!(
                 tool_count = tool_defs.len(),
                 max_steps,
-                max_tool_concurrency,
                 "stream_execution.start"
             );
 
@@ -1266,12 +1285,10 @@ impl DefaultExecution {
                     }
                 }
 
-                let assistant_msg = ChatMessage {
-                    role: Role::Assistant,
-                    content: assistant_text,
-                    name: None,
-                    tool_calls: tool_calls.clone(),
-                    tool_call_id: None,
+                let assistant_msg = if !tool_calls.is_empty() {
+                    ChatMessage::assistant_with_tool_calls(assistant_text, tool_calls.clone())
+                } else {
+                    ChatMessage::assistant(assistant_text)
                 };
 
                 messages.push(assistant_msg.clone());
@@ -1280,6 +1297,16 @@ impl DefaultExecution {
                 yield ev;
 
                 if tool_calls.is_empty() {
+                    // 保存助手回复到会话管理器
+                    if let Some(ref conv_arc) = conversation_manager {
+                        let mut conv = conv_arc.lock().await;
+                        conv.add_assistant_message(
+                            messages.last()
+                                .map(|m| m.content_text().to_string())
+                                .unwrap_or_default()
+                        );
+                        conv.add_tool_call_records(tool_call_records.clone());
+                    }
                     break;
                 }
 
@@ -1289,66 +1316,59 @@ impl DefaultExecution {
                     "stream_execution.tool_calls"
                 );
 
-                // 执行工具调用
-                let max = max_tool_concurrency.max(1);
-                let results: Vec<Result<(usize, ToolResult), AgentError>> = stream::iter(
-                    tool_calls
-                        .iter()
-                        .cloned()
-                        .enumerate()
-                        .map(|(idx, call)| {
-                            let tools = tools.clone();
-                            let policy = policy.clone();
-                            let observer = observer.clone();
-                            async move {
-                                let r = execute_tool_call_with_policy_and_observer(
-                                    &tools, &policy, &observer, &call,
-                                )
-                                .await
-                                .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
-                                Ok((idx, r))
-                            }
-                        }),
-                )
-                .buffer_unordered(max)
-                .collect()
-                .await;
+                // 手动实现工具执行（闭包中无法访问 self）
+                let mut results: Vec<(usize, ToolResult)> = Vec::new();
+                for (idx, call) in tool_calls.iter().enumerate() {
+                    let r = execute_tool_call_with_policy_and_observer(
+                        &tools, &policy, &observer, call,
+                    )
+                    .await
+                    .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
 
-                // 改进的错误处理：收集所有结果（成功和失败），而不是遇到错误就中断
-                let mut ok: Vec<(usize, ToolResult)> = Vec::with_capacity(results.len());
-                let mut errors: Vec<AgentError> = Vec::new();
-                for r in results {
-                    match r {
-                        Ok(v) => ok.push(v),
-                        Err(e) => {
-                            errors.push(e);
+                    let detection = loop_detector.record(&call.name, &call.input, &r.output.to_string());
+                    match detection {
+                        LoopDetectionResult::Ok => {
+                            tool_call_records.push(ToolCallRecord {
+                                name: call.name.clone(),
+                                tool_call_id: r.tool_call_id.clone(),
+                                input: call.input.clone(),
+                                result: r.output.clone(),
+                            });
+                            results.push((idx, r));
+                        }
+                        LoopDetectionResult::Warning(msg) => {
+                            tracing::warn!(tool = %call.name, "{}", msg);
+                            let system_msg = ChatMessage::system(msg);
+                            messages.push(system_msg.clone());
+                            let ev = ChannelEvent::Message(system_msg);
+                            observer.on_event(ev.clone());
+                            yield ev;
+                            results.push((idx, r));
+                        }
+                        LoopDetectionResult::Block(msg) => {
+                            tracing::warn!(tool = %call.name, "{}", msg);
+                            let blocked = ToolResult {
+                                tool_call_id: r.tool_call_id.clone(),
+                                output: Value::String(msg),
+                                ..Default::default()
+                            };
+                            tool_call_records.push(ToolCallRecord {
+                                name: call.name.clone(),
+                                tool_call_id: r.tool_call_id.clone(),
+                                input: call.input.clone(),
+                                result: blocked.output.clone(),
+                            });
+                            results.push((idx, blocked));
+                        }
+                        LoopDetectionResult::Break(msg) => {
+                            tracing::error!(tool = %call.name, "{}", msg);
+                            Err(AgentError::Message(format!("[LoopDetector] {msg}")))?;
                         }
                     }
                 }
-                ok.sort_by_key(|(idx, _)| *idx);
 
-                // 如果有失败的调用，记录错误事件但不中断流程
-                if !errors.is_empty() {
-                    let error_messages: Vec<String> = errors
-                        .iter()
-                        .map(|e| e.to_string())
-                        .collect();
-                    tracing::warn!(
-                        errors = ?error_messages,
-                        "{} 个工具调用失败，继续处理成功的结果",
-                        errors.len()
-                    );
-                    let ev = ChannelEvent::Error(ErrorEvent {
-                        kind: "tool_batch_partial_failure".to_string(),
-                        message: format!("{} 个工具调用失败: {}", errors.len(), error_messages.join("; ")),
-                        data: Some(json!({"step": step})),
-                    });
-                    observer.on_event(ev.clone());
-                    yield ev;
-                }
-
-                for (idx, result) in ok {
-                    let call = &tool_calls[idx];
+                for (idx, result) in &results {
+                    let call = &tool_calls[*idx];
 
                     let ev = ChannelEvent::ToolCall(call.clone());
                     observer.on_event(ev.clone());
@@ -1358,7 +1378,7 @@ impl DefaultExecution {
                     observer.on_event(ev.clone());
                     yield ev;
 
-                    let tool_msg = tool_result_to_message(&result, &call.name);
+                    let tool_msg = tool_result_to_message(result, &call.name);
                     messages.push(tool_msg);
                 }
             }

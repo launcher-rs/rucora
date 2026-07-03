@@ -42,30 +42,157 @@ pub enum Role {
     Tool,
 }
 
+/// 消息内容类型，枚举所有合法的消息内容形态。
+///
+/// # 类型安全
+///
+/// 不同角色仅支持合法的内容形态：
+/// - `System`/`User`：仅 `Text`
+/// - `Assistant`：`Text` 或 `ToolCalls`
+/// - `Tool`：仅 `ToolResult`
+///
+/// # 示例
+///
+/// ```rust
+/// use rucora_core::provider::types::MessageContent;
+///
+/// let text = MessageContent::Text("你好".to_string());
+/// assert_eq!(text.as_text(), Some("你好"));
+/// ```
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum MessageContent {
+    /// 纯文本内容（用于 system、user、assistant 纯文本消息）。
+    Text(String),
+    /// 工具调用块（仅 assistant 角色），附带助手文本内容。
+    ToolCalls {
+        /// 助手文本内容（可能为空）。
+        text: String,
+        /// 工具调用列表。
+        calls: Vec<ToolCall>,
+    },
+    /// 工具执行结果（仅 tool 角色）。
+    ToolResult {
+        /// 工具名称。
+        name: String,
+        /// 对应的工具调用 ID。
+        tool_call_id: String,
+        /// 工具输出内容（JSON 字符串化后的结果）。
+        content: String,
+    },
+}
+
+impl MessageContent {
+    /// 返回文本内容（仅对 `Text` 变体有意义）。
+    pub fn as_text(&self) -> Option<&str> {
+        match self {
+            MessageContent::Text(t) => Some(t.as_str()),
+            _ => None,
+        }
+    }
+
+    /// 返回工具调用列表。
+    pub fn as_tool_calls(&self) -> Option<&[ToolCall]> {
+        match self {
+            MessageContent::ToolCalls { calls, .. } => Some(calls.as_slice()),
+            _ => None,
+        }
+    }
+
+    /// 返回工具结果信息（仅对 `ToolResult` 变体有意义）。
+    pub fn as_tool_result(&self) -> Option<(&str, &str, &str)> {
+        match self {
+            MessageContent::ToolResult {
+                name,
+                tool_call_id,
+                content,
+            } => Some((name, tool_call_id, content)),
+            _ => None,
+        }
+    }
+
+    /// 提取文本内容（无论变体，尝试获取可展示的文本）。
+    /// `Text` 返回自身，`ToolCalls` 返回其中的 text，`ToolResult` 返回 content。
+    pub fn to_display(&self) -> &str {
+        match self {
+            MessageContent::Text(t) => t.as_str(),
+            MessageContent::ToolCalls { text, .. } => text.as_str(),
+            MessageContent::ToolResult { content, .. } => content.as_str(),
+        }
+    }
+}
+
+impl From<String> for MessageContent {
+    fn from(s: String) -> Self {
+        MessageContent::Text(s)
+    }
+}
+
+impl From<&str> for MessageContent {
+    fn from(s: &str) -> Self {
+        MessageContent::Text(s.to_string())
+    }
+}
+
+impl Default for MessageContent {
+    fn default() -> Self {
+        MessageContent::Text(String::new())
+    }
+}
+
+impl std::fmt::Display for MessageContent {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            MessageContent::Text(t) => write!(f, "{t}"),
+            MessageContent::ToolCalls { text, calls } => {
+                if !text.is_empty() {
+                    write!(f, "{text}\n")?;
+                }
+                write!(f, "{}", serde_json::to_string(calls).unwrap_or_default())
+            }
+            MessageContent::ToolResult { content, .. } => write!(f, "{content}"),
+        }
+    }
+}
+
 /// 一条对话消息。
+///
+/// # 类型安全
+///
+/// 使用 `MessageContent` 确保角色和内容的合法组合。
+/// 通过构造器方法而非直接字段赋值来创建消息：
+///
+/// - [`ChatMessage::system`] -> role=System, content=Text
+/// - [`ChatMessage::user`] -> role=User, content=Text
+/// - [`ChatMessage::assistant`] -> role=Assistant, content=Text
+/// - [`ChatMessage::assistant_with_tool_calls`] -> role=Assistant, content=ToolCalls
+/// - [`ChatMessage::tool_result`] -> role=Tool, content=ToolResult
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatMessage {
     /// 角色。
     pub role: Role,
-    /// 文本内容。
-    pub content: String,
+    /// 消息内容（类型安全的 enum）。
+    pub content: MessageContent,
     /// 可选的发送者名称（例如 tool 名称或特定 persona）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Assistant 消息携带的工具调用列表。
+    /// Assistant 消息携带的工具调用列表（已废弃，由 `content: ToolCalls` 承载）。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    #[deprecated(since = "0.3.0", note = "use content field - MessageContent::ToolCalls")]
     pub tool_calls: Vec<ToolCall>,
-    /// Tool 消息对应的工具调用 ID。
+    /// Tool 消息对应的工具调用 ID（已废弃，由 `content: ToolResult` 承载）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[deprecated(since = "0.3.0", note = "use content field - MessageContent::ToolResult")]
     pub tool_call_id: Option<String>,
 }
 
 impl ChatMessage {
     /// 创建一条 system 消息。
+    #[allow(deprecated)]
     pub fn system(content: impl Into<String>) -> Self {
         Self {
             role: Role::System,
-            content: content.into(),
+            content: MessageContent::Text(content.into()),
             name: None,
             tool_calls: Vec::new(),
             tool_call_id: None,
@@ -73,10 +200,11 @@ impl ChatMessage {
     }
 
     /// 创建一条 user 消息。
+    #[allow(deprecated)]
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: Role::User,
-            content: content.into(),
+            content: MessageContent::Text(content.into()),
             name: None,
             tool_calls: Vec::new(),
             tool_call_id: None,
@@ -84,10 +212,11 @@ impl ChatMessage {
     }
 
     /// 创建一条 assistant 消息。
+    #[allow(deprecated)]
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: Role::Assistant,
-            content: content.into(),
+            content: MessageContent::Text(content.into()),
             name: None,
             tool_calls: Vec::new(),
             tool_call_id: None,
@@ -95,32 +224,72 @@ impl ChatMessage {
     }
 
     /// 创建一条携带工具调用的 assistant 消息。
+    #[allow(deprecated)]
     pub fn assistant_with_tool_calls(
         content: impl Into<String>,
         tool_calls: Vec<ToolCall>,
     ) -> Self {
         Self {
             role: Role::Assistant,
-            content: content.into(),
+            content: MessageContent::ToolCalls {
+                text: content.into(),
+                calls: tool_calls,
+            },
             name: None,
-            tool_calls,
+            tool_calls: Vec::new(),
             tool_call_id: None,
         }
     }
 
-    /// 创建一条 tool 消息（name 通常用于承载 tool 名称）。
-    pub fn tool(
+    /// 创建一条 tool 结果消息。
+    #[allow(deprecated)]
+    pub fn tool_result(
         name: impl Into<String>,
         tool_call_id: impl Into<String>,
         content: impl Into<String>,
     ) -> Self {
         Self {
             role: Role::Tool,
-            content: content.into(),
-            name: Some(name.into()),
+            content: MessageContent::ToolResult {
+                name: name.into(),
+                tool_call_id: tool_call_id.into(),
+                content: content.into(),
+            },
+            name: None,
             tool_calls: Vec::new(),
-            tool_call_id: Some(tool_call_id.into()),
+            tool_call_id: None,
         }
+    }
+
+    #[deprecated(since = "0.3.0", note = "use tool_result instead")]
+    pub fn tool(
+        name: impl Into<String>,
+        tool_call_id: impl Into<String>,
+        content: impl Into<String>,
+    ) -> Self {
+        Self::tool_result(name, tool_call_id, content)
+    }
+
+    /// 获取消息的文本内容。
+    ///
+    /// 对于 `Text` 和 `ToolResult` 变体返回文本，对于 `ToolCalls` 返回空字符串。
+    pub fn content_text(&self) -> &str {
+        self.content.to_display()
+    }
+
+    /// 获取工具调用列表（仅在 `content` 为 `ToolCalls` 时有效）。
+    pub fn tool_calls(&self) -> &[ToolCall] {
+        self.content.as_tool_calls().unwrap_or(&[])
+    }
+
+    /// 获取工具调用 ID（仅在 `content` 为 `ToolResult` 时有效）。
+    pub fn tool_call_id(&self) -> Option<&str> {
+        self.content.as_tool_result().map(|(_, id, _)| id)
+    }
+
+    /// 获取工具名称（仅在 `content` 为 `ToolResult` 时有效）。
+    pub fn tool_name(&self) -> Option<&str> {
+        self.content.as_tool_result().map(|(name, _, _)| name)
     }
 }
 
@@ -507,19 +676,36 @@ impl From<&str> for ChatRequest {
 }
 
 /// Provider 的对话响应。
+///
+/// # 工具调用
+///
+/// 工具调用信息统一在 `message.content` 中承载（`MessageContent::ToolCalls`）。
+/// 不再单独保留 `tool_calls` 字段，避免与 `ChatResponse` 存在两份真相。
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct ChatResponse {
     /// 模型生成的最终消息。
+    ///
+    /// - 无工具调用时：`content` 为 `Text`
+    /// - 有工具调用时：`content` 为 `ToolCalls`
     pub message: ChatMessage,
-    /// 模型请求执行的工具调用列表。
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    pub tool_calls: Vec<ToolCall>,
     /// token 使用统计（可选）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub usage: Option<Usage>,
     /// 结束原因（可选）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<FinishReason>,
+}
+
+impl ChatResponse {
+    /// 获取工具调用列表（从 `message.content` 派生）。
+    pub fn tool_calls(&self) -> &[ToolCall] {
+        self.message.tool_calls()
+    }
+
+    /// 获取消息文本内容。
+    pub fn text(&self) -> &str {
+        self.message.content_text()
+    }
 }
 
 /// 流式对话的增量 chunk。

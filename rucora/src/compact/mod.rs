@@ -108,7 +108,7 @@ impl ContextManager {
         };
 
         self.token_counter
-            .estimate_message(&message.content, role_str)
+            .estimate_message(message.content_text(), role_str)
     }
 
     /// 检查是否需要压缩
@@ -175,7 +175,7 @@ impl ContextManager {
         ));
 
         let response = provider.chat(request).await?;
-        Ok(response.message.content)
+        Ok(response.message.content_text().to_string())
     }
 
     /// 创建压缩边界消息

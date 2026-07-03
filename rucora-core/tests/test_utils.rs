@@ -113,7 +113,6 @@ impl LlmProvider for MockProvider {
 
         Ok(ChatResponse {
             message: ChatMessage::assistant(self.response.clone()),
-            tool_calls: vec![],
             usage: None,
             finish_reason: Some(FinishReason::Stop),
         })

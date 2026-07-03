@@ -236,8 +236,21 @@ pub(crate) async fn execute_tool_call_with_middleware(
         "tool_call.execute.input"
     );
 
+    let tool = tools.get(&call.name).ok_or_else(|| {
+        AgentError::Message(format!(
+            "未找到工具：{} (tool_call_id={})",
+            call.name, call.id
+        ))
+    })?;
+
+    let identity = {
+        let wrapper = tools.get_wrapper(&call.name);
+        wrapper.map(|w| w.identity())
+    };
+
     let ctx = ToolCallContext {
         tool_call: call_mut.clone(),
+        identity,
     };
 
     if let Err(e) = policy.check(&ctx).await {
@@ -314,13 +327,6 @@ pub(crate) async fn execute_tool_call_with_middleware(
     }
 
     let start = std::time::Instant::now();
-
-    let tool = tools.get(&call.name).ok_or_else(|| {
-        AgentError::Message(format!(
-            "未找到工具：{} (tool_call_id={})",
-            call.name, call.id
-        ))
-    })?;
 
     // 创建工具上下文，包含工作目录、调用 ID 等信息
     let tool_ctx = ToolContext::new()
@@ -727,7 +733,7 @@ async fn execute_single_with_timeout(
 ///
 /// 角色为 `Tool` 的 ChatMessage，使用独立字段保留 `tool_call_id`。
 pub fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {
-    ChatMessage::tool(
+    ChatMessage::tool_result(
         tool_name.to_string(),
         result.tool_call_id.clone(),
         result.output.to_string(),

@@ -171,21 +171,67 @@ impl GeminiProvider {
         messages
             .iter()
             .find(|m| m.role == Role::System)
-            .map(|m| m.content.clone())
+            .map(|m| m.content_text().to_string())
     }
 
     fn build_messages(messages: &[ChatMessage]) -> Vec<Value> {
         messages
             .iter()
-            .filter(|m| m.role != Role::System) // System instruction 单独处理
+            .filter(|m| m.role != Role::System)
             .map(|m| {
                 let role = Self::map_role(&m.role);
-                json!({
-                    "role": role,
-                    "parts": [{
-                        "text": m.content
-                    }]
-                })
+                match m.role {
+                    Role::Tool => {
+                        let (tool_name, _tool_call_id, tool_content) = m
+                            .content
+                            .as_tool_result()
+                            .unwrap_or(("", "", ""));
+                        let response_val = serde_json::from_str(tool_content)
+                            .unwrap_or_else(|_| json!({"result": tool_content}));
+                        json!({
+                            "role": role,
+                            "parts": [{
+                                "functionResponse": {
+                                    "name": tool_name,
+                                    "response": {
+                                        "name": tool_name,
+                                        "response": response_val,
+                                    }
+                                }
+                            }]
+                        })
+                    }
+                    Role::Assistant => {
+                        let tool_calls = m.tool_calls();
+                        if !tool_calls.is_empty() {
+                            let mut parts: Vec<Value> = Vec::new();
+                            let text = m.content_text();
+                            if !text.is_empty() {
+                                parts.push(json!({"text": text}));
+                            }
+                            for call in tool_calls {
+                                parts.push(json!({
+                                    "functionCall": {
+                                        "name": call.name,
+                                        "args": call.input,
+                                    }
+                                }));
+                            }
+                            json!({"role": role, "parts": parts})
+                        } else {
+                            json!({
+                                "role": role,
+                                "parts": [{"text": m.content_text()}]
+                            })
+                        }
+                    }
+                    _ => {
+                        json!({
+                            "role": role,
+                            "parts": [{"text": m.content_text()}]
+                        })
+                    }
+                }
             })
             .collect()
     }
@@ -280,7 +326,7 @@ impl LlmProvider for GeminiProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| preview(&m.content, 600));
+            .map(|m| preview(m.content_text(), 600));
 
         debug!(
             provider = "gemini",
@@ -438,8 +484,7 @@ impl LlmProvider for GeminiProvider {
             .to_string();
 
         Ok(ChatResponse {
-            message: ChatMessage::assistant_with_tool_calls(text_content, tool_calls.clone()),
-            tool_calls,
+            message: ChatMessage::assistant_with_tool_calls(text_content, tool_calls),
             usage,
             finish_reason: Some(parse_finish_reason(&finish_reason)),
         })

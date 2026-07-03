@@ -38,6 +38,7 @@
 //! manager.clear();
 //! ```
 
+use rucora_core::agent::ToolCallRecord;
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, Role};
 use serde::{Deserialize, Serialize};
@@ -65,6 +66,8 @@ pub struct ConversationManager {
     system_prompt: Option<String>,
     /// 消息历史
     messages: Vec<ChatMessage>,
+    /// 工具调用记录（调用 → 结果链）
+    tool_call_records: Vec<ToolCallRecord>,
     /// 最大消息数（0 表示无限制）
     max_messages: usize,
     /// 最大 token 数（0 表示无限制）
@@ -95,6 +98,7 @@ impl ConversationManager {
         Self {
             system_prompt: None,
             messages: Vec::new(),
+            tool_call_records: Vec::new(),
             max_messages: 0,
             max_tokens: 0,
             auto_compress: false,
@@ -183,7 +187,7 @@ impl ConversationManager {
         };
 
         self.token_counter
-            .estimate_message(&message.content, role_str)
+            .estimate_message(message.content_text(), role_str)
     }
 
     /// 添加用户消息
@@ -198,7 +202,22 @@ impl ConversationManager {
 
     /// 添加工具结果
     pub fn add_tool_result(&mut self, tool_call_id: impl Into<String>, content: impl Into<String>) {
-        self.add_message(ChatMessage::tool("tool", tool_call_id, content));
+        self.add_message(ChatMessage::tool_result("tool", tool_call_id, content));
+    }
+
+    /// 添加工具调用记录
+    pub fn add_tool_call_record(&mut self, record: ToolCallRecord) {
+        self.tool_call_records.push(record);
+    }
+
+    /// 批量添加工具调用记录
+    pub fn add_tool_call_records(&mut self, records: Vec<ToolCallRecord>) {
+        self.tool_call_records.extend(records);
+    }
+
+    /// 获取所有工具调用记录
+    pub fn get_tool_call_records(&self) -> &[ToolCallRecord] {
+        &self.tool_call_records
     }
 
     /// 获取所有消息
@@ -376,7 +395,7 @@ impl ConversationManager {
         ));
 
         let response = provider.chat(request).await?;
-        Ok(response.message.content)
+        Ok(response.message.content_text().to_string())
     }
 
     /// 创建压缩边界消息
@@ -442,7 +461,7 @@ pub fn estimate_tokens(text: &str) -> usize {
 
 /// 计算消息列表的 token 数（估算）
 pub fn estimate_messages_tokens(messages: &[ChatMessage]) -> usize {
-    messages.iter().map(|m| estimate_tokens(&m.content)).sum()
+    messages.iter().map(|m| estimate_tokens(m.content_text())).sum()
 }
 
 #[cfg(test)]
@@ -493,7 +512,7 @@ mod tests {
         manager.clear();
 
         assert_eq!(manager.len(), 1);
-        assert_eq!(manager.messages[0].content, "系统");
+        assert_eq!(manager.messages[0].content_text(), "系统");
     }
 
     #[test]

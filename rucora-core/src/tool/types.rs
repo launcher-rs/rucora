@@ -47,7 +47,7 @@ use serde_json::Value;
 /// assert_eq!(ToolRiskLevel::Safe.as_str(), "safe");
 /// assert_eq!(ToolRiskLevel::Dangerous.as_str(), "dangerous");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolRiskLevel {
     /// 安全操作，无副作用（如查询、读取、计算）
@@ -74,6 +74,68 @@ impl ToolRiskLevel {
     /// `Dangerous` 级别的操作建议在执行前进行人工确认。
     pub fn requires_approval(&self) -> bool {
         matches!(self, ToolRiskLevel::Dangerous)
+    }
+}
+
+/// 工具来源类型枚举
+///
+/// 用于标识工具的来源，便于管理和过滤。
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum ToolSource {
+    /// 内置工具（如 shell、file、http 等）
+    BuiltIn,
+    /// 从 Skill 转换的工具
+    Skill,
+    /// 从 MCP 服务器加载的工具
+    Mcp,
+    /// 从 A2A 协议加载的工具
+    A2A,
+    /// 用户自定义工具
+    Custom,
+}
+
+impl ToolSource {
+    /// 获取来源的字符串表示
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ToolSource::BuiltIn => "builtin",
+            ToolSource::Skill => "skill",
+            ToolSource::Mcp => "mcp",
+            ToolSource::A2A => "a2a",
+            ToolSource::Custom => "custom",
+        }
+    }
+}
+
+/// 工具身份信息
+///
+/// 统一标识一个工具的身份，用于策略匹配、权限控制等场景。
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct ToolIdentity {
+    /// 工具名称
+    pub name: String,
+    /// 工具来源
+    pub source: ToolSource,
+    /// 工具分类
+    pub categories: Vec<crate::tool::ToolCategory>,
+    /// 工具风险等级
+    pub risk_level: ToolRiskLevel,
+}
+
+impl ToolIdentity {
+    /// 创建工具身份信息
+    pub fn new(
+        name: impl Into<String>,
+        source: ToolSource,
+        categories: Vec<crate::tool::ToolCategory>,
+        risk_level: ToolRiskLevel,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            source,
+            categories,
+            risk_level,
+        }
     }
 }
 

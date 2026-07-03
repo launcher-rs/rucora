@@ -136,53 +136,8 @@ impl DeepSeekProvider {
         &self.default_model
     }
 
-    fn map_role(role: &Role) -> &'static str {
-        match role {
-            Role::System => "system",
-            Role::User => "user",
-            Role::Assistant => "assistant",
-            Role::Tool => "tool",
-        }
-    }
-
     fn build_messages(messages: &[ChatMessage]) -> Vec<Value> {
-        messages
-            .iter()
-            .map(|m| {
-                let mut obj = json!({
-                    "role": Self::map_role(&m.role),
-                    "content": m.content,
-                });
-                if let Some(map) = obj.as_object_mut() {
-                    if let Some(name) = &m.name {
-                        map.insert("name".to_string(), Value::String(name.clone()));
-                    }
-                    if m.role == Role::Assistant && !m.tool_calls.is_empty() {
-                        let calls = m
-                            .tool_calls
-                            .iter()
-                            .map(|call| {
-                                json!({
-                                    "id": call.id,
-                                    "type": "function",
-                                    "function": {
-                                        "name": call.name,
-                                        "arguments": call.input.to_string(),
-                                    }
-                                })
-                            })
-                            .collect::<Vec<_>>();
-                        map.insert("tool_calls".to_string(), Value::Array(calls));
-                    }
-                    if m.role == Role::Tool
-                        && let Some(id) = &m.tool_call_id
-                    {
-                        map.insert("tool_call_id".to_string(), Value::String(id.clone()));
-                    }
-                }
-                obj
-            })
-            .collect()
+        crate::helpers::build_openai_messages(messages)
     }
 
     fn build_response_format(fmt: &ResponseFormat) -> Value {
@@ -281,7 +236,7 @@ impl LlmProvider for DeepSeekProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| preview(&m.content, 600));
+            .map(|m| preview(m.content_text(), 600));
 
         debug!(
             provider = "deepseek",
@@ -403,8 +358,7 @@ impl LlmProvider for DeepSeekProvider {
             .to_string();
 
         Ok(ChatResponse {
-            message: ChatMessage::assistant_with_tool_calls(content, tool_calls.clone()),
-            tool_calls,
+            message: ChatMessage::assistant_with_tool_calls(content, tool_calls),
             usage,
             finish_reason: Some(parse_finish_reason(&finish_reason)),
         })
