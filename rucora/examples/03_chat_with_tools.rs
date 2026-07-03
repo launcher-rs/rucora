@@ -53,7 +53,8 @@ async fn main() -> anyhow::Result<()> {
         .tool(DatetimeTool) // 注册日期时间工具
         .tool(EchoTool) // 注册回显工具
         .max_steps(10)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("✓ ToolAgent 创建成功\n");
 

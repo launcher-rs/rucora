@@ -104,7 +104,8 @@ async fn main() -> anyhow::Result<()> {
         .temperature(0.7)
         .top_p(0.9)
         .max_tokens(2048)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("✓ Agent 创建成功\n");
 

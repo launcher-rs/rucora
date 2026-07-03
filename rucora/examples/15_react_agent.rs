@@ -93,7 +93,7 @@ async fn main() -> anyhow::Result<()> {
         .tool(EchoTool)
         .tool(ShellTool::new())
         .max_steps(50)
-        .build();
+        .try_build().unwrap();
     info!("✓ ReAct Agent 创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

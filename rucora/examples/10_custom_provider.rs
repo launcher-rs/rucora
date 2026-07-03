@@ -298,7 +298,8 @@ async fn main() -> anyhow::Result<()> {
         .provider(echo_provider)
         .model("echo-model")
         .system_prompt("你是一个回显助手，会重复用户的话。")
-        .build();
+        .try_build()
+        .unwrap();
     info!("✓ Agent 创建成功\n");
 
     info!("5.2 测试 Agent...");

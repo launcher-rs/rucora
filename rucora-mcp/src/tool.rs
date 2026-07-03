@@ -15,7 +15,7 @@
 //! - 调用远端工具（`call_tool`）
 //!
 //! ```rust,no_run
-//! use rucora::mcp::McpClient;
+//! use rucora_mcp::McpClient;
 //!
 //! # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
 //! // 列出可用工具
@@ -36,8 +36,9 @@
 //! [`McpTool`] 将远端 MCP 工具包装为 [`rucora_core::tool::Tool`]：
 //!
 //! ```rust,no_run
-//! use rucora::mcp::{McpClient, McpTool};
-//! use rucora_core::tool::{Tool, ToolContext};
+//! use rucora_mcp::{McpClient, McpTool};
+//! use rucora_core::tool::Tool;
+//! use rucora_core::tool::types::ToolContext;
 //!
 //! # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
 //! // 获取 MCP 工具定义
@@ -48,7 +49,9 @@
 //! let tool = McpTool::new(client, spec);
 //!
 //! // 作为 rucora Tool 使用
-//! let result = tool.call(serde_json::json!({})).await?;
+//! let ctx = ToolContext::default();
+//! let result = tool.call(serde_json::json!({}), &ctx).await?;
+//! println!("结果：{}", result);
 //! # Ok(())
 //! # }
 //! ```
@@ -101,13 +104,14 @@ use tracing::{debug, trace};
 ///
 /// # 示例
 ///
-/// ```rust,no_run
-/// use rucora::mcp::{McpClient, StdioTransport};
+/// ```rust,ignore
+/// use rucora_mcp::McpClient;
+/// use rucora_mcp::transport::IntoTransport;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // 创建传输层并连接
-/// let transport = StdioTransport::new("mcp-server");
-/// let service = transport.connect().await?;
+/// // 创建传输层并连接（具体 transport 类型请参考 rmcp 文档）
+/// // let transport = ...;
+/// // let service = transport.connect().await?;
 ///
 /// // 创建客户端
 /// let client = McpClient::new(service);
@@ -133,8 +137,9 @@ impl McpClient {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora::mcp::McpClient;
-    /// # use rmcp::service::{RunningService, RoleClient, InitializeRequestParams};
+    /// use rucora_mcp::McpClient;
+    /// # use rmcp::model::InitializeRequestParams;
+    /// # use rmcp::service::{RunningService, RoleClient};
     ///
     /// # fn example(client: RunningService<RoleClient, InitializeRequestParams>) {
     /// let client = McpClient::new(client);
@@ -160,7 +165,7 @@ impl McpClient {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use rucora::mcp::McpClient;
+    /// use rucora_mcp::McpClient;
     ///
     /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
     /// let tools = client.list_tools().await?;
@@ -205,7 +210,7 @@ impl McpClient {
     /// # 示例
     ///
     /// ```rust,no_run
-    /// use rucora::mcp::McpClient;
+    /// use rucora_mcp::McpClient;
     /// use serde_json::json;
     ///
     /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
@@ -289,8 +294,9 @@ impl McpClient {
 /// # 示例
 ///
 /// ```rust,no_run
-/// use rucora::mcp::{McpClient, McpTool};
-/// use rucora_core::tool::{Tool, ToolContext};
+/// use rucora_mcp::{McpClient, McpTool};
+/// use rucora_core::tool::Tool;
+/// use rucora_core::tool::types::ToolContext;
 ///
 /// # async fn example(client: McpClient) -> Result<(), Box<dyn std::error::Error>> {
 /// // 获取 MCP 工具定义
@@ -301,7 +307,8 @@ impl McpClient {
 /// let tool = McpTool::new(client, spec);
 ///
 /// // 作为 rucora Tool 使用
-/// let result = tool.call(serde_json::json!({})).await?;
+/// let ctx = ToolContext::default();
+/// let result = tool.call(serde_json::json!({}), &ctx).await?;
 /// println!("结果：{}", result);
 /// # Ok(())
 /// # }
@@ -324,7 +331,7 @@ impl McpTool {
     /// # 示例
     ///
     /// ```rust
-    /// use rucora::mcp::{McpClient, McpTool};
+    /// use rucora_mcp::{McpClient, McpTool};
     /// # use rmcp::model::Tool as RmcpTool;
     ///
     /// # fn example(client: McpClient, spec: RmcpTool) {

@@ -51,7 +51,8 @@ async fn main() -> anyhow::Result<()> {
         .model(model_name)
         .system_prompt("你是友好的 AI 助手。请简洁地回答用户的问题。")
         .temperature(0.7)
-        .build();
+        .try_build()
+        .unwrap();
     info!("✓ SimpleAgent 创建成功\n");
 
     // 运行对话

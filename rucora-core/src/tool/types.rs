@@ -47,7 +47,9 @@ use serde_json::Value;
 /// assert_eq!(ToolRiskLevel::Safe.as_str(), "safe");
 /// assert_eq!(ToolRiskLevel::Dangerous.as_str(), "dangerous");
 /// ```
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize)]
+#[derive(
+    Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Default, Hash, Serialize, Deserialize,
+)]
 #[serde(rename_all = "snake_case")]
 pub enum ToolRiskLevel {
     /// 安全操作，无副作用（如查询、读取、计算）

@@ -86,7 +86,8 @@ async fn main() -> anyhow::Result<()> {
         .tool(ShellTool::new())
         .max_iterations(3)
         .quality_threshold(0.85)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("✓ Reflect Agent 创建成功");
     info!("  注册工具: {:?}", agent.tools());

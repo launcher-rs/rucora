@@ -461,7 +461,10 @@ pub fn estimate_tokens(text: &str) -> usize {
 
 /// 计算消息列表的 token 数（估算）
 pub fn estimate_messages_tokens(messages: &[ChatMessage]) -> usize {
-    messages.iter().map(|m| estimate_tokens(m.content_text())).sum()
+    messages
+        .iter()
+        .map(|m| estimate_tokens(m.content_text()))
+        .sum()
 }
 
 #[cfg(test)]

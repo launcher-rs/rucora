@@ -8,8 +8,8 @@
 //! # 使用示例
 //!
 //! ```rust,no_run
-//! use rucora::retrieval::InMemoryVectorStore;
-//! use rucora_core::retrieval::{VectorRecord, VectorQuery};
+//! use rucora_core::retrieval::{VectorRecord, VectorQuery, VectorStore};
+//! use rucora_retrieval::in_memory::InMemoryVectorStore;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let store = InMemoryVectorStore::new();

@@ -89,7 +89,8 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .model(&model)
         .mode(SummaryMode::Concise)
         .temperature(0.3)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!(
         "文本内容（{} 字）：\n{long_text}\n",
@@ -119,7 +120,8 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .model(&model)
         .mode(SummaryMode::BulletPoints)
         .temperature(0.3)
-        .build();
+        .try_build()
+        .unwrap();
 
     match agent.run(long_text.into()).await {
         Ok(output) => {
@@ -149,7 +151,8 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
             "Now combine all {total} partial summaries into a complete English summary.\n\n{mode}",
         )
         .temperature(0.3)
-        .build();
+        .try_build()
+        .unwrap();
 
     match agent.run(long_text.into()).await {
         Ok(output) => {
@@ -187,7 +190,8 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .mode(SummaryMode::Detailed)
         .splitter(splitter)
         .temperature(0.3)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("长文本（{} 字节）：\n{mega_text}\n", mega_text.len());
 
@@ -228,7 +232,8 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .splitter(splitter)
         .max_concurrency(16) // 并发处理块
         .temperature(0.3)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("使用字节数 Sizer（chunk_size=500 字节）");
     info!("max_concurrency=16，块之间并发处理\n");
@@ -260,7 +265,8 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .mode(SummaryMode::BulletPoints)
         .splitter(splitter)
         .temperature(0.3)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("使用 text_splitter_with_overlap()");
     info!("块大小 300 字符，块间重叠 30 字符\n");

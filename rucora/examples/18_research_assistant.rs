@@ -78,7 +78,8 @@ async fn main() -> anyhow::Result<()> {
         .tool(EchoTool)
         .tool(ShellTool::new())
         .max_steps(10)
-        .build();
+        .try_build()
+        .unwrap();
     info!("✓ 研究助手创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

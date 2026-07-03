@@ -92,7 +92,7 @@ impl DeepResearchEngine {
 
         let search_output = self
             .search_execution
-            .run(&search_agent, AgentInput::new(search_prompt))
+            .run(&search_agent, AgentInput::new(search_prompt)?)
             .await?;
 
         let search_text = search_output.text().unwrap_or_default().to_string();
@@ -122,7 +122,7 @@ impl DeepResearchEngine {
 
         let read_output = self
             .read_execution
-            .run(&read_agent, AgentInput::new(read_prompt))
+            .run(&read_agent, AgentInput::new(read_prompt)?)
             .await?;
 
         let read_text = read_output.text().unwrap_or_default().to_string();
@@ -148,7 +148,7 @@ impl DeepResearchEngine {
 
         let report_output = self
             .synthesize_execution
-            .run(&synthesize_agent, AgentInput::new(synthesize_prompt))
+            .run(&synthesize_agent, AgentInput::new(synthesize_prompt)?)
             .await?;
 
         let report_text = report_output.text().unwrap_or_default().to_string();

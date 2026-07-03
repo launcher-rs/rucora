@@ -53,7 +53,8 @@ async fn main() -> anyhow::Result<()> {
         .provider(make_provider()?)
         .model(model_name())
         .system_prompt("你是一个简洁的助手。")
-        .build();
+        .try_build()
+        .unwrap();
 
     println!("用户: 用一句话介绍你自己，要幽默一些");
     println!("\n助手: ");
@@ -83,7 +84,8 @@ async fn main() -> anyhow::Result<()> {
         .provider(make_provider()?)
         .model(model_name())
         .system_prompt("你是一个翻译助手，只输出翻译结果。")
-        .build();
+        .try_build()
+        .unwrap();
 
     println!("用户: 将 'The quick brown fox jumps over the lazy dog' 翻译成中文");
 
@@ -103,7 +105,8 @@ async fn main() -> anyhow::Result<()> {
         .system_prompt("你是有用的助手。当被问到时间相关问题时，使用 datetime 工具。")
         .tool(DatetimeTool)
         .max_steps(5)
-        .build();
+        .try_build()
+        .unwrap();
 
     println!("用户: 现在几点了？");
     println!("\n[事件流]");

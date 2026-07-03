@@ -143,7 +143,8 @@ async fn main() -> anyhow::Result<()> {
             .provider(resilient_provider)
             .model(&model_name)
             .system_prompt("你是一个友好的助手。")
-            .build();
+            .try_build()
+            .unwrap();
 
         info!("✓ 带重试的 Agent 创建成功\n");
 

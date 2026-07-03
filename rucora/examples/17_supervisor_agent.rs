@@ -170,7 +170,8 @@ async fn main() -> anyhow::Result<()> {
              - 客服问答\n\
              请用友好、专业的语气回答。",
         )
-        .build();
+        .try_build()
+        .unwrap();
     info!("   ✓ 对话专家创建成功\n");
 
     // 专家 2: 工具专家
@@ -189,7 +190,8 @@ async fn main() -> anyhow::Result<()> {
         .tool(ShellTool::new())
         .tool(EchoTool)
         .max_steps(10)
-        .build();
+        .try_build()
+        .unwrap();
     info!("   ✓ 工具专家创建成功\n");
 
     // 专家 3: 分析专家
@@ -205,7 +207,8 @@ async fn main() -> anyhow::Result<()> {
              - 信息整理和总结\n\
              请提供清晰、结构化的分析结果。",
         )
-        .build();
+        .try_build()
+        .unwrap();
     info!("   ✓ 分析专家创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

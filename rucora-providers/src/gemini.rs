@@ -182,10 +182,8 @@ impl GeminiProvider {
                 let role = Self::map_role(&m.role);
                 match m.role {
                     Role::Tool => {
-                        let (tool_name, _tool_call_id, tool_content) = m
-                            .content
-                            .as_tool_result()
-                            .unwrap_or(("", "", ""));
+                        let (tool_name, _tool_call_id, tool_content) =
+                            m.content.as_tool_result().unwrap_or(("", "", ""));
                         let response_val = serde_json::from_str(tool_content)
                             .unwrap_or_else(|_| json!({"result": tool_content}));
                         json!({

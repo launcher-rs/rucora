@@ -51,7 +51,8 @@ async fn main() -> anyhow::Result<()> {
         .system_prompt("你是友好的 AI 助手。请记住对话历史，以便进行连贯的多轮对话。")
         .with_conversation(true) // 启用对话历史
         .max_history_messages(20) // 保留最近 20 条消息
-        .build();
+        .try_build()
+        .unwrap();
     info!("✓ ChatAgent 创建成功\n");
 
     info!("═══════════════════════════════════════");

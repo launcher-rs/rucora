@@ -182,7 +182,17 @@ where
                  当前步骤：{}/{}",
                 context.step, self.max_steps
             ),
-            _ => unreachable!(),
+            _ => {
+                tracing::warn!("ReActAgent: 未知阶段 '{}'，回退到 'think'", phase);
+                format!(
+                    "请分析用户问题，规划解题步骤。\n\
+                     \n\
+                     可用工具：{:?}\n\
+                     \n\
+                     请详细分析并规划步骤。",
+                    self.tools.tool_names()
+                )
+            }
         };
 
         // 构建消息历史（context.messages 已包含用户输入，无需重新注入）
@@ -409,6 +419,7 @@ where
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
     /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
+    #[deprecated(note = "请使用 try_build() 处理配置错误")]
     pub fn build(self) -> ReActAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("ReActAgentBuilder::build 失败：{err}"))
@@ -422,6 +433,7 @@ impl<P> Default for ReActAgentBuilder<P> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

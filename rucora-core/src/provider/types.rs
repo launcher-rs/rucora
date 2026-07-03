@@ -178,11 +178,17 @@ pub struct ChatMessage {
     pub name: Option<String>,
     /// Assistant 消息携带的工具调用列表（已废弃，由 `content: ToolCalls` 承载）。
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[deprecated(since = "0.3.0", note = "use content field - MessageContent::ToolCalls")]
+    #[deprecated(
+        since = "0.3.0",
+        note = "use content field - MessageContent::ToolCalls"
+    )]
     pub tool_calls: Vec<ToolCall>,
     /// Tool 消息对应的工具调用 ID（已废弃，由 `content: ToolResult` 承载）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[deprecated(since = "0.3.0", note = "use content field - MessageContent::ToolResult")]
+    #[deprecated(
+        since = "0.3.0",
+        note = "use content field - MessageContent::ToolResult"
+    )]
     pub tool_call_id: Option<String>,
 }
 

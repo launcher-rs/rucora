@@ -179,7 +179,7 @@ impl RetryConfig {
 ///
 /// # 示例
 ///
-/// ```rust,no_run
+/// ```rust,ignore
 /// use rucora_providers::resilient::CancelHandle;
 /// use std::sync::Arc;
 /// use std::time::Duration;

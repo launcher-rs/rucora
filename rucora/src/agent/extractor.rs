@@ -569,7 +569,8 @@ where
             .system_prompt(system_prompt)
             .tool(SubmitTool::<T>::new())
             .max_steps(3)
-            .build();
+            .try_build()
+            .expect("ToolAgentBuilder::try_build 失败");
 
         Extractor {
             agent,

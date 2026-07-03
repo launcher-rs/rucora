@@ -239,7 +239,8 @@ async fn main() -> anyhow::Result<()> {
              如果上下文中没有相关信息，请诚实地说明。\n\
              回答时请引用相关的来源。",
         )
-        .build();
+        .try_build()
+        .unwrap();
     info!("✓ Agent 创建成功\n");
 
     // 模拟 RAG 增强的查询

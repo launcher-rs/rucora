@@ -360,14 +360,13 @@ where
 
     fn run_stream(
         &self,
-        _input: AgentInput,
+        input: AgentInput,
     ) -> futures_util::stream::BoxStream<
         'static,
         Result<rucora_core::channel::types::ChannelEvent, AgentError>,
     > {
-        // SummaryAgent 使用 DefaultExecution 运行，当前的流式执行器
-        // 不支持 Agent 决策循环。请使用 run 方法获取完整结果。
-        Box::pin(futures_util::stream::empty())
+        // 使用基础流式执行器，不包含分块-合并摘要逻辑
+        self.execution.run_stream_simple(input)
     }
 }
 
@@ -737,6 +736,7 @@ where
     /// 构建 Agent。
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
+    #[deprecated(note = "请使用 try_build() 处理配置错误")]
     pub fn build(self) -> SummaryAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("SummaryAgentBuilder::build 失败：{err}"))
@@ -750,6 +750,7 @@ impl<P> Default for SummaryAgentBuilder<P> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;
@@ -890,7 +891,7 @@ mod tests {
             .model("gpt-4o-mini")
             .build();
 
-        let input = AgentInput::new("测试文本");
+        let input = AgentInput::new("测试文本").unwrap();
         let mut context = rucora_core::agent::AgentContext::new(input, 10);
 
         context.messages.push(ChatMessage::system("系统提示"));
@@ -917,7 +918,7 @@ mod tests {
             .model("gpt-4o-mini")
             .build();
 
-        let input = AgentInput::new("测试文本");
+        let input = AgentInput::new("测试文本").unwrap();
         let context = rucora_core::agent::AgentContext::new(input, 10);
 
         let summaries = agent.extract_chunk_summaries(&context);

@@ -297,7 +297,8 @@ async fn main() -> anyhow::Result<()> {
             .provider(provider)
             .model(&model_name)
             .system_prompt(system_prompt)
-            .build();
+            .try_build()
+            .unwrap();
         info!("✓ Agent 创建成功\n");
 
         info!("7.4 测试 Agent...");

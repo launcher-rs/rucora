@@ -270,7 +270,8 @@ async fn main() -> anyhow::Result<()> {
             .temperature(0.3)
             .with_middleware(LoggingMiddleware::new())
             .with_middleware(RateLimitMiddleware::new(60))
-            .build();
+            .try_build()
+            .unwrap();
         info!("✓ SimpleAgent 创建成功（带日志和限流中间件）\n");
 
         info!("4.3 测试 SimpleAgent...");
@@ -316,7 +317,8 @@ async fn main() -> anyhow::Result<()> {
                     .with(CacheMiddleware::new())
                     .with(auth_middleware.clone()),
             )
-            .build();
+            .try_build()
+            .unwrap();
         info!("✓ ChatAgent 创建成功（带日志、缓存、认证中间件）\n");
 
         info!("5.3 测试 ChatAgent - 第一轮...");
@@ -379,7 +381,8 @@ async fn main() -> anyhow::Result<()> {
             .with_middleware(format_middleware.clone())
             .with_middleware(tool_call_logging.clone())
             .max_steps(5)
-            .build();
+            .try_build()
+            .unwrap();
         info!("✓ ToolAgent 创建成功（带多个中间件，包括工具调用日志）\n");
 
         info!("6.3 测试 ToolAgent...");
@@ -442,7 +445,8 @@ async fn main() -> anyhow::Result<()> {
                     .with(RateLimitMiddleware::new(30)),
             )
             .max_steps(15)
-            .build();
+            .try_build()
+            .unwrap();
         info!("✓ ReActAgent 创建成功（带日志和限流中间件）\n");
 
         info!("7.3 测试 ReActAgent...");
@@ -484,7 +488,8 @@ async fn main() -> anyhow::Result<()> {
             .with_middleware(LoggingMiddleware::new())
             .with_middleware(ResponseFormatMiddleware)
             .max_iterations(3)
-            .build();
+            .try_build()
+            .unwrap();
         info!("✓ ReflectAgent 创建成功（带日志和格式化中间件）\n");
 
         info!("8.3 测试 ReflectAgent...");

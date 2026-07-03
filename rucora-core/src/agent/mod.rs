@@ -159,10 +159,11 @@ pub struct ToolResult {
 /// use rucora_core::agent::AgentInput;
 ///
 /// // 简单文本输入
-/// let input = AgentInput::new("你好");
+/// let input = AgentInput::new("你好").unwrap();
 ///
 /// // 使用 builder 模式
 /// let input = AgentInput::builder("帮我查询天气")
+///     .unwrap()
 ///     .with_context("user_location", "北京")
 ///     .build();
 /// ```
@@ -176,24 +177,47 @@ pub struct AgentInput {
 
 impl AgentInput {
     /// 从文本创建输入。
-    pub fn new(text: impl Into<String>) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// 当文本为空时返回 `AgentError::Message`。
+    pub fn new(text: impl Into<String>) -> Result<Self, AgentError> {
         let text = text.into();
-        assert!(!text.is_empty(), "AgentInput text must not be empty");
-        Self {
+        if text.is_empty() {
+            return Err(AgentError::Message(
+                "AgentInput text must not be empty".to_string(),
+            ));
+        }
+        Ok(Self {
             text,
             context: serde_json::Value::Object(serde_json::Map::new()),
-        }
+        })
     }
 
     /// 从文本和上下文创建输入。
-    pub fn with_context(text: impl Into<String>, context: serde_json::Value) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// 当文本为空时返回 `AgentError::Message`。
+    pub fn with_context(
+        text: impl Into<String>,
+        context: serde_json::Value,
+    ) -> Result<Self, AgentError> {
         let text = text.into();
-        assert!(!text.is_empty(), "AgentInput text must not be empty");
-        Self { text, context }
+        if text.is_empty() {
+            return Err(AgentError::Message(
+                "AgentInput text must not be empty".to_string(),
+            ));
+        }
+        Ok(Self { text, context })
     }
 
     /// 创建 builder。
-    pub fn builder(text: impl Into<String>) -> AgentInputBuilder {
+    ///
+    /// # Errors
+    ///
+    /// 当文本为空时返回 `AgentError::Message`。
+    pub fn builder(text: impl Into<String>) -> Result<AgentInputBuilder, AgentError> {
         AgentInputBuilder::new(text)
     }
 
@@ -216,13 +240,21 @@ pub struct AgentInputBuilder {
 
 impl AgentInputBuilder {
     /// 创建新的构建器。
-    pub fn new(text: impl Into<String>) -> Self {
+    ///
+    /// # Errors
+    ///
+    /// 当文本为空时返回 `AgentError::Message`。
+    pub fn new(text: impl Into<String>) -> Result<Self, AgentError> {
         let text = text.into();
-        assert!(!text.is_empty(), "AgentInput text must not be empty");
-        Self {
+        if text.is_empty() {
+            return Err(AgentError::Message(
+                "AgentInput text must not be empty".to_string(),
+            ));
+        }
+        Ok(Self {
             text,
             context: serde_json::Value::Object(serde_json::Map::new()),
-        }
+        })
     }
 
     /// 添加上下文键值对。
@@ -254,13 +286,13 @@ impl AgentInputBuilder {
 
 impl From<String> for AgentInput {
     fn from(text: String) -> Self {
-        Self::new(text)
+        Self::new(text).expect("AgentInput text must not be empty")
     }
 }
 
 impl From<&str> for AgentInput {
     fn from(text: &str) -> Self {
-        Self::new(text)
+        Self::new(text).expect("AgentInput text must not be empty")
     }
 }
 
@@ -689,7 +721,7 @@ pub trait Agent: Send + Sync {
     /// use rucora_core::agent::{Agent, AgentInput, AgentExecutor};
     ///
     /// # async fn example(agent: &impl Agent, executor: &dyn AgentExecutor) -> Result<(), Box<dyn std::error::Error>> {
-    /// let output = agent.run_with(executor, AgentInput::new("你好")).await?;
+    /// let output = agent.run_with(executor, AgentInput::new("你好")?).await?;
     /// # Ok(())
     /// # }
     /// ```

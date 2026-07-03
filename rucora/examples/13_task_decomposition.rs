@@ -85,7 +85,8 @@ where
                  ]\n\n\
                  注意：只返回 JSON 数组，不要有其他内容。",
             )
-            .build();
+            .try_build()
+            .unwrap();
         Self { agent }
     }
 
@@ -142,7 +143,8 @@ where
                  【改进建议】\n\
                  (可选的改进建议)",
             )
-            .build();
+            .try_build()
+            .unwrap();
         Self { agent }
     }
 
@@ -214,7 +216,8 @@ where
             .tool(EchoTool)
             .tool(ShellTool::new())
             .max_steps(5)
-            .build();
+            .try_build()
+            .unwrap();
         Self { agent }
     }
 

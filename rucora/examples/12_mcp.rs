@@ -250,7 +250,8 @@ async fn main() -> anyhow::Result<()> {
         )
         .tool_registry(tools)
         .max_steps(20)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("✓ Agent 创建成功\n");
 

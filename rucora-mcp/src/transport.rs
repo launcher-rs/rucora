@@ -3,7 +3,7 @@
 //! # 概述
 //!
 //! 该模块主要用于转导出 `rmcp::transport`，包含 MCP 连接所需的 transport 实现与类型。
-//! 上层可以通过 `rucora::mcp::transport::*` 使用这些能力。
+//! 上层可以通过 `rucora_mcp::transport::*` 使用这些能力。
 //!
 //! # 支持的传输方式
 //!
@@ -15,30 +15,22 @@
 //!
 //! ## Stdio 传输
 //!
-//! ```rust,no_run
-//! use rucora::mcp::transport::StdioTransport;
+//! ```rust,ignore
+//! use rucora_mcp::transport::IntoTransport;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 创建 Stdio 传输层
-//! let transport = StdioTransport::new("mcp-server");
-//!
-//! // 连接 MCP 服务器
-//! let service = transport.connect().await?;
+//! // 创建 Stdio 传输层（具体 transport 类型请参考 rmcp 文档）
 //! # Ok(())
 //! # }
 //! ```
 //!
 //! ## HTTP 传输
 //!
-//! ```rust,no_run
-//! use rucora::mcp::transport::StreamableHttpTransport;
+//! ```rust,ignore
+//! use rucora_mcp::transport::StreamableHttpClientTransport;
 //!
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-//! // 创建 HTTP 传输层
-//! let transport = StreamableHttpTransport::new("http://localhost:8080");
-//!
-//! // 连接 MCP 服务器
-//! let service = transport.connect().await?;
+//! // 创建 HTTP 传输层（具体 transport 类型请参考 rmcp 文档）
 //! # Ok(())
 //! # }
 //! ```

@@ -457,6 +457,7 @@ where
     ///
     /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
     /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
+    #[deprecated(note = "请使用 try_build() 处理配置错误")]
     pub fn build(self) -> ToolAgent<P> {
         self.try_build()
             .unwrap_or_else(|err| panic!("ToolAgentBuilder::build 失败：{err}"))
@@ -470,6 +471,7 @@ impl<P> Default for ToolAgentBuilder<P> {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

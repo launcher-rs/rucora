@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "a2a-client"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -22,7 +22,7 @@ dependencies = [
 
 [[package]]
 name = "a2a-server"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "axum",
@@ -651,7 +651,7 @@ dependencies = [
 
 [[package]]
 name = "deep-research-storage"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dotenv",
@@ -853,7 +853,7 @@ dependencies = [
 
 [[package]]
 name = "example_prompt_usage"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "rucora-prompt",
@@ -1473,7 +1473,7 @@ dependencies = [
 
 [[package]]
 name = "iterative_research"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -1968,7 +1968,7 @@ checksum = "a1d01941d82fa2ab50be1e79e6714289dd7cde78eba4c074bc5a4374f650dfe0"
 
 [[package]]
 name = "quick_research"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2253,7 +2253,7 @@ dependencies = [
 
 [[package]]
 name = "research_quality_assessment"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dotenv",
@@ -2322,7 +2322,7 @@ dependencies = [
 
 [[package]]
 name = "rucora"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -2355,7 +2355,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-a2a"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "ra2a",
@@ -2369,7 +2369,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -2387,7 +2387,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-deep-research"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2412,7 +2412,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-deep-research-academic"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dotenv",
@@ -2427,7 +2427,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-deep-research-agentic"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dotenv",
@@ -2442,7 +2442,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-embed"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "reqwest",
@@ -2455,7 +2455,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-macros"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "proc-macro-crate",
  "proc-macro2",
@@ -2465,7 +2465,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-mcp"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "rmcp",
@@ -2478,16 +2478,16 @@ dependencies = [
 
 [[package]]
 name = "rucora-prompt"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "regex",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.18",
 ]
 
 [[package]]
 name = "rucora-providers"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-stream",
  "async-trait",
@@ -2506,7 +2506,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-retrieval"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "dashmap",
@@ -2521,9 +2521,8 @@ dependencies = [
 
 [[package]]
 name = "rucora-skills"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
- "anyhow",
  "async-trait",
  "rucora-core",
  "rucora-tools",
@@ -2538,7 +2537,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-skills-example"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "dotenv",
@@ -2555,7 +2554,7 @@ dependencies = [
 
 [[package]]
 name = "rucora-tools"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "async-trait",
  "backon",

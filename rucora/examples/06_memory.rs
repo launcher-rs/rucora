@@ -145,7 +145,8 @@ async fn main() -> anyhow::Result<()> {
         .tool(memory_store)
         .tool(memory_recall)
         .max_steps(5)
-        .build();
+        .try_build()
+        .unwrap();
     info!("✓ Agent 创建成功\n");
 
     // 第一轮对话：存储信息
@@ -249,7 +250,8 @@ async fn main() -> anyhow::Result<()> {
              请记住对话中的重要信息，并在适当时候提及。",
         )
         .max_steps(3)
-        .build();
+        .try_build()
+        .unwrap();
 
     info!("✓ Agent 创建成功\n");
 

@@ -643,7 +643,7 @@ mod tests {
 
         assert_eq!(chain.len(), 2);
 
-        let mut input = AgentInput::new("test");
+        let mut input = AgentInput::new("test").unwrap();
 
         // 测试请求处理
         assert!(chain.process_request(&mut input).await.is_ok());
@@ -662,7 +662,7 @@ mod tests {
         assert_eq!(metrics.get_request_count(), 0);
         assert_eq!(metrics.get_response_count(), 0);
 
-        let mut input = AgentInput::new("test");
+        let mut input = AgentInput::new("test").unwrap();
 
         chain.process_request(&mut input).await.unwrap();
         assert_eq!(metrics.get_request_count(), 1);
