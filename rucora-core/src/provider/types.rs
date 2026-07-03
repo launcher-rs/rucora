@@ -146,7 +146,7 @@ impl std::fmt::Display for MessageContent {
             MessageContent::Text(t) => write!(f, "{t}"),
             MessageContent::ToolCalls { text, calls } => {
                 if !text.is_empty() {
-                    write!(f, "{text}\n")?;
+                    writeln!(f, "{text}")?;
                 }
                 write!(f, "{}", serde_json::to_string(calls).unwrap_or_default())
             }

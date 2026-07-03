@@ -64,10 +64,10 @@ pub fn build_openai_messages(messages: &[ChatMessage]) -> Vec<Value> {
                         .collect();
                     map.insert("tool_calls".to_string(), Value::Array(calls));
                 }
-                if m.role == Role::Tool {
-                    if let Some(id) = m.tool_call_id() {
-                        map.insert("tool_call_id".to_string(), Value::String(id.to_string()));
-                    }
+                if m.role == Role::Tool
+                    && let Some(id) = m.tool_call_id()
+                {
+                    map.insert("tool_call_id".to_string(), Value::String(id.to_string()));
                 }
             }
             obj

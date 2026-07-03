@@ -263,10 +263,10 @@ impl ToolPolicy for DefaultToolPolicy {
         let input = &ctx.tool_call.input;
 
         // 基于风险等级的最外层过滤
-        if let Some(identity) = &ctx.identity {
-            if identity.risk_level == ToolRiskLevel::Safe {
-                return Ok(());
-            }
+        if let Some(identity) = &ctx.identity
+            && identity.risk_level == ToolRiskLevel::Safe
+        {
+            return Ok(());
         }
 
         let Some(command_line) = Self::extract_command_line(name, input) else {

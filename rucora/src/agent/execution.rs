@@ -144,20 +144,19 @@ fn fast_trim_tool_results(messages: &mut [ChatMessage], protect_last_n: usize) -
     let mut saved = 0;
     let cutoff = messages.len().saturating_sub(protect_last_n);
     for msg in &mut messages[..cutoff] {
-        if msg.role == Role::Tool {
-                if let Some((name, tool_call_id, content)) = msg.content.as_tool_result() {
-                if content.len() > TRIM_TO {
-                    let original_len = content.len();
-                    let trimmed = truncate_tool_content(content, TRIM_TO);
-                    let trimmed_len = trimmed.len();
-                    msg.content = MessageContent::ToolResult {
-                        name: name.to_string(),
-                        tool_call_id: tool_call_id.to_string(),
-                        content: trimmed,
-                    };
-                    saved += original_len - trimmed_len;
-                }
-            }
+        if msg.role == Role::Tool
+            && let Some((name, tool_call_id, content)) = msg.content.as_tool_result()
+            && content.len() > TRIM_TO
+        {
+            let original_len = content.len();
+            let trimmed = truncate_tool_content(content, TRIM_TO);
+            let trimmed_len = trimmed.len();
+            msg.content = MessageContent::ToolResult {
+                name: name.to_string(),
+                tool_call_id: tool_call_id.to_string(),
+                content: trimmed,
+            };
+            saved += original_len - trimmed_len;
         }
     }
     saved
@@ -1145,13 +1144,13 @@ impl DefaultExecution {
             LoopDetectionResult::Block(msg) => {
                 tracing::warn!(tool = %name, "{}", msg);
                 let blocked = ToolResult {
-                    tool_call_id: result.tool_call_id.clone(),
+                    tool_call_id: result.tool_call_id,
                     output: serde_json::Value::String(msg),
                     ..Default::default()
                 };
                 records.push(ToolCallRecord {
                     name: name.to_string(),
-                    tool_call_id: result.tool_call_id.clone(),
+                    tool_call_id: blocked.tool_call_id.clone(),
                     input: tool_input,
                     result: blocked.output.clone(),
                 });

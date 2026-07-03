@@ -155,13 +155,13 @@ pub fn rucora_tool(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attrs = parse_macro_input!(attr as ToolAttrs);
     let input_fn = parse_macro_input!(item as ItemFn);
 
-    match tool_impl(attrs, input_fn) {
+    match tool_impl(&attrs, &input_fn) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }
 }
 
-fn tool_impl(attrs: ToolAttrs, func: ItemFn) -> syn::Result<proc_macro2::TokenStream> {
+fn tool_impl(attrs: &ToolAttrs, func: &ItemFn) -> syn::Result<proc_macro2::TokenStream> {
     let rucora = rucora_crate_path();
     let tool_name = &attrs.name;
     let tool_desc = &attrs.description;
@@ -189,7 +189,7 @@ fn tool_impl(attrs: ToolAttrs, func: ItemFn) -> syn::Result<proc_macro2::TokenSt
         }
     }
 
-    let (param_fields, param_names) = extract_fn_params(&func)?;
+    let (param_fields, param_names) = extract_fn_params(func)?;
     let body = &func.block;
     let vis = &func.vis;
 
@@ -298,12 +298,11 @@ impl syn::parse::Parse for GuardAttrs {
 pub fn rucora_guard(attr: TokenStream, item: TokenStream) -> TokenStream {
     let attrs = parse_macro_input!(attr as GuardAttrs);
     let input_fn = parse_macro_input!(item as ItemFn);
-    match guard_impl(attrs, input_fn) {
-        ts => ts.into(),
-    }
+    let ts = guard_impl(&attrs, &input_fn);
+    ts.into()
 }
 
-fn guard_impl(attrs: GuardAttrs, func: ItemFn) -> proc_macro2::TokenStream {
+fn guard_impl(attrs: &GuardAttrs, func: &ItemFn) -> proc_macro2::TokenStream {
     let rucora = rucora_crate_path();
     let guard_name = &attrs.name;
     let struct_name = format_ident!("{}Guard", to_pascal_case(&guard_name.replace('-', "_")));
