@@ -1,6 +1,7 @@
 //! rucora Summary Agent 示例
 //!
-//! 展示如何使用 SummaryAgent 进行文本摘要，包括多模式输出和自定义提示词。
+//! 展示如何使用 SummaryAgent 进行文本摘要，包括多模式输出、自定义提示词、
+//! 自定义 TextSplitter 分词器、并发控制等。
 //!
 //! ## 运行方法
 //! ```bash
@@ -10,7 +11,10 @@
 //! cargo run --example 22_summary_agent
 //! ```
 
-use rucora::agent::{SummaryAgent, SummaryMode};
+use rucora::agent::{
+    SummaryAgent, SummaryMode,
+    text_splitter, text_splitter_with_sizer, text_splitter_with_overlap,
+};
 use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
 use tracing::{Level, info};
@@ -88,7 +92,7 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .temperature(0.3)
         .build();
 
-    info!("文本内容（{} 字）：\n{}\n", long_text.chars().count(), long_text);
+    info!("文本内容（{} 字）：\n{long_text}\n", long_text.chars().count());
 
     match agent.run(long_text.into()).await {
         Ok(output) => {
@@ -155,10 +159,10 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
     }
 
     // ═══════════════════════════════════════════════════════════
-    // 演示 4: 长文本分块（map-reduce）
+    // 演示 4: text_splitter() 自定义 TextSplitter
     // ═══════════════════════════════════════════════════════════
     info!("═══════════════════════════════════════");
-    info!("演示 4: 长文本自动分块（chunk_size=200）");
+    info!("演示 4: text_splitter() 自定义分词器");
     info!("═══════════════════════════════════════\n");
 
     let mut mega_text = String::new();
@@ -171,11 +175,13 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         ));
     }
 
+    // 使用 text_splitter() 创建基于字符数的分词器
+    let splitter = text_splitter(200);
     let agent = SummaryAgent::builder()
         .provider(provider.clone())
         .model(&model)
         .mode(SummaryMode::Detailed)
-        .chunk_size(200)
+        .splitter(splitter)
         .temperature(0.3)
         .build();
 
@@ -192,15 +198,90 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         }
     }
 
+    // ═══════════════════════════════════════════════════════════
+    // 演示 5: text_splitter_with_sizer() + 并发控制
+    // ═══════════════════════════════════════════════════════════
+    info!("═══════════════════════════════════════");
+    info!("演示 5: 自定义 Sizer + 并发控制");
+    info!("═══════════════════════════════════════\n");
+
+    // 自定义 ChunkSizer：按字节数（而非字符数）分块
+    // 在 text-splitter 中，默认按字符数（Characters）分块。
+    // 这里演示如何自定义 sizer，以及设置并发数。
+    struct ByteSizer;
+    impl text_splitter::ChunkSizer for ByteSizer {
+        fn size(&self, chunk: &str) -> usize {
+            chunk.len()
+        }
+    }
+
+    // 方式一：使用 text_splitter_with_sizer() 辅助函数
+    let splitter = text_splitter_with_sizer(500, ByteSizer);
+    let agent = SummaryAgent::builder()
+        .provider(provider.clone())
+        .model(&model)
+        .mode(SummaryMode::KeyPoints)
+        .splitter(splitter)
+        .max_concurrency(16) // 并发处理块
+        .temperature(0.3)
+        .build();
+
+    info!("使用字节数 Sizer（chunk_size=500 字节）");
+    info!("max_concurrency=16，块之间并发处理\n");
+
+    match agent.run(long_text.into()).await {
+        Ok(output) => {
+            if let Some(text) = output.text() {
+                info!("关键信息：\n{text}\n");
+            }
+        }
+        Err(e) => {
+            info!("❌ 处理失败：{e}\n");
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // 演示 6: 带重叠的 TextSplitter
+    // ═══════════════════════════════════════════════════════════
+    info!("═══════════════════════════════════════");
+    info!("演示 6: text_splitter_with_overlap()");
+    info!("═══════════════════════════════════════\n");
+
+    // 创建带重叠的字符数分词器
+    let splitter = text_splitter_with_overlap(300, 30);
+
+    let agent = SummaryAgent::builder()
+        .provider(provider.clone())
+        .model(&model)
+        .mode(SummaryMode::BulletPoints)
+        .splitter(splitter)
+        .temperature(0.3)
+        .build();
+
+    info!("使用 text_splitter_with_overlap()");
+    info!("块大小 300 字符，块间重叠 30 字符\n");
+
+    match agent.run(long_text.into()).await {
+        Ok(output) => {
+            if let Some(text) = output.text() {
+                info!("要点列表（带重叠）：\n{text}\n");
+            }
+        }
+        Err(e) => {
+            info!("❌ 处理失败：{e}\n");
+        }
+    }
+
     info!("═══════════════════════════════════════");
     info!("示例完成！");
     info!("═══════════════════════════════════════\n");
 
-    info!("SummaryAgent 总结：\n");
+    info!("SummaryAgent 能力总结：\n");
     info!("1. 多模式输出: Concise / Detailed / BulletPoints / KeyPoints / Custom");
-    info!("2. 自定义模板: 通过 prompt_template / chunk_template / combine_template 定制提示词");
-    info!("3. 长文本支持: 自动分块合并 (map-reduce)，通过 chunk_size 控制分块大小");
-    info!("4. 适用场景: 文档总结、会议纪要、论文摘要、信息提取");
+    info!("2. 自定义模板: prompt_template / chunk_template / combine_template");
+    info!("3. 自定义分词器: text_splitter() / text_splitter_with_sizer() / DynTextSplitter");
+    info!("4. 并发控制: max_concurrency() 控制块处理并发数");
+    info!("5. 长文本处理: 自动 map-reduce 分块合并");
 
     Ok(())
 }

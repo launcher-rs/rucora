@@ -745,6 +745,83 @@ impl DefaultExecution {
 
                     step += 1;
                 }
+                AgentDecision::MapAll {
+                    requests,
+                    max_concurrency,
+                } => {
+                    let concurrency = max_concurrency.max(1);
+                    info!(
+                        request_count = requests.len(),
+                        concurrency,
+                        "execution.run.map_all.start"
+                    );
+
+                    let tasks: Vec<_> = requests
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, request)| {
+                            let provider = self.provider.clone();
+                            async move {
+                                let response = provider.chat(request).await.map_err(|e| {
+                                    AgentError::ProviderError { source: e }
+                                })?;
+                                Ok::<_, AgentError>((i, response))
+                            }
+                        })
+                        .collect();
+
+                    let mut responses = stream::iter(tasks)
+                        .buffer_unordered(concurrency)
+                        .collect::<Vec<_>>()
+                        .await
+                        .into_iter()
+                        .collect::<Result<Vec<(usize, _)>, _>>()?;
+
+                    responses.sort_by_key(|(i, _)| *i);
+
+                    for (_, response) in responses {
+                        messages.push(response.message);
+                        if let Some(u) = &response.usage {
+                            total_usage = Some(match &total_usage {
+                                Some(curr) => Usage {
+                                    prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
+                                    completion_tokens: curr.completion_tokens + u.completion_tokens,
+                                    total_tokens: curr.total_tokens + u.total_tokens,
+                                },
+                                None => u.clone(),
+                            });
+                        }
+                    }
+                    info!(step, "execution.run.map_all.done");
+                    step += 1;
+                }
+                AgentDecision::Reduce { request } => {
+                    info!("execution.run.reduce.start");
+                    let response = self.provider.chat(*request).await.map_err(|e| {
+                        AgentError::ProviderError { source: e }
+                    })?;
+
+                    messages.push(response.message.clone());
+
+                    if let Some(u) = &response.usage {
+                        total_usage = Some(match &total_usage {
+                            Some(curr) => Usage {
+                                prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
+                                completion_tokens: curr.completion_tokens + u.completion_tokens,
+                                total_tokens: curr.total_tokens + u.total_tokens,
+                            },
+                            None => u.clone(),
+                        });
+                    }
+
+                    info!("execution.run.reduce.done");
+                    return Ok(AgentOutput::with_usage(
+                        json!({"content": response.message.content}),
+                        messages,
+                        tool_call_records,
+                        total_usage,
+                    ));
+                }
                 AgentDecision::ToolCall {
                     name,
                     input: tool_input,

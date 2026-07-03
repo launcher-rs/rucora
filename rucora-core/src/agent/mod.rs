@@ -23,6 +23,7 @@ use futures_util::stream::BoxStream;
 use serde_json::Value;
 
 use crate::channel::types::ChannelEvent;
+use crate::provider::types::ChatRequest;
 
 /// Agent 决策结果。
 ///
@@ -32,7 +33,24 @@ pub enum AgentDecision {
     /// 调用 LLM 进行对话。
     Chat {
         /// 对话请求。
-        request: Box<crate::provider::types::ChatRequest>,
+        request: Box<ChatRequest>,
+    },
+    /// 并行处理多个对话请求（Map 阶段）。
+    ///
+    /// 所有请求会按 `max_concurrency` 限制并发执行，
+    /// 结果追加到消息历史后继续循环。
+    MapAll {
+        /// 对话请求列表。
+        requests: Vec<ChatRequest>,
+        /// 最大并发数。
+        max_concurrency: usize,
+    },
+    /// 执行归约对话（Reduce 阶段）。
+    ///
+    /// 处理单个 ChatRequest 后返回最终结果。
+    Reduce {
+        /// 对话请求。
+        request: Box<ChatRequest>,
     },
     /// 调用工具。
     ToolCall {
@@ -559,7 +577,11 @@ async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
                      // Chat 决策需要 LLM 调用，请使用 `run_with(executor, input)` 方法
                      return Err(AgentError::RequiresRuntime);
                  }
-AgentDecision::ToolCall { .. } => {
+                 AgentDecision::MapAll { .. } | AgentDecision::Reduce { .. } => {
+                     // MapAll/Reduce 决策需要执行器支持，请使用 `run_with(executor, input)` 方法
+                     return Err(AgentError::RequiresRuntime);
+                 }
+ AgentDecision::ToolCall { .. } => {
                       // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
                       return Err(AgentError::RequiresRuntime);
                   }

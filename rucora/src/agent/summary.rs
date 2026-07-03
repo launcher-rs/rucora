@@ -40,12 +40,120 @@
 use async_trait::async_trait;
 use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role, Usage};
 use serde_json::json;
 use std::sync::Arc;
-use text_splitter::TextSplitter;
+use text_splitter::{ChunkConfig, ChunkSizer, TextSplitter};
+use tracing::{debug, info, warn};
 
-use crate::agent::execution::{build_default_execution, DefaultExecution};
+use crate::agent::execution::DefaultExecution;
+use crate::agent::tool_registry::ToolRegistry;
+
+/// 类型擦除的 ChunkSizer 包装。
+/// 类型擦除的 ChunkSizer 包装（内部实现，不推荐直接使用）。
+pub struct DynSizer {
+    pub(crate) inner: Box<dyn ChunkSizer + Send + Sync>,
+}
+
+impl ChunkSizer for DynSizer {
+    fn size(&self, chunk: &str) -> usize {
+        self.inner.size(chunk)
+    }
+}
+
+/// 类型擦除的 TextSplitter。
+///
+/// 用户可通过 `text_splitter()` 或 `text_splitter_with_sizer()` 创建。
+pub type DynTextSplitter = TextSplitter<DynSizer>;
+
+/// 创建基于字符数的 TextSplitter。
+///
+/// ```rust,ignore
+/// use rucora::agent::summary::text_splitter;
+///
+/// let splitter = text_splitter(2000);
+/// ```
+pub fn text_splitter(capacity: usize) -> DynTextSplitter {
+    TextSplitter::new(
+        ChunkConfig::new(capacity)
+            .with_sizer(DynSizer { inner: Box::new(text_splitter::Characters) }),
+    )
+}
+
+/// 创建带自定义 Sizer 的 TextSplitter。
+///
+/// ```rust,ignore
+/// use rucora::agent::summary::text_splitter_with_sizer;
+///
+/// let splitter = text_splitter_with_sizer(500, my_tokenizer);
+/// ```
+pub fn text_splitter_with_sizer<S: ChunkSizer + Send + Sync + 'static>(
+    capacity: usize,
+    sizer: S,
+) -> DynTextSplitter {
+    TextSplitter::new(
+        ChunkConfig::new(capacity)
+            .with_sizer(DynSizer { inner: Box::new(sizer) }),
+    )
+}
+
+/// 创建带重叠的 TextSplitter。
+///
+/// ```rust,ignore
+/// use rucora::agent::text_splitter_with_overlap;
+///
+/// // 按 300 字符分块，块间重叠 30 字符
+/// let splitter = text_splitter_with_overlap(300, 30);
+/// ```
+///
+/// # Panics
+///
+/// 如果 overlap >= capacity 则 panic。
+pub fn text_splitter_with_overlap(capacity: usize, overlap: usize) -> DynTextSplitter {
+    TextSplitter::new(
+        ChunkConfig::new(capacity)
+            .with_overlap(overlap)
+            .expect("重叠应小于块大小")
+            .with_sizer(DynSizer { inner: Box::new(text_splitter::Characters) }),
+    )
+}
+
+/// 分块摘要结果。
+#[derive(Debug, Clone)]
+pub struct ChunkSummary {
+    /// 块索引（从 0 开始）。
+    pub index: usize,
+    /// 摘要内容。
+    pub summary: String,
+    /// Token 使用统计。
+    pub usage: Option<Usage>,
+}
+
+/// 渲染模板字符串。
+///
+/// 将模板中的 `{key}` 占位符替换为对应的值。
+fn render_template(template: &str, replacements: &[(&str, &str)]) -> String {
+    let mut result = template.to_string();
+    for (key, value) in replacements {
+        result = result.replace(key, value);
+    }
+    result
+}
+
+/// 文本分块器 trait。
+///
+/// 将长文本分割为适合 LLM 处理的小块。
+/// SummaryAgent 通过此 trait 解耦具体的文本分块策略。
+pub trait TextChunker: Send + Sync {
+    /// 将文本分割为块。
+    fn chunk_text<'a>(&self, text: &'a str) -> Vec<&'a str>;
+}
+
+impl TextChunker for DynTextSplitter {
+    fn chunk_text<'a>(&self, text: &'a str) -> Vec<&'a str> {
+        self.chunks(text).collect()
+    }
+}
 
 /// 摘要模式。
 #[derive(Debug, Clone, PartialEq, Default)]
@@ -103,7 +211,11 @@ const DEFAULT_CHUNK_TEMPLATE: &str = "\
 请总结以上文本部分的要点。";
 
 const DEFAULT_COMBINE_TEMPLATE: &str = "\
-以上是文本各部分的局部总结。请将它们合并为一份完整的最终总结。\n\
+以下是文本各部分的局部总结：\n\
+\n\
+{summaries}\n\
+\n\
+请将以上 {total} 份局部总结合并为一份完整的最终总结。\n\
 \n\
 {mode}";
 
@@ -114,13 +226,16 @@ const DEFAULT_COMBINE_TEMPLATE: &str = "\
 /// - 多模式输出（简洁、详细、要点、关键信息、自定义）
 /// - 纯 LLM 调用，不依赖工具
 /// - 支持自定义提示词模板
+/// - 分块摘要支持并发处理，加快速度
+/// - 支持任意 text-splitter 分词器（字符、Token、Markdown 等）
 pub struct SummaryAgent<P> {
     provider: Arc<P>,
     model: String,
     system_prompt: Option<String>,
     llm_params: LlmParams,
     mode: SummaryMode,
-    chunk_size: usize,
+    splitter: DynTextSplitter,
+    max_concurrency: usize,
     prompt_template: String,
     chunk_template: String,
     combine_template: String,
@@ -136,36 +251,80 @@ where
         let text = context.input.text();
         let step = context.step;
 
-        let splitter = TextSplitter::new(self.chunk_size);
-        let chunks: Vec<&str> = splitter.chunks(text).collect();
+        let chunks = self.split_text(text);
         let total = chunks.len();
+        let max_steps = if total <= 1 { 1 } else { 2 }; // MapAll(0) → Reduce(1) → Return(2)
 
-        if total <= 1 {
-            if step == 0 {
+        info!(
+            text_len = text.len(),
+            total_chunks = total,
+            step,
+            max_steps,
+            "SummaryAgent::think"
+        );
+
+        match step {
+            0 if total <= 1 => {
+                debug!("单块模式，直接发送摘要请求");
                 AgentDecision::Chat {
                     request: Box::new(self.build_single_request(text)),
                 }
-            } else {
+            }
+            0 => {
+                debug!(
+                    "多块模式，并发处理 {} 块（并发数 {}）",
+                    total, self.max_concurrency
+                );
+                let requests: Vec<ChatRequest> = chunks
+                    .iter()
+                    .enumerate()
+                    .map(|(i, chunk)| {
+                        let content = render_template(&self.chunk_template, &[
+                            ("{index}", &(i + 1).to_string()),
+                            ("{total}", &total.to_string()),
+                            ("{text}", chunk),
+                            ("{mode}", self.mode.instruction()),
+                        ]);
+                        let mut messages = Vec::new();
+                        if let Some(ref prompt) = self.system_prompt {
+                            messages.push(ChatMessage::system(prompt.clone()));
+                        }
+                        messages.push(ChatMessage::user(content));
+                        let mut request = ChatRequest {
+                            messages,
+                            model: Some(self.model.clone()),
+                            tools: None,
+                            ..Default::default()
+                        };
+                        self.llm_params.apply_to(&mut request);
+                        request
+                    })
+                    .collect();
+                AgentDecision::MapAll {
+                    requests,
+                    max_concurrency: self.max_concurrency,
+                }
+            }
+            1 if total > 1 => {
+                let summaries = self.extract_chunk_summaries(context);
+                let content = render_template(&self.combine_template, &[
+                    ("{summaries}", &summaries),
+                    ("{total}", &total.to_string()),
+                    ("{mode}", self.mode.instruction()),
+                ]);
+                info!(
+                    summary_count = summaries.lines().count(),
+                    summaries_len = summaries.len(),
+                    "多块模式，进入合并阶段（{} 个局部摘要）", total
+                );
+                AgentDecision::Reduce {
+                    request: Box::new(self.build_multi_request(context, content)),
+                }
+            }
+            _ => {
+                debug!("步骤 {}，返回最终结果", step);
                 self.return_last_assistant(context)
             }
-        } else if step < total {
-            let content = self.chunk_template
-                .replace("{index}", &(step + 1).to_string())
-                .replace("{total}", &total.to_string())
-                .replace("{text}", chunks[step])
-                .replace("{mode}", self.mode.instruction());
-            AgentDecision::Chat {
-                request: Box::new(self.build_multi_request(context, content)),
-            }
-        } else if step == total {
-            let content = self.combine_template
-                .replace("{total}", &total.to_string())
-                .replace("{mode}", self.mode.instruction());
-            AgentDecision::Chat {
-                request: Box::new(self.build_multi_request(context, content)),
-            }
-        } else {
-            self.return_last_assistant(context)
         }
     }
 
@@ -177,18 +336,25 @@ where
         Some("文本摘要 Agent，支持长文档自动分块和多模式输出")
     }
 
-    async fn run(&self, input: AgentInput) -> Result<AgentOutput, rucora_core::agent::AgentError> {
+    /// 委托执行器运行。
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
+        info!(
+            text_len = input.text().len(),
+            "SummaryAgent::run 委托给 DefaultExecution"
+        );
         self.execution.run(self, input).await
     }
 
     fn run_stream(
         &self,
-        input: AgentInput,
+        _input: AgentInput,
     ) -> futures_util::stream::BoxStream<
         'static,
-        Result<rucora_core::channel::types::ChannelEvent, rucora_core::agent::AgentError>,
+        Result<rucora_core::channel::types::ChannelEvent, AgentError>,
     > {
-        self.execution.run_stream_simple(input)
+        // SummaryAgent 使用 DefaultExecution 运行，当前的流式执行器
+        // 不支持 Agent 决策循环。请使用 run 方法获取完整结果。
+        Box::pin(futures_util::stream::empty())
     }
 }
 
@@ -199,8 +365,9 @@ where
     pub async fn run_stream_text(
         &self,
         input: impl Into<AgentInput>,
-    ) -> Result<String, rucora_core::agent::AgentError> {
-        self.execution.run_stream_text(input.into()).await
+    ) -> Result<String, AgentError> {
+        let output = self.run(input.into()).await?;
+        Ok(output.text_unwrap().to_string())
     }
 }
 
@@ -221,15 +388,29 @@ impl<P> SummaryAgent<P> {
     pub fn mode(&self) -> &SummaryMode {
         &self.mode
     }
+
+    pub fn splitter(&self) -> &DynTextSplitter {
+        &self.splitter
+    }
+
+    pub fn max_concurrency(&self) -> usize {
+        self.max_concurrency
+    }
+
+    /// 将文本分割为块。
+    pub fn split_text<'a>(&self, text: &'a str) -> Vec<&'a str> {
+        self.splitter.chunks(text).collect()
+    }
 }
 
 // ===== 请求构建方法 =====
 
 impl<P> SummaryAgent<P> {
     fn build_single_request(&self, text: &str) -> ChatRequest {
-        let content = self.prompt_template
-            .replace("{text}", text)
-            .replace("{mode}", self.mode.instruction());
+        let content = render_template(&self.prompt_template, &[
+            ("{text}", text),
+            ("{mode}", self.mode.instruction()),
+        ]);
 
         let mut messages = Vec::new();
         if let Some(ref prompt) = self.system_prompt {
@@ -255,12 +436,18 @@ impl<P> SummaryAgent<P> {
                 || messages
                     .first()
                     .map(|m| &m.role)
-                    != Some(&rucora_core::provider::types::Role::System))
+                    != Some(&Role::System))
         {
             messages.insert(0, ChatMessage::system(sys_prompt.clone()));
         }
 
         messages.push(ChatMessage::user(content));
+
+        debug!(
+            message_count = messages.len(),
+            last_user_content_len = messages.iter().rev().find(|m| m.role == Role::User).map_or(0, |m| m.content.len()),
+            "构建多块请求"
+        );
 
         let mut request = ChatRequest {
             messages,
@@ -277,10 +464,33 @@ impl<P> SummaryAgent<P> {
             .messages
             .iter()
             .rev()
-            .find(|m| m.role == rucora_core::provider::types::Role::Assistant)
+            .find(|m| m.role == Role::Assistant)
             .map(|m| m.content.clone())
             .unwrap_or_default();
         AgentDecision::Return(json!({"content": content}))
+    }
+
+    /// 从对话历史中提取各块的局部摘要。
+    ///
+    /// 在多块模式下，每个块的摘要由 LLM 以 assistant 消息返回。
+    /// 此方法收集所有 assistant 消息（跳过 system 消息）作为局部摘要。
+    fn extract_chunk_summaries(&self, context: &AgentContext) -> String {
+        let mut summaries = Vec::new();
+        let mut chunk_index = 1;
+
+        for msg in &context.messages {
+            if msg.role == Role::Assistant && !msg.content.trim().is_empty() {
+                summaries.push(format!("【部分 {}】\n{}", chunk_index, msg.content));
+                chunk_index += 1;
+            }
+        }
+
+        if summaries.is_empty() {
+            warn!("未找到任何局部摘要，合并阶段可能无法正常工作");
+            return String::from("（未找到局部摘要）");
+        }
+
+        summaries.join("\n\n")
     }
 }
 
@@ -291,11 +501,11 @@ pub struct SummaryAgentBuilder<P> {
     model: Option<String>,
     llm_params: LlmParams,
     mode: SummaryMode,
-    chunk_size: usize,
+    splitter: Option<DynTextSplitter>,
+    max_concurrency: usize,
     prompt_template: Option<String>,
     chunk_template: Option<String>,
     combine_template: Option<String>,
-    middleware_chain: crate::middleware::MiddlewareChain,
 }
 
 impl<P> SummaryAgentBuilder<P> {
@@ -306,11 +516,11 @@ impl<P> SummaryAgentBuilder<P> {
             model: None,
             llm_params: LlmParams::default(),
             mode: SummaryMode::Concise,
-            chunk_size: 4000,
+            splitter: None,
+            max_concurrency: 8,
             prompt_template: None,
             chunk_template: None,
             combine_template: None,
-            middleware_chain: crate::middleware::MiddlewareChain::new(),
         }
     }
 }
@@ -351,11 +561,40 @@ where
         self
     }
 
-    /// 设置分块大小（字节数，默认 4000）。
+    /// 设置分块大小（字符数，默认 4000）。
     ///
     /// 当文本超过此大小时，自动分块处理。使用 `text-splitter` 在语义边界（段落、句子）处拆分。
+    /// 注意：`text-splitter` 按字符数计算，中文一个字算一个字符。
     pub fn chunk_size(mut self, size: usize) -> Self {
-        self.chunk_size = size.max(100);
+        self.splitter = Some(text_splitter(size));
+        self
+    }
+
+    /// 设置自定义 TextSplitter 分词器。
+    ///
+    /// 传入一个 `DynTextSplitter` 实例，完全控制分词行为。
+    /// 可使用 `text_splitter()` 或 `text_splitter_with_sizer()` 辅助函数创建。
+    ///
+    /// ```rust,ignore
+    /// use rucora::agent::summary::{text_splitter, text_splitter_with_sizer};
+    ///
+    /// // 字符数分词
+    /// .splitter(text_splitter(2000))
+    ///
+    /// // 自定义 Sizer（如 tiktoken）
+    /// .splitter(text_splitter_with_sizer(500, my_tokenizer))
+    /// ```
+    pub fn splitter(mut self, splitter: DynTextSplitter) -> Self {
+        self.splitter = Some(splitter);
+        self
+    }
+
+    /// 设置最大并发数（默认 8）。
+    ///
+    /// 分块摘要时，同时处理的最大块数。增加并发数可以加快处理速度，
+    /// 但会增加 API 的并发压力。建议根据 API 限流和网络状况调整。
+    pub fn max_concurrency(mut self, concurrency: usize) -> Self {
+        self.max_concurrency = concurrency.max(1);
         self
     }
 
@@ -388,10 +627,11 @@ where
     /// 设置合并摘要的提示词模板（reduce 阶段）。
     ///
     /// 可用占位符：
+    /// - `{summaries}` — 所有块的局部摘要（自动从对话历史中提取）
     /// - `{total}` — 总块数
     /// - `{mode}` — 模式指令文本
     ///
-    /// 默认：`"以上是文本各部分的局部总结。请将它们合并为一份完整的最终总结。\n\n{mode}"`
+    /// 默认：`"以下是文本各部分的局部总结：\n\n{summaries}\n\n请将以上 {total} 份局部总结合并为一份完整的最终总结。\n\n{mode}"`
     pub fn combine_template(mut self, template: impl Into<String>) -> Self {
         self.combine_template = Some(template.into());
         self
@@ -442,22 +682,6 @@ where
         self
     }
 
-    pub fn with_middleware_chain(
-        mut self,
-        middleware_chain: crate::middleware::MiddlewareChain,
-    ) -> Self {
-        self.middleware_chain = middleware_chain;
-        self
-    }
-
-    pub fn with_middleware<M: crate::middleware::Middleware + 'static>(
-        mut self,
-        middleware: M,
-    ) -> Self {
-        self.middleware_chain = self.middleware_chain.with(middleware);
-        self
-    }
-
     /// 尝试构建 Agent。
     pub fn try_build(self) -> Result<SummaryAgent<P>, AgentError> {
         let provider = self.provider.ok_or_else(|| {
@@ -466,20 +690,18 @@ where
         let model = self
             .model
             .ok_or_else(|| AgentError::Message("构建 SummaryAgent 失败：缺少 model".to_string()))?;
+        let splitter = self.splitter.unwrap_or_else(|| text_splitter(4000));
 
         let provider_arc = Arc::new(provider);
-        let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
-            provider: provider_arc.clone(),
-            model: model.clone(),
-            tools: crate::agent::ToolRegistry::new(),
-            system_prompt: self.system_prompt.clone(),
-            max_steps: 20,
-            max_tool_concurrency: 1,
-            conversation_manager: None,
-            middleware_chain: self.middleware_chain.clone(),
-            enhanced_config: crate::agent::tool_call_config::ToolCallEnhancedConfig::default(),
-            llm_params: self.llm_params.clone(),
-        });
+
+        let execution = DefaultExecution::new(
+            provider_arc.clone() as Arc<dyn LlmProvider>,
+            model.clone(),
+            ToolRegistry::new(),
+        )
+        .with_llm_params(self.llm_params.clone())
+        .with_system_prompt_opt(self.system_prompt.clone())
+        .with_max_steps(10);
 
         Ok(SummaryAgent {
             provider: provider_arc,
@@ -487,7 +709,8 @@ where
             system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             mode: self.mode,
-            chunk_size: self.chunk_size,
+            splitter,
+            max_concurrency: self.max_concurrency,
             prompt_template: self.prompt_template.unwrap_or_else(|| DEFAULT_PROMPT_TEMPLATE.to_string()),
             chunk_template: self.chunk_template.unwrap_or_else(|| DEFAULT_CHUNK_TEMPLATE.to_string()),
             combine_template: self.combine_template.unwrap_or_else(|| DEFAULT_COMBINE_TEMPLATE.to_string()),
@@ -533,7 +756,7 @@ mod tests {
             .chunk_size(4000)
             .build();
         let text = "这是一段短文本。";
-        let count = TextSplitter::new(agent.chunk_size).chunks(text).count();
+        let count = agent.splitter.chunks(text).count();
         assert_eq!(count, 1);
     }
 
@@ -548,7 +771,7 @@ mod tests {
         for i in 0..6 {
             text.push_str(&format!("第{}段落。{}", i + 1, "这是该段的内容说明。这里有一些补充信息用于填充。\n\n"));
         }
-        let chunks: Vec<&str> = TextSplitter::new(agent.chunk_size).chunks(&text).collect();
+        let chunks: Vec<&str> = agent.splitter.chunks(&text).collect();
         assert!(chunks.len() > 1, "长文本应被分块，但得到 {} 块", chunks.len());
         for chunk in &chunks {
             assert!(!chunk.is_empty(), "分块不应为空");
@@ -593,12 +816,125 @@ mod tests {
     }
 
     #[test]
+    fn test_long_text_chunking_flow() {
+        let agent = SummaryAgentBuilder::<MockProvider>::new()
+            .provider(MockProvider)
+            .model("gpt-4o-mini")
+            .chunk_size(100)
+            .mode(SummaryMode::Concise)
+            .build();
+
+        let mut text = String::new();
+        for i in 0..10 {
+            text.push_str(&format!(
+                "第{}段落。这是该段的内容说明。这里有一些补充信息用于填充文本长度。\n\n",
+                i + 1
+            ));
+        }
+
+        let chunks: Vec<&str> = agent.splitter.chunks(&text).collect();
+        let total = chunks.len();
+
+        assert!(total > 1, "长文本应被分为多块，实际得到 {total} 块");
+        eprintln!("文本长度: {} 字符，分为 {total} 块", text.len());
+
+        for (i, chunk) in chunks.iter().enumerate() {
+            let preview: String = chunk.chars().take(20).collect();
+            eprintln!("块 {}: 长度 {} 字符，预览: {preview}", i + 1, chunk.len());
+            assert!(!chunk.is_empty(), "块 {i} 不应为空");
+        }
+
+        let combine_summaries = (1..=total)
+            .map(|i| format!("【部分 {i}】\nMock response"))
+            .collect::<Vec<_>>()
+            .join("\n\n");
+        assert!(
+            combine_summaries.contains("【部分 1】") && combine_summaries.contains(&format!("【部分 {total}】")),
+            "摘要应包含 {total} 个部分标记",
+        );
+    }
+
+    #[test]
+    fn test_extract_chunk_summaries() {
+        let agent = SummaryAgentBuilder::<MockProvider>::new()
+            .provider(MockProvider)
+            .model("gpt-4o-mini")
+            .build();
+
+        let input = AgentInput::new("测试文本");
+        let mut context = rucora_core::agent::AgentContext::new(input, 10);
+
+        context.messages.push(ChatMessage::system("系统提示"));
+        context.messages.push(ChatMessage::user("用户消息"));
+        context.messages.push(ChatMessage::assistant("第一个块的摘要"));
+        context.messages.push(ChatMessage::user("第二块请求"));
+        context.messages.push(ChatMessage::assistant("第二个块的摘要"));
+
+        let summaries = agent.extract_chunk_summaries(&context);
+        assert!(summaries.contains("第一个块的摘要"), "应包含第一个摘要");
+        assert!(summaries.contains("第二个块的摘要"), "应包含第二个摘要");
+        assert!(summaries.contains("【部分 1】"), "应有部分标记");
+        assert!(summaries.contains("【部分 2】"), "应有部分标记");
+    }
+
+    #[test]
+    fn test_empty_summaries_warning() {
+        let agent = SummaryAgentBuilder::<MockProvider>::new()
+            .provider(MockProvider)
+            .model("gpt-4o-mini")
+            .build();
+
+        let input = AgentInput::new("测试文本");
+        let context = rucora_core::agent::AgentContext::new(input, 10);
+
+        let summaries = agent.extract_chunk_summaries(&context);
+        assert!(summaries.contains("未找到"), "无摘要时应返回提示信息");
+    }
+
+    #[test]
+    fn test_text_splitter() {
+        let splitter = text_splitter(1000);
+        let text = "Hello world. This is a test. ".repeat(10);
+        let chunks: Vec<&str> = splitter.chunks(&text).collect();
+        assert!(!chunks.is_empty());
+        for chunk in &chunks {
+            assert!(!chunk.is_empty());
+        }
+    }
+
+    #[test]
+    fn test_text_splitter_with_builder() {
+        let agent = SummaryAgentBuilder::<MockProvider>::new()
+            .provider(MockProvider)
+            .model("gpt-4o-mini")
+            .splitter(text_splitter(2000))
+            .build();
+
+        let text = "Hello world. This is a test. ".repeat(200);
+        assert!(agent.splitter.chunks(&text).next().is_some());
+    }
+
+    #[test]
+    fn test_text_splitter_with_overlap() {
+        let splitter = text_splitter_with_overlap(100, 20);
+        let text = "Hello world. This is a test. ".repeat(10);
+        assert!(splitter.chunks(&text).next().is_some());
+    }
+
+    #[test]
+    #[should_panic(expected = "重叠应小于块大小")]
+    fn test_text_splitter_with_overlap_panics_on_invalid() {
+        text_splitter_with_overlap(50, 100);
+    }
+
+    #[test]
     fn test_chunk_integrity() {
         let mut text = String::new();
         for i in 0..10 {
             text.push_str(&format!("Paragraph {} with some content to make it longer than a very short chunk.\n\n", i + 1));
         }
-        let chunks: Vec<&str> = TextSplitter::new(200).chunks(&text).collect();
+        let splitter = text_splitter(200);
+        let chunks: Vec<&str> = splitter.chunks(&text).collect();
         assert!(chunks.len() > 1);
         for chunk in &chunks {
             assert!(text.contains(chunk), "分块 {chunk} 应是原文的子串");
