@@ -29,9 +29,9 @@
 //! ```
 
 use async_trait::async_trait;
+use dashmap::DashMap;
 use rucora_core::error::ProviderError;
 use rucora_core::retrieval::{SearchResult, VectorQuery, VectorRecord, VectorStore};
-use dashmap::DashMap;
 
 /// 内存向量存储
 ///

@@ -9,7 +9,7 @@ use rucora::provider::OpenAiProvider;
 use rucora_core::provider::LlmProvider;
 use rucora_tools::{DatetimeTool, TavilyTool};
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 const DEFAULT_TOPIC: &str = "人工智能在医疗领域的最新应用";
@@ -115,7 +115,7 @@ async fn run_iterative_research(
 
         let output = agent.run(query.into()).await?;
         let text = output.text().unwrap_or("无结果").to_string();
-        
+
         results.push(text.clone());
         previous_summary = text;
     }

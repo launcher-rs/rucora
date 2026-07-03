@@ -12,8 +12,7 @@
 //! ```
 
 use rucora::agent::{
-    SummaryAgent, SummaryMode,
-    text_splitter, text_splitter_with_sizer, text_splitter_with_overlap,
+    SummaryAgent, SummaryMode, text_splitter, text_splitter_with_overlap, text_splitter_with_sizer,
 };
 use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
@@ -92,7 +91,10 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .temperature(0.3)
         .build();
 
-    info!("文本内容（{} 字）：\n{long_text}\n", long_text.chars().count());
+    info!(
+        "文本内容（{} 字）：\n{long_text}\n",
+        long_text.chars().count()
+    );
 
     match agent.run(long_text.into()).await {
         Ok(output) => {
@@ -143,7 +145,9 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
         .mode("Please summarize the following text in English, focusing on key technical details.")
         .prompt_template("Summarize this text:\n\n{text}\n\n{mode}")
         .chunk_template("[Part {index}/{total}]\n{text}\n\nPlease summarize this part in English.")
-        .combine_template("Now combine all {total} partial summaries into a complete English summary.\n\n{mode}")
+        .combine_template(
+            "Now combine all {total} partial summaries into a complete English summary.\n\n{mode}",
+        )
         .temperature(0.3)
         .build();
 

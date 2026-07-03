@@ -86,15 +86,11 @@
 //!
 //! ```rust
 //! use rucora_core::channel::types::*;
-//! use rucora_core::provider::types::{ChatMessage, Role};
+//! use rucora_core::provider::types::ChatMessage;
 //! use serde_json::json;
 //!
 //! // 创建消息事件
-//! let message_event = ChannelEvent::Message(ChatMessage {
-//!     role: Role::Assistant,
-//!     content: "你好！".to_string(),
-//!     name: None,
-//! });
+//! let message_event = ChannelEvent::Message(ChatMessage::assistant("你好！"));
 //!
 //! // 创建 Token 流式事件
 //! let token_event = ChannelEvent::TokenDelta(TokenDeltaEvent {

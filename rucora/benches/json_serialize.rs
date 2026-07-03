@@ -1,15 +1,11 @@
 use criterion::{Criterion, black_box, criterion_group, criterion_main};
 use rucora_core::channel::types::{ChannelEvent, TokenDeltaEvent};
-use rucora_core::provider::types::{ChatMessage, Role};
+use rucora_core::provider::types::ChatMessage;
 use rucora_core::tool::types::{ToolCall, ToolResult};
 use serde_json::json;
 
 fn bench_channel_event_serialize(c: &mut Criterion) {
-    let ev = ChannelEvent::Message(ChatMessage {
-        role: Role::Assistant,
-        content: "hello world".to_string(),
-        name: None,
-    });
+    let ev = ChannelEvent::Message(ChatMessage::assistant("hello world"));
 
     c.bench_function("channel_event/message serialize", |b| {
         b.iter(|| {

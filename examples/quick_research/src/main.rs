@@ -9,7 +9,7 @@ use rucora::provider::OpenAiProvider;
 use rucora_core::provider::LlmProvider;
 use rucora_tools::{DatetimeTool, TavilyTool};
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 const DEFAULT_TOPIC: &str = "什么是量子计算?";

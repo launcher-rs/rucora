@@ -4,7 +4,7 @@
 
 use anyhow::Result;
 use rucora_core::research::{Citation, ResearchReport, ResearchStrategy};
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 const DEFAULT_TOPIC: &str = "深度学习在医学影像诊断中的应用";
@@ -115,10 +115,7 @@ async fn run_academic_research(topic: &str) -> ResearchReport {
     );
 
     report = report.with_content(content);
-    report = report.with_summary(format!(
-        "本报告综述了 {} 领域的深度学习技术应用。",
-        topic
-    ));
+    report = report.with_summary(format!("本报告综述了 {} 领域的深度学习技术应用。", topic));
 
     report
 }

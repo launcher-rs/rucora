@@ -45,7 +45,10 @@ async fn get_weather(city: String) -> Result<Value, ToolError> {
 }
 
 /// 计算器：执行简单的数学运算
-#[rucora_tool(name = "calculator", description = "执行简单的数学运算（加、减、乘、除）")]
+#[rucora_tool(
+    name = "calculator",
+    description = "执行简单的数学运算（加、减、乘、除）"
+)]
 async fn calculator(a: f64, b: f64, operation: String) -> Result<Value, ToolError> {
     let result = match operation.as_str() {
         "add" | "+" => a + b,
@@ -229,10 +232,8 @@ async fn main() -> anyhow::Result<()> {
 
     // ── 5. 演示 ToolResult 增强 ──
     info!("5. ToolResult 增强 - 结构化数据与二进制数据");
-    let success_result = rucora_core::tool::types::ToolResult::success(
-        "call_001",
-        json!({ "temperature": 22 }),
-    );
+    let success_result =
+        rucora_core::tool::types::ToolResult::success("call_001", json!({ "temperature": 22 }));
     info!("   成功结果：success={}", success_result.is_success());
 
     let data_result = rucora_core::tool::types::ToolResult::success(
@@ -246,9 +247,12 @@ async fn main() -> anyhow::Result<()> {
     }));
     info!("   带结构化数据：data={:?}", data_result.data);
 
-    let failure_result =
-        rucora_core::tool::types::ToolResult::failure("call_003", "网络连接超时");
-    info!("   失败结果：success={}, error={:?}", failure_result.is_success(), failure_result.error);
+    let failure_result = rucora_core::tool::types::ToolResult::failure("call_003", "网络连接超时");
+    info!(
+        "   失败结果：success={}, error={:?}",
+        failure_result.is_success(),
+        failure_result.error
+    );
     info!("");
 
     // ── 6. 演示 #[rucora_tool] 过程宏 ──
@@ -256,11 +260,17 @@ async fn main() -> anyhow::Result<()> {
     info!("   已自动生成：");
     info!("   - GetWeatherTool: {}", GetWeatherTool.name());
     info!("     描述：{:?}", GetWeatherTool.description());
-    info!("     Schema: {}", serde_json::to_string_pretty(&GetWeatherTool.input_schema())?);
+    info!(
+        "     Schema: {}",
+        serde_json::to_string_pretty(&GetWeatherTool.input_schema())?
+    );
     info!("");
     info!("   - CalculatorTool: {}", CalculatorTool.name());
     info!("     描述：{:?}", CalculatorTool.description());
-    info!("     Schema: {}", serde_json::to_string_pretty(&CalculatorTool.input_schema())?);
+    info!(
+        "     Schema: {}",
+        serde_json::to_string_pretty(&CalculatorTool.input_schema())?
+    );
     info!("");
 
     // ── 7. 演示 agent! 宏 ──

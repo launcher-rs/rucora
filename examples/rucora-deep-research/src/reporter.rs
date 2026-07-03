@@ -42,7 +42,6 @@ impl Reporter {
         std::fs::write(&path, report_content)?;
         info!("💾 报告已保存: {}", path.display());
 
-
         Ok(path)
     }
 
@@ -77,7 +76,6 @@ impl Reporter {
 
         std::fs::write(&path, &content)?;
         info!("💾 阶段记录已保存: {}", path.display());
-
 
         Ok(path)
     }

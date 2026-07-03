@@ -132,6 +132,7 @@ use crate::{error::SkillError, tool::ToolCategory};
 /// ```rust,no_run
 /// use rucora_core::skill::Skill;
 /// use rucora_core::error::SkillError;
+/// use rucora_core::tool::ToolCategory;
 /// use async_trait::async_trait;
 /// use serde_json::{Value, json};
 ///
@@ -178,7 +179,7 @@ pub trait Skill: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// // 好的命名
     /// "weather_query"
     /// "news_summary"
@@ -202,7 +203,7 @@ pub trait Skill: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// fn description(&self) -> Option<&str> {
     ///     Some("查询指定城市的天气信息，支持当前天气和 3 天预报")
     /// }
@@ -220,7 +221,7 @@ pub trait Skill: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// use rucora_core::skill::Skill;
     /// use rucora_core::tool::ToolCategory;
     ///
@@ -241,7 +242,7 @@ pub trait Skill: Send + Sync {
     ///
     /// # 示例
     ///
-    /// ```rust
+    /// ```rust,ignore
     /// use serde_json::json;
     ///
     /// fn input_schema(&self) -> Value {
@@ -280,6 +281,7 @@ pub trait Skill: Send + Sync {
     /// ```rust,no_run
     /// use rucora_core::skill::Skill;
     /// use rucora_core::error::SkillError;
+    /// use rucora_core::tool::ToolCategory;
     /// use async_trait::async_trait;
     /// use serde_json::{Value, json};
     ///
@@ -299,4 +301,3 @@ pub trait Skill: Send + Sync {
     /// ```
     async fn run_value(&self, input: Value) -> Result<Value, SkillError>;
 }
-

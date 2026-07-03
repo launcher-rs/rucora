@@ -466,7 +466,7 @@ impl ToolRegistry {
     /// 获取带命名空间的工具名称
     fn namespaced_name(&self, name: &str) -> String {
         if let Some(prefix) = &self.namespace_prefix {
-            format!("{prefix}::{name}")
+            format!("{prefix}__{name}")
         } else {
             name.to_string()
         }
@@ -617,9 +617,9 @@ impl ToolRegistry {
             // 如果名称冲突，使用对方的命名空间或添加前缀
             if self.tools.contains_key(&name) {
                 let new_name = if let Some(prefix) = &other.namespace_prefix {
-                    format!("{prefix}::{name}")
+                    format!("{prefix}__{name}")
                 } else {
-                    format!("merged::{name}")
+                    format!("merged__{name}")
                 };
                 self.tools.insert(new_name, wrapper);
             } else {
@@ -729,11 +729,12 @@ impl ToolRegistry {
         }
 
         // 构建新的定义列表
-        let definitions: Vec<ToolDefinition> = self.tools
-            .values()
-            .filter(|w| w.metadata.enabled)
-            .map(|wrapper| ToolDefinition {
-                name: wrapper.tool.name().to_string(),
+        let definitions: Vec<ToolDefinition> = self
+            .tools
+            .iter()
+            .filter(|(_, wrapper)| wrapper.metadata.enabled)
+            .map(|(name, wrapper)| ToolDefinition {
+                name: name.clone(),
                 description: wrapper.tool.description().map(|s| s.to_string()),
                 input_schema: wrapper.tool.input_schema(),
                 version: 1,
@@ -795,7 +796,7 @@ impl ToolRegistry {
 
         // 尝试带命名空间查找
         if let Some(prefix) = &self.namespace_prefix {
-            let namespaced = format!("{prefix}::{name}");
+            let namespaced = format!("{prefix}__{name}");
             if let Some(wrapper) = self.tools.get(&namespaced)
                 && wrapper.metadata.enabled
             {
@@ -988,7 +989,7 @@ mod tests {
             });
 
         // 带命名空间查找应该成功
-        assert!(registry.get("test::my_tool").is_some());
+        assert!(registry.get("test__my_tool").is_some());
         // 不带命名空间查找也应该成功（因为会尝试两种查找）
         assert!(registry.get("my_tool").is_some());
     }
@@ -1034,8 +1035,8 @@ mod tests {
 
         let merged = registry1.merge(registry2);
         // ns1 的工具
-        assert!(merged.get("ns1::tool").is_some());
+        assert!(merged.get("ns1__tool").is_some());
         // ns2 的工具（合并时会添加额外前缀）
-        assert!(merged.get("ns2::tool").is_some());
+        assert!(merged.get("ns2__tool").is_some());
     }
 }

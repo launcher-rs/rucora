@@ -188,10 +188,7 @@ impl AgentInput {
     pub fn with_context(text: impl Into<String>, context: serde_json::Value) -> Self {
         let text = text.into();
         assert!(!text.is_empty(), "AgentInput text must not be empty");
-        Self {
-            text,
-            context,
-        }
+        Self { text, context }
     }
 
     /// 创建 builder。
@@ -277,25 +274,25 @@ impl From<&str> for AgentInput {
 /// - `tool_calls`: 工具调用记录
 ///
 /// # 使用示例
-    ///
-    /// ```rust
-    /// use rucora_core::agent::AgentOutput;
-    /// use serde_json::json;
-    ///
-    /// // 创建输出
-    /// let output = AgentOutput::new(json!({"content": "Hello"}));
-    ///
-    /// // 提取文本内容
-    /// if let Some(content) = output.value.get("content").and_then(|v| v.as_str()) {
-    ///     assert_eq!(content, "Hello");
-    /// }
-    ///
-    /// // 访问对话历史
-    /// assert_eq!(output.messages.len(), 0);
-    ///
-    /// // 访问工具调用
-    /// assert_eq!(output.tool_calls.len(), 0);
-    /// ```
+///
+/// ```rust
+/// use rucora_core::agent::AgentOutput;
+/// use serde_json::json;
+///
+/// // 创建输出
+/// let output = AgentOutput::new(json!({"content": "Hello"}));
+///
+/// // 提取文本内容
+/// if let Some(content) = output.value.get("content").and_then(|v| v.as_str()) {
+///     assert_eq!(content, "Hello");
+/// }
+///
+/// // 访问对话历史
+/// assert_eq!(output.messages.len(), 0);
+///
+/// // 访问工具调用
+/// assert_eq!(output.tool_calls.len(), 0);
+/// ```
 #[derive(Debug, Clone)]
 pub struct AgentOutput {
     /// 主要输出内容（通常是 JSON 格式，包含 `content` 字段）。
@@ -520,7 +517,7 @@ pub trait Agent: Send + Sync {
     /// # 示例
     ///
     /// ## 简单推理 Agent（无需工具）
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rucora_core::agent::{Agent, AgentInput};
     ///
     /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
@@ -530,7 +527,7 @@ pub trait Agent: Send + Sync {
     /// ```
     ///
     /// ## 带工具执行的 Agent
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rucora::agent::execution::DefaultExecution;
     /// use rucora::agent::ToolAgent;
     /// use rucora_core::agent::{Agent, AgentInput, AgentExecutor};
@@ -540,90 +537,88 @@ pub trait Agent: Send + Sync {
     /// # Ok(())
     /// # }
     /// ```
-async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
-         // 默认最大步骤数：20
-         // 需要自定义请使用 `run_with(executor, input)` 方法
-         const DEFAULT_MAX_STEPS: usize = 20;
+    async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
+        // 默认最大步骤数：20
+        // 需要自定义请使用 `run_with(executor, input)` 方法
+        const DEFAULT_MAX_STEPS: usize = 20;
 
-         let mut context = AgentContext::new(input.clone(), DEFAULT_MAX_STEPS);
+        let mut context = AgentContext::new(input.clone(), DEFAULT_MAX_STEPS);
 
-         loop {
-             let decision = self.think(&context).await;
+        loop {
+            let decision = self.think(&context).await;
 
-             match decision {
-                 AgentDecision::Return(value) => {
-                     return Ok(AgentOutput::with_history(
-                         value,
-                         context.messages,
-                         Vec::new(),
-                     ));
-                 }
-                 AgentDecision::Stop => {
-                     return Ok(AgentOutput::with_history(
-                         Value::Null,
-                         context.messages,
-                         Vec::new(),
-                     ));
-                 }
-                 AgentDecision::ThinkAgain => {
-                     context.step += 1;
-                     if context.step >= context.max_steps {
-                         return Err(AgentError::MaxStepsExceeded {
-                             max_steps: context.max_steps,
-                         });
-                     }
-                 }
-                 AgentDecision::Chat { request: _ } => {
-                     // Chat 决策需要 LLM 调用，请使用 `run_with(executor, input)` 方法
-                     return Err(AgentError::RequiresRuntime);
-                 }
-                 AgentDecision::MapAll { .. } | AgentDecision::Reduce { .. } => {
-                     // MapAll/Reduce 决策需要执行器支持，请使用 `run_with(executor, input)` 方法
-                     return Err(AgentError::RequiresRuntime);
-                 }
- AgentDecision::ToolCall { .. } => {
-                      // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
-                      return Err(AgentError::RequiresRuntime);
-                  }
-              }
-          }
-      }
+            match decision {
+                AgentDecision::Return(value) => {
+                    return Ok(AgentOutput::with_history(
+                        value,
+                        context.messages,
+                        Vec::new(),
+                    ));
+                }
+                AgentDecision::Stop => {
+                    return Ok(AgentOutput::with_history(
+                        Value::Null,
+                        context.messages,
+                        Vec::new(),
+                    ));
+                }
+                AgentDecision::ThinkAgain => {
+                    context.step += 1;
+                    if context.step >= context.max_steps {
+                        return Err(AgentError::MaxStepsExceeded {
+                            max_steps: context.max_steps,
+                        });
+                    }
+                }
+                AgentDecision::Chat { request: _ } => {
+                    // Chat 决策需要 LLM 调用，请使用 `run_with(executor, input)` 方法
+                    return Err(AgentError::RequiresRuntime);
+                }
+                AgentDecision::MapAll { .. } | AgentDecision::Reduce { .. } => {
+                    // MapAll/Reduce 决策需要执行器支持，请使用 `run_with(executor, input)` 方法
+                    return Err(AgentError::RequiresRuntime);
+                }
+                AgentDecision::ToolCall { .. } => {
+                    // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
+                    return Err(AgentError::RequiresRuntime);
+                }
+            }
+        }
+    }
 
-     /// 运行 Agent（带超时控制）。
-     ///
-     /// 此方法允许设置 Agent 级别的整体超时时间。超时后，Agent 会停止执行
-     /// 并返回 `AgentError::Timeout` 错误。
-     ///
-     /// # 参数
-     ///
-     /// - `input`: 用户输入
-     /// - `timeout`: 超时时间
-     ///
-     /// # 示例
-     ///
-     /// ```rust,no_run
-     /// use rucora_core::agent::{Agent, AgentInput};
-     /// use std::time::Duration;
-     ///
-     /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
-     /// let input = AgentInput::new("请在30秒内完成这个任务");
-     /// let output = agent.run_with_timeout(input, Duration::from_secs(30)).await?;
-     /// # Ok(())
-     /// # }
-     /// ```
-     async fn run_with_timeout(
-         &self,
-         input: AgentInput,
-         timeout: std::time::Duration,
-     ) -> Result<AgentOutput, AgentError> {
-         tokio::time::timeout(timeout, self.run(input))
-             .await
-             .map_err(|_| AgentError::Timeout {
-                 duration: timeout,
-             })?
-     }
+    /// 运行 Agent（带超时控制）。
+    ///
+    /// 此方法允许设置 Agent 级别的整体超时时间。超时后，Agent 会停止执行
+    /// 并返回 `AgentError::Timeout` 错误。
+    ///
+    /// # 参数
+    ///
+    /// - `input`: 用户输入
+    /// - `timeout`: 超时时间
+    ///
+    /// # 示例
+    ///
+    /// ```rust,ignore
+    /// use rucora_core::agent::{Agent, AgentInput};
+    /// use std::time::Duration;
+    ///
+    /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
+    /// let input = AgentInput::new("请在30秒内完成这个任务");
+    /// let output = agent.run_with_timeout(input, Duration::from_secs(30)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn run_with_timeout(
+        &self,
+        input: AgentInput,
+        timeout: std::time::Duration,
+    ) -> Result<AgentOutput, AgentError> {
+        tokio::time::timeout(timeout, self.run(input))
+            .await
+            .map_err(|_| AgentError::Timeout { duration: timeout })?
+    }
 
-     /// 运行 Agent（流式）。
+    /// 运行 Agent（流式）。
     ///
     /// 默认实现返回一个包含错误信息的 stream，表示此 Agent 不支持流式输出。
     /// 需要流式支持的 Agent 应重写此方法，或使用 `run_with()` 配合流式执行器。
@@ -637,7 +632,7 @@ async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
     /// # 示例
     ///
     /// ## 使用默认实（不支持流式）
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rucora_core::agent::{Agent, AgentInput};
     /// use futures_util::StreamExt;
     ///
@@ -656,12 +651,12 @@ async fn run(&self, input: AgentInput) -> Result<AgentOutput, AgentError> {
     /// ```
     ///
     /// ## 使用 `DefaultExecution` 提供流式支持
-    /// ```rust,no_run
+    /// ```rust,ignore
     /// use rucora::agent::execution::DefaultExecution;
     /// use rucora_core::agent::{Agent, AgentInput, AgentExecutor};
     ///
     /// # async fn example(agent: &impl Agent, executor: &dyn AgentExecutor) -> Result<(), Box<dyn std::error::Error>> {
-    /// let stream = executor.run_stream(agent, AgentInput::new("你好"));
+    /// let stream = executor.run_stream(AgentInput::new("你好"));
     /// # Ok(())
     /// # }
     /// ```

@@ -14,14 +14,20 @@ async fn memory_store_and_recall_share_backend() {
     let recall = MemoryRecallTool::from_memory(backend);
 
     let store_out = store
-        .call(json!({"key":"user_lang","content":"Rust","category":"core"}), &ToolContext::new())
+        .call(
+            json!({"key":"user_lang","content":"Rust","category":"core"}),
+            &ToolContext::new(),
+        )
         .await
         .unwrap();
 
     assert_eq!(store_out["success"], true);
 
     let recall_out = recall
-        .call(json!({"key":"user_lang","category":"core"}), &ToolContext::new())
+        .call(
+            json!({"key":"user_lang","category":"core"}),
+            &ToolContext::new(),
+        )
         .await
         .unwrap();
 

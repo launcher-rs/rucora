@@ -231,4 +231,3 @@ pub struct SkillOutput {
     /// 具体格式和内容由各个技能实现自行定义。
     pub output: Value,
 }
-

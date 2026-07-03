@@ -204,7 +204,7 @@ where
             self.model
         };
 
-        let execution = DefaultExecution::new(
+        let execution = DefaultExecution::with_model(
             provider.clone(),
             model.clone(),
             rucora::agent::ToolRegistry::new(),

@@ -48,7 +48,7 @@ use rucora_core::provider::types::{ChatMessage, LlmParams};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::agent::execution::{build_default_execution, DefaultExecution};
+use crate::agent::execution::{DefaultExecution, build_default_execution};
 use crate::conversation::ConversationManager;
 
 /// ChatAgent - 纯对话 Agent
@@ -60,8 +60,8 @@ use crate::conversation::ConversationManager;
 pub struct ChatAgent<P> {
     /// LLM Provider
     provider: Arc<P>,
-    /// 默认使用的模型
-    model: String,
+    /// Agent 级模型覆盖；为空时使用 Provider 默认模型。
+    model: Option<String>,
     /// 系统提示词
     system_prompt: Option<String>,
     /// LLM 请求参数
@@ -82,7 +82,7 @@ where
         AgentDecision::Chat {
             request: Box::new({
                 let mut request = context.default_chat_request_with(&self.llm_params);
-                request.model = Some(self.model.clone());
+                request.model = self.model.clone();
                 request.tools = None; // 不使用工具
                 request
             }),
@@ -140,8 +140,8 @@ impl<P> ChatAgent<P> {
     }
 
     /// 获取模型名称
-    pub fn model(&self) -> &str {
-        &self.model
+    pub fn model(&self) -> Option<&str> {
+        self.model.as_deref()
     }
 
     /// 获取对话历史（如果启用了）
@@ -210,7 +210,7 @@ where
         self
     }
 
-    /// 设置默认模型（必需）
+    /// 设置 Agent 级模型覆盖。不设置时使用 Provider 默认模型。
     pub fn model(mut self, model: impl Into<String>) -> Self {
         self.model = Some(model.into());
         self
@@ -313,10 +313,6 @@ where
         let provider = self
             .provider
             .ok_or_else(|| AgentError::Message("构建 ChatAgent 失败：缺少 provider".to_string()))?;
-        let model = self
-            .model
-            .ok_or_else(|| AgentError::Message("构建 ChatAgent 失败：缺少 model".to_string()))?;
-
         // 创建对话管理器
         let conversation_manager = if self.with_conversation {
             let mut conv = ConversationManager::new();
@@ -331,11 +327,11 @@ where
             None
         };
 
-// 创建执行能力（ChatAgent 不使用工具）
+        // 创建执行能力（ChatAgent 不使用工具）
         let provider_arc = Arc::new(provider);
         let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
             provider: provider_arc.clone(),
-            model: model.clone(),
+            model: self.model.clone(),
             tools: crate::agent::ToolRegistry::new(),
             system_prompt: self.system_prompt.clone(),
             max_steps: 10,
@@ -348,7 +344,7 @@ where
 
         Ok(ChatAgent {
             provider: provider_arc,
-            model,
+            model: self.model,
             system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             conversation_manager,

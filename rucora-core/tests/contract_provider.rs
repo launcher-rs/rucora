@@ -17,11 +17,7 @@ impl LlmProvider for MockProvider {
             .unwrap_or_default();
 
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: format!("echo: {last_user}"),
-                name: None,
-            },
+            message: ChatMessage::assistant(format!("echo: {last_user}")),
             tool_calls: vec![],
             usage: None,
             finish_reason: None,
@@ -34,11 +30,7 @@ async fn provider_contract_chat_should_return_assistant_message() {
     let p = MockProvider;
 
     let req = ChatRequest {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "hi".to_string(),
-            name: None,
-        }],
+        messages: vec![ChatMessage::user("hi")],
         model: None,
         tools: None,
         temperature: None,

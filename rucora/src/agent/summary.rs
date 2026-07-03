@@ -74,10 +74,9 @@ pub type DynTextSplitter = TextSplitter<DynSizer>;
 /// let splitter = text_splitter(2000);
 /// ```
 pub fn text_splitter(capacity: usize) -> DynTextSplitter {
-    TextSplitter::new(
-        ChunkConfig::new(capacity)
-            .with_sizer(DynSizer { inner: Box::new(text_splitter::Characters) }),
-    )
+    TextSplitter::new(ChunkConfig::new(capacity).with_sizer(DynSizer {
+        inner: Box::new(text_splitter::Characters),
+    }))
 }
 
 /// 创建带自定义 Sizer 的 TextSplitter。
@@ -91,10 +90,9 @@ pub fn text_splitter_with_sizer<S: ChunkSizer + Send + Sync + 'static>(
     capacity: usize,
     sizer: S,
 ) -> DynTextSplitter {
-    TextSplitter::new(
-        ChunkConfig::new(capacity)
-            .with_sizer(DynSizer { inner: Box::new(sizer) }),
-    )
+    TextSplitter::new(ChunkConfig::new(capacity).with_sizer(DynSizer {
+        inner: Box::new(sizer),
+    }))
 }
 
 /// 创建带重叠的 TextSplitter。
@@ -114,7 +112,9 @@ pub fn text_splitter_with_overlap(capacity: usize, overlap: usize) -> DynTextSpl
         ChunkConfig::new(capacity)
             .with_overlap(overlap)
             .expect("重叠应小于块大小")
-            .with_sizer(DynSizer { inner: Box::new(text_splitter::Characters) }),
+            .with_sizer(DynSizer {
+                inner: Box::new(text_splitter::Characters),
+            }),
     )
 }
 
@@ -175,10 +175,16 @@ impl SummaryMode {
     /// 获取模式对应的指令文本。
     fn instruction(&self) -> &str {
         match self {
-            Self::Concise => "请用简洁的 2-3 句话总结以下文本的核心内容。直接给出总结，不要添加额外说明。",
-            Self::Detailed => "请详细总结以下文本的内容，保留重要细节、论据和结论。确保覆盖所有关键部分。",
+            Self::Concise => {
+                "请用简洁的 2-3 句话总结以下文本的核心内容。直接给出总结，不要添加额外说明。"
+            }
+            Self::Detailed => {
+                "请详细总结以下文本的内容，保留重要细节、论据和结论。确保覆盖所有关键部分。"
+            }
             Self::BulletPoints => "请用要点列表形式总结以下文本的核心内容。每个要点应独立且完整。",
-            Self::KeyPoints => "请提取以下文本的关键信息和核心观点。只列出最重要的内容，忽略次要细节。",
+            Self::KeyPoints => {
+                "请提取以下文本的关键信息和核心观点。只列出最重要的内容，忽略次要细节。"
+            }
             Self::Custom(instruction) => instruction,
         }
     }
@@ -230,7 +236,7 @@ const DEFAULT_COMBINE_TEMPLATE: &str = "\
 /// - 支持任意 text-splitter 分词器（字符、Token、Markdown 等）
 pub struct SummaryAgent<P> {
     provider: Arc<P>,
-    model: String,
+    model: Option<String>,
     system_prompt: Option<String>,
     llm_params: LlmParams,
     mode: SummaryMode,
@@ -279,12 +285,15 @@ where
                     .iter()
                     .enumerate()
                     .map(|(i, chunk)| {
-                        let content = render_template(&self.chunk_template, &[
-                            ("{index}", &(i + 1).to_string()),
-                            ("{total}", &total.to_string()),
-                            ("{text}", chunk),
-                            ("{mode}", self.mode.instruction()),
-                        ]);
+                        let content = render_template(
+                            &self.chunk_template,
+                            &[
+                                ("{index}", &(i + 1).to_string()),
+                                ("{total}", &total.to_string()),
+                                ("{text}", chunk),
+                                ("{mode}", self.mode.instruction()),
+                            ],
+                        );
                         let mut messages = Vec::new();
                         if let Some(ref prompt) = self.system_prompt {
                             messages.push(ChatMessage::system(prompt.clone()));
@@ -292,7 +301,7 @@ where
                         messages.push(ChatMessage::user(content));
                         let mut request = ChatRequest {
                             messages,
-                            model: Some(self.model.clone()),
+                            model: self.model.clone(),
                             tools: None,
                             ..Default::default()
                         };
@@ -307,15 +316,19 @@ where
             }
             1 if total > 1 => {
                 let summaries = self.extract_chunk_summaries(context);
-                let content = render_template(&self.combine_template, &[
-                    ("{summaries}", &summaries),
-                    ("{total}", &total.to_string()),
-                    ("{mode}", self.mode.instruction()),
-                ]);
+                let content = render_template(
+                    &self.combine_template,
+                    &[
+                        ("{summaries}", &summaries),
+                        ("{total}", &total.to_string()),
+                        ("{mode}", self.mode.instruction()),
+                    ],
+                );
                 info!(
                     summary_count = summaries.lines().count(),
                     summaries_len = summaries.len(),
-                    "多块模式，进入合并阶段（{} 个局部摘要）", total
+                    "多块模式，进入合并阶段（{} 个局部摘要）",
+                    total
                 );
                 AgentDecision::Reduce {
                     request: Box::new(self.build_multi_request(context, content)),
@@ -381,8 +394,8 @@ impl<P> SummaryAgent<P> {
         &self.provider
     }
 
-    pub fn model(&self) -> &str {
-        &self.model
+    pub fn model(&self) -> Option<&str> {
+        self.model.as_deref()
     }
 
     pub fn mode(&self) -> &SummaryMode {
@@ -407,10 +420,10 @@ impl<P> SummaryAgent<P> {
 
 impl<P> SummaryAgent<P> {
     fn build_single_request(&self, text: &str) -> ChatRequest {
-        let content = render_template(&self.prompt_template, &[
-            ("{text}", text),
-            ("{mode}", self.mode.instruction()),
-        ]);
+        let content = render_template(
+            &self.prompt_template,
+            &[("{text}", text), ("{mode}", self.mode.instruction())],
+        );
 
         let mut messages = Vec::new();
         if let Some(ref prompt) = self.system_prompt {
@@ -420,7 +433,7 @@ impl<P> SummaryAgent<P> {
 
         let mut request = ChatRequest {
             messages,
-            model: Some(self.model.clone()),
+            model: self.model.clone(),
             tools: None,
             ..Default::default()
         };
@@ -432,11 +445,7 @@ impl<P> SummaryAgent<P> {
         let mut messages = context.messages.clone();
 
         if let Some(ref sys_prompt) = self.system_prompt
-            && (messages.is_empty()
-                || messages
-                    .first()
-                    .map(|m| &m.role)
-                    != Some(&Role::System))
+            && (messages.is_empty() || messages.first().map(|m| &m.role) != Some(&Role::System))
         {
             messages.insert(0, ChatMessage::system(sys_prompt.clone()));
         }
@@ -445,13 +454,17 @@ impl<P> SummaryAgent<P> {
 
         debug!(
             message_count = messages.len(),
-            last_user_content_len = messages.iter().rev().find(|m| m.role == Role::User).map_or(0, |m| m.content.len()),
+            last_user_content_len = messages
+                .iter()
+                .rev()
+                .find(|m| m.role == Role::User)
+                .map_or(0, |m| m.content.len()),
             "构建多块请求"
         );
 
         let mut request = ChatRequest {
             messages,
-            model: Some(self.model.clone()),
+            model: self.model.clone(),
             tools: None,
             ..Default::default()
         };
@@ -687,16 +700,13 @@ where
         let provider = self.provider.ok_or_else(|| {
             AgentError::Message("构建 SummaryAgent 失败：缺少 provider".to_string())
         })?;
-        let model = self
-            .model
-            .ok_or_else(|| AgentError::Message("构建 SummaryAgent 失败：缺少 model".to_string()))?;
         let splitter = self.splitter.unwrap_or_else(|| text_splitter(4000));
 
         let provider_arc = Arc::new(provider);
 
         let execution = DefaultExecution::new(
             provider_arc.clone() as Arc<dyn LlmProvider>,
-            model.clone(),
+            self.model.clone(),
             ToolRegistry::new(),
         )
         .with_llm_params(self.llm_params.clone())
@@ -705,15 +715,21 @@ where
 
         Ok(SummaryAgent {
             provider: provider_arc,
-            model,
+            model: self.model,
             system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             mode: self.mode,
             splitter,
             max_concurrency: self.max_concurrency,
-            prompt_template: self.prompt_template.unwrap_or_else(|| DEFAULT_PROMPT_TEMPLATE.to_string()),
-            chunk_template: self.chunk_template.unwrap_or_else(|| DEFAULT_CHUNK_TEMPLATE.to_string()),
-            combine_template: self.combine_template.unwrap_or_else(|| DEFAULT_COMBINE_TEMPLATE.to_string()),
+            prompt_template: self
+                .prompt_template
+                .unwrap_or_else(|| DEFAULT_PROMPT_TEMPLATE.to_string()),
+            chunk_template: self
+                .chunk_template
+                .unwrap_or_else(|| DEFAULT_CHUNK_TEMPLATE.to_string()),
+            combine_template: self
+                .combine_template
+                .unwrap_or_else(|| DEFAULT_COMBINE_TEMPLATE.to_string()),
             execution,
         })
     }
@@ -769,10 +785,18 @@ mod tests {
             .build();
         let mut text = String::new();
         for i in 0..6 {
-            text.push_str(&format!("第{}段落。{}", i + 1, "这是该段的内容说明。这里有一些补充信息用于填充。\n\n"));
+            text.push_str(&format!(
+                "第{}段落。{}",
+                i + 1,
+                "这是该段的内容说明。这里有一些补充信息用于填充。\n\n"
+            ));
         }
         let chunks: Vec<&str> = agent.splitter.chunks(&text).collect();
-        assert!(chunks.len() > 1, "长文本应被分块，但得到 {} 块", chunks.len());
+        assert!(
+            chunks.len() > 1,
+            "长文本应被分块，但得到 {} 块",
+            chunks.len()
+        );
         for chunk in &chunks {
             assert!(!chunk.is_empty(), "分块不应为空");
             assert!(text.contains(chunk), "每个分块应是原文的子串");
@@ -785,7 +809,11 @@ mod tests {
         assert!(!SummaryMode::Detailed.instruction().is_empty());
         assert!(!SummaryMode::BulletPoints.instruction().is_empty());
         assert!(!SummaryMode::KeyPoints.instruction().is_empty());
-        assert!(!SummaryMode::Custom("自定义指令".to_string()).instruction().is_empty());
+        assert!(
+            !SummaryMode::Custom("自定义指令".to_string())
+                .instruction()
+                .is_empty()
+        );
     }
 
     #[test]
@@ -849,7 +877,8 @@ mod tests {
             .collect::<Vec<_>>()
             .join("\n\n");
         assert!(
-            combine_summaries.contains("【部分 1】") && combine_summaries.contains(&format!("【部分 {total}】")),
+            combine_summaries.contains("【部分 1】")
+                && combine_summaries.contains(&format!("【部分 {total}】")),
             "摘要应包含 {total} 个部分标记",
         );
     }
@@ -866,9 +895,13 @@ mod tests {
 
         context.messages.push(ChatMessage::system("系统提示"));
         context.messages.push(ChatMessage::user("用户消息"));
-        context.messages.push(ChatMessage::assistant("第一个块的摘要"));
+        context
+            .messages
+            .push(ChatMessage::assistant("第一个块的摘要"));
         context.messages.push(ChatMessage::user("第二块请求"));
-        context.messages.push(ChatMessage::assistant("第二个块的摘要"));
+        context
+            .messages
+            .push(ChatMessage::assistant("第二个块的摘要"));
 
         let summaries = agent.extract_chunk_summaries(&context);
         assert!(summaries.contains("第一个块的摘要"), "应包含第一个摘要");
@@ -931,7 +964,10 @@ mod tests {
     fn test_chunk_integrity() {
         let mut text = String::new();
         for i in 0..10 {
-            text.push_str(&format!("Paragraph {} with some content to make it longer than a very short chunk.\n\n", i + 1));
+            text.push_str(&format!(
+                "Paragraph {} with some content to make it longer than a very short chunk.\n\n",
+                i + 1
+            ));
         }
         let splitter = text_splitter(200);
         let chunks: Vec<&str> = splitter.chunks(&text).collect();
@@ -940,8 +976,11 @@ mod tests {
             assert!(text.contains(chunk), "分块 {chunk} 应是原文的子串");
         }
         for chunk in &chunks {
-            assert_eq!(text.matches(chunk).count(), 1,
-                "分块 {chunk} 应在原文中恰好出现一次");
+            assert_eq!(
+                text.matches(chunk).count(),
+                1,
+                "分块 {chunk} 应在原文中恰好出现一次"
+            );
         }
     }
 }

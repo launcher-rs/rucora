@@ -18,12 +18,11 @@
 //!
 //! 这种分离允许第三方 crate 只依赖 `rucora-core` 来实现自定义的研究引擎和策略。
 
-pub mod types;
 mod strategies;
+pub mod types;
 
-pub use types::*;
 pub use strategies::{
-    CitationHandler, DefaultCitationHandler, DeepResearchEngine, ResearchContext,
-    ResearchError, ResearchLibrary, ResearchQualityAssessor, StrategyFactory, StrategyResult,
-    StrategyTrait,
+    CitationHandler, DeepResearchEngine, DefaultCitationHandler, ResearchContext, ResearchError,
+    ResearchLibrary, ResearchQualityAssessor, StrategyFactory, StrategyResult, StrategyTrait,
 };
+pub use types::*;

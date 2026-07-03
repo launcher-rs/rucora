@@ -68,7 +68,9 @@ pub(crate) fn remove_orphaned_tool_messages(messages: &mut Vec<ChatMessage>) -> 
     while i < messages.len() {
         if messages[i].role == Role::Tool {
             // 向前查找最近的非-tool 消息
-            let parent_idx = (0..i).rev().find(|&j| !orphan_indices.contains(&j) && messages[j].role != Role::Tool);
+            let parent_idx = (0..i)
+                .rev()
+                .find(|&j| !orphan_indices.contains(&j) && messages[j].role != Role::Tool);
             let is_orphan = match parent_idx {
                 None => true,
                 Some(idx) => messages[idx].role != Role::Assistant,
@@ -289,8 +291,8 @@ use rucora_core::tool::types::{ToolCall, ToolResult};
 pub struct DefaultExecution {
     /// LLM Provider
     pub(crate) provider: Arc<dyn LlmProvider>,
-    /// 默认使用的模型
-    pub(crate) model: String,
+    /// Agent 级模型覆盖；为空时使用 Provider 默认模型。
+    pub(crate) model: Option<String>,
     /// 系统提示词
     pub(crate) system_prompt: Option<String>,
     /// 工具注册表
@@ -324,7 +326,7 @@ pub struct DefaultExecution {
 /// 由各 Agent 构建器使用，避免 `build_default_execution` 函数参数过多。
 pub struct ExecutionBuildConfig {
     pub provider: Arc<dyn LlmProvider>,
-    pub model: String,
+    pub model: Option<String>,
     pub tools: ToolRegistry,
     pub system_prompt: Option<String>,
     pub max_steps: usize,
@@ -380,12 +382,7 @@ impl DefaultExecution {
     /// );
     /// # Ok::<_, Box<dyn std::error::Error>>(())
     /// ```
-    pub fn new(
-        provider: Arc<dyn LlmProvider>,
-        model: impl Into<String>,
-        tools: ToolRegistry,
-    ) -> Self {
-        let model = model.into();
+    pub fn new(provider: Arc<dyn LlmProvider>, model: Option<String>, tools: ToolRegistry) -> Self {
         Self {
             provider,
             model,
@@ -403,6 +400,23 @@ impl DefaultExecution {
             loop_detector_config: LoopDetectorConfig::default(),
             llm_params: rucora_core::provider::types::LlmParams::default(),
         }
+    }
+
+    /// 创建执行实例，并使用 Provider 自身的默认模型。
+    pub fn with_provider_default_model(
+        provider: Arc<dyn LlmProvider>,
+        tools: ToolRegistry,
+    ) -> Self {
+        Self::new(provider, None, tools)
+    }
+
+    /// 创建执行实例，并显式覆盖 Provider 默认模型。
+    pub fn with_model(
+        provider: Arc<dyn LlmProvider>,
+        model: impl Into<String>,
+        tools: ToolRegistry,
+    ) -> Self {
+        Self::new(provider, Some(model.into()), tools)
     }
 
     /// 设置循环检测器配置
@@ -688,7 +702,9 @@ impl DefaultExecution {
                         }
                     };
 
-                    messages.push(response.message.clone());
+                    let mut assistant_message = response.message.clone();
+                    assistant_message.tool_calls = response.tool_calls.clone();
+                    messages.push(assistant_message);
 
                     // 累计 usage
                     if let Some(u) = &response.usage {
@@ -752,8 +768,7 @@ impl DefaultExecution {
                     let concurrency = max_concurrency.max(1);
                     info!(
                         request_count = requests.len(),
-                        concurrency,
-                        "execution.run.map_all.start"
+                        concurrency, "execution.run.map_all.start"
                     );
 
                     let tasks: Vec<_> = requests
@@ -762,9 +777,10 @@ impl DefaultExecution {
                         .map(|(i, request)| {
                             let provider = self.provider.clone();
                             async move {
-                                let response = provider.chat(request).await.map_err(|e| {
-                                    AgentError::ProviderError { source: e }
-                                })?;
+                                let response = provider
+                                    .chat(request)
+                                    .await
+                                    .map_err(|e| AgentError::ProviderError { source: e })?;
                                 Ok::<_, AgentError>((i, response))
                             }
                         })
@@ -797,11 +813,15 @@ impl DefaultExecution {
                 }
                 AgentDecision::Reduce { request } => {
                     info!("execution.run.reduce.start");
-                    let response = self.provider.chat(*request).await.map_err(|e| {
-                        AgentError::ProviderError { source: e }
-                    })?;
+                    let response = self
+                        .provider
+                        .chat(*request)
+                        .await
+                        .map_err(|e| AgentError::ProviderError { source: e })?;
 
-                    messages.push(response.message.clone());
+                    let mut assistant_message = response.message.clone();
+                    assistant_message.tool_calls = response.tool_calls.clone();
+                    messages.push(assistant_message);
 
                     if let Some(u) = &response.usage {
                         total_usage = Some(match &total_usage {
@@ -1041,10 +1061,7 @@ impl DefaultExecution {
 
         // 如果有失败的调用，记录错误事件但不中断流程
         if !errors.is_empty() {
-            let error_messages: Vec<String> = errors
-                .iter()
-                .map(|e| e.to_string())
-                .collect();
+            let error_messages: Vec<String> = errors.iter().map(|e| e.to_string()).collect();
             tracing::warn!(
                 errors = ?error_messages,
                 "{} 个工具调用失败，继续处理成功的结果",
@@ -1053,7 +1070,11 @@ impl DefaultExecution {
 
             let ev = ChannelEvent::Error(ErrorEvent {
                 kind: "tool_batch_partial_failure".to_string(),
-                message: format!("{} 个工具调用失败: {}", errors.len(), error_messages.join("; ")),
+                message: format!(
+                    "{} 个工具调用失败: {}",
+                    errors.len(),
+                    error_messages.join("; ")
+                ),
                 data: Some(json!({
                     "failed_count": errors.len(),
                     "total_count": calls.len(),
@@ -1193,7 +1214,7 @@ impl DefaultExecution {
             for step in 0..max_steps {
                 let mut request = ChatRequest {
                     messages: messages.clone(),
-                    model: Some(model.clone()),
+                    model: model.clone(),
                     tools: if !tool_defs.is_empty() { Some(tool_defs.clone()) } else { None },
                     ..Default::default()
                 };
@@ -1249,6 +1270,8 @@ impl DefaultExecution {
                     role: Role::Assistant,
                     content: assistant_text,
                     name: None,
+                    tool_calls: tool_calls.clone(),
+                    tool_call_id: None,
                 };
 
                 messages.push(assistant_msg.clone());

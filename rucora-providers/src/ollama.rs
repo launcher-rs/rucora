@@ -138,10 +138,32 @@ impl OllamaProvider {
                     "role": Self::map_role(&m.role),
                     "content": m.content,
                 });
-                if let Some(name) = &m.name
-                    && let Some(map) = obj.as_object_mut()
-                {
-                    map.insert("name".to_string(), Value::String(name.clone()));
+                if let Some(map) = obj.as_object_mut() {
+                    if let Some(name) = &m.name {
+                        map.insert("name".to_string(), Value::String(name.clone()));
+                    }
+                    if m.role == Role::Assistant && !m.tool_calls.is_empty() {
+                        let calls = m
+                            .tool_calls
+                            .iter()
+                            .map(|call| {
+                                json!({
+                                    "id": call.id,
+                                    "type": "function",
+                                    "function": {
+                                        "name": call.name,
+                                        "arguments": call.input,
+                                    }
+                                })
+                            })
+                            .collect::<Vec<_>>();
+                        map.insert("tool_calls".to_string(), Value::Array(calls));
+                    }
+                    if m.role == Role::Tool
+                        && let Some(id) = &m.tool_call_id
+                    {
+                        map.insert("tool_call_id".to_string(), Value::String(id.clone()));
+                    }
                 }
                 obj
             })
@@ -354,11 +376,7 @@ impl LlmProvider for OllamaProvider {
             });
 
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content,
-                name: None,
-            },
+            message: ChatMessage::assistant_with_tool_calls(content, tool_calls.clone()),
             tool_calls,
             usage,
             finish_reason,

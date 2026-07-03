@@ -201,9 +201,7 @@ impl AppConfig {
             })
             .filter(|v| !v.is_empty());
 
-        println!(
-            "api_key: {api_key:?} model: {model:?}, base_url: {base_url:?}",
-        );
+        println!("api_key: {api_key:?} model: {model:?}, base_url: {base_url:?}",);
 
         // 只有当至少有一个配置项时才返回
         if api_key.is_some() || model.is_some() || base_url.is_some() {
@@ -293,7 +291,6 @@ impl AppConfig {
 
         if let Some(ref keys) = self.tavily_keys {
             println!("  Tavily: 已配置 ({} 个 Key)", keys.len());
-
         } else {
             println!("  Tavily: 未配置（将使用 Browse+DuckDuckGo 降级方案）");
         }

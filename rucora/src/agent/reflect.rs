@@ -50,7 +50,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent::ToolRegistry;
-use crate::agent::execution::{build_default_execution, DefaultExecution};
+use crate::agent::execution::{DefaultExecution, build_default_execution};
 use crate::conversation::ConversationManager;
 
 /// ReflectAgent - 反思迭代 Agent
@@ -62,8 +62,8 @@ use crate::conversation::ConversationManager;
 pub struct ReflectAgent<P> {
     /// LLM Provider
     _provider: Arc<P>,
-    /// 默认使用的模型
-    model: String,
+    /// Agent 级模型覆盖；为空时使用 Provider 默认模型。
+    model: Option<String>,
     /// 系统提示词
     system_prompt: Option<String>,
     /// 工具注册表
@@ -245,7 +245,7 @@ where
 
         let mut request = ChatRequest {
             messages,
-            model: Some(self.model.clone()),
+            model: self.model.clone(),
             tools: if !self.tools.definitions().is_empty() {
                 Some(self.tools.definitions())
             } else {
@@ -434,9 +434,6 @@ where
         let provider = self.provider.ok_or_else(|| {
             AgentError::Message("构建 ReflectAgent 失败：缺少 provider".to_string())
         })?;
-        let model = self
-            .model
-            .ok_or_else(|| AgentError::Message("构建 ReflectAgent 失败：缺少 model".to_string()))?;
         let conversation_manager = if self.with_conversation {
             let mut conv = ConversationManager::new();
             if let Some(ref prompt) = self.system_prompt {
@@ -447,11 +444,11 @@ where
             None
         };
 
-// 创建执行能力
+        // 创建执行能力
         let provider_arc = Arc::new(provider);
         let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
             provider: provider_arc.clone(),
-            model: model.clone(),
+            model: self.model.clone(),
             tools: self.tools.clone(),
             system_prompt: self.system_prompt.clone(),
             max_steps: self.max_iterations * 2, // 每次迭代需要 2 步
@@ -464,7 +461,7 @@ where
 
         Ok(ReflectAgent {
             _provider: provider_arc,
-            model,
+            model: self.model,
             system_prompt: self.system_prompt,
             tools: self.tools,
             max_iterations: self.max_iterations,

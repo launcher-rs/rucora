@@ -377,11 +377,7 @@ mod tests {
 
     #[test]
     fn messages_macro_basic() {
-        let msgs = messages![
-            system("你是助手"),
-            user("Hello"),
-            assistant("你好"),
-        ];
+        let msgs = messages![system("你是助手"), user("Hello"), assistant("你好"),];
 
         assert_eq!(msgs.len(), 3);
         assert_eq!(msgs[0].role, Role::System);
@@ -446,10 +442,7 @@ mod tests {
 
     #[test]
     fn messages_macro_with_mixed_roles() {
-        let msgs = messages![
-            user("query"),
-            assistant("response"),
-        ];
+        let msgs = messages![user("query"), assistant("response"),];
         assert_eq!(msgs.len(), 2);
         assert_eq!(msgs[0].role, rucora_core::provider::types::Role::User);
         assert_eq!(msgs[1].role, rucora_core::provider::types::Role::Assistant);

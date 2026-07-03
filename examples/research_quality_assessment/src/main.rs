@@ -3,14 +3,12 @@
 //! 展示如何使用评分系统评估研究质量并生成改进建议。
 
 use rucora_core::research::{
-    InfoPiece, Citation, ResearchQualityAssessor, ScoringConfig, SourceType,
+    Citation, InfoPiece, ResearchQualityAssessor, ScoringConfig, SourceType,
 };
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt()
-        .with_env_filter("info")
-        .init();
+    tracing_subscriber::fmt().with_env_filter("info").init();
 
     println!("=== 研究质量评分系统示例 ===\n");
 
@@ -103,12 +101,17 @@ async fn suggestion_demo() -> anyhow::Result<()> {
 
     // 场景 1: 信息不足
     println!("  场景 1: 信息不足");
-    let info_pieces = vec![
-        InfoPiece::new("机器学习是人工智能的子领域".to_string(), None, SourceType::Unknown),
-    ];
+    let info_pieces = vec![InfoPiece::new(
+        "机器学习是人工智能的子领域".to_string(),
+        None,
+        SourceType::Unknown,
+    )];
     let score = assessor.assess(&info_pieces, &[], 1);
     let suggestion = assessor.suggest(&score);
-    println!("    评分: {:.2}, 建议: {}", score.overall, suggestion.description);
+    println!(
+        "    评分: {:.2}, 建议: {}",
+        score.overall, suggestion.description
+    );
 
     // 场景 2: 来源单一
     println!("  场景 2: 来源单一");
@@ -119,7 +122,10 @@ async fn suggestion_demo() -> anyhow::Result<()> {
     ];
     let score = assessor.assess(&info_pieces, &[], 1);
     let suggestion = assessor.suggest(&score);
-    println!("    评分: {:.2}, 建议: {}", score.overall, suggestion.description);
+    println!(
+        "    评分: {:.2}, 建议: {}",
+        score.overall, suggestion.description
+    );
 
     // 场景 3: 重复信息过多
     println!("  场景 3: 重复信息过多");
@@ -130,7 +136,10 @@ async fn suggestion_demo() -> anyhow::Result<()> {
     ];
     let score = assessor.assess(&info_pieces, &[], 1);
     let suggestion = assessor.suggest(&score);
-    println!("    评分: {:.2}, 建议: {}", score.overall, suggestion.description);
+    println!(
+        "    评分: {:.2}, 建议: {}",
+        score.overall, suggestion.description
+    );
 
     // 场景 4: 质量优秀
     println!("  场景 4: 质量优秀");
@@ -143,7 +152,10 @@ async fn suggestion_demo() -> anyhow::Result<()> {
     ];
     let score = assessor.assess(&info_pieces, &[], 3);
     let suggestion = assessor.suggest(&score);
-    println!("    评分: {:.2}, 建议: {}", score.overall, suggestion.description);
+    println!(
+        "    评分: {:.2}, 建议: {}",
+        score.overall, suggestion.description
+    );
 
     Ok(())
 }
@@ -152,11 +164,11 @@ async fn suggestion_demo() -> anyhow::Result<()> {
 async fn custom_config_demo() -> anyhow::Result<()> {
     // 创建自定义配置
     let config = ScoringConfig {
-        quality_threshold: 0.8,      // 提高质量阈值
-        confidence_threshold: 0.9,    // 提高置信度阈值
-        duplicate_threshold: 0.2,     // 更严格控制重复率
-        min_info_count: 10,          // 要求更多信息
-        min_source_diversity: 3,     // 要求更多来源
+        quality_threshold: 0.8,    // 提高质量阈值
+        confidence_threshold: 0.9, // 提高置信度阈值
+        duplicate_threshold: 0.2,  // 更严格控制重复率
+        min_info_count: 10,        // 要求更多信息
+        min_source_diversity: 3,   // 要求更多来源
     };
 
     let assessor = ResearchQualityAssessor::new(config, vec!["深度学习".to_string()]);
@@ -226,7 +238,11 @@ async fn dynamic_evaluation_demo() -> anyhow::Result<()> {
 
     // 最终评分
     let final_score = assessor.assess(&all_info, &[], max_rounds as usize);
-    println!("\n  最终结果: 综合评分={:.2} ({})", final_score.overall, final_score.level());
+    println!(
+        "\n  最终结果: 综合评分={:.2} ({})",
+        final_score.overall,
+        final_score.level()
+    );
     println!("    信息数量: {}", final_score.details.info_count);
     println!("    来源多样性: {}", final_score.details.source_diversity);
 

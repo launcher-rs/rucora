@@ -8,7 +8,7 @@ use rucora::provider::OpenAiProvider;
 use rucora_core::provider::LlmProvider;
 use rucora_core::research::DeepResearchEngine;
 use std::sync::Arc;
-use tracing::{info, Level};
+use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
 
 const DEFAULT_TOPIC: &str = "人工智能在医疗诊断中的应用";
@@ -48,8 +48,7 @@ async fn main() -> Result<()> {
 }
 
 fn create_provider() -> Result<Arc<dyn LlmProvider>> {
-    let api_key = std::env::var("OPENAI_API_KEY")
-        .or_else(|_| std::env::var("OPENAI_KEY"))?;
+    let api_key = std::env::var("OPENAI_API_KEY").or_else(|_| std::env::var("OPENAI_KEY"))?;
     let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
     let base_url = std::env::var("OPENAI_BASE_URL")

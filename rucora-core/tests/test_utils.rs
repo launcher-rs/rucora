@@ -13,7 +13,7 @@ use futures_util::stream::{BoxStream, StreamExt};
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{
-    ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, Role, Usage,
+    ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, Usage,
 };
 use rucora_core::tool::types::ToolDefinition;
 
@@ -112,11 +112,7 @@ impl LlmProvider for MockProvider {
         }
 
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: self.response.clone(),
-                name: None,
-            },
+            message: ChatMessage::assistant(self.response.clone()),
             tool_calls: vec![],
             usage: None,
             finish_reason: Some(FinishReason::Stop),

@@ -8,9 +8,9 @@
 //! - `ShutdownToken`: 关闭令牌，用于检查是否已收到关闭信号
 //! - `GracefulShutdown`: 优雅关闭 trait，提供统一的关闭接口
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::{broadcast, Notify};
+use std::sync::atomic::{AtomicBool, Ordering};
+use tokio::sync::{Notify, broadcast};
 
 /// 关闭令牌
 ///
@@ -98,8 +98,7 @@ pub trait GracefulShutdown: Send + Sync {
 }
 
 /// 运行时关闭状态
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[derive(Default)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum ShutdownState {
     /// 运行中
     #[default]
@@ -110,7 +109,6 @@ pub enum ShutdownState {
     Shutdown,
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -118,15 +116,21 @@ mod tests {
     #[tokio::test]
     async fn test_shutdown_token() {
         let handle = ShutdownHandle::new();
-        
+
         let token = handle.token();
-        assert!(!token.is_shutdown(), "should not be shutdown before calling shutdown()");
-        
+        assert!(
+            !token.is_shutdown(),
+            "should not be shutdown before calling shutdown()"
+        );
+
         handle.shutdown();
-        
+
         let token2 = handle.token();
-        assert!(token2.is_shutdown(), "should be shutdown after calling shutdown()");
-        
+        assert!(
+            token2.is_shutdown(),
+            "should be shutdown after calling shutdown()"
+        );
+
         let token3 = handle.token();
         assert!(token3.is_shutdown(), "should remain shutdown");
     }
@@ -134,15 +138,15 @@ mod tests {
     #[tokio::test]
     async fn test_multiple_tokens() {
         let handle = ShutdownHandle::new();
-        
+
         let token1 = handle.token();
         let token2 = handle.token();
-        
+
         assert!(!token1.is_shutdown());
         assert!(!token2.is_shutdown());
-        
+
         handle.shutdown();
-        
+
         assert!(token1.is_shutdown());
         assert!(token2.is_shutdown());
     }

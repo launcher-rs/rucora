@@ -52,7 +52,11 @@ pub trait EmbeddingProvider: Send + Sync {
     ///
     /// # 返回
     /// * `Result<Vec<Vec<f32>>, ProviderError>` - 向量列表，顺序与输入一致
-    async fn embed_chunked(&self, texts: &[String], chunk_size: usize) -> Result<Vec<Vec<f32>>, ProviderError> {
+    async fn embed_chunked(
+        &self,
+        texts: &[String],
+        chunk_size: usize,
+    ) -> Result<Vec<Vec<f32>>, ProviderError> {
         let mut results = Vec::with_capacity(texts.len());
         for chunk in texts.chunks(chunk_size) {
             let chunk_results = self.embed_batch(chunk).await?;

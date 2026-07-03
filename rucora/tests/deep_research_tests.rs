@@ -12,8 +12,7 @@ use std::sync::Arc;
 
 use rucora_core::provider::LlmProvider;
 use rucora_core::{
-    DeepResearchEngine, ResearchContext, ResearchLibrary, ResearchReport,
-    StrategyTrait,
+    DeepResearchEngine, ResearchContext, ResearchLibrary, ResearchReport, StrategyTrait,
 };
 
 // ===== 工具 Mock Provider =====
@@ -25,14 +24,9 @@ impl LlmProvider for TestProvider {
     async fn chat(
         &self,
         _request: rucora_core::provider::types::ChatRequest,
-    ) -> Result<rucora_core::provider::types::ChatResponse, rucora_core::error::ProviderError>
-    {
+    ) -> Result<rucora_core::provider::types::ChatResponse, rucora_core::error::ProviderError> {
         Ok(rucora_core::provider::types::ChatResponse {
-            message: rucora_core::provider::types::ChatMessage {
-                role: rucora_core::provider::types::Role::Assistant,
-                content: "test response".to_string(),
-                name: None,
-            },
+            message: rucora_core::provider::types::ChatMessage::assistant("test response"),
             tool_calls: vec![],
             usage: None,
             finish_reason: None,
@@ -58,8 +52,7 @@ fn test_default_research_engine_creation() {
 
 #[test]
 fn test_default_research_engine_new() {
-    let strategy: Box<dyn StrategyTrait> =
-        Box::new(rucora::deep_research::StandardStrategy::new());
+    let strategy: Box<dyn StrategyTrait> = Box::new(rucora::deep_research::StandardStrategy::new());
     let engine = rucora::deep_research::DefaultResearchEngine::new(strategy);
     let progress = engine.progress();
     assert_eq!(progress.phase, rucora_core::research::ResearchPhase::Init);
@@ -68,8 +61,7 @@ fn test_default_research_engine_new() {
 #[test]
 fn test_default_research_engine_with_strategy() {
     let config = rucora_core::research::ResearchConfig::fast();
-    let strategy: Box<dyn StrategyTrait> =
-        Box::new(rucora::deep_research::FastStrategy::new());
+    let strategy: Box<dyn StrategyTrait> = Box::new(rucora::deep_research::FastStrategy::new());
     let engine =
         rucora::deep_research::DefaultResearchEngine::with_strategy(config.clone(), strategy);
     let progress = engine.progress();
@@ -242,7 +234,10 @@ async fn test_research_engine_fast_config() {
         .await
         .expect("research should succeed");
 
-    assert_eq!(report.strategy, rucora_core::research::ResearchStrategy::Fast);
+    assert_eq!(
+        report.strategy,
+        rucora_core::research::ResearchStrategy::Fast
+    );
     assert!(!report.topic.is_empty());
     assert!(report.created_at <= report.updated_at);
 }
@@ -259,7 +254,10 @@ async fn test_research_engine_standard_config() {
         .await
         .expect("research should succeed");
 
-    assert_eq!(report.strategy, rucora_core::research::ResearchStrategy::Standard);
+    assert_eq!(
+        report.strategy,
+        rucora_core::research::ResearchStrategy::Standard
+    );
 }
 
 // ===== QualityAssessor 集成测试 =====

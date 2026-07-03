@@ -170,25 +170,35 @@ impl AnthropicProvider {
             .map(|m| match m.role {
                 Role::Tool => {
                     // Anthropic 要求工具结果使用 tool_result content block 格式
-                    let parsed = serde_json::from_str::<Value>(&m.content).ok();
-                    let tool_call_id = parsed
-                        .as_ref()
-                        .and_then(|v| v.get("tool_call_id"))
-                        .and_then(|s| s.as_str())
-                        .map(String::from)
-                        .unwrap_or_default();
-                    let output = parsed
-                        .as_ref()
-                        .and_then(|v| v.get("output"))
-                        .and_then(|v| v.as_str())
-                        .map_or_else(|| m.content.clone(), String::from);
+                    let tool_call_id = m.tool_call_id.clone().unwrap_or_default();
                     json!({
                         "role": "user",
                         "content": [{
                             "type": "tool_result",
                             "tool_use_id": tool_call_id,
-                            "content": output
+                            "content": m.content
                         }]
+                    })
+                }
+                Role::Assistant if !m.tool_calls.is_empty() => {
+                    let mut content = Vec::new();
+                    if !m.content.trim().is_empty() {
+                        content.push(json!({
+                            "type": "text",
+                            "text": m.content,
+                        }));
+                    }
+                    for call in &m.tool_calls {
+                        content.push(json!({
+                            "type": "tool_use",
+                            "id": call.id,
+                            "name": call.name,
+                            "input": call.input,
+                        }));
+                    }
+                    json!({
+                        "role": "assistant",
+                        "content": content,
                     })
                 }
                 _ => {
@@ -420,11 +430,7 @@ impl LlmProvider for AnthropicProvider {
             .to_string();
 
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: text_content,
-                name: None,
-            },
+            message: ChatMessage::assistant_with_tool_calls(text_content, tool_calls.clone()),
             tool_calls,
             usage,
             finish_reason: Some(parse_finish_reason(&finish_reason)),

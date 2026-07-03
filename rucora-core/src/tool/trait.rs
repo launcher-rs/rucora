@@ -392,14 +392,14 @@ pub trait Tool: Send + Sync {
     ///
     /// 该方法将工具的名称、描述和输入 Schema 聚合为一个结构体，
     /// 通常用于注册到 LLM 的 Function Calling 接口中。
-fn definition(&self) -> ToolDefinition {
-         ToolDefinition {
-             name: self.name().to_string(),
-             description: self.description().map(String::from),
-             input_schema: self.input_schema(),
-             version: 1,
-         }
-     }
+    fn definition(&self) -> ToolDefinition {
+        ToolDefinition {
+            name: self.name().to_string(),
+            description: self.description().map(String::from),
+            input_schema: self.input_schema(),
+            version: 1,
+        }
+    }
 
     /// 工具风险等级。
     ///

@@ -11,8 +11,8 @@ use async_trait::async_trait;
 use std::sync::{Arc, OnceLock};
 
 use super::{
-    InfoPiece, ResearchConfig, ResearchPhase, ResearchProgress, ResearchReport,
-    ScoringConfig, SuggestionType,
+    InfoPiece, ResearchConfig, ResearchPhase, ResearchProgress, ResearchReport, ScoringConfig,
+    SuggestionType,
 };
 
 /// 提取 URL 的正则表达式，使用 OnceLock 避免重复编译。
@@ -124,7 +124,7 @@ impl ResearchContext {
         }
     }
 
-pub fn has_visited(&self, url: &str) -> bool {
+    pub fn has_visited(&self, url: &str) -> bool {
         self.visited_urls.contains(&url.to_string())
     }
 
@@ -139,7 +139,8 @@ pub fn has_visited(&self, url: &str) -> bool {
     }
 
     pub fn add_search_history(&mut self, query: String, result_count: usize) {
-        self.search_history.push(super::SearchHistory::new(query, result_count));
+        self.search_history
+            .push(super::SearchHistory::new(query, result_count));
     }
 
     pub fn set_state(&mut self, key: &str, value: serde_json::Value) {
@@ -336,11 +337,7 @@ impl CitationHandler for DefaultCitationHandler {
             let url = cap.as_str().to_string();
             // 避免重复
             if !citations.iter().any(|c: &super::Citation| c.url == url) {
-                citations.push(super::Citation::new(
-                    url,
-                    "".to_string(),
-                    "".to_string(),
-                ));
+                citations.push(super::Citation::new(url, "".to_string(), "".to_string()));
             }
         }
 
@@ -413,10 +410,7 @@ impl ResearchQualityAssessor {
     }
 
     /// 生成改进建议
-    pub fn suggest(
-        &self,
-        score: &super::ResearchQualityScore,
-    ) -> super::ResearchSuggestion {
+    pub fn suggest(&self, score: &super::ResearchQualityScore) -> super::ResearchSuggestion {
         // 检查是否已达到目标
         if score.is_sufficient(self.config.quality_threshold) {
             return super::ResearchSuggestion::sufficient();
@@ -453,7 +447,12 @@ impl ResearchQualityAssessor {
     }
 
     /// 检查是否应该继续搜索
-    pub fn should_continue(&self, score: &super::ResearchQualityScore, current_round: u32, max_rounds: u32) -> bool {
+    pub fn should_continue(
+        &self,
+        score: &super::ResearchQualityScore,
+        current_round: u32,
+        max_rounds: u32,
+    ) -> bool {
         // 达到最大轮次，不再继续
         if current_round >= max_rounds {
             return false;
@@ -469,7 +468,11 @@ impl ResearchQualityAssessor {
     }
 
     /// 根据评分获取下一轮搜索建议
-    pub fn get_next_search_hint(&self, score: &super::ResearchQualityScore, current_topic: &str) -> String {
+    pub fn get_next_search_hint(
+        &self,
+        score: &super::ResearchQualityScore,
+        current_topic: &str,
+    ) -> String {
         let suggestion = self.suggest(score);
 
         let mut hints = vec![current_topic.to_string()];
@@ -519,12 +522,13 @@ impl ResearchQualityAssessor {
 ///
 /// # 示例
 ///
-/// ```
+/// ```ignore
 /// let keywords = extract_keywords("Rust 异步编程");
 /// assert!(keywords.len() <= 5);
 /// ```
 pub(crate) fn extract_keywords(topic: &str) -> Vec<String> {
-    topic.split(&[' ', ',', '，', '。', '、', '？', '?'][..])
+    topic
+        .split(&[' ', ',', '，', '。', '、', '？', '?'][..])
         .filter(|s| !s.is_empty() && s.len() > 1)
         .take(5)
         .map(|s| s.to_string())

@@ -78,11 +78,7 @@ impl LlmProvider for MockProvider {
 
         // 模拟 LLM 响应
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: "你好！我是 Mock Provider，这是我的模拟响应。".to_string(),
-                name: None,
-            },
+            message: ChatMessage::assistant("你好！我是 Mock Provider，这是我的模拟响应。"),
             tool_calls: vec![],
             usage: Some(Usage {
                 prompt_tokens: 10,
@@ -158,11 +154,7 @@ impl LlmProvider for EchoProvider {
 
         // 回显用户输入
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: format!("Echo: {user_message}"),
-                name: None,
-            },
+            message: ChatMessage::assistant(format!("Echo: {user_message}")),
             tool_calls: vec![],
             usage: Some(Usage {
                 prompt_tokens: user_message.len() as u32 / 4,

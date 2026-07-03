@@ -438,11 +438,7 @@ impl LlmProvider for GeminiProvider {
             .to_string();
 
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: text_content,
-                name: None,
-            },
+            message: ChatMessage::assistant_with_tool_calls(text_content, tool_calls.clone()),
             tool_calls,
             usage,
             finish_reason: Some(parse_finish_reason(&finish_reason)),

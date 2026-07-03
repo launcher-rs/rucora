@@ -96,7 +96,10 @@ impl syn::parse::Parse for ToolAttrs {
         }
 
         let name = name.ok_or_else(|| {
-            syn::Error::new(Span::call_site(), "#[rucora_tool] requires `name = \"...\"`")
+            syn::Error::new(
+                Span::call_site(),
+                "#[rucora_tool] requires `name = \"...\"`",
+            )
         })?;
         let description = description.ok_or_else(|| {
             syn::Error::new(
@@ -105,10 +108,7 @@ impl syn::parse::Parse for ToolAttrs {
             )
         })?;
 
-        Ok(ToolAttrs {
-            name,
-            description,
-        })
+        Ok(ToolAttrs { name, description })
     }
 }
 
@@ -265,7 +265,10 @@ impl syn::parse::Parse for GuardAttrs {
             }
         }
         let name = name.ok_or_else(|| {
-            syn::Error::new(Span::call_site(), "#[rucora_guard] requires `name = \"...\"`")
+            syn::Error::new(
+                Span::call_site(),
+                "#[rucora_guard] requires `name = \"...\"`",
+            )
         })?;
         Ok(GuardAttrs { name })
     }
@@ -332,10 +335,7 @@ fn guard_impl(attrs: GuardAttrs, func: ItemFn) -> proc_macro2::TokenStream {
 
 fn extract_fn_params(
     func: &ItemFn,
-) -> syn::Result<(
-    Vec<proc_macro2::TokenStream>,
-    Vec<syn::Ident>,
-)> {
+) -> syn::Result<(Vec<proc_macro2::TokenStream>, Vec<syn::Ident>)> {
     let mut param_fields = Vec::new();
     let mut param_names = Vec::new();
 

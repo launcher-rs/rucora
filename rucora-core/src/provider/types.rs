@@ -52,6 +52,12 @@ pub struct ChatMessage {
     /// 可选的发送者名称（例如 tool 名称或特定 persona）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
+    /// Assistant 消息携带的工具调用列表。
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tool_calls: Vec<ToolCall>,
+    /// Tool 消息对应的工具调用 ID。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_id: Option<String>,
 }
 
 impl ChatMessage {
@@ -61,6 +67,8 @@ impl ChatMessage {
             role: Role::System,
             content: content.into(),
             name: None,
+            tool_calls: Vec::new(),
+            tool_call_id: None,
         }
     }
 
@@ -70,6 +78,8 @@ impl ChatMessage {
             role: Role::User,
             content: content.into(),
             name: None,
+            tool_calls: Vec::new(),
+            tool_call_id: None,
         }
     }
 
@@ -79,15 +89,37 @@ impl ChatMessage {
             role: Role::Assistant,
             content: content.into(),
             name: None,
+            tool_calls: Vec::new(),
+            tool_call_id: None,
+        }
+    }
+
+    /// 创建一条携带工具调用的 assistant 消息。
+    pub fn assistant_with_tool_calls(
+        content: impl Into<String>,
+        tool_calls: Vec<ToolCall>,
+    ) -> Self {
+        Self {
+            role: Role::Assistant,
+            content: content.into(),
+            name: None,
+            tool_calls,
+            tool_call_id: None,
         }
     }
 
     /// 创建一条 tool 消息（name 通常用于承载 tool 名称）。
-    pub fn tool(name: impl Into<String>, content: impl Into<String>) -> Self {
+    pub fn tool(
+        name: impl Into<String>,
+        tool_call_id: impl Into<String>,
+        content: impl Into<String>,
+    ) -> Self {
         Self {
             role: Role::Tool,
             content: content.into(),
             name: Some(name.into()),
+            tool_calls: Vec::new(),
+            tool_call_id: Some(tool_call_id.into()),
         }
     }
 }
@@ -134,7 +166,7 @@ pub enum FinishReason {
 ///     .top_p(0.9)
 ///     .max_tokens(4096);
 ///
-/// let mut request = ChatRequest::new(vec![ChatMessage { role: rucora_core::provider::types::Role::User, content: "hi".to_string(), name: None }]);
+/// let mut request = ChatRequest::new(vec![ChatMessage::user("hi")]);
 /// params.apply_to(&mut request);
 /// ```
 #[derive(Debug, Clone, PartialEq, Default, Serialize, Deserialize)]

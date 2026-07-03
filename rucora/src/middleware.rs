@@ -413,9 +413,10 @@ impl Middleware for RateLimitMiddleware {
         let window_start = now - window_duration;
 
         // 清理窗口外的时间戳并检查限流
-        let mut timestamps = self.request_timestamps.lock().map_err(|e| {
-            AgentError::Message(format!("限流中间件锁获取失败：{e}"))
-        })?;
+        let mut timestamps = self
+            .request_timestamps
+            .lock()
+            .map_err(|e| AgentError::Message(format!("限流中间件锁获取失败：{e}")))?;
 
         // 移除窗口外的时间戳
         timestamps.retain(|&ts| ts > window_start);
@@ -434,7 +435,9 @@ impl Middleware for RateLimitMiddleware {
 
             return Err(AgentError::Message(format!(
                 "请求频率超过限制（{}/{}s），请等待 {:.1}s 后重试",
-                self.max_requests, self.window_secs, wait_time.as_secs_f64()
+                self.max_requests,
+                self.window_secs,
+                wait_time.as_secs_f64()
             )));
         }
 
@@ -473,7 +476,11 @@ pub struct CacheMiddleware {
     /// 缓存 TTL
     ttl: std::time::Duration,
     /// 缓存存储：输入文本 -> (输出, 缓存时间)
-    cache: Arc<std::sync::Mutex<std::collections::HashMap<String, (serde_json::Value, std::time::Instant)>>>,
+    cache: Arc<
+        std::sync::Mutex<
+            std::collections::HashMap<String, (serde_json::Value, std::time::Instant)>,
+        >,
+    >,
 }
 
 impl CacheMiddleware {
@@ -524,13 +531,14 @@ impl Middleware for CacheMiddleware {
         }
 
         let cache_key = input.text.clone();
-        let mut cache = self.cache.lock().map_err(|e| {
-            AgentError::Message(format!("缓存中间件锁获取失败：{e}"))
-        })?;
+        let mut cache = self
+            .cache
+            .lock()
+            .map_err(|e| AgentError::Message(format!("缓存中间件锁获取失败：{e}")))?;
 
         // 清理过期条目
         let now = std::time::Instant::now();
-        cache.retain(|_, ( _, cached_at)| now.duration_since(*cached_at) < self.ttl);
+        cache.retain(|_, (_, cached_at)| now.duration_since(*cached_at) < self.ttl);
 
         // 检查缓存命中
         if let Some((_cached_value, _)) = cache.get(&cache_key) {

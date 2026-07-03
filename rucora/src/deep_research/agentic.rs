@@ -72,18 +72,14 @@ impl rucora_core::research::StrategyTrait for AgenticStrategy {
             context.set_phase(rucora_core::research::ResearchPhase::Search);
 
             // 1. 让 LLM 分析当前状态，决定下一步
-            let decision = self
-                .decide_next_action(provider, topic, context)
-                .await?;
+            let decision = self.decide_next_action(provider, topic, context).await?;
 
             // 2. 更新搜索计数
             current_result.search_count = iteration as u32;
 
             // 3. 检查是否应该综合
-            let is_complete = matches!(
-                decision.action,
-                AgentAction::Synthesize | AgentAction::Done
-            );
+            let is_complete =
+                matches!(decision.action, AgentAction::Synthesize | AgentAction::Done);
             if is_complete {
                 current_result.is_complete = true;
                 break;

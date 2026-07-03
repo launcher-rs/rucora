@@ -8,18 +8,14 @@ use futures_util::stream::BoxStream;
 use rucora::provider::{ResilientProvider, RetryConfig};
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse};
 
 // ====== 基础工具 ======
 
 /// 构建一个 ChatRequest 的便捷函数，减少测试中的重复代码
 fn make_request(content: &str) -> ChatRequest {
     ChatRequest {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: content.to_string(),
-            name: None,
-        }],
+        messages: vec![ChatMessage::user(content)],
         model: None,
         tools: None,
         temperature: None,
@@ -63,11 +59,7 @@ impl LlmProvider for FlakyProvider {
             return Err(ProviderError::Message(self.error_msg.clone()));
         }
         Ok(ChatResponse {
-            message: ChatMessage {
-                role: Role::Assistant,
-                content: "ok".to_string(),
-                name: None,
-            },
+            message: ChatMessage::assistant("ok"),
             tool_calls: vec![],
             usage: None,
             finish_reason: None,
@@ -110,8 +102,10 @@ impl LlmProvider for InfiniteStreamProvider {
     fn stream_chat(
         &self,
         _request: ChatRequest,
-    ) -> Result<BoxStream<'static, Result<rucora_core::provider::types::ChatStreamChunk, ProviderError>>, ProviderError>
-    {
+    ) -> Result<
+        BoxStream<'static, Result<rucora_core::provider::types::ChatStreamChunk, ProviderError>>,
+        ProviderError,
+    > {
         let s = async_stream::try_stream! {
             loop {
                 yield rucora_core::provider::types::ChatStreamChunk {
@@ -140,7 +134,10 @@ async fn resilient_provider_should_retry_chat() {
         retry_non_retriable_once: false,
     });
 
-    let resp = rp.chat(make_request("hi")).await.expect("chat should succeed after retries");
+    let resp = rp
+        .chat(make_request("hi"))
+        .await
+        .expect("chat should succeed after retries");
     assert_eq!(resp.message.content, "ok");
     // 验证确实进行了重试（失败 2 次 + 第 3 次成功 = 共 3 次调用）
     let attempts = inner.attempts.lock().unwrap();
@@ -150,7 +147,9 @@ async fn resilient_provider_should_retry_chat() {
 #[tokio::test]
 async fn resilient_provider_exhausts_retries() {
     // "network connection reset" 是可重试的网络错误
-    let inner = Arc::new(AlwaysFailProvider::new("network connection reset".to_string()));
+    let inner = Arc::new(AlwaysFailProvider::new(
+        "network connection reset".to_string(),
+    ));
 
     let rp = ResilientProvider::new(inner.clone()).with_config(RetryConfig {
         max_retries: 2,
@@ -188,7 +187,9 @@ async fn resilient_provider_zero_retries() {
 
 #[tokio::test]
 async fn resilient_provider_retries_network_error() {
-    let inner = Arc::new(AlwaysFailProvider::new("network connection reset".to_string()));
+    let inner = Arc::new(AlwaysFailProvider::new(
+        "network connection reset".to_string(),
+    ));
 
     let rp = ResilientProvider::new(inner.clone()).with_config(RetryConfig {
         max_retries: 3,
@@ -223,7 +224,9 @@ async fn resilient_provider_retries_timeout_error() {
 
 #[tokio::test]
 async fn resilient_provider_retries_rate_limit() {
-    let inner = Arc::new(AlwaysFailProvider::new("rate limit exceeded, too many requests".to_string()));
+    let inner = Arc::new(AlwaysFailProvider::new(
+        "rate limit exceeded, too many requests".to_string(),
+    ));
 
     let rp = ResilientProvider::new(inner.clone()).with_config(RetryConfig {
         max_retries: 2,
@@ -240,7 +243,9 @@ async fn resilient_provider_retries_rate_limit() {
 
 #[tokio::test]
 async fn resilient_provider_retries_503_error() {
-    let inner = Arc::new(AlwaysFailProvider::new("503 Service Unavailable".to_string()));
+    let inner = Arc::new(AlwaysFailProvider::new(
+        "503 Service Unavailable".to_string(),
+    ));
 
     let rp = ResilientProvider::new(inner.clone()).with_config(RetryConfig {
         max_retries: 2,
@@ -257,7 +262,9 @@ async fn resilient_provider_retries_503_error() {
 
 #[tokio::test]
 async fn resilient_provider_does_not_retry_auth_error() {
-    let inner = Arc::new(AlwaysFailProvider::new("401 Unauthorized: invalid API key".to_string()));
+    let inner = Arc::new(AlwaysFailProvider::new(
+        "401 Unauthorized: invalid API key".to_string(),
+    ));
 
     let rp = ResilientProvider::new(inner.clone()).with_config(RetryConfig {
         max_retries: 3,
@@ -268,8 +275,15 @@ async fn resilient_provider_does_not_retry_auth_error() {
     });
 
     let result = rp.chat(make_request("test")).await;
-    assert!(result.is_err(), "auth errors should fail immediately without retry");
-    assert_eq!(inner.call_count.load(Ordering::SeqCst), 1, "auth errors should NOT be retried");
+    assert!(
+        result.is_err(),
+        "auth errors should fail immediately without retry"
+    );
+    assert_eq!(
+        inner.call_count.load(Ordering::SeqCst),
+        1,
+        "auth errors should NOT be retried"
+    );
 }
 
 #[tokio::test]
@@ -286,7 +300,11 @@ async fn resilient_provider_does_not_retry_not_found() {
 
     let result = rp.chat(make_request("test")).await;
     assert!(result.is_err(), "404 errors should not be retried");
-    assert_eq!(inner.call_count.load(Ordering::SeqCst), 1, "404 should NOT be retried");
+    assert_eq!(
+        inner.call_count.load(Ordering::SeqCst),
+        1,
+        "404 should NOT be retried"
+    );
 }
 
 #[tokio::test]
@@ -322,7 +340,10 @@ async fn resilient_provider_with_timeout_config() {
         retry_non_retriable_once: false,
     });
 
-    let resp = rp.chat(make_request("hi")).await.expect("chat should succeed");
+    let resp = rp
+        .chat(make_request("hi"))
+        .await
+        .expect("chat should succeed");
     assert_eq!(resp.message.content, "ok");
 }
 
@@ -346,7 +367,10 @@ async fn resilient_provider_backoff_increases_delay() {
 
     // With retries, the total time should be at least the number of retries * min delay
     // (there is jitter so we don't check exact values)
-    assert!(elapsed >= Duration::from_millis(3), "backoff should introduce delays: elapsed={elapsed:?}");
+    assert!(
+        elapsed >= Duration::from_millis(3),
+        "backoff should introduce delays: elapsed={elapsed:?}"
+    );
 }
 
 // ====== 流式取消测试 ======

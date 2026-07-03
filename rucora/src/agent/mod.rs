@@ -190,7 +190,6 @@
 //! - 观测器协议
 //!
 
-
 // 执行能力模块
 pub mod execution;
 
@@ -238,7 +237,10 @@ pub use react::{ReActAgent, ReActAgentBuilder};
 pub use reflect::{ReflectAgent, ReflectAgentBuilder};
 
 // 摘要 Agent
-pub use summary::{ChunkSummary, SummaryAgent, SummaryAgentBuilder, SummaryMode, TextChunker, text_splitter, text_splitter_with_sizer, text_splitter_with_overlap, DynTextSplitter};
+pub use summary::{
+    ChunkSummary, DynTextSplitter, SummaryAgent, SummaryAgentBuilder, SummaryMode, TextChunker,
+    text_splitter, text_splitter_with_overlap, text_splitter_with_sizer,
+};
 
 // Extractor
 pub use extractor::{ExtractionError, ExtractionResponse, Extractor, ExtractorBuilder, TokenUsage};

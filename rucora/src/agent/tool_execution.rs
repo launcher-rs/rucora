@@ -7,7 +7,7 @@ use std::sync::{Arc, LazyLock};
 use regex::Regex;
 use rucora_core::channel::ChannelObserver;
 use rucora_core::error::{AgentError, ToolError};
-use rucora_core::provider::types::{ChatMessage, Role};
+use rucora_core::provider::types::ChatMessage;
 use rucora_core::tool::types::{DEFAULT_TOOL_OUTPUT_MAX_BYTES, ToolCall, ToolContext, ToolResult};
 use serde_json::{Value, json};
 use tracing::{debug, info, warn};
@@ -725,23 +725,11 @@ async fn execute_single_with_timeout(
 ///
 /// # 返回
 ///
-/// 角色为 `Tool` 的 ChatMessage，内容包含 `tool_call_id` 和 `output`
+/// 角色为 `Tool` 的 ChatMessage，使用独立字段保留 `tool_call_id`。
 pub fn tool_result_to_message(result: &ToolResult, tool_name: &str) -> ChatMessage {
-    let payload = Value::Object(
-        [
-            (
-                "tool_call_id".to_string(),
-                Value::String(result.tool_call_id.clone()),
-            ),
-            ("output".to_string(), result.output.clone()),
-        ]
-        .into_iter()
-        .collect(),
-    );
-
-    ChatMessage {
-        role: Role::Tool,
-        content: payload.to_string(),
-        name: Some(tool_name.to_string()),
-    }
+    ChatMessage::tool(
+        tool_name.to_string(),
+        result.tool_call_id.clone(),
+        result.output.to_string(),
+    )
 }

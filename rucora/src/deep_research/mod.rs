@@ -7,10 +7,10 @@ pub mod engine;
 pub mod library;
 pub mod strategies;
 
-pub use engine::DefaultResearchEngine;
-pub use strategies::{FastStrategy, StandardStrategy};
 pub use agentic::AgenticStrategy;
+pub use engine::DefaultResearchEngine;
 pub use library::{FileResearchLibrary, InMemoryResearchLibrary};
+pub use strategies::{FastStrategy, StandardStrategy};
 
 pub use rucora_core::research::{
     ResearchQualityAssessor, ResearchQualityScore, ResearchSuggestion, ScoringConfig,

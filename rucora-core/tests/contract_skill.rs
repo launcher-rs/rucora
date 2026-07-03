@@ -60,10 +60,7 @@ async fn skill_contract_run_value_should_return_json_or_error() {
     let skill = TestSkill;
 
     // 成功情况
-    let result = skill
-        .run_value(json!({"text": "hello"}))
-        .await
-        .unwrap();
+    let result = skill.run_value(json!({"text": "hello"})).await.unwrap();
     assert_eq!(result.get("echo").and_then(|v| v.as_str()), Some("hello"));
 
     // 失败情况

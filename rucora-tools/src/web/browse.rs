@@ -130,8 +130,8 @@ impl Tool for BrowseTool {
         })
     }
 
-async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
-         let action = input
+    async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
+        let action = input
             .get("action")
             .and_then(|v| v.as_str())
             .ok_or_else(|| ToolError::Message("缺少必需的 'action' 字段".to_string()))?;

@@ -5,7 +5,7 @@ use serde_json::json;
 async fn http_request_tool_should_fetch_rustcc_article() {
     let tool = rucora::tools::HttpRequestTool::new();
 
-let out = tool
+    let out = tool
         .call(
             json!({
                 "method": "GET",

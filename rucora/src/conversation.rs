@@ -160,11 +160,7 @@ impl ConversationManager {
         if self.messages.is_empty()
             && let Some(prompt) = &self.system_prompt
         {
-            let system_message = ChatMessage {
-                role: Role::System,
-                content: prompt.clone(),
-                name: None,
-            };
+            let system_message = ChatMessage::system(prompt.clone());
             let system_tokens = self.estimate_message_tokens(&system_message);
             self.token_count = self.token_count.saturating_add(system_tokens);
             self.messages.push(system_message);
@@ -192,29 +188,17 @@ impl ConversationManager {
 
     /// 添加用户消息
     pub fn add_user_message(&mut self, content: impl Into<String>) {
-        self.add_message(ChatMessage {
-            role: Role::User,
-            content: content.into(),
-            name: None,
-        });
+        self.add_message(ChatMessage::user(content));
     }
 
     /// 添加助手消息
     pub fn add_assistant_message(&mut self, content: impl Into<String>) {
-        self.add_message(ChatMessage {
-            role: Role::Assistant,
-            content: content.into(),
-            name: None,
-        });
+        self.add_message(ChatMessage::assistant(content));
     }
 
     /// 添加工具结果
     pub fn add_tool_result(&mut self, tool_call_id: impl Into<String>, content: impl Into<String>) {
-        self.add_message(ChatMessage {
-            role: Role::Tool,
-            content: content.into(),
-            name: Some(tool_call_id.into()),
-        });
+        self.add_message(ChatMessage::tool("tool", tool_call_id, content));
     }
 
     /// 获取所有消息
@@ -248,11 +232,7 @@ impl ConversationManager {
 
         // 保留系统提示词
         if let Some(prompt) = &self.system_prompt {
-            let system_message = ChatMessage {
-                role: Role::System,
-                content: prompt.clone(),
-                name: None,
-            };
+            let system_message = ChatMessage::system(prompt.clone());
             self.token_count = self.estimate_message_tokens(&system_message);
             self.messages.push(system_message);
         }
@@ -302,11 +282,7 @@ impl ConversationManager {
             .first()
             .is_some_and(|m| m.role == Role::System);
 
-        let summary_message = ChatMessage {
-            role: Role::System,
-            content: format!("对话历史摘要：{}", summary.into()),
-            name: None,
-        };
+        let summary_message = ChatMessage::system(format!("对话历史摘要：{}", summary.into()));
 
         // 保留系统提示词和最近 2 条消息
         let mut new_messages = Vec::new();

@@ -1,11 +1,11 @@
 //! 默认研究引擎实现
 
 use async_trait::async_trait;
+use rucora_core::provider::LlmProvider;
 use rucora_core::research::{
     ResearchConfig, ResearchContext, ResearchPhase, ResearchProgress, ResearchReport,
     ResearchStrategy, StrategyTrait,
 };
-use rucora_core::provider::LlmProvider;
 use std::sync::{Arc, RwLock};
 
 /// 默认深度研究引擎
@@ -21,10 +21,7 @@ impl DefaultResearchEngine {
         Self {
             config,
             strategy,
-            progress: Arc::new(RwLock::new(ResearchProgress::new(
-                ResearchPhase::Init,
-                10,
-            ))),
+            progress: Arc::new(RwLock::new(ResearchProgress::new(ResearchPhase::Init, 10))),
         }
     }
 
@@ -32,7 +29,9 @@ impl DefaultResearchEngine {
         let max_iter = config.max_iterations;
         let strategy: Box<dyn StrategyTrait> = match config.strategy {
             ResearchStrategy::Fast => Box::new(super::strategies::FastStrategy::new()),
-            _ => Box::new(super::strategies::StandardStrategy::with_config(config.clone())),
+            _ => Box::new(super::strategies::StandardStrategy::with_config(
+                config.clone(),
+            )),
         };
         Self {
             config,
@@ -84,10 +83,8 @@ impl rucora_core::research::DeepResearchEngine for DefaultResearchEngine {
         match result {
             Ok(strategy_result) => {
                 report.set_tokens(strategy_result.tokens_used);
-                report.summary = format!(
-                    "研究完成，收集到 {} 条信息",
-                    strategy_result.new_info.len()
-                );
+                report.summary =
+                    format!("研究完成，收集到 {} 条信息", strategy_result.new_info.len());
             }
             Err(e) => {
                 report.summary = format!("研究失败: {e}");

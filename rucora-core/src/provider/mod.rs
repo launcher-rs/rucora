@@ -80,8 +80,8 @@
 //! # async fn example(provider: &dyn LlmProvider) -> Result<(), Box<dyn std::error::Error>> {
 //! let request = ChatRequest {
 //!     messages: vec![
-//!         ChatMessage { role: Role::System, content: "你是一个有用的助手".to_string(), name: None },
-//!         ChatMessage { role: Role::User, content: "你好".to_string(), name: None },
+//!         ChatMessage::system("你是一个有用的助手"),
+//!         ChatMessage::user("你好"),
 //!     ],
 //!     model: Some("gpt-4".to_string()),
 //!     tools: None,
@@ -111,7 +111,7 @@
 //!
 //! # async fn example(provider: &dyn LlmProvider) -> Result<(), Box<dyn std::error::Error>> {
 //! let request = ChatRequest {
-//!     messages: vec![ChatMessage { role: Role::User, content: "讲个故事".to_string(), name: None }],
+//!     messages: vec![ChatMessage::user("讲个故事")],
 //!     model: Some("gpt-4".to_string()),
 //!     tools: None,
 //!     temperature: None,

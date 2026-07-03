@@ -49,7 +49,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent::ToolRegistry;
-use crate::agent::execution::{build_default_execution, DefaultExecution};
+use crate::agent::execution::{DefaultExecution, build_default_execution};
 use crate::conversation::ConversationManager;
 
 /// ReActAgent - 推理 + 行动 Agent
@@ -61,8 +61,8 @@ use crate::conversation::ConversationManager;
 pub struct ReActAgent<P> {
     /// LLM Provider
     _provider: Arc<P>,
-    /// 默认使用的模型
-    model: String,
+    /// Agent 级模型覆盖；为空时使用 Provider 默认模型。
+    model: Option<String>,
     /// 系统提示词
     _system_prompt: Option<String>,
     /// 工具注册表
@@ -193,7 +193,7 @@ where
 
         let mut request = ChatRequest {
             messages,
-            model: Some(self.model.clone()),
+            model: self.model.clone(),
             tools: Some(self.tools.definitions()),
             ..Default::default()
         };
@@ -368,9 +368,6 @@ where
         let provider = self.provider.ok_or_else(|| {
             AgentError::Message("构建 ReActAgent 失败：缺少 provider".to_string())
         })?;
-        let model = self
-            .model
-            .ok_or_else(|| AgentError::Message("构建 ReActAgent 失败：缺少 model".to_string()))?;
         let conversation_manager = if self.with_conversation {
             let mut conv = ConversationManager::new();
             if let Some(ref prompt) = self.system_prompt {
@@ -381,11 +378,11 @@ where
             None
         };
 
-// 创建执行能力
+        // 创建执行能力
         let provider_arc = Arc::new(provider);
         let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
             provider: provider_arc.clone(),
-            model: model.clone(),
+            model: self.model.clone(),
             tools: self.tools.clone(),
             system_prompt: self.system_prompt.clone(),
             max_steps: self.max_steps,
@@ -398,7 +395,7 @@ where
 
         Ok(ReActAgent {
             _provider: provider_arc,
-            model,
+            model: self.model,
             _system_prompt: self.system_prompt,
             tools: self.tools,
             max_steps: self.max_steps,

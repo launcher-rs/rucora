@@ -118,7 +118,7 @@
 //! #[async_trait]
 //! impl LlmProvider for MyProvider {
 //!     async fn chat(&self, request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-//!         let msg = ChatMessage { role: Role::Assistant, content: "Hello!".to_string(), name: None };
+//!         let msg = ChatMessage::assistant("Hello!");
 //!         Ok(ChatResponse { message: msg, tool_calls: vec![], usage: None, finish_reason: None })
 //!     }
 //!     fn stream_chat(&self, request: ChatRequest) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
@@ -237,11 +237,11 @@ pub use error_classifier_trait::{
 // 重新导出注入防护 trait
 pub use injection_guard_trait::{ContentScannable, InjectionGuard, ScanResult, Threat, ThreatType};
 
+pub use graceful_shutdown::{GracefulShutdown, ShutdownHandle, ShutdownState, ShutdownToken};
 pub use provider::LlmProvider;
 pub use provider::types::LlmParams;
-pub use tool::Tool;
-pub use graceful_shutdown::{GracefulShutdown, ShutdownHandle, ShutdownState, ShutdownToken};
 pub use retry::{ExponentialBackoff, FixedDelay, NoRetry, RetryPolicy, RetryPolicyExt};
+pub use tool::Tool;
 
 // 重新导出 Deep Research 类型
 pub use research::{

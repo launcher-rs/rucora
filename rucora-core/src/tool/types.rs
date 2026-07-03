@@ -507,12 +507,12 @@ mod tests {
 
     #[test]
     fn test_tool_definition_serialization() {
-let def = ToolDefinition {
-             name: "test_tool".to_string(),
-             description: Some("测试工具".to_string()),
-             input_schema: json!({"type": "object"}),
-             version: 1,
-         };
+        let def = ToolDefinition {
+            name: "test_tool".to_string(),
+            description: Some("测试工具".to_string()),
+            input_schema: json!({"type": "object"}),
+            version: 1,
+        };
 
         let serialized = serde_json::to_string(&def).unwrap();
         let deserialized: ToolDefinition = serde_json::from_str(&serialized).unwrap();
@@ -573,8 +573,7 @@ let def = ToolDefinition {
 
     #[test]
     fn test_tool_result_with_data() {
-        let result = ToolResult::success("call_1", json!({}))
-            .with_data(json!({ "key": "value" }));
+        let result = ToolResult::success("call_1", json!({})).with_data(json!({ "key": "value" }));
 
         assert!(result.is_success());
         assert_eq!(result.data, Some(json!({ "key": "value" })));
@@ -583,8 +582,7 @@ let def = ToolDefinition {
     #[test]
     fn test_tool_result_with_bytes() {
         let bytes = vec![1, 2, 3, 4];
-        let result = ToolResult::success("call_2", json!({}))
-            .with_bytes(bytes.clone());
+        let result = ToolResult::success("call_2", json!({})).with_bytes(bytes.clone());
 
         assert!(result.is_success());
         assert_eq!(result.bytes, Some(bytes));

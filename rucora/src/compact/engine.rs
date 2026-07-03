@@ -434,13 +434,13 @@ mod tests {
         let messages = vec![
             ChatMessage::user("Hello"),
             ChatMessage::assistant("Hi"),
-            ChatMessage::tool("tool1".to_string(), "result1".to_string()),
+            ChatMessage::tool("tool1", "call1", "result1"),
             ChatMessage::assistant("Done"),
-            ChatMessage::tool("tool2".to_string(), "result2".to_string()),
+            ChatMessage::tool("tool2", "call2", "result2"),
             ChatMessage::assistant("Done2"),
-            ChatMessage::tool("tool3".to_string(), "result3".to_string()),
-            ChatMessage::tool("tool4".to_string(), "result4".to_string()),
-            ChatMessage::tool("tool5".to_string(), "result5".to_string()),
+            ChatMessage::tool("tool3", "call3", "result3"),
+            ChatMessage::tool("tool4", "call4", "result4"),
+            ChatMessage::tool("tool5", "call5", "result5"),
         ];
 
         let trimmed = engine.trim_old_tool_results(messages);

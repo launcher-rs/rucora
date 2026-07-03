@@ -5,7 +5,7 @@
 //! - `FileResearchLibrary` - 基于文件系统的持久化存储
 
 use async_trait::async_trait;
-use rucora_core::research::{ResearchError, ResearchReport, ResearchLibrary};
+use rucora_core::research::{ResearchError, ResearchLibrary, ResearchReport};
 use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::fs;
@@ -110,11 +110,10 @@ impl FileResearchLibrary {
 impl ResearchLibrary for FileResearchLibrary {
     async fn save(&self, report: &ResearchReport) -> Result<String, ResearchError> {
         let path = self.report_path(&report.id);
-        let json = serde_json::to_string_pretty(report)
-            .map_err(|e| ResearchError::Storage {
-                message: e.to_string(),
-                source: Some(Box::new(e)),
-            })?;
+        let json = serde_json::to_string_pretty(report).map_err(|e| ResearchError::Storage {
+            message: e.to_string(),
+            source: Some(Box::new(e)),
+        })?;
         fs::write(&path, json)
             .await
             .map_err(|e| ResearchError::Storage {
@@ -126,20 +125,23 @@ impl ResearchLibrary for FileResearchLibrary {
 
     async fn search(&self, query: &str) -> Result<Vec<ResearchReport>, ResearchError> {
         let mut results = Vec::new();
-        let mut entries = fs::read_dir(&self.base_path)
+        let mut entries =
+            fs::read_dir(&self.base_path)
+                .await
+                .map_err(|e| ResearchError::Storage {
+                    message: e.to_string(),
+                    source: Some(Box::new(e)),
+                })?;
+
+        let query_lower = query.to_lowercase();
+        while let Some(entry) = entries
+            .next_entry()
             .await
             .map_err(|e| ResearchError::Storage {
                 message: e.to_string(),
                 source: Some(Box::new(e)),
-            })?;
-
-        let query_lower = query.to_lowercase();
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            ResearchError::Storage {
-                message: e.to_string(),
-                source: Some(Box::new(e)),
-            }
-        })? {
+            })?
+        {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json")
                 && let Ok(content) = fs::read_to_string(&path).await
@@ -175,19 +177,22 @@ impl ResearchLibrary for FileResearchLibrary {
 
     async fn list(&self, limit: usize) -> Result<Vec<ResearchReport>, ResearchError> {
         let mut results = Vec::new();
-        let mut entries = fs::read_dir(&self.base_path)
+        let mut entries =
+            fs::read_dir(&self.base_path)
+                .await
+                .map_err(|e| ResearchError::Storage {
+                    message: e.to_string(),
+                    source: Some(Box::new(e)),
+                })?;
+
+        while let Some(entry) = entries
+            .next_entry()
             .await
             .map_err(|e| ResearchError::Storage {
                 message: e.to_string(),
                 source: Some(Box::new(e)),
-            })?;
-
-        while let Some(entry) = entries.next_entry().await.map_err(|e| {
-            ResearchError::Storage {
-                message: e.to_string(),
-                source: Some(Box::new(e)),
-            }
-        })? {
+            })?
+        {
             let path = entry.path();
             if path.extension().and_then(|s| s.to_str()) == Some("json")
                 && let Ok(content) = fs::read_to_string(&path).await

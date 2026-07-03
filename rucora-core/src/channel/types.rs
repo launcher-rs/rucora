@@ -30,15 +30,11 @@
 //!
 //! ```rust
 //! use rucora_core::channel::types::*;
-//! use rucora_core::provider::types::{ChatMessage, Role};
+//! use rucora_core::provider::types::ChatMessage;
 //! use serde_json::json;
 //!
 //! // 消息事件
-//! let message = ChannelEvent::Message(ChatMessage {
-//!     role: Role::Assistant,
-//!     content: "你好！".to_string(),
-//!     name: None,
-//! });
+//! let message = ChannelEvent::Message(ChatMessage::assistant("你好！"));
 //!
 //! // Token 流式事件
 //! let token = ChannelEvent::TokenDelta(TokenDeltaEvent {
@@ -326,14 +322,10 @@ pub struct ErrorEvent {
 ///
 /// ```rust
 /// use rucora_core::channel::types::*;
-/// use rucora_core::provider::types::{ChatMessage, Role};
+/// use rucora_core::provider::types::ChatMessage;
 ///
 /// // 消息事件
-/// let event = ChannelEvent::Message(ChatMessage {
-///     role: Role::Assistant,
-///     content: "你好！".to_string(),
-///     name: None,
-/// });
+/// let event = ChannelEvent::Message(ChatMessage::assistant("你好！"));
 ///
 /// // Token 流式事件
 /// let event = ChannelEvent::TokenDelta(TokenDeltaEvent {
