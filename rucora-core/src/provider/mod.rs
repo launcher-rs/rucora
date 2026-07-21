@@ -218,6 +218,9 @@ pub mod r#trait;
 /// Provider 相关类型定义
 pub mod types;
 
+/// 结构化路由选择
+pub mod route;
+
 /// 重新导出 provider 相关 trait，方便 `rucora_core::provider::*` 使用
 pub use r#trait::*;
 

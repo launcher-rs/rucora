@@ -347,6 +347,21 @@ impl DiagnosticError for ProviderError {
     }
 }
 
+/// Tool 错误分类（轻量级，直接匹配，不走 ErrorDiagnostic）
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum ToolErrorKind {
+    /// 通用错误
+    Generic,
+    /// 策略拒绝
+    Policy,
+    /// 工具不存在
+    NotFound,
+    /// 输入验证失败
+    Validation,
+    /// 执行超时
+    Timeout,
+}
+
 /// Tool 错误（增强版）
 #[derive(thiserror::Error, Debug)]
 pub enum ToolError {
@@ -369,6 +384,19 @@ pub enum ToolError {
     /// 执行超时
     #[error("工具执行超时：{message}")]
     Timeout { message: String },
+}
+
+impl ToolError {
+    /// 返回轻量级错误分类，便于 switch/match。
+    pub fn kind(&self) -> ToolErrorKind {
+        match self {
+            ToolError::Message(_) => ToolErrorKind::Generic,
+            ToolError::PolicyDenied { .. } => ToolErrorKind::Policy,
+            ToolError::NotFound { .. } => ToolErrorKind::NotFound,
+            ToolError::ValidationError { .. } => ToolErrorKind::Validation,
+            ToolError::Timeout { .. } => ToolErrorKind::Timeout,
+        }
+    }
 }
 
 impl DiagnosticError for ToolError {

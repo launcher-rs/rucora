@@ -10,7 +10,10 @@ use std::env;
 
 use crate::{
     helpers::{apply_sampling_params, parse_finish_reason},
-    http_config::build_client,
+    http_config::{
+        build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
+        DEFAULT_REQUEST_TIMEOUT_SECS,
+    },
     preview,
 };
 use async_trait::async_trait;
@@ -66,11 +69,32 @@ pub const DEEPSEEK_DEFAULT_MODEL: &str = "deepseek-chat";
 #[derive(Clone)]
 pub struct DeepSeekProvider {
     client: reqwest::Client,
+    headers: HeaderMap,
     base_url: String,
     default_model: String,
+    request_timeout_secs: Option<u64>,
+    connect_timeout_secs: Option<u64>,
 }
 
 impl DeepSeekProvider {
+    fn build_headers(api_key: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
+            headers.insert(AUTHORIZATION, v);
+        }
+        headers
+    }
+
+    fn build_http_client(headers: &HeaderMap, request_timeout_secs: Option<u64>, connect_timeout_secs: Option<u64>) -> reqwest::Client {
+        match (request_timeout_secs, connect_timeout_secs) {
+            (Some(rt), Some(ct)) => build_client_with_timeout(headers.clone(), rt, ct),
+            (Some(rt), None) => build_client_with_timeout(headers.clone(), rt, DEFAULT_CONNECT_TIMEOUT_SECS),
+            (None, Some(ct)) => build_client_with_timeout(headers.clone(), DEFAULT_REQUEST_TIMEOUT_SECS, ct),
+            (None, None) => build_client(headers.clone()),
+        }
+    }
+
     /// 从环境变量创建 Provider。
     ///
     /// 默认模型优先级：
@@ -101,18 +125,16 @@ impl DeepSeekProvider {
         default_model: impl Into<String>,
     ) -> Self {
         let api_key = api_key.into();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
-            headers.insert(AUTHORIZATION, v);
-        }
-
-        let client = build_client(headers);
+        let headers = Self::build_headers(&api_key);
+        let client = Self::build_http_client(&headers, None, None);
 
         Self {
             client,
+            headers,
             base_url: base_url.into(),
             default_model: default_model.into(),
+            request_timeout_secs: None,
+            connect_timeout_secs: None,
         }
     }
 
@@ -128,6 +150,23 @@ impl DeepSeekProvider {
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
         self.default_model = model.into();
+        self
+    }
+
+    pub fn with_request_timeout(mut self, secs: Option<u64>) -> Self {
+        self.request_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_connect_timeout(mut self, secs: Option<u64>) -> Self {
+        self.connect_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = client;
         self
     }
 

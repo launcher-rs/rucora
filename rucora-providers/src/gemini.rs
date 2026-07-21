@@ -15,7 +15,11 @@
 
 use std::env;
 
-use crate::{helpers::parse_finish_reason, http_config::build_client, preview};
+use crate::{
+    helpers::parse_finish_reason,
+    http_config::{build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_REQUEST_TIMEOUT_SECS},
+    preview,
+};
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
@@ -76,8 +80,11 @@ pub const GEMINI_DEFAULT_MODEL: &str = "gemini-1.5-flash";
 #[derive(Clone)]
 pub struct GeminiProvider {
     client: reqwest::Client,
+    headers: HeaderMap,
     base_url: String,
     default_model: String,
+    request_timeout_secs: Option<u64>,
+    connect_timeout_secs: Option<u64>,
 }
 
 impl GeminiProvider {
@@ -122,19 +129,16 @@ impl GeminiProvider {
         default_model: impl Into<String>,
     ) -> Self {
         let api_key = api_key.into();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        // 使用请求头传递 API Key，避免暴露在 URL 中
-        if let Ok(v) = HeaderValue::from_str(&api_key) {
-            headers.insert("x-goog-api-key", v);
-        }
-
-        let client = build_client(headers);
+        let headers = Self::build_headers(&api_key);
+        let client = Self::build_http_client(&headers, None, None);
 
         Self {
             client,
+            headers,
             base_url: base_url.into(),
             default_model: default_model.into(),
+            request_timeout_secs: None,
+            connect_timeout_secs: None,
         }
     }
 
@@ -153,9 +157,44 @@ impl GeminiProvider {
         self
     }
 
+    pub fn with_request_timeout(mut self, secs: Option<u64>) -> Self {
+        self.request_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_connect_timeout(mut self, secs: Option<u64>) -> Self {
+        self.connect_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = client;
+        self
+    }
+
     /// 获取默认模型。
     pub fn default_model(&self) -> &str {
         &self.default_model
+    }
+
+    fn build_headers(api_key: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Ok(v) = HeaderValue::from_str(api_key) {
+            headers.insert("x-goog-api-key", v);
+        }
+        headers
+    }
+
+    fn build_http_client(headers: &HeaderMap, request_timeout_secs: Option<u64>, connect_timeout_secs: Option<u64>) -> reqwest::Client {
+        match (request_timeout_secs, connect_timeout_secs) {
+            (Some(rt), Some(ct)) => build_client_with_timeout(headers.clone(), rt, ct),
+            (Some(rt), None) => build_client_with_timeout(headers.clone(), rt, DEFAULT_CONNECT_TIMEOUT_SECS),
+            (None, Some(ct)) => build_client_with_timeout(headers.clone(), DEFAULT_REQUEST_TIMEOUT_SECS, ct),
+            (None, None) => build_client(headers.clone()),
+        }
     }
 
     fn map_role(role: &Role) -> &'static str {

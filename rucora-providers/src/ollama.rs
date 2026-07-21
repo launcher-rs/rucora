@@ -6,7 +6,13 @@
 
 use std::env;
 
-use crate::{http_config::build_client, preview};
+use crate::{
+    http_config::{
+        build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
+        DEFAULT_REQUEST_TIMEOUT_SECS,
+    },
+    preview,
+};
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::HeaderMap;
@@ -41,16 +47,19 @@ pub const OLLAMA_DEFAULT_MODEL: &str = "llama3.1:8b";
 #[derive(Clone)]
 pub struct OllamaProvider {
     client: reqwest::Client,
+    headers: HeaderMap,
     base_url: String,
     default_model: String,
+    request_timeout_secs: Option<u64>,
+    connect_timeout_secs: Option<u64>,
 }
 
 impl OllamaProvider {
-    fn map_reqwest_error(e: reqwest::Error) -> ProviderError {
+    fn map_reqwest_error(e: reqwest::Error, elapsed: std::time::Duration) -> ProviderError {
         if e.is_timeout() {
             ProviderError::Timeout {
                 message: e.to_string(),
-                elapsed: std::time::Duration::ZERO,
+                elapsed,
             }
         } else if e.is_connect() || e.is_request() {
             ProviderError::Network {
@@ -98,21 +107,57 @@ impl OllamaProvider {
         Self::with_model(base_url, OLLAMA_DEFAULT_MODEL.to_string())
     }
 
+    fn build_headers() -> HeaderMap {
+        HeaderMap::new()
+    }
+
+    fn build_http_client(headers: &HeaderMap, request_timeout_secs: Option<u64>, connect_timeout_secs: Option<u64>) -> reqwest::Client {
+        match (request_timeout_secs, connect_timeout_secs) {
+            (Some(rt), Some(ct)) => build_client_with_timeout(headers.clone(), rt, ct),
+            (Some(rt), None) => build_client_with_timeout(headers.clone(), rt, DEFAULT_CONNECT_TIMEOUT_SECS),
+            (None, Some(ct)) => build_client_with_timeout(headers.clone(), DEFAULT_REQUEST_TIMEOUT_SECS, ct),
+            (None, None) => build_client(headers.clone()),
+        }
+    }
+
     /// 创建 Provider 并指定默认模型。
     pub fn with_model(base_url: impl Into<String>, default_model: impl Into<String>) -> Self {
-        let headers = HeaderMap::new();
-        let client = build_client(headers);
+        let headers = Self::build_headers();
+        let client = Self::build_http_client(&headers, None, None);
 
         Self {
             client,
+            headers,
             base_url: base_url.into(),
             default_model: default_model.into(),
+            request_timeout_secs: None,
+            connect_timeout_secs: None,
         }
     }
 
     /// 设置默认模型。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
         self.default_model = model.into();
+        self
+    }
+
+    /// 设置请求超时时间（秒）。
+    pub fn with_request_timeout(mut self, secs: Option<u64>) -> Self {
+        self.request_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    /// 设置连接超时时间（秒）。
+    pub fn with_connect_timeout(mut self, secs: Option<u64>) -> Self {
+        self.connect_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    /// 设置自定义 HTTP 客户端。
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = client;
         self
     }
 
@@ -284,10 +329,13 @@ impl LlmProvider for OllamaProvider {
             .json(&body)
             .send()
             .await
-            .map_err(Self::map_reqwest_error)?;
+            .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
 
         let status = resp.status();
-        let data: Value = resp.json().await.map_err(Self::map_reqwest_error)?;
+        let data: Value = resp
+            .json()
+            .await
+            .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
         debug!(provider = "ollama", status = %status, elapsed_ms, "provider.chat.http.done");
@@ -468,7 +516,7 @@ impl LlmProvider for OllamaProvider {
                 .json(&body)
                 .send()
                 .await
-                .map_err(Self::map_reqwest_error)?;
+                .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
 
             let status = resp.status();
             if !status.is_success() {
@@ -489,7 +537,7 @@ impl LlmProvider for OllamaProvider {
             let mut bytes_stream = resp.bytes_stream();
 
             while let Some(item) = bytes_stream.next().await {
-                let bytes = item.map_err(Self::map_reqwest_error)?;
+                let bytes = item.map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 

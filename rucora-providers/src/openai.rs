@@ -7,7 +7,13 @@
 
 use std::{collections::BTreeMap, env};
 
-use crate::{http_config::build_client, preview};
+use crate::{
+    http_config::{
+        build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
+        DEFAULT_REQUEST_TIMEOUT_SECS,
+    },
+    preview,
+};
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{AUTHORIZATION, CONTENT_TYPE, HeaderMap, HeaderValue};
@@ -41,37 +47,47 @@ const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
 /// 2. `OPENAI_DEFAULT_MODEL` 环境变量
 /// 3. 内置默认值 `gpt-4o-mini`
 ///
-/// # 示例
+/// # 超时配置
+///
+/// 默认请求超时 120 秒，连接超时 15 秒。可通过以下方式自定义：
 ///
 /// ```rust,no_run
 /// use rucora_providers::OpenAiProvider;
 ///
 /// # fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// // 方式 1：使用内置默认模型（gpt-4o-mini）
-/// let provider = OpenAiProvider::from_env()?;
-///
-/// // 方式 2：通过环境变量指定（OPENAI_DEFAULT_MODEL=claude-3-5-sonnet）
-/// let provider = OpenAiProvider::from_env()?;
-///
-/// // 方式 3：手动指定（优先级最高）
 /// let provider = OpenAiProvider::from_env()?
-///     .with_default_model("gpt-4o");
+///     .with_request_timeout(Some(300))   // 请求超时 300 秒
+///     .with_connect_timeout(Some(60));   // 连接超时 60 秒
+///
+/// // 使用自定义 HTTP 客户端（完全控制所有配置）
+/// use reqwest::Client;
+/// use std::time::Duration;
+///
+/// let client = Client::builder()
+///     .timeout(Duration::from_secs(180))
+///     .connect_timeout(Duration::from_secs(30))
+///     .build()?;
+/// let provider = OpenAiProvider::from_env()?
+///     .with_client(client);
 /// # Ok(())
 /// # }
-/// ```
+/// /// ```
 #[derive(Clone)]
 pub struct OpenAiProvider {
     client: reqwest::Client,
+    headers: HeaderMap,
     base_url: String,
     default_model: String,
+    request_timeout_secs: Option<u64>,
+    connect_timeout_secs: Option<u64>,
 }
 
 impl OpenAiProvider {
-    fn map_reqwest_error(e: reqwest::Error) -> ProviderError {
+    fn map_reqwest_error(e: reqwest::Error, elapsed: std::time::Duration) -> ProviderError {
         if e.is_timeout() {
             ProviderError::Timeout {
                 message: e.to_string(),
-                elapsed: std::time::Duration::ZERO,
+                elapsed,
             }
         } else if e.is_connect() || e.is_request() {
             ProviderError::Network {
@@ -127,30 +143,72 @@ impl OpenAiProvider {
     /// - `base_url`: API 基础 URL
     /// - `api_key`: API Key
     /// - `default_model`: 默认使用的模型名称
+    fn build_headers(api_key: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
+            headers.insert(AUTHORIZATION, v);
+        }
+        headers
+    }
+
+    fn build_http_client(headers: &HeaderMap, request_timeout_secs: Option<u64>, connect_timeout_secs: Option<u64>) -> reqwest::Client {
+        match (request_timeout_secs, connect_timeout_secs) {
+            (Some(rt), Some(ct)) => build_client_with_timeout(headers.clone(), rt, ct),
+            (Some(rt), None) => build_client_with_timeout(headers.clone(), rt, DEFAULT_CONNECT_TIMEOUT_SECS),
+            (None, Some(ct)) => build_client_with_timeout(headers.clone(), DEFAULT_REQUEST_TIMEOUT_SECS, ct),
+            (None, None) => build_client(headers.clone()),
+        }
+    }
+
     pub fn with_model(
         base_url: impl Into<String>,
         api_key: impl Into<String>,
         default_model: impl Into<String>,
     ) -> Self {
         let api_key = api_key.into();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        if let Ok(v) = HeaderValue::from_str(&format!("Bearer {api_key}")) {
-            headers.insert(AUTHORIZATION, v);
-        }
-
-        let client = build_client(headers);
+        let headers = Self::build_headers(&api_key);
+        let client = Self::build_http_client(&headers, None, None);
 
         Self {
             client,
+            headers,
             base_url: base_url.into(),
             default_model: default_model.into(),
+            request_timeout_secs: None,
+            connect_timeout_secs: None,
         }
     }
 
     /// 设置默认模型（覆盖环境变量或内置默认值）。
     pub fn with_default_model(mut self, model: impl Into<String>) -> Self {
         self.default_model = model.into();
+        self
+    }
+
+    /// 设置请求超时时间（秒）。
+    ///
+    /// 覆盖默认的 120 秒请求超时。设置为 `None` 恢复默认值。
+    pub fn with_request_timeout(mut self, secs: Option<u64>) -> Self {
+        self.request_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    /// 设置连接超时时间（秒）。
+    ///
+    /// 覆盖默认的 15 秒连接超时。设置为 `None` 恢复默认值。
+    pub fn with_connect_timeout(mut self, secs: Option<u64>) -> Self {
+        self.connect_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    /// 设置自定义 HTTP 客户端。
+    ///
+    /// 可用于完全控制客户端配置（代理、TLS、超时等）。
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = client;
         self
     }
 
@@ -365,7 +423,7 @@ impl LlmProvider for OpenAiProvider {
             .json(&body)
             .send()
             .await
-            .map_err(Self::map_reqwest_error)?;
+            .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
 
         let status = resp.status();
 
@@ -604,7 +662,7 @@ impl LlmProvider for OpenAiProvider {
                 .json(&body)
                 .send()
                 .await
-                .map_err(Self::map_reqwest_error)?;
+                .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
 
             let status = resp.status();
             if !status.is_success() {
@@ -626,7 +684,7 @@ impl LlmProvider for OpenAiProvider {
             let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
 
             while let Some(item) = bytes_stream.next().await {
-                let bytes = item.map_err(Self::map_reqwest_error)?;
+                let bytes = item.map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 

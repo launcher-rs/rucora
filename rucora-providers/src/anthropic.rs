@@ -8,7 +8,11 @@
 
 use std::env;
 
-use crate::{helpers::parse_finish_reason, http_config::build_client, preview};
+use crate::{
+    helpers::parse_finish_reason,
+    http_config::{build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_REQUEST_TIMEOUT_SECS},
+    preview,
+};
 use async_trait::async_trait;
 use futures_util::{StreamExt, stream::BoxStream};
 use reqwest::header::{CONTENT_TYPE, HeaderMap, HeaderValue};
@@ -70,9 +74,12 @@ pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-3-5-sonnet-20241022";
 #[derive(Clone)]
 pub struct AnthropicProvider {
     client: reqwest::Client,
+    headers: HeaderMap,
     base_url: String,
     default_model: String,
     api_version: String,
+    request_timeout_secs: Option<u64>,
+    connect_timeout_secs: Option<u64>,
 }
 
 impl AnthropicProvider {
@@ -111,22 +118,17 @@ impl AnthropicProvider {
         default_model: impl Into<String>,
     ) -> Self {
         let api_key = api_key.into();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        // Anthropic 使用 x-api-key 头部
-        if let Ok(v) = HeaderValue::from_str(&api_key) {
-            headers.insert("x-api-key", v);
-        }
-        // Anthropic 需要版本号
-        headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
-
-        let client = build_client(headers);
+        let headers = Self::build_headers(&api_key);
+        let client = Self::build_http_client(&headers, None, None);
 
         Self {
             client,
+            headers,
             base_url: base_url.into(),
             default_model: default_model.into(),
             api_version: "2023-06-01".to_string(),
+            request_timeout_secs: None,
+            connect_timeout_secs: None,
         }
     }
 
@@ -145,6 +147,23 @@ impl AnthropicProvider {
         self
     }
 
+    pub fn with_request_timeout(mut self, secs: Option<u64>) -> Self {
+        self.request_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_connect_timeout(mut self, secs: Option<u64>) -> Self {
+        self.connect_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = client;
+        self
+    }
+
     /// 获取默认模型。
     pub fn default_model(&self) -> &str {
         &self.default_model
@@ -154,6 +173,25 @@ impl AnthropicProvider {
     pub fn with_api_version(mut self, version: impl Into<String>) -> Self {
         self.api_version = version.into();
         self
+    }
+
+    fn build_headers(api_key: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Ok(v) = HeaderValue::from_str(api_key) {
+            headers.insert("x-api-key", v);
+        }
+        headers.insert("anthropic-version", HeaderValue::from_static("2023-06-01"));
+        headers
+    }
+
+    fn build_http_client(headers: &HeaderMap, request_timeout_secs: Option<u64>, connect_timeout_secs: Option<u64>) -> reqwest::Client {
+        match (request_timeout_secs, connect_timeout_secs) {
+            (Some(rt), Some(ct)) => build_client_with_timeout(headers.clone(), rt, ct),
+            (Some(rt), None) => build_client_with_timeout(headers.clone(), rt, DEFAULT_CONNECT_TIMEOUT_SECS),
+            (None, Some(ct)) => build_client_with_timeout(headers.clone(), DEFAULT_REQUEST_TIMEOUT_SECS, ct),
+            (None, None) => build_client(headers.clone()),
+        }
     }
 
     fn build_system_prompt(messages: &[ChatMessage]) -> Option<String> {

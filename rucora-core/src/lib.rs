@@ -221,6 +221,9 @@ pub mod retry;
 /// Deep Research（深度研究）核心抽象
 pub mod research;
 
+/// 可中断信号（用于取消控制）
+pub mod interrupt;
+
 /// 共享测试工具（用于测试，发布构建时需要保留以供下游 crate 的测试使用）
 pub mod test_utils;
 

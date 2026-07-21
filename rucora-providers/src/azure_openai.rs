@@ -11,7 +11,10 @@ use std::env;
 
 use crate::{
     helpers::{apply_sampling_params, parse_finish_reason},
-    http_config::build_client,
+    http_config::{
+        build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
+        DEFAULT_REQUEST_TIMEOUT_SECS,
+    },
     preview,
 };
 use async_trait::async_trait;
@@ -74,9 +77,12 @@ pub const AZURE_OPENAI_DEFAULT_DEPLOYMENT: &str = "gpt-4";
 #[derive(Clone)]
 pub struct AzureOpenAiProvider {
     client: reqwest::Client,
+    headers: HeaderMap,
     endpoint: String,
     api_version: String,
     default_deployment_id: String,
+    request_timeout_secs: Option<u64>,
+    connect_timeout_secs: Option<u64>,
 }
 
 impl AzureOpenAiProvider {
@@ -124,20 +130,17 @@ impl AzureOpenAiProvider {
     ) -> Self {
         let api_key = api_key.into();
         let deployment_id_str = deployment_id.into();
-        let mut headers = HeaderMap::new();
-        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
-        // Azure 使用 api-key 头部
-        if let Ok(v) = HeaderValue::from_str(&api_key) {
-            headers.insert("api-key", v);
-        }
-
-        let client = build_client(headers);
+        let headers = Self::build_headers(&api_key);
+        let client = Self::build_http_client(&headers, None, None);
 
         Self {
             client,
+            headers,
             endpoint: endpoint.into(),
             api_version: "2024-02-15-preview".to_string(),
             default_deployment_id: deployment_id_str,
+            request_timeout_secs: None,
+            connect_timeout_secs: None,
         }
     }
 
@@ -156,6 +159,23 @@ impl AzureOpenAiProvider {
         self
     }
 
+    pub fn with_request_timeout(mut self, secs: Option<u64>) -> Self {
+        self.request_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_connect_timeout(mut self, secs: Option<u64>) -> Self {
+        self.connect_timeout_secs = secs;
+        self.client = Self::build_http_client(&self.headers, self.request_timeout_secs, self.connect_timeout_secs);
+        self
+    }
+
+    pub fn with_client(mut self, client: reqwest::Client) -> Self {
+        self.client = client;
+        self
+    }
+
     /// 获取默认 Deployment ID。
     pub fn default_deployment_id(&self) -> &str {
         &self.default_deployment_id
@@ -165,6 +185,24 @@ impl AzureOpenAiProvider {
     pub fn with_api_version(mut self, version: impl Into<String>) -> Self {
         self.api_version = version.into();
         self
+    }
+
+    fn build_headers(api_key: &str) -> HeaderMap {
+        let mut headers = HeaderMap::new();
+        headers.insert(CONTENT_TYPE, HeaderValue::from_static("application/json"));
+        if let Ok(v) = HeaderValue::from_str(api_key) {
+            headers.insert("api-key", v);
+        }
+        headers
+    }
+
+    fn build_http_client(headers: &HeaderMap, request_timeout_secs: Option<u64>, connect_timeout_secs: Option<u64>) -> reqwest::Client {
+        match (request_timeout_secs, connect_timeout_secs) {
+            (Some(rt), Some(ct)) => build_client_with_timeout(headers.clone(), rt, ct),
+            (Some(rt), None) => build_client_with_timeout(headers.clone(), rt, DEFAULT_CONNECT_TIMEOUT_SECS),
+            (None, Some(ct)) => build_client_with_timeout(headers.clone(), DEFAULT_REQUEST_TIMEOUT_SECS, ct),
+            (None, None) => build_client(headers.clone()),
+        }
     }
 
     fn build_messages(messages: &[ChatMessage]) -> Vec<Value> {
