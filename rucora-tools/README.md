@@ -36,14 +36,14 @@ rucora 的内置工具实现。
 
 ```toml
 [dependencies]
-rucora-tools = "0.1"
+rucora-tools = "0.4"
 ```
 
 或通过主 rucora crate：
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["tools"] }
+rucora = { version = "0.4", features = ["tools"] }
 ```
 
 ## 使用方式

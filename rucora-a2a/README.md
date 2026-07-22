@@ -13,14 +13,14 @@ rucora 的 A2A（Agent-to-Agent）协议集成。
 
 ```toml
 [dependencies]
-rucora-a2a = "0.1"
+rucora-a2a = "0.4"
 ```
 
 或通过主 rucora crate：
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["a2a"] }
+rucora = { version = "0.4", features = ["a2a"] }
 ```
 
 ## 使用方式

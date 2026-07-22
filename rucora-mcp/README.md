@@ -13,14 +13,14 @@ rucora 的 MCP（Model Context Protocol）集成。
 
 ```toml
 [dependencies]
-rucora-mcp = "0.1"
+rucora-mcp = "0.4"
 ```
 
 或通过主 rucora crate：
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["mcp"] }
+rucora = { version = "0.4", features = ["mcp"] }
 ```
 
 ## 使用方式

@@ -15,14 +15,14 @@ rucora 的技能系统。
 
 ```toml
 [dependencies]
-rucora-skills = "0.1"
+rucora-skills = "0.4"
 ```
 
 或通过主 rucora crate：
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["skills"] }
+rucora = { version = "0.4", features = ["skills"] }
 ```
 
 ## 使用方式

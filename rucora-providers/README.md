@@ -24,14 +24,14 @@ rucora 的 LLM Provider 实现。
 
 ```toml
 [dependencies]
-rucora-providers = "0.1"
+rucora-providers = "0.4"
 ```
 
 或通过主 rucora crate：
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["providers"] }
+rucora = { version = "0.4", features = ["providers"] }
 ```
 
 ## 使用方式

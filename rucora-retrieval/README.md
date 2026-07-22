@@ -19,14 +19,14 @@ rucora 的向量存储与检索实现。
 
 ```toml
 [dependencies]
-rucora-retrieval = "0.1"
+rucora-retrieval = "0.4"
 ```
 
 或通过主 rucora crate：
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["retrieval"] }
+rucora = { version = "0.4", features = ["retrieval"] }
 ```
 
 ## 使用方式
