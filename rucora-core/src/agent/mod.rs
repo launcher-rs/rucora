@@ -653,6 +653,58 @@ pub trait Agent: Send + Sync {
             .map_err(|_| AgentError::Timeout { duration: timeout })?
     }
 
+    /// 并发运行多个独立输入。
+    ///
+    /// 默认实现使用 `buffer_unordered` 并发执行所有输入，按输入顺序返回结果。
+    /// 适用于翻译、批量问答等场景。
+    ///
+    /// # 参数
+    ///
+    /// - `inputs`: 多个用户输入
+    /// - `max_concurrency`: 最大并发数
+    ///
+    /// # 示例
+    ///
+    /// ```rust,ignore
+    /// use rucora_core::agent::{Agent, AgentInput};
+    ///
+    /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
+    /// let inputs = vec![
+    ///     AgentInput::new("Hello")?,
+    ///     AgentInput::new("World")?,
+    /// ];
+    /// let outputs = agent.run_batch(inputs, 4).await;
+    /// for result in &outputs {
+    ///     match result {
+    ///         Ok(output) => println!("{}", output.text().unwrap_or("")),
+    ///         Err(e) => eprintln!("失败：{e}"),
+    ///     }
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// # 重试
+    ///
+    /// 需要重试时，使用 `ResilientProvider` 包裹底层 provider 即可，
+    /// 无需在 `run_batch` 层额外处理。
+    async fn run_batch(
+        &self,
+        inputs: Vec<AgentInput>,
+        max_concurrency: usize,
+    ) -> Vec<Result<AgentOutput, AgentError>> {
+        use futures_util::StreamExt;
+
+        let results: Vec<_> = futures_util::stream::iter(
+            inputs.into_iter().map(|input| self.run(input)),
+        )
+        .buffer_unordered(max_concurrency)
+        .collect()
+        .await;
+
+        results
+    }
+
     /// 运行 Agent（流式）。
     ///
     /// 默认实现返回一个包含错误信息的 stream，表示此 Agent 不支持流式输出。
