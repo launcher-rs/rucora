@@ -158,9 +158,21 @@ pub enum ExtractionError {
     #[error("LLM 调用失败：{0}")]
     LlmError(String),
 
-    /// 当配置了重试次数且所有尝试都失败时返回。
-    #[error("达到最大重试次数")]
-    MaxRetriesExceeded,
+    /// 当配置了重试次数且所有尝试都失败时返回，携带最后一次失败的原因。
+    #[error("达到最大重试次数，最后一次错误：{0}")]
+    MaxRetriesExceeded(Box<ExtractionError>),
+}
+
+impl ExtractionError {
+    /// 返回重试耗尽时最后一次失败的原因。
+    ///
+    /// 对于非重试耗尽产生的错误，直接返回自身。
+    pub fn root_cause(&self) -> &ExtractionError {
+        match self {
+            ExtractionError::MaxRetriesExceeded(inner) => inner.root_cause(),
+            other => other,
+        }
+    }
 }
 
 /// Extractor 用于从非结构化文本中提取结构化数据
@@ -290,7 +302,9 @@ where
         }
 
         match last_error {
-            Some(_) if self.retries > 0 => Err(ExtractionError::MaxRetriesExceeded),
+            Some(error) if self.retries > 0 => {
+                Err(ExtractionError::MaxRetriesExceeded(Box::new(error)))
+            }
             Some(error) => Err(error),
             None => Err(ExtractionError::NoData),
         }
@@ -325,7 +339,9 @@ where
         }
 
         match last_error {
-            Some(_) if self.retries > 0 => Err(ExtractionError::MaxRetriesExceeded),
+            Some(error) if self.retries > 0 => {
+                Err(ExtractionError::MaxRetriesExceeded(Box::new(error)))
+            }
             Some(error) => Err(error),
             None => Err(ExtractionError::NoData),
         }
@@ -649,14 +665,110 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rucora_core::error::ProviderError;
+    use rucora_core::provider::types::{ChatMessage, ChatResponse, Usage};
+    use rucora_core::provider::LlmProvider;
+    use rucora_core::tool::types::ToolCall;
     use schemars::JsonSchema;
     use serde::{Deserialize, Serialize};
+    use std::sync::Arc;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     #[derive(Debug, Deserialize, Serialize, JsonSchema, PartialEq)]
     struct TestPerson {
         name: Option<String>,
         age: Option<u8>,
         profession: Option<String>,
+    }
+
+    #[derive(Debug, Clone, Copy, PartialEq)]
+    enum MockBehavior {
+        NoSubmitCall,
+        InvalidJson,
+        ProviderError,
+        ValidData,
+    }
+    /// 模拟 Provider：根据 `behavior` 返回固定的响应。
+    struct MockProvider {
+        behavior: MockBehavior,
+        calls: AtomicUsize,
+    }
+
+    impl MockProvider {
+        fn new(behavior: MockBehavior) -> Self {
+            Self {
+                behavior,
+                calls: AtomicUsize::new(0),
+            }
+        }
+
+        fn call_count(&self) -> usize {
+            self.calls.load(Ordering::SeqCst)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl LlmProvider for MockProvider {
+        async fn chat(
+            &self,
+            _request: ChatRequest,
+        ) -> Result<ChatResponse, ProviderError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+
+            match self.behavior {
+                // 没有 submit 工具调用 -> 内部转换为 NoData
+                MockBehavior::NoSubmitCall => {
+                    let message = ChatMessage::assistant("未提取到数据");
+                    Ok(ChatResponse {
+                        message,
+                        usage: None,
+                        finish_reason: None,
+                    })
+                }
+                // 有 submit 工具调用，但参数无法反序列化 -> DeserializationError
+                MockBehavior::InvalidJson => {
+                    let call = ToolCall {
+                        id: "call_1".into(),
+                        name: SUBMIT_TOOL_NAME.into(),
+                        input: json!({"name": 42}),
+                    };
+                    let message = ChatMessage::assistant_with_tool_calls(
+                        "提取完成",
+                        vec![call],
+                    );
+                    Ok(ChatResponse {
+                        message,
+                        usage: Some(Usage {
+                            prompt_tokens: 10,
+                            completion_tokens: 5,
+                            total_tokens: 15,
+                        }),
+                        finish_reason: None,
+                    })
+                }
+                // Provider 返回错误 -> LlmError
+                MockBehavior::ProviderError => {
+                    Err(ProviderError::Message("mock provider down".into()))
+                }
+                // 返回合法数据
+                MockBehavior::ValidData => {
+                    let call = ToolCall {
+                        id: "call_1".into(),
+                        name: SUBMIT_TOOL_NAME.into(),
+                        input: json!({"name": "Alice", "age": 30}),
+                    };
+                    let message = ChatMessage::assistant_with_tool_calls(
+                        "提取完成",
+                        vec![call],
+                    );
+                    Ok(ChatResponse {
+                        message,
+                        usage: None,
+                        finish_reason: None,
+                    })
+                }
+            }
+        }
     }
 
     #[test]
@@ -667,5 +779,86 @@ mod tests {
         // 验证 schema 包含预期的字段
         assert!(schema.get("type").is_some());
         assert!(schema.get("properties").is_some());
+    }
+
+    #[tokio::test]
+    async fn test_extract_success_with_valid_data() {
+        let provider = Arc::new(MockProvider::new(MockBehavior::ValidData));
+        let extractor = Extractor::<TestPerson>::builder(provider.clone(), "mock")
+            .retries(2)
+            .build();
+
+        let person = extractor.extract("Alice 30 岁").await.unwrap();
+        assert_eq!(person.name.as_deref(), Some("Alice"));
+        assert_eq!(person.age, Some(30));
+        assert_eq!(provider.call_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_no_retries_preserves_original_error() {
+        // retries=0 时，错误应原样返回，不会被包装为 MaxRetriesExceeded
+        let provider = Arc::new(MockProvider::new(MockBehavior::NoSubmitCall));
+        let extractor = Extractor::<TestPerson>::builder(provider.clone(), "mock")
+            .retries(0)
+            .build();
+
+        let err = extractor.extract("没有数据").await.unwrap_err();
+        assert!(matches!(err, ExtractionError::NoData));
+        assert_eq!(provider.call_count(), 1);
+    }
+
+    #[tokio::test]
+    async fn test_retry_exhaustion_no_data_wraps_root_cause() {
+        let provider = Arc::new(MockProvider::new(MockBehavior::NoSubmitCall));
+        let extractor = Extractor::<TestPerson>::builder(provider.clone(), "mock")
+            .retries(2)
+            .build();
+
+        let err = extractor.extract("没有数据").await.unwrap_err();
+
+        // 重试耗尽后应返回 MaxRetriesExceeded，且携带底层 NoData 原因
+        assert!(matches!(
+            &err,
+            ExtractionError::MaxRetriesExceeded(inner)
+                if matches!(inner.as_ref(), ExtractionError::NoData)
+        ));
+        // 初始 1 次 + 2 次重试
+        assert_eq!(provider.call_count(), 3);
+        // root_cause 应展开到最底层的 NoData
+        assert!(matches!(err.root_cause(), ExtractionError::NoData));
+    }
+
+    #[tokio::test]
+    async fn test_retry_exhaustion_llm_error_wraps_root_cause() {
+        let provider = Arc::new(MockProvider::new(MockBehavior::ProviderError));
+        let extractor = Extractor::<TestPerson>::builder(provider.clone(), "mock")
+            .retries(2)
+            .build();
+
+        let err = extractor.extract("测试").await.unwrap_err();
+
+        assert!(matches!(
+            &err,
+            ExtractionError::MaxRetriesExceeded(inner)
+                if matches!(inner.as_ref(), ExtractionError::LlmError(msg) if msg == "provider error: mock provider down")
+        ));
+        assert_eq!(provider.call_count(), 3);
+    }
+
+    #[tokio::test]
+    async fn test_retry_exhaustion_deserialization_error_wraps_root_cause() {
+        let provider = Arc::new(MockProvider::new(MockBehavior::InvalidJson));
+        let extractor = Extractor::<TestPerson>::builder(provider.clone(), "mock")
+            .retries(1)
+            .build();
+
+        let err = extractor.extract("测试").await.unwrap_err();
+
+        assert!(matches!(
+            &err,
+            ExtractionError::MaxRetriesExceeded(inner)
+                if matches!(inner.as_ref(), ExtractionError::DeserializationError(_))
+        ));
+        assert_eq!(provider.call_count(), 2);
     }
 }
