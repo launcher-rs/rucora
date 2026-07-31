@@ -117,12 +117,12 @@ impl Tool for MemoryStoreTool {
         let key = input
             .get("key")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'key' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'key' 字段".to_string()))?;
 
         let content = input
             .get("content")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'content' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'content' 字段".to_string()))?;
 
         let category = input
             .get("category")
@@ -138,7 +138,7 @@ impl Tool for MemoryStoreTool {
                 metadata: None,
             })
             .await
-            .map_err(|e| ToolError::Message(e.to_string()))?;
+            .map_err(|e| ToolError::Message { message: e.to_string(), source: None })?;
 
         Ok(json!({
             "success": true,
@@ -228,7 +228,7 @@ impl Tool for MemoryRecallTool {
         let key = input
             .get("key")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'key' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'key' 字段".to_string()))?;
 
         let category = input
             .get("category")
@@ -244,7 +244,7 @@ impl Tool for MemoryRecallTool {
                 limit: 1,
             })
             .await
-            .map_err(|e| ToolError::Message(e.to_string()))?;
+            .map_err(|e| ToolError::Message { message: e.to_string(), source: None })?;
 
         if let Some(item) = results.pop() {
             Ok(json!({

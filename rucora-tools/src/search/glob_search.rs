@@ -116,16 +116,16 @@ impl Tool for GlobSearchTool {
         let pattern = input
             .get("pattern")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少 'pattern' 参数".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少 'pattern' 参数".to_string()))?;
 
         // 安全检查：禁止绝对路径和路径遍历
         if pattern.starts_with('/') || pattern.starts_with('\\') {
-            return Err(ToolError::Message(
+            return Err(ToolError::message(
                 "不允许使用绝对路径，请使用相对路径".to_string(),
             ));
         }
         if pattern.contains("..") {
-            return Err(ToolError::Message("不允许路径遍历 (..)".to_string()));
+            return Err(ToolError::message("不允许路径遍历 (..)".to_string()));
         }
 
         // 构建完整路径
@@ -133,7 +133,7 @@ impl Tool for GlobSearchTool {
 
         let full_pattern = if let Some(base_path) = search_path {
             if !self.is_path_allowed(base_path) {
-                return Err(ToolError::Message("搜索路径不在允许的范围内".to_string()));
+                return Err(ToolError::message("搜索路径不在允许的范围内".to_string()));
             }
             base_path.join(pattern)
         } else {
@@ -158,7 +158,7 @@ impl Tool for GlobSearchTool {
                 }
             }
             Err(e) => {
-                return Err(ToolError::Message(format!("无效的 glob 模式: {e}")));
+                return Err(ToolError::Message { message: format!("无效的 glob 模式: {e}"), source: None });
             }
         }
 

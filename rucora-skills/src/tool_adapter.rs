@@ -77,18 +77,18 @@ impl Tool for SkillTool {
                             .data
                             .unwrap_or_else(|| Value::Object(serde_json::Map::new())))
                     } else {
-                        Err(ToolError::Message(
+                        Err(ToolError::message(
                             result.error.unwrap_or_else(|| "Skill 执行失败".to_string()),
                         ))
                     }
                 }
-                Err(e) => Err(ToolError::Message(format!("Skill 执行错误：{e}"))),
+                Err(e) => Err(ToolError::Message { message: format!("Skill 执行错误：{e}"), source: None }),
             }
         } else {
-            Err(ToolError::Message(format!(
+            Err(ToolError::Message { message: format!(
                 "未找到脚本实现：{:?}",
                 self.skill_path
-            )))
+            ), source: None })
         }
     }
 }
@@ -263,7 +263,7 @@ impl Tool for ReadSkillTool {
         let skill_name = input
             .get("skill_name")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("Missing skill_name parameter".to_string()))?;
+            .ok_or_else(|| ToolError::message("Missing skill_name parameter".to_string()))?;
 
         match read_skill(skill_name, &self.skills_dir) {
             Ok(content) => Ok(json!({ "success": true, "content": content })),

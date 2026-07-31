@@ -90,23 +90,17 @@ where
 
         if iteration == 0 {
             // 第一次：生成初始版本
-            AgentDecision::Chat {
-                request: Box::new(self._build_generate_request(context)),
-            }
+            AgentDecision::chat(self._build_generate_request(context))
         } else if iteration >= self.max_iterations {
             // 达到最大迭代次数，返回当前最佳
             AgentDecision::Return(self._build_final_result(context))
         } else {
             // 奇数步：反思
             if context.step % 2 == 1 {
-                AgentDecision::Chat {
-                    request: Box::new(self._build_reflect_request(context, iteration)),
-                }
+                AgentDecision::chat(self._build_reflect_request(context, iteration))
             } else {
                 // 偶数步：根据反思改进
-                AgentDecision::Chat {
-                    request: Box::new(self._build_improve_request(context, iteration)),
-                }
+                AgentDecision::chat(self._build_improve_request(context, iteration))
             }
         }
     }
@@ -490,7 +484,6 @@ impl<P> Default for ReflectAgentBuilder<P> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

@@ -124,13 +124,11 @@ where
     P: LlmProvider + Send + Sync + 'static,
 {
     async fn think(&self, context: &AgentContext) -> AgentDecision {
-        AgentDecision::Chat {
-            request: Box::new(ChatRequest {
-                messages: context.messages.clone(),
-                model: Some(self.model.clone()),
-                ..Default::default()
-            }),
-        }
+        AgentDecision::chat(ChatRequest {
+            messages: context.messages.clone(),
+            model: Some(self.model.clone()),
+            ..Default::default()
+        })
     }
 
     fn name(&self) -> &str {

@@ -37,9 +37,7 @@ struct PhaseAgent {
 impl Agent for PhaseAgent {
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         // 使用 default_chat_request，DefaultExecution 会自动注入工具定义
-        AgentDecision::Chat {
-            request: Box::new(context.default_chat_request()),
-        }
+        AgentDecision::chat(context.default_chat_request())
     }
 
     fn name(&self) -> &str {

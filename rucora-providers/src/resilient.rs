@@ -236,14 +236,21 @@ impl ResilientProvider {
     /// 计算退避延迟（指数退避 + 抖动）
     fn backoff_delay_ms(&self, attempt: usize) -> u64 {
         let pow = 1u64.checked_shl(attempt.min(16) as u32).unwrap_or(u64::MAX);
-        let delay = self.cfg.base_delay_ms.saturating_mul(pow);
+        let delay = self
+            .cfg
+            .base_delay_ms
+            .saturating_mul(pow)
+            .min(self.cfg.max_delay_ms);
 
         // 添加 10% 的抖动，使用 attempt 作为简单种子生成伪随机值
         let jitter = (delay / 10).max(1); // 确保 jitter 不为 0
-        // 使用简单的伪随机：基于 attempt 的哈希值
-        let jitter_offset = (jitter * (attempt as u64 * 6364136223846793005 + 1)) % jitter;
+        // 使用简单的伪随机：基于 attempt 的哈希值（wrapping 避免大 attempt 溢出）
+        let jitter_offset = (attempt as u64)
+            .wrapping_mul(6364136223846793005)
+            .wrapping_add(1)
+            % jitter;
 
-        delay.min(self.cfg.max_delay_ms) + jitter_offset
+        delay + jitter_offset
     }
 
     /// 判断错误是否可重试
@@ -381,5 +388,175 @@ impl LlmProvider for ResilientProvider {
         rucora_core::error::ProviderError,
     > {
         self.inner.stream_chat(request)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_category_retriable() {
+        assert!(ProviderErrorCategory::Network.is_retriable());
+        assert!(ProviderErrorCategory::Timeout.is_retriable());
+        assert!(ProviderErrorCategory::RateLimit.is_retriable());
+        assert!(ProviderErrorCategory::Unavailable.is_retriable());
+        assert!(!ProviderErrorCategory::Auth.is_retriable());
+        assert!(!ProviderErrorCategory::InvalidRequest.is_retriable());
+        assert!(!ProviderErrorCategory::Other.is_retriable());
+    }
+
+    #[test]
+    fn test_classify_from_error_message_auth() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("401 Unauthorized: api key invalid"),
+            ProviderErrorCategory::Auth
+        );
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("Invalid API key provided"),
+            ProviderErrorCategory::Auth
+        );
+    }
+
+    #[test]
+    fn test_classify_from_error_message_invalid() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("400 Bad Request"),
+            ProviderErrorCategory::InvalidRequest
+        );
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("404 Not Found"),
+            ProviderErrorCategory::InvalidRequest
+        );
+    }
+
+    #[test]
+    fn test_classify_from_error_message_rate_limit() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("rate limit exceeded"),
+            ProviderErrorCategory::RateLimit
+        );
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("429 too many requests"),
+            ProviderErrorCategory::RateLimit
+        );
+    }
+
+    #[test]
+    fn test_classify_from_error_message_timeout() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("request timed out"),
+            ProviderErrorCategory::Timeout
+        );
+    }
+
+    #[test]
+    fn test_classify_from_error_message_network() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("connection reset by peer"),
+            ProviderErrorCategory::Network
+        );
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("dns lookup failed"),
+            ProviderErrorCategory::Network
+        );
+    }
+
+    #[test]
+    fn test_classify_from_error_message_unavailable() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("503 service unavailable"),
+            ProviderErrorCategory::Unavailable
+        );
+    }
+
+    #[test]
+    fn test_classify_from_error_message_unknown() {
+        assert_eq!(
+            ProviderErrorCategory::from_error_message("some random message"),
+            ProviderErrorCategory::Other
+        );
+    }
+
+    #[test]
+    fn test_classify_from_status_code() {
+        assert_eq!(ProviderErrorCategory::from_status_code(400), ProviderErrorCategory::InvalidRequest);
+        assert_eq!(ProviderErrorCategory::from_status_code(401), ProviderErrorCategory::Auth);
+        assert_eq!(ProviderErrorCategory::from_status_code(403), ProviderErrorCategory::Auth);
+        assert_eq!(ProviderErrorCategory::from_status_code(404), ProviderErrorCategory::InvalidRequest);
+        assert_eq!(ProviderErrorCategory::from_status_code(429), ProviderErrorCategory::RateLimit);
+        assert_eq!(ProviderErrorCategory::from_status_code(500), ProviderErrorCategory::Unavailable);
+        assert_eq!(ProviderErrorCategory::from_status_code(200), ProviderErrorCategory::Other);
+    }
+
+    #[test]
+    fn test_backoff_delay_respects_max() {
+        let cfg = RetryConfig::new()
+            .with_max_retries(10)
+            .with_base_delay_ms(100)
+            .with_max_delay_ms(500);
+        let inner = crate::OpenAiProvider::with_model("https://example.com", "key", "model");
+        let provider = ResilientProvider::new(Arc::new(inner));
+        let provider = provider.with_config(cfg);
+        // 基础延迟受 max_delay_ms 上限约束，抖动最多再加 10%
+        let max_allowed = 500 + 500 / 10;
+        for attempt in 0..20 {
+            let delay = provider.backoff_delay_ms(attempt);
+            assert!(delay <= max_allowed, "attempt {attempt} delay {delay} 超过上限");
+        }
+    }
+
+    #[test]
+    fn test_backoff_delay_grows() {
+        let cfg = RetryConfig::new()
+            .with_max_retries(10)
+            .with_base_delay_ms(100)
+            .with_max_delay_ms(u64::MAX);
+        let inner = crate::OpenAiProvider::with_model("https://example.com", "key", "model");
+        let provider = ResilientProvider::new(Arc::new(inner));
+        let provider = provider.with_config(cfg);
+        let d0 = provider.backoff_delay_ms(0);
+        let d1 = provider.backoff_delay_ms(1);
+        let d2 = provider.backoff_delay_ms(2);
+        assert!(d1 > d0);
+        assert!(d2 > d1);
+    }
+
+    #[test]
+    fn test_should_retry_retriable_error() {
+        let cfg = RetryConfig::new();
+        let inner = crate::OpenAiProvider::with_model("https://example.com", "key", "model");
+        let provider = ResilientProvider::new(Arc::new(inner));
+        let provider = provider.with_config(cfg);
+        let err = ProviderError::network("连接失败");
+        assert!(provider.should_retry(&err, 0));
+    }
+
+    #[test]
+    fn test_should_retry_non_retriable_once() {
+        let inner = crate::OpenAiProvider::with_model("https://example.com", "key", "model");
+        let provider = ResilientProvider::new(Arc::new(inner));
+        let mut cfg = RetryConfig::new();
+        cfg.retry_non_retriable_once = true;
+        let provider = provider.with_config(cfg);
+        let err = ProviderError::Message("some error".to_string());
+        assert!(provider.should_retry(&err, 0));
+        assert!(!provider.should_retry(&err, 1));
+    }
+
+    #[test]
+    fn test_should_retry_false_for_non_retriable() {
+        let inner = crate::OpenAiProvider::with_model("https://example.com", "key", "model");
+        let provider = ResilientProvider::new(Arc::new(inner));
+        let provider = provider.with_config(RetryConfig::new());
+        let err = ProviderError::Message("some error".to_string());
+        assert!(!provider.should_retry(&err, 0));
+    }
+
+    #[test]
+    fn test_retry_config_default() {
+        let cfg = RetryConfig::default();
+        assert_eq!(cfg.max_retries, 2);
+        assert!(!cfg.retry_non_retriable_once);
     }
 }

@@ -391,7 +391,7 @@ impl LlmProvider for AnthropicProvider {
         {
             map.insert("top_p".to_string(), json!(v));
         }
-        if let Some(stop) = request.stop
+        if let Some(stop) = request.params.stop.as_ref()
             && !stop.is_empty()
             && let Some(map) = body.as_object_mut()
         {
@@ -524,7 +524,7 @@ impl LlmProvider for AnthropicProvider {
         {
             map.insert("top_p".to_string(), json!(v));
         }
-        if let Some(stop) = request.stop
+        if let Some(stop) = request.params.stop.as_ref()
             && !stop.is_empty()
             && let Some(map) = body.as_object_mut()
         {

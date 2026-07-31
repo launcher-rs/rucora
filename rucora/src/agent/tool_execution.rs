@@ -330,8 +330,8 @@ pub(crate) async fn execute_tool_call_with_middleware(
 
     // 创建工具上下文，包含工作目录、调用 ID 等信息
     let tool_ctx = ToolContext::new()
-        .with("tool_call_id", &call.id)
-        .with("tool_name", &call.name);
+        .with("tool_call_id", call.id.as_str())
+        .with("tool_name", call.name.as_str());
 
     let tool_output = match tool.call(call.input.clone(), &tool_ctx).await {
         Ok(v) => {
@@ -435,6 +435,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
     let mut result = ToolResult {
         tool_call_id: call.id.clone(),
         output: tool_output,
+        latency_ms: Some(start.elapsed().as_millis() as u64),
         ..Default::default()
     };
 

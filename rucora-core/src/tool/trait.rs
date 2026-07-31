@@ -55,7 +55,7 @@
 //!     async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
 //!         let text = input.get("text")
 //!             .and_then(|v| v.as_str())
-//!             .ok_or_else(|| ToolError::Message("缺少 'text' 字段".to_string()))?;
+//!             .ok_or_else(|| ToolError::message("缺少 'text' 字段".to_string()))?;
 //!
 //!         Ok(json!({"echo": text}))
 //!     }
@@ -162,7 +162,7 @@
 //! async fn call(&self, input: Value, _ctx: &ToolContext) -> Result<Value, ToolError> {
 //!     let path = input.get("path")
 //!         .and_then(|v| v.as_str())
-//!         .ok_or_else(|| ToolError::Message("缺少必需的 'path' 字段".to_string()))?;
+//!         .ok_or_else(|| ToolError::message("缺少必需的 'path' 字段".to_string()))?;
 //!
 //!     // 执行操作...
 //!     Ok(json!({"result": "success"}))

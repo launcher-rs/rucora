@@ -80,9 +80,9 @@ impl FileToolConfig {
             let path_lower = path_str.to_lowercase();
             for prefix in FORBIDDEN_PATH_PREFIXES {
                 if path_lower.starts_with(&prefix.to_lowercase()) {
-                    return Err(ToolError::Message(format!(
+                    return Err(ToolError::Message { message: format!(
                         "禁止访问系统敏感路径：{path_str}"
-                    )));
+                    ), source: None });
                 }
             }
         }
@@ -91,12 +91,12 @@ impl FileToolConfig {
         if let Some(ext) = path.extension().and_then(|e| e.to_str()) {
             let ext_lower = ext.to_lowercase();
             if !ALLOWED_EXTENSIONS.contains(&ext_lower.as_str()) {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "不支持的文件类型：{ext}（允许的类型：{ALLOWED_EXTENSIONS:?}）"
-                )));
+                ), source: None });
             }
         } else {
-            return Err(ToolError::Message("文件必须包含扩展名".to_string()));
+            return Err(ToolError::message("文件必须包含扩展名".to_string()));
         }
 
         // 如果配置了允许的目录，检查路径是否在其中
@@ -111,9 +111,9 @@ impl FileToolConfig {
                     .iter()
                     .any(|dir| canonical_path.starts_with(dir));
                 if !is_allowed {
-                    return Err(ToolError::Message(format!(
+                    return Err(ToolError::Message { message: format!(
                         "文件路径不在允许的工作目录内（允许的目录：{allowed_dirs:?}）"
-                    )));
+                    ), source: None });
                 }
             } else {
                 // 读取时检查文件本身
@@ -122,9 +122,9 @@ impl FileToolConfig {
                     .iter()
                     .any(|dir| canonical_path.starts_with(dir));
                 if !is_allowed {
-                    return Err(ToolError::Message(format!(
+                    return Err(ToolError::Message { message: format!(
                         "文件路径不在允许的工作目录内（允许的目录：{allowed_dirs:?}）"
-                    )));
+                    ), source: None });
                 }
             }
         }
@@ -135,10 +135,10 @@ impl FileToolConfig {
     /// 检查文件大小
     pub fn check_file_size(&self, size: u64, operation: &str) -> Result<(), ToolError> {
         if size > self.max_file_size {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "{}过大（{} 字节），超过限制（{} 字节）",
                 operation, size, self.max_file_size
-            )));
+            ), source: None });
         }
         Ok(())
     }

@@ -120,6 +120,12 @@
 //! let result = ToolResult {
 //!     tool_call_id: "call_123".to_string(),
 //!     output: json!({"echo": "Hello"}),
+//!     success: true,
+//!     error: None,
+//!     data: None,
+//!     bytes: None,
+//!     latency_ms: None,
+//!     token_usage: None,
 //! };
 //! ```
 //!

@@ -94,20 +94,20 @@ impl Tool for FileReadTool {
         let path_str = input
             .get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'path' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'path' 字段".to_string()))?;
 
         let path = self.config.validate_path_for_read(path_str)?;
 
         // 检查文件大小
         let metadata = tokio::fs::metadata(&path)
             .await
-            .map_err(|e| ToolError::Message(format!("无法获取文件信息：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("无法获取文件信息：{e}"), source: None })?;
 
         self.config.check_file_size(metadata.len(), "文件")?;
 
         let content = tokio::fs::read_to_string(&path)
             .await
-            .map_err(|e| ToolError::Message(format!("读取文件失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("读取文件失败：{e}"), source: None })?;
 
         Ok(json!({
             "path": path_str,

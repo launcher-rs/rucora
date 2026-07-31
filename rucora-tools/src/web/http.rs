@@ -139,7 +139,7 @@ impl Tool for HttpRequestTool {
         let url = input
             .get("url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'url' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'url' 字段".to_string()))?;
 
         // 验证 URL 安全性
         validate_public_http_url(
@@ -180,9 +180,9 @@ impl Tool for HttpRequestTool {
             "HEAD" => reqwest::Method::HEAD,
             "OPTIONS" => reqwest::Method::OPTIONS,
             _ => {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "不支持的 HTTP 方法：{method_str}"
-                )));
+                ), source: None });
             }
         };
 
@@ -195,7 +195,7 @@ impl Tool for HttpRequestTool {
             .redirect(redirect_policy)
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("HTTP 客户端创建失败：{e}"), source: None })?;
 
         // 构建请求
         let mut request = client.request(method, url);
@@ -223,7 +223,7 @@ impl Tool for HttpRequestTool {
                 error = %e,
                 "http_request.error"
             );
-            ToolError::Message(format!("HTTP 请求失败：{e}"))
+            ToolError::Message { message: format!("HTTP 请求失败：{e}"), source: None }
         })?;
 
         let status = response.status().as_u16();
@@ -232,10 +232,10 @@ impl Tool for HttpRequestTool {
         let body_bytes = response
             .bytes()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应体失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("读取响应体失败：{e}"), source: None })?;
 
         if body_bytes.len() > MAX_RESPONSE_SIZE {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::message(format!(
                 "响应体过大（{} 字节），超过限制（{} 字节）",
                 body_bytes.len(),
                 MAX_RESPONSE_SIZE

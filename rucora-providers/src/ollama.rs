@@ -251,7 +251,7 @@ impl LlmProvider for OllamaProvider {
             if let Some(presence_penalty) = request.presence_penalty {
                 map.insert("presence_penalty".to_string(), json!(presence_penalty));
             }
-            if let Some(stop) = request.stop
+            if let Some(stop) = request.params.stop.as_ref()
                 && !stop.is_empty()
             {
                 map.insert("stop".to_string(), json!(stop));
@@ -467,7 +467,7 @@ impl LlmProvider for OllamaProvider {
             if let Some(presence_penalty) = request.presence_penalty {
                 map.insert("presence_penalty".to_string(), json!(presence_penalty));
             }
-            if let Some(stop) = request.stop
+            if let Some(stop) = request.params.stop.as_ref()
                 && !stop.is_empty()
             {
                 map.insert("stop".to_string(), json!(stop));
@@ -576,5 +576,102 @@ impl LlmProvider for OllamaProvider {
         };
 
         Ok(Box::pin(stream))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rucora_core::error::ErrorCategory;
+    use rucora_core::provider::types::MessageContent;
+    use rucora_core::tool::types::ToolCall;
+
+    #[test]
+    fn test_ollama_provider_creation() {
+        let provider = OllamaProvider::new("http://localhost:11434");
+        assert_eq!(provider.base_url, "http://localhost:11434");
+    }
+
+    #[test]
+    fn test_ollama_provider_with_model() {
+        let provider = OllamaProvider::with_model("http://localhost:11434", "llama3.1:8b");
+        assert_eq!(provider.default_model(), "llama3.1:8b");
+    }
+
+    #[test]
+    fn test_ollama_build_headers() {
+        let headers = OllamaProvider::build_headers();
+        assert!(headers.is_empty());
+    }
+
+    #[test]
+    fn test_ollama_map_role() {
+        assert_eq!(OllamaProvider::map_role(&Role::System), "system");
+        assert_eq!(OllamaProvider::map_role(&Role::User), "user");
+        assert_eq!(OllamaProvider::map_role(&Role::Assistant), "assistant");
+        assert_eq!(OllamaProvider::map_role(&Role::Tool), "tool");
+    }
+
+    #[test]
+    fn test_ollama_build_messages() {
+        let messages = vec![ChatMessage::user("你好")];
+        let value = OllamaProvider::build_messages(&messages);
+        assert_eq!(
+            value,
+            vec![json!({
+                "role": "user",
+                "content": "你好",
+            })]
+        );
+    }
+
+    #[test]
+    fn test_ollama_build_messages_assistant_with_tool_calls() {
+        let call = ToolCall {
+            id: "call_1".to_string(),
+            name: "get_weather".to_string(),
+            input: json!({"city": "北京"}),
+        };
+        let messages = vec![ChatMessage {
+            role: Role::Assistant,
+            content: MessageContent::ToolCalls {
+                text: "".to_string(),
+                calls: vec![call],
+            },
+            name: None,
+        }];
+        let value = OllamaProvider::build_messages(&messages);
+        assert_eq!(value[0]["tool_calls"][0]["id"], "call_1");
+        assert_eq!(value[0]["tool_calls"][0]["function"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn test_ollama_build_messages_tool_result() {
+        let messages = vec![ChatMessage::tool_result("get_weather", "call_1", "{\"temp\":25}")];
+        let value = OllamaProvider::build_messages(&messages);
+        assert_eq!(value[0]["role"], "tool");
+        assert_eq!(value[0]["tool_call_id"], "call_1");
+        assert_eq!(value[0]["content"], "{\"temp\":25}");
+    }
+
+    #[test]
+    fn test_ollama_map_http_error() {
+        let auth = OllamaProvider::map_http_error(reqwest::StatusCode::UNAUTHORIZED, "bad key".into());
+        assert_eq!(auth.category(), ErrorCategory::Authentication);
+
+        let rate = OllamaProvider::map_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down".into());
+        assert_eq!(rate.category(), ErrorCategory::RateLimit);
+
+        let server = OllamaProvider::map_http_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "oops".into());
+        assert_eq!(server.category(), ErrorCategory::Api);
+    }
+
+    #[test]
+    fn test_ollama_with_timeouts_changes_client() {
+        let provider = OllamaProvider::new("http://localhost:11434");
+        let provider = provider.with_request_timeout(Some(300));
+        assert_eq!(provider.request_timeout_secs, Some(300));
+        let provider = provider.with_connect_timeout(Some(60));
+        assert_eq!(provider.connect_timeout_secs, Some(60));
     }
 }

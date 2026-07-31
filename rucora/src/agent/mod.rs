@@ -193,6 +193,9 @@
 // 执行能力模块
 pub mod execution;
 
+// 流式执行引擎
+pub mod stream_engine;
+
 // 重新导出执行能力相关类型
 pub use execution::{DefaultExecution, ExecutionBuildConfig};
 
@@ -373,6 +376,10 @@ impl futures_util::Stream for AgentStream {
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         self.0.as_mut().poll_next(cx)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.0.size_hint()
     }
 }
 

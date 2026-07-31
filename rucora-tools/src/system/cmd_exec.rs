@@ -48,14 +48,14 @@ impl CmdExecTool {
             .any(|p| t == *p || t.starts_with(&format!("{p} ")));
 
         if !prefix_ok {
-            return Err(ToolError::Message(
+            return Err(ToolError::message(
                 "出于安全考虑，cmd_exec 目前仅允许执行 curl 命令".to_string(),
             ));
         }
 
         let forbidden = ["|", "&&", ";", ">", "<", "`", "$ (", "$(", "\n", "\r"];
         if forbidden.iter().any(|x| t.contains(x)) {
-            return Err(ToolError::Message(
+            return Err(ToolError::message(
                 "出于安全考虑，cmd_exec 禁止管道/重定向/链式/多行命令".to_string(),
             ));
         }
@@ -113,7 +113,7 @@ impl Tool for CmdExecTool {
         let command = input
             .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'command' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::Message { message: "缺少必需的 'command' 字段".to_string(), source: None })?;
 
         let timeout_secs = input
             .get("timeout")
@@ -127,7 +127,7 @@ impl Tool for CmdExecTool {
         let mut parts = command.split_whitespace();
         let executable = parts
             .next()
-            .ok_or_else(|| ToolError::Message("命令不能为空".to_string()))?;
+            .ok_or_else(|| ToolError::Message { message: "命令不能为空".to_string(), source: None })?;
         let args: Vec<String> = parts.map(String::from).collect();
         let result = execute_shell_command(executable, &args, timeout_secs, None).await?;
 

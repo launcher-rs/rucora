@@ -59,8 +59,7 @@ pub enum Role {
 /// let text = MessageContent::Text("你好".to_string());
 /// assert_eq!(text.as_text(), Some("你好"));
 /// ```
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-#[serde(untagged)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum MessageContent {
     /// 纯文本内容（用于 system、user、assistant 纯文本消息）。
     Text(String),
@@ -80,6 +79,140 @@ pub enum MessageContent {
         /// 工具输出内容（JSON 字符串化后的结果）。
         content: String,
     },
+}
+
+/// 自定义反序列化辅助：根据 `type` 字段或字段存在性识别变体。
+impl<'de> Deserialize<'de> for MessageContent {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let value = serde_json::Value::deserialize(deserializer)?;
+        match value {
+            serde_json::Value::String(s) => Ok(MessageContent::Text(s)),
+            serde_json::Value::Object(map) => {
+                // 优先使用显式 type 判别字段
+                if let Some(type_name) = map.get("type").and_then(|v| v.as_str()) {
+                    return match type_name {
+                        "tool_calls" => {
+                            let text = map
+                                .get("text")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let calls = map
+                                .get("calls")
+                                .cloned()
+                                .unwrap_or(serde_json::Value::Array(Vec::new()));
+                            let calls = serde_json::from_value(calls)
+                                .map_err(serde::de::Error::custom)?;
+                            Ok(MessageContent::ToolCalls { text, calls })
+                        }
+                        "tool_result" => {
+                            let name = map
+                                .get("name")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let tool_call_id = map
+                                .get("tool_call_id")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            let content = map
+                                .get("content")
+                                .and_then(|v| v.as_str())
+                                .unwrap_or_default()
+                                .to_string();
+                            Ok(MessageContent::ToolResult {
+                                name,
+                                tool_call_id,
+                                content,
+                            })
+                        }
+                        other => Err(serde::de::Error::custom(format!(
+                            "未知的消息内容类型：{other}"
+                        ))),
+                    };
+                }
+
+                // 向后兼容：无 type 字段时根据字段存在性识别
+                if map.contains_key("calls") {
+                    let text = map
+                        .get("text")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let calls = map
+                        .get("calls")
+                        .cloned()
+                        .unwrap_or(serde_json::Value::Array(Vec::new()));
+                    let calls =
+                        serde_json::from_value(calls).map_err(serde::de::Error::custom)?;
+                    Ok(MessageContent::ToolCalls { text, calls })
+                } else if map.contains_key("tool_call_id") {
+                    let name = map
+                        .get("name")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let tool_call_id = map
+                        .get("tool_call_id")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    let content = map
+                        .get("content")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or_default()
+                        .to_string();
+                    Ok(MessageContent::ToolResult {
+                        name,
+                        tool_call_id,
+                        content,
+                    })
+                } else {
+                    Err(serde::de::Error::custom("无法识别的消息内容格式"))
+                }
+            }
+            _ => Err(serde::de::Error::custom("消息内容必须是字符串或对象")),
+        }
+    }
+}
+
+impl Serialize for MessageContent {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        let mut map = serde_json::Map::new();
+        match self {
+            MessageContent::Text(t) => return serializer.serialize_str(t),
+            MessageContent::ToolCalls { text, calls } => {
+                map.insert("type".to_string(), serde_json::Value::String("tool_calls".into()));
+                map.insert("text".to_string(), serde_json::Value::String(text.clone()));
+                map.insert(
+                    "calls".to_string(),
+                    serde_json::to_value(calls).map_err(serde::ser::Error::custom)?,
+                );
+            }
+            MessageContent::ToolResult {
+                name,
+                tool_call_id,
+                content,
+            } => {
+                map.insert("type".to_string(), serde_json::Value::String("tool_result".into()));
+                map.insert("name".to_string(), serde_json::Value::String(name.clone()));
+                map.insert(
+                    "tool_call_id".to_string(),
+                    serde_json::Value::String(tool_call_id.clone()),
+                );
+                map.insert("content".to_string(), serde_json::Value::String(content.clone()));
+            }
+        }
+        serde_json::Value::Object(map)
+            .serialize(serializer)
+    }
 }
 
 impl MessageContent {
@@ -176,61 +309,37 @@ pub struct ChatMessage {
     /// 可选的发送者名称（例如 tool 名称或特定 persona）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub name: Option<String>,
-    /// Assistant 消息携带的工具调用列表（已废弃，由 `content: ToolCalls` 承载）。
-    #[serde(default, skip_serializing_if = "Vec::is_empty")]
-    #[deprecated(
-        since = "0.3.0",
-        note = "use content field - MessageContent::ToolCalls"
-    )]
-    pub tool_calls: Vec<ToolCall>,
-    /// Tool 消息对应的工具调用 ID（已废弃，由 `content: ToolResult` 承载）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    #[deprecated(
-        since = "0.3.0",
-        note = "use content field - MessageContent::ToolResult"
-    )]
-    pub tool_call_id: Option<String>,
 }
 
 impl ChatMessage {
     /// 创建一条 system 消息。
-    #[allow(deprecated)]
     pub fn system(content: impl Into<String>) -> Self {
         Self {
             role: Role::System,
             content: MessageContent::Text(content.into()),
             name: None,
-            tool_calls: Vec::new(),
-            tool_call_id: None,
         }
     }
 
     /// 创建一条 user 消息。
-    #[allow(deprecated)]
     pub fn user(content: impl Into<String>) -> Self {
         Self {
             role: Role::User,
             content: MessageContent::Text(content.into()),
             name: None,
-            tool_calls: Vec::new(),
-            tool_call_id: None,
         }
     }
 
     /// 创建一条 assistant 消息。
-    #[allow(deprecated)]
     pub fn assistant(content: impl Into<String>) -> Self {
         Self {
             role: Role::Assistant,
             content: MessageContent::Text(content.into()),
             name: None,
-            tool_calls: Vec::new(),
-            tool_call_id: None,
         }
     }
 
     /// 创建一条携带工具调用的 assistant 消息。
-    #[allow(deprecated)]
     pub fn assistant_with_tool_calls(
         content: impl Into<String>,
         tool_calls: Vec<ToolCall>,
@@ -242,13 +351,10 @@ impl ChatMessage {
                 calls: tool_calls,
             },
             name: None,
-            tool_calls: Vec::new(),
-            tool_call_id: None,
         }
     }
 
     /// 创建一条 tool 结果消息。
-    #[allow(deprecated)]
     pub fn tool_result(
         name: impl Into<String>,
         tool_call_id: impl Into<String>,
@@ -262,18 +368,7 @@ impl ChatMessage {
                 content: content.into(),
             },
             name: None,
-            tool_calls: Vec::new(),
-            tool_call_id: None,
         }
-    }
-
-    #[deprecated(since = "0.3.0", note = "use tool_result instead")]
-    pub fn tool(
-        name: impl Into<String>,
-        tool_call_id: impl Into<String>,
-        content: impl Into<String>,
-    ) -> Self {
-        Self::tool_result(name, tool_call_id, content)
     }
 
     /// 获取消息的文本内容。
@@ -314,7 +409,7 @@ pub struct Usage {
 }
 
 /// 生成结束原因。
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum FinishReason {
     /// 正常停止。
     Stop,
@@ -445,48 +540,43 @@ impl LlmParams {
 
     /// 将参数合并到 ChatRequest 中（仅覆盖非 None 的字段）。
     pub fn apply_to(&self, request: &mut ChatRequest) {
+        self.merge_into(&mut request.params);
+    }
+
+    /// 将参数合并到 LlmParams 中（仅覆盖非 None 的字段）。
+    pub fn merge_into(&self, target: &mut LlmParams) {
         if let Some(v) = self.temperature {
-            request.temperature = Some(v);
+            target.temperature = Some(v);
         }
         if let Some(v) = self.top_p {
-            request.top_p = Some(v);
+            target.top_p = Some(v);
         }
         if let Some(v) = self.top_k {
-            request.top_k = Some(v);
+            target.top_k = Some(v);
         }
         if let Some(v) = self.max_tokens {
-            request.max_tokens = Some(v);
+            target.max_tokens = Some(v);
         }
         if let Some(v) = self.frequency_penalty {
-            request.frequency_penalty = Some(v);
+            target.frequency_penalty = Some(v);
         }
         if let Some(v) = self.presence_penalty {
-            request.presence_penalty = Some(v);
+            target.presence_penalty = Some(v);
         }
         if let Some(ref v) = self.stop {
-            request.stop = Some(v.clone());
+            target.stop = Some(v.clone());
         }
         if let Some(ref v) = self.response_format {
-            request.response_format = Some(v.clone());
+            target.response_format = Some(v.clone());
         }
         if let Some(ref v) = self.extra {
-            request.extra = Some(v.clone());
+            target.extra = Some(v.clone());
         }
     }
 
     /// 从 ChatRequest 中提取参数。
     pub fn from_request(request: &ChatRequest) -> Self {
-        Self {
-            temperature: request.temperature,
-            top_p: request.top_p,
-            top_k: request.top_k,
-            max_tokens: request.max_tokens,
-            frequency_penalty: request.frequency_penalty,
-            presence_penalty: request.presence_penalty,
-            stop: request.stop.clone(),
-            response_format: request.response_format.clone(),
-            extra: request.extra.clone(),
-        }
+        request.params.clone()
     }
 }
 
@@ -501,46 +591,28 @@ pub struct ChatRequest {
     /// 可用工具列表（可选）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tools: Option<Vec<ToolDefinition>>,
-    /// 温度参数（可选）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub temperature: Option<f32>,
-    /// 最大输出 token（可选）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub max_tokens: Option<u32>,
-
-    /// 结构化输出控制（可选）。
+    /// LLM 参数（temperature、top_p、max_tokens 等）。
     ///
-    /// 如果设置，provider 可以尝试让模型输出严格的 JSON 或满足 schema。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub response_format: Option<ResponseFormat>,
+    /// 使用 `#[serde(flatten)]` 展平，序列化格式与独立字段一致。
+    #[serde(flatten)]
+    pub params: LlmParams,
     /// 透传元数据（便于实现层做 tracing/路由/调试）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub metadata: Option<Value>,
+}
 
-    // === 以下为扩展参数，支持更多 provider 特性 ===
-    /// Top P（核采样参数，可选）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub top_p: Option<f32>,
+impl std::ops::Deref for ChatRequest {
+    type Target = LlmParams;
 
-    /// Top K（可选，某些 provider 支持）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub top_k: Option<u32>,
+    fn deref(&self) -> &Self::Target {
+        &self.params
+    }
+}
 
-    /// Frequency Penalty（频率惩罚，可选）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub frequency_penalty: Option<f32>,
-
-    /// Presence Penalty（存在惩罚，可选）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub presence_penalty: Option<f32>,
-
-    /// Stop 序列（可选）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub stop: Option<Vec<String>>,
-
-    /// 额外参数（用于支持 provider 特定的参数，如 NVIDIA 的 reasoning_budget 等）。
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub extra: Option<Value>,
+impl std::ops::DerefMut for ChatRequest {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.params
+    }
 }
 
 impl ChatRequest {
@@ -550,16 +622,8 @@ impl ChatRequest {
             messages,
             model: None,
             tools: None,
-            temperature: None,
-            max_tokens: None,
-            response_format: None,
+            params: LlmParams::default(),
             metadata: None,
-            top_p: None,
-            top_k: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            stop: None,
-            extra: None,
         }
     }
 
@@ -729,4 +793,59 @@ pub struct ChatStreamChunk {
     /// 结束原因（可选）。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub finish_reason: Option<FinishReason>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_message_content_text_roundtrip() {
+        let content = MessageContent::Text("你好".to_string());
+        let json = serde_json::to_string(&content).unwrap();
+        assert_eq!(json, r#""你好""#);
+        let back: MessageContent = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, content);
+    }
+
+    #[test]
+    fn test_message_content_tool_calls_roundtrip() {
+        let content = MessageContent::ToolCalls {
+            text: "正在调用工具".to_string(),
+            calls: vec![ToolCall {
+                id: "call_1".to_string(),
+                name: "calculator".to_string(),
+                input: serde_json::json!({"expr": "1+1"}),
+            }],
+        };
+        let json = serde_json::to_string(&content).unwrap();
+        assert!(json.contains(r#""type":"tool_calls""#));
+        let back: MessageContent = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, content);
+    }
+
+    #[test]
+    fn test_message_content_tool_result_roundtrip() {
+        let content = MessageContent::ToolResult {
+            name: "calculator".to_string(),
+            tool_call_id: "call_1".to_string(),
+            content: "2".to_string(),
+        };
+        let json = serde_json::to_string(&content).unwrap();
+        assert!(json.contains(r#""type":"tool_result""#));
+        let back: MessageContent = serde_json::from_str(&json).unwrap();
+        assert_eq!(back, content);
+    }
+
+    #[test]
+    fn test_message_content_backward_compat_no_type_field() {
+        // 兼容旧格式：没有 type 字段时通过字段存在性识别
+        let tool_calls = r#"{"text":"hi","calls":[]}"#;
+        let content: MessageContent = serde_json::from_str(tool_calls).unwrap();
+        assert!(matches!(content, MessageContent::ToolCalls { .. }));
+
+        let tool_result = r#"{"name":"x","tool_call_id":"c1","content":"out"}"#;
+        let content: MessageContent = serde_json::from_str(tool_result).unwrap();
+        assert!(matches!(content, MessageContent::ToolResult { .. }));
+    }
 }

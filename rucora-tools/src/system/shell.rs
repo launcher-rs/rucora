@@ -116,27 +116,27 @@ impl ShellTool {
         // 检查是否在禁止列表中
         for forbidden in FORBIDDEN_COMMANDS {
             if cmd_lower.contains(forbidden) {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "命令包含禁止的操作：{forbidden}"
-                )));
+                ), source: None });
             }
         }
 
         // 检查额外的禁止命令
         for forbidden in &self.forbidden_commands {
             if cmd_lower.contains(forbidden) {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "命令包含禁止的操作：{forbidden}"
-                )));
+                ), source: None });
             }
         }
 
         // 检查危险操作符
         for operator in DANGEROUS_OPERATORS {
             if command.contains(operator) {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "命令包含危险操作符：{operator}"
-                )));
+                ), source: None });
             }
         }
 
@@ -144,15 +144,15 @@ impl ShellTool {
         if !self.allowed_commands.is_empty() {
             let cmd_name = command.split_whitespace().next().unwrap_or(command);
             if !self.allowed_commands.contains(cmd_name) {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "命令 {cmd_name} 不在允许的白名单中"
-                )));
+                ), source: None });
             }
         }
 
         // 检查路径遍历
         if command.contains("..") {
-            return Err(ToolError::Message(
+            return Err(ToolError::message(
                 "命令包含路径遍历（..），这是不安全的".to_string(),
             ));
         }
@@ -165,14 +165,14 @@ impl ShellTool {
         for arg in args {
             for operator in DANGEROUS_OPERATORS {
                 if arg.contains(operator) {
-                    return Err(ToolError::Message(format!(
+                    return Err(ToolError::Message { message: format!(
                         "命令参数包含危险操作符：{operator}"
-                    )));
+                    ), source: None });
                 }
             }
 
             if arg.contains("..") {
-                return Err(ToolError::Message(
+                return Err(ToolError::message(
                     "命令参数包含路径遍历（..），这是不安全的".to_string(),
                 ));
             }
@@ -186,18 +186,18 @@ impl ShellTool {
 
         // 检查路径遍历
         if dir.contains("..") {
-            return Err(ToolError::Message(
+            return Err(ToolError::message(
                 "工作目录包含路径遍历（..），这是不安全的".to_string(),
             ));
         }
 
         // 检查目录是否存在
         if !path.exists() {
-            return Err(ToolError::Message(format!("工作目录不存在：{dir}")));
+            return Err(ToolError::Message { message: format!("工作目录不存在：{dir}"), source: None });
         }
 
         if !path.is_dir() {
-            return Err(ToolError::Message(format!("工作目录路径不是目录：{dir}")));
+            return Err(ToolError::Message { message: format!("工作目录路径不是目录：{dir}"), source: None });
         }
 
         Ok(())
@@ -255,7 +255,7 @@ impl Tool for ShellTool {
         let command = input
             .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'command' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'command' 字段".to_string()))?;
 
         let args: Vec<String> = input
             .get("args")
@@ -335,8 +335,8 @@ pub async fn execute_shell_command(
     // 执行命令（带超时）
     let output = timeout(timeout_duration, cmd.output())
         .await
-        .map_err(|_| ToolError::Message(format!("命令执行超时（{timeout_secs} 秒）")))?
-        .map_err(|e| ToolError::Message(format!("命令执行失败：{e}")))?;
+        .map_err(|_| ToolError::Message { message: format!("命令执行超时（{timeout_secs} 秒）"), source: None })?
+        .map_err(|e| ToolError::Message { message: format!("命令执行失败：{e}"), source: None })?;
 
     let exit_code = output.status.code().unwrap_or(-1);
 

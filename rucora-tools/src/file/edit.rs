@@ -108,20 +108,20 @@ impl Tool for FileEditTool {
         let path_str = input
             .get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'path' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'path' 字段".to_string()))?;
 
         let old_string = input
             .get("old_string")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'old_string' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'old_string' 字段".to_string()))?;
 
         let new_string = input
             .get("new_string")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'new_string' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'new_string' 字段".to_string()))?;
 
         if old_string.is_empty() {
-            return Err(ToolError::Message("old_string 不能为空".to_string()));
+            return Err(ToolError::message("old_string 不能为空".to_string()));
         }
 
         let path = self.config.validate_path_for_read(path_str)?;
@@ -129,17 +129,17 @@ impl Tool for FileEditTool {
         // 读取文件内容
         let content = tokio::fs::read_to_string(&path)
             .await
-            .map_err(|e| ToolError::Message(format!("读取文件失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("读取文件失败：{e}"), source: None })?;
 
         // 检查匹配次数
         let matches = content.matches(old_string).count();
         if matches == 0 {
-            return Err(ToolError::Message(format!("未找到匹配文本：{old_string}")));
+            return Err(ToolError::Message { message: format!("未找到匹配文本：{old_string}"), source: None });
         }
         if matches > 1 {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "找到 {matches} 处匹配，匹配歧义。请提供更精确的唯一匹配文本"
-            )));
+            ), source: None });
         }
 
         // 执行替换
@@ -152,7 +152,7 @@ impl Tool for FileEditTool {
         // 写回文件
         tokio::fs::write(&path, new_content)
             .await
-            .map_err(|e| ToolError::Message(format!("写入文件失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("写入文件失败：{e}"), source: None })?;
 
         Ok(json!({
             "success": true,

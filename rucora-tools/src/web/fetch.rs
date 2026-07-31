@@ -83,7 +83,7 @@ impl Tool for WebFetchTool {
         let url = input
             .get("url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'url' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'url' 字段".to_string()))?;
 
         let timeout_secs = input.get("timeout").and_then(|v| v.as_u64()).unwrap_or(30);
 
@@ -95,14 +95,14 @@ impl Tool for WebFetchTool {
             .redirect(reqwest::redirect::Policy::none())
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("HTTP 客户端创建失败: {e}"), source: None })?;
 
         // 发送 GET 请求
         let response = client
             .get(url)
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("获取网页失败: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("获取网页失败: {e}"), source: None })?;
 
         let status = response.status().as_u16();
 
@@ -110,9 +110,9 @@ impl Tool for WebFetchTool {
         let body_bytes = response
             .bytes()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应体失败: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("读取响应体失败: {e}"), source: None })?;
         if body_bytes.len() > MAX_RESPONSE_SIZE {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::message(format!(
                 "响应体过大（{} 字节），超过限制（{} 字节）",
                 body_bytes.len(),
                 MAX_RESPONSE_SIZE

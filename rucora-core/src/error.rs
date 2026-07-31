@@ -76,8 +76,8 @@ impl ErrorCategory {
         )
     }
 
-    /// 判断是否客户端错误
-    pub fn is_client_error(self) -> bool {
+    /// 判断是否不可重试的永久性错误（认证、授权、配置、策略）。
+    pub fn is_permanent_error(self) -> bool {
         matches!(
             self,
             ErrorCategory::Authentication
@@ -366,8 +366,12 @@ pub enum ToolErrorKind {
 #[derive(thiserror::Error, Debug)]
 pub enum ToolError {
     /// 通用错误
-    #[error("tool error: {0}")]
-    Message(String),
+    #[error("tool error: {message}")]
+    Message {
+        message: String,
+        #[source]
+        source: Option<Box<dyn std::error::Error + Send + Sync>>,
+    },
 
     /// 策略拒绝
     #[error("tool policy denied (rule_id={rule_id}): {reason}")]
@@ -387,10 +391,26 @@ pub enum ToolError {
 }
 
 impl ToolError {
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn message(msg: impl Into<String>) -> Self {
+        ToolError::Message {
+            message: msg.into(),
+            source: None,
+        }
+    }
+
+    #[allow(clippy::needless_pass_by_value)]
+    pub fn message_with_source(msg: impl Into<String>, source: impl std::error::Error + Send + Sync + 'static) -> Self {
+        ToolError::Message {
+            message: msg.into(),
+            source: Some(Box::new(source)),
+        }
+    }
+
     /// 返回轻量级错误分类，便于 switch/match。
     pub fn kind(&self) -> ToolErrorKind {
         match self {
-            ToolError::Message(_) => ToolErrorKind::Generic,
+            ToolError::Message { .. } => ToolErrorKind::Generic,
             ToolError::PolicyDenied { .. } => ToolErrorKind::Policy,
             ToolError::NotFound { .. } => ToolErrorKind::NotFound,
             ToolError::ValidationError { .. } => ToolErrorKind::Validation,
@@ -402,11 +422,11 @@ impl ToolError {
 impl DiagnosticError for ToolError {
     fn diagnostic(&self) -> ErrorDiagnostic {
         match self {
-            ToolError::Message(msg) => ErrorDiagnostic {
+            ToolError::Message { message, source } => ErrorDiagnostic {
                 kind: "tool".to_string(),
-                message: msg.clone(),
+                message: message.clone(),
                 retriable: false,
-                source: None,
+                source: source.as_ref().map(|s| s.to_string()),
                 category: ErrorCategory::Tool,
                 status_code: None,
                 retry_after: None,
@@ -548,7 +568,9 @@ impl DiagnosticError for AgentError {
             },
             AgentError::ProviderError { source } => {
                 let mut diag = source.diagnostic();
-                diag.kind = "runtime".to_string();
+                // 保留完整诊断链：仅补充 runtime 前缀，保留底层 provider 的
+                // kind、status_code、retry_after、category 等关键信息。
+                diag.kind = format!("runtime.{}", diag.kind);
                 diag
             }
             AgentError::RequiresRuntime => ErrorDiagnostic {
@@ -611,8 +633,30 @@ impl DiagnosticError for MemoryError {
 /// Channel 错误
 #[derive(thiserror::Error, Debug)]
 pub enum ChannelError {
+    /// 通用错误消息
     #[error("channel error: {0}")]
     Message(String),
+
+    /// 发送事件失败
+    #[error("channel send error: {0}")]
+    SendError(String),
+
+    /// 事件流错误
+    #[error("channel stream error: {0}")]
+    StreamError(String),
+
+    /// 超时错误
+    #[error("channel timeout: {0}")]
+    Timeout(String),
+}
+
+impl ChannelError {
+    /// 判断错误是否可重试。
+    ///
+    /// 超时错误通常可重试，其余错误默认不可重试。
+    pub fn is_retriable(&self) -> bool {
+        matches!(self, ChannelError::Timeout(_))
+    }
 }
 
 impl DiagnosticError for ChannelError {
@@ -624,6 +668,33 @@ impl DiagnosticError for ChannelError {
                 retriable: false,
                 source: None,
                 category: ErrorCategory::Other,
+                status_code: None,
+                retry_after: None,
+            },
+            ChannelError::SendError(msg) => ErrorDiagnostic {
+                kind: "channel.send".to_string(),
+                message: msg.clone(),
+                retriable: false,
+                source: None,
+                category: ErrorCategory::Other,
+                status_code: None,
+                retry_after: None,
+            },
+            ChannelError::StreamError(msg) => ErrorDiagnostic {
+                kind: "channel.stream".to_string(),
+                message: msg.clone(),
+                retriable: false,
+                source: None,
+                category: ErrorCategory::Other,
+                status_code: None,
+                retry_after: None,
+            },
+            ChannelError::Timeout(msg) => ErrorDiagnostic {
+                kind: "channel.timeout".to_string(),
+                message: msg.clone(),
+                retriable: true,
+                source: None,
+                category: ErrorCategory::Timeout,
                 status_code: None,
                 retry_after: None,
             },

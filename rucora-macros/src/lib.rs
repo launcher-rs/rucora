@@ -228,9 +228,9 @@ fn tool_impl(attrs: &ToolAttrs, func: &ItemFn) -> syn::Result<proc_macro2::Token
                 _context: &#rucora::core::tool::types::ToolContext,
             ) -> Result<::serde_json::Value, #rucora::core::error::ToolError> {
                 let params: #params_name = ::serde_json::from_value(input)
-                    .map_err(|e| #rucora::core::error::ToolError::Message(format!(
+                    .map_err(|e| #rucora::core::error::ToolError::Message { message: format!(
                         "Invalid parameters for tool '{}': {}", #tool_name, e
-                    )))?;
+                    ), source: None })?;
                 let #params_name { #(#param_names),* } = params;
                 #body
             }

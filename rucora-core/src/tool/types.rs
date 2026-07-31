@@ -345,10 +345,12 @@ pub struct ToolCall {
 ///         "content": "文件内容...",
 ///         "size": 1024
 ///     }),
-///     success: Some(true),
+///     success: true,
 ///     error: None,
 ///     data: None,
 ///     bytes: None,
+///     latency_ms: None,
+///     token_usage: None,
 /// };
 ///
 /// assert_eq!(result.tool_call_id, "call_abc123");
@@ -389,15 +391,15 @@ pub struct ToolResult {
     /// - 包含必要信息（成功/失败、结果数据、错误信息等）
     pub output: Value,
 
-    /// 是否执行成功（可选，默认为 true）。
+    /// 是否执行成功。
     ///
-    /// 当为 `Some(false)` 时表示工具执行失败。
-    #[serde(default, skip_serializing_if = "is_default_tool_success")]
-    pub success: Option<bool>,
+    /// 当为 `false` 时表示工具执行失败。
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub success: bool,
 
     /// 错误信息（可选）。
     ///
-    /// 当 `success` 为 `Some(false)` 时，包含错误描述。
+    /// 当 `success` 为 `false` 时，包含错误描述。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 
@@ -413,10 +415,18 @@ pub struct ToolResult {
     /// 当工具返回二进制内容（如图片、文件）时使用。
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub bytes: Option<Vec<u8>>,
-}
 
-fn is_default_tool_success(v: &Option<bool>) -> bool {
-    *v == Some(true)
+    /// 工具执行延迟（毫秒）。
+    ///
+    /// 由执行器在调用工具时测量并填充，用于性能分析和成本追踪。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub latency_ms: Option<u64>,
+
+    /// Token 消耗统计（可选）。
+    ///
+    /// 供需要记录 LLM token 消耗的场景使用（工具本身通常不消耗 token）。
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub token_usage: Option<crate::provider::types::Usage>,
 }
 
 impl Default for ToolResult {
@@ -424,10 +434,12 @@ impl Default for ToolResult {
         Self {
             tool_call_id: String::new(),
             output: Value::Null,
-            success: Some(true),
+            success: true,
             error: None,
             data: None,
             bytes: None,
+            latency_ms: None,
+            token_usage: None,
         }
     }
 }
@@ -438,10 +450,12 @@ impl ToolResult {
         Self {
             tool_call_id: tool_call_id.into(),
             output,
-            success: Some(true),
+            success: true,
             error: None,
             data: None,
             bytes: None,
+            latency_ms: None,
+            token_usage: None,
         }
     }
 
@@ -450,10 +464,12 @@ impl ToolResult {
         Self {
             tool_call_id: tool_call_id.into(),
             output: Value::Null,
-            success: Some(false),
+            success: false,
             error: Some(error.into()),
             data: None,
             bytes: None,
+            latency_ms: None,
+            token_usage: None,
         }
     }
 
@@ -469,9 +485,21 @@ impl ToolResult {
         self
     }
 
+    /// 设置执行延迟（毫秒）。
+    pub fn with_latency(mut self, latency_ms: u64) -> Self {
+        self.latency_ms = Some(latency_ms);
+        self
+    }
+
+    /// 设置 Token 消耗统计。
+    pub fn with_token_usage(mut self, usage: crate::provider::types::Usage) -> Self {
+        self.token_usage = Some(usage);
+        self
+    }
+
     /// 检查是否成功。
     pub fn is_success(&self) -> bool {
-        self.success.unwrap_or(true)
+        self.success
     }
 }
 
@@ -494,17 +522,20 @@ const fn default_tool_version() -> u32 {
 ///
 /// ```rust
 /// use rucora_core::tool::types::ToolContext;
+/// use serde_json::json;
 ///
 /// let ctx = ToolContext::new()
 ///     .with("working_dir", "/tmp/workspace")
-///     .with("session_id", "sess_abc123");
+///     .with("session_id", "sess_abc123")
+///     .with("metadata", json!({"key": "value"}));
 ///
 /// let dir = ctx.get("working_dir"); // Some("/tmp/workspace")
+/// let meta = ctx.get("metadata"); // Some(json!({"key": "value"}))
 /// ```
 #[derive(Debug, Clone, Default)]
 pub struct ToolContext {
     /// 键值对上下文数据
-    data: HashMap<String, String>,
+    data: HashMap<String, Value>,
 }
 
 impl ToolContext {
@@ -514,29 +545,29 @@ impl ToolContext {
     }
 
     /// 插入一个键值对（builder 风格）。
-    pub fn with(mut self, key: impl Into<String>, value: impl Into<String>) -> Self {
+    pub fn with(mut self, key: impl Into<String>, value: impl Into<Value>) -> Self {
         self.data.insert(key.into(), value.into());
         self
     }
 
     /// 插入一个键值对（可变引用风格）
-    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<String>) {
+    pub fn insert(&mut self, key: impl Into<String>, value: impl Into<Value>) {
         self.data.insert(key.into(), value.into());
     }
 
     /// 获取值
-    pub fn get(&self, key: &str) -> Option<&str> {
-        self.data.get(key).map(|s| s.as_str())
+    pub fn get(&self, key: &str) -> Option<&Value> {
+        self.data.get(key)
     }
 
     /// 获取工作目录（常用快捷方法）
     pub fn working_dir(&self) -> Option<&str> {
-        self.get("working_dir")
+        self.get("working_dir").and_then(|v| v.as_str())
     }
 
     /// 获取会话 ID（常用快捷方法）
     pub fn session_id(&self) -> Option<&str> {
-        self.get("session_id")
+        self.get("session_id").and_then(|v| v.as_str())
     }
 }
 

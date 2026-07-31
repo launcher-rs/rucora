@@ -11,10 +11,9 @@
 use rucora::agent::ChatAgent;
 use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
-use tokio::io::{self, AsyncBufReadExt, BufReader};
+use std::io::BufRead;
 use tracing::{Level, info};
 use tracing_subscriber::FmtSubscriber;
-
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     dotenv::dotenv().ok();
@@ -60,13 +59,13 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     // 交互式对话
-    let stdin = BufReader::new(io::stdin());
-    let mut lines = stdin.lines();
+    let stdin = std::io::stdin();
+    let mut lines = stdin.lock().lines();
 
     loop {
         info!("你：");
 
-        if let Ok(Some(line)) = lines.next_line().await {
+        if let Some(Ok(line)) = lines.next() {
             let input = line.trim();
 
             if input.is_empty() {

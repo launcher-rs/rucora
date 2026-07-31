@@ -64,10 +64,10 @@ impl ContentSearchTool {
 
         // 检查文件大小
         let metadata = std::fs::metadata(file_path)
-            .map_err(|e| ToolError::Message(format!("无法读取文件元数据: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("无法读取文件元数据: {e}"), source: None })?;
 
         if metadata.len() > self.max_file_size {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::message(format!(
                 "文件 {} 过大 ({} > {} bytes)",
                 file_path.display(),
                 metadata.len(),
@@ -77,7 +77,7 @@ impl ContentSearchTool {
 
         // 读取文件内容
         let content = std::fs::read_to_string(file_path)
-            .map_err(|e| ToolError::Message(format!("无法读取文件: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("无法读取文件: {e}"), source: None })?;
 
         // 逐行搜索
         for (line_num, line) in content.lines().enumerate() {
@@ -158,7 +158,7 @@ impl Tool for ContentSearchTool {
         let pattern_str = input
             .get("pattern")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少 'pattern' 参数".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少 'pattern' 参数".to_string()))?;
 
         let case_sensitive = input
             .get("case_sensitive")
@@ -173,7 +173,7 @@ impl Tool for ContentSearchTool {
         };
 
         let pattern =
-            regex_builder.map_err(|e| ToolError::Message(format!("无效的正则表达式: {e}")))?;
+            regex_builder.map_err(|e| ToolError::Message { message: format!("无效的正则表达式: {e}"), source: None })?;
 
         // 获取搜索路径
         let search_path = input
@@ -229,7 +229,7 @@ impl Tool for ContentSearchTool {
                 }
             }
             Err(e) => {
-                return Err(ToolError::Message(format!("无效的 glob 模式: {e}")));
+                return Err(ToolError::Message { message: format!("无效的 glob 模式: {e}"), source: None });
             }
         }
 

@@ -86,19 +86,13 @@ where
         // ReAct 核心：显式思考步骤
         if context.step == 0 {
             // 第一步：先思考，不工具调用
-            AgentDecision::Chat {
-                request: Box::new(self._build_react_prompt(context, "think")),
-            }
+            AgentDecision::chat(self._build_react_prompt(context, "think"))
         } else if !context.tool_results.is_empty() {
             // 有工具结果：观察后继续思考
-            AgentDecision::Chat {
-                request: Box::new(self._build_react_prompt(context, "observe")),
-            }
+            AgentDecision::chat(self._build_react_prompt(context, "observe"))
         } else {
             // 正常：决定行动
-            AgentDecision::Chat {
-                request: Box::new(self._build_react_prompt(context, "act")),
-            }
+            AgentDecision::chat(self._build_react_prompt(context, "act"))
         }
     }
 
@@ -433,7 +427,6 @@ impl<P> Default for ReActAgentBuilder<P> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

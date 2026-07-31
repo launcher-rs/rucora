@@ -379,16 +379,8 @@ where
             messages,
             model: self.agent.model().map(String::from),
             tools: Some(self.agent.tool_registry().definitions()),
-            temperature: None,
-            max_tokens: None,
-            response_format: None,
+            params: LlmParams::default(),
             metadata: None,
-            top_p: None,
-            top_k: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            stop: None,
-            extra: None,
         };
 
         // 应用 llm_params

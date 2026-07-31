@@ -100,7 +100,7 @@ pub trait RetryPolicy: Send + Sync {
 
     /// 获取最大重试次数
     fn max_retries(&self) -> u32 {
-        u32::MAX
+        3
     }
 }
 

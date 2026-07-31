@@ -14,14 +14,14 @@
 
 use std::sync::Arc;
 
-use async_stream::try_stream;
 use futures_util::{StreamExt, stream, stream::BoxStream};
 use serde_json::{Value, json};
 use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 use rucora_core::agent::{
-    Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput, ToolCallRecord,
+    Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput, ChatMode,
+    ToolCallRecord,
 };
 
 use crate::conversation::ConversationManager;
@@ -31,7 +31,7 @@ use crate::agent::loop_detector::{LoopDetectionResult, LoopDetector, LoopDetecto
 use crate::agent::policy::{DefaultToolPolicy, ToolPolicy};
 use crate::agent::tool_call_config::{ToolCallEnhancedConfig, ToolCallEnhancedRuntime};
 use crate::agent::tool_execution::{
-    execute_tool_call_enhanced, execute_tool_call_with_policy_and_observer, tool_result_to_message,
+    execute_tool_call_enhanced, tool_result_to_message,
 };
 use crate::agent::tool_registry::ToolRegistry;
 use crate::middleware::MiddlewareChain;
@@ -264,11 +264,11 @@ fn floor_char_boundary(s: &str, i: usize) -> usize {
 }
 
 // 导入 rucora_core 类型
-use rucora_core::channel::types::{ChannelEvent, ErrorEvent, TokenDeltaEvent};
+use rucora_core::channel::types::{ChannelEvent, ErrorEvent};
 use rucora_core::channel::{ChannelObserver, NoopChannelObserver};
 use rucora_core::error::DiagnosticError;
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, MessageContent, Role, Usage};
+use rucora_core::provider::types::{ChatMessage, MessageContent, Role, Usage};
 use rucora_core::tool::types::{ToolCall, ToolResult};
 
 /// 默认执行实现（内聚所有 Runtime 能力）
@@ -624,8 +624,12 @@ impl DefaultExecution {
         let mut tool_call_records = Vec::new();
         let mut step = 0;
         let mut total_usage: Option<Usage> = None;
-        // 循环检测器（防止 Agent 陷入无限重复调用同一工具）
-        let mut loop_detector = LoopDetector::new(self.loop_detector_config.clone());
+        // 循环检测器（防止 Agent 陷入无限重复调用同一工具）。
+        // 使用 Arc<std::sync::Mutex> 以便在并发路径中共享检测器
+        // （检测为同步短临界区，用标准库 Mutex 即可）。
+        let loop_detector = Arc::new(std::sync::Mutex::new(LoopDetector::new(
+            self.loop_detector_config.clone(),
+        )));
 
         info!(
             agent.name = agent.name(),
@@ -658,206 +662,214 @@ impl DefaultExecution {
             debug!(decision = ?decision, "agent.think");
 
             match decision {
-                AgentDecision::Chat { mut request } => {
-                    // 2. 自动注入工具定义 (修复库设计缺陷：避免 Agent 必须手动注入)
-                    if request.tools.is_none() && self.tools.enabled_len() > 0 {
-                        let tool_defs = self.tools.definitions();
-                        if !tool_defs.is_empty() {
-                            info!(
-                                tool_count = tool_defs.len(),
-                                "自动向 LLM 注入 {} 个工具定义",
-                                tool_defs.len()
-                            );
-                            request.tools = Some(tool_defs);
-                        }
-                    }
-
-                    // 3. 调用 LLM（含 context overflow 内联恢复）
-                    let response = match self.provider.chat(*request).await {
-                        Ok(r) => r,
-                        Err(e) => {
-                            let diag = e.diagnostic();
-                            // 检测 context window 溢出错误
-                            if is_context_overflow_error(&diag.message) {
-                                tracing::warn!(
-                                    step,
-                                    "Context window exceeded, attempting in-loop recovery"
-                                );
-                                // Step 1: 快速裁剪旧 tool 消息（廉价操作）
-                                let saved = fast_trim_tool_results(&mut messages, 4);
-                                if saved > 0 {
-                                    tracing::info!(
-                                        chars_saved = saved,
-                                        "Context recovery: trimmed old tool results, retrying"
-                                    );
-                                    continue;
-                                }
-                                // Step 2: 紧急丢弃最旧的非系统消息
-                                let dropped = emergency_history_trim(&mut messages, 4);
-                                if dropped > 0 {
-                                    tracing::info!(
-                                        dropped,
-                                        "Context recovery: dropped old messages, retrying"
-                                    );
-                                    continue;
-                                }
-                                // 无法恢复
-                                tracing::error!(
-                                    "Context overflow unrecoverable: no trimmable messages"
-                                );
-                            }
-                            // 保留原始 ProviderError 的结构化信息
-                            return Err(AgentError::ProviderError { source: e });
-                        }
-                    };
-
-                    messages.push(response.message.clone());
-
-                    // 累计 usage
-                    if let Some(u) = &response.usage {
-                        total_usage = Some(match &total_usage {
-                            Some(curr) => Usage {
-                                prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
-                                completion_tokens: curr.completion_tokens + u.completion_tokens,
-                                total_tokens: curr.total_tokens + u.total_tokens,
-                            },
-                            None => u.clone(),
-                        });
-                    }
-
-                    // 3. 检查工具调用
-                    if response.tool_calls().is_empty() {
-                        // 无工具调用，返回最终结果
-                        let mut output = Ok(AgentOutput::with_usage(
-                            json!({"content": response.text()}),
-                            messages.clone(),
-                            tool_call_records.clone(),
-                            total_usage,
-                        ));
-
-                        // 执行响应后中间件钩子
-                        if let Ok(ref mut out) = output {
-                            self.middleware_chain
-                                .process_response(out)
-                                .await
-                                .map_err(|e| {
-                                    AgentError::Message(format!("中间件响应处理失败：{e}"))
-                                })?;
-                        }
-
-                        // 如果启用了对话历史，保存消息
-                        if let Some(ref conv_arc) = self.conversation_manager {
-                            let mut conv = conv_arc.lock().await;
-                            conv.add_user_message(input.text.clone());
-                            conv.add_assistant_message(response.text().to_string());
-                        }
-
-                        info!("execution.run.done");
-                        return output;
-                    }
-
-                    // 4. 执行工具调用
-                    let _tool_results = self
-                        ._execute_tool_calls(
-                            response.tool_calls(),
-                            &mut messages,
-                            &mut tool_call_records,
-                            &mut loop_detector,
-                        )
-                        .await?;
-
-                    step += 1;
-                }
-                AgentDecision::MapAll {
+                AgentDecision::Chat {
                     requests,
                     max_concurrency,
+                    mode,
                 } => {
-                    let concurrency = max_concurrency.max(1);
-                    info!(
-                        request_count = requests.len(),
-                        concurrency, "execution.run.map_all.start"
-                    );
+                    match mode {
+                        rucora_core::agent::ChatMode::Single => {
+                            let mut request = requests.into_iter().next().unwrap_or_default();
 
-                    let tasks: Vec<_> = requests
-                        .into_iter()
-                        .enumerate()
-                        .map(|(i, request)| {
-                            let provider = self.provider.clone();
-                            async move {
-                                let response = provider
-                                    .chat(request)
-                                    .await
-                                    .map_err(|e| AgentError::ProviderError { source: e })?;
-                                Ok::<_, AgentError>((i, response))
+                            // 2. 自动注入工具定义 (修复库设计缺陷：避免 Agent 必须手动注入)
+                            if request.tools.is_none() && self.tools.enabled_len() > 0 {
+                                let tool_defs = self.tools.definitions();
+                                if !tool_defs.is_empty() {
+                                    info!(
+                                        tool_count = tool_defs.len(),
+                                        "自动向 LLM 注入 {} 个工具定义",
+                                        tool_defs.len()
+                                    );
+                                    request.tools = Some(tool_defs);
+                                }
                             }
-                        })
-                        .collect();
 
-                    let mut responses = stream::iter(tasks)
-                        .buffer_unordered(concurrency)
-                        .collect::<Vec<_>>()
-                        .await
-                        .into_iter()
-                        .collect::<Result<Vec<(usize, _)>, _>>()?;
+                            // 3. 调用 LLM（含 context overflow 内联恢复）
+                            let response = match self.provider.chat(request).await {
+                                Ok(r) => r,
+                                Err(e) => {
+                                    let diag = e.diagnostic();
+                                    // 检测 context window 溢出错误
+                                    if is_context_overflow_error(&diag.message) {
+                                        tracing::warn!(
+                                            step,
+                                            "Context window exceeded, attempting in-loop recovery"
+                                        );
+                                        // Step 1: 快速裁剪旧 tool 消息（廉价操作）
+                                        let saved = fast_trim_tool_results(&mut messages, 4);
+                                        if saved > 0 {
+                                            tracing::info!(
+                                                chars_saved = saved,
+                                                "Context recovery: trimmed old tool results, retrying"
+                                            );
+                                            continue;
+                                        }
+                                        // Step 2: 紧急丢弃最旧的非系统消息
+                                        let dropped = emergency_history_trim(&mut messages, 4);
+                                        if dropped > 0 {
+                                            tracing::info!(
+                                                dropped,
+                                                "Context recovery: dropped old messages, retrying"
+                                            );
+                                            continue;
+                                        }
+                                        // 无法恢复
+                                        tracing::error!(
+                                            "Context overflow unrecoverable: no trimmable messages"
+                                        );
+                                    }
+                                    // 保留原始 ProviderError 的结构化信息
+                                    return Err(AgentError::ProviderError { source: e });
+                                }
+                            };
 
-                    responses.sort_by_key(|(i, _)| *i);
+                            // 累计 usage
+                            if let Some(u) = &response.usage {
+                                total_usage = Some(match &total_usage {
+                                    Some(curr) => Usage {
+                                        prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
+                                        completion_tokens: curr.completion_tokens + u.completion_tokens,
+                                        total_tokens: curr.total_tokens + u.total_tokens,
+                                    },
+                                    None => u.clone(),
+                                });
+                            }
 
-                    for (_, response) in responses {
-                        messages.push(response.message);
-                        if let Some(u) = &response.usage {
-                            total_usage = Some(match &total_usage {
-                                Some(curr) => Usage {
-                                    prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
-                                    completion_tokens: curr.completion_tokens + u.completion_tokens,
-                                    total_tokens: curr.total_tokens + u.total_tokens,
-                                },
-                                None => u.clone(),
-                            });
+                            // 3. 检查工具调用
+                            if response.tool_calls().is_empty() {
+                                // 无工具调用，返回最终结果
+                                let mut output = Ok(AgentOutput::with_usage(
+                                    json!({"content": response.text()}),
+                                    messages.clone(),
+                                    tool_call_records.clone(),
+                                    total_usage,
+                                ));
+
+                                // 执行响应后中间件钩子
+                                if let Ok(ref mut out) = output {
+                                    self.middleware_chain
+                                        .process_response(out)
+                                        .await
+                                        .map_err(|e| {
+                                            AgentError::Message(format!("中间件响应处理失败：{e}"))
+                                        })?;
+                                }
+
+                                // 如果启用了对话历史，保存消息
+                                if let Some(ref conv_arc) = self.conversation_manager {
+                                    let mut conv = conv_arc.lock().await;
+                                    conv.add_user_message(input.text.clone());
+                                    conv.add_assistant_message(response.text().to_string());
+                                }
+
+                                info!("execution.run.done");
+                                return output;
+                            }
+
+                            // 4. 执行工具调用
+                            let _tool_results = self
+                                ._execute_tool_calls(
+                                    response.tool_calls(),
+                                    &mut messages,
+                                    &mut tool_call_records,
+                                    &loop_detector,
+                                )
+                                .await?;
+
+                            step += 1;
+                        }
+                        ChatMode::MapAll => {
+                            let concurrency = max_concurrency.max(1);
+                            info!(
+                                request_count = requests.len(),
+                                concurrency, "execution.run.map_all.start"
+                            );
+
+                            let tasks: Vec<_> = requests
+                                .into_iter()
+                                .enumerate()
+                                .map(|(i, request)| {
+                                    let provider = self.provider.clone();
+                                    async move {
+                                        let response = provider
+                                            .chat(request)
+                                            .await
+                                            .map_err(|e| AgentError::ProviderError { source: e })?;
+                                        Ok::<_, AgentError>((i, response))
+                                    }
+                                })
+                                .collect();
+
+                            let mut responses = stream::iter(tasks)
+                                .buffer_unordered(concurrency)
+                                .collect::<Vec<_>>()
+                                .await
+                                .into_iter()
+                                .collect::<Result<Vec<(usize, _)>, _>>()?;
+
+                            responses.sort_by_key(|(i, _)| *i);
+
+                            for (_, response) in responses {
+                                messages.push(response.message);
+                                if let Some(u) = &response.usage {
+                                    total_usage = Some(match &total_usage {
+                                        Some(curr) => Usage {
+                                            prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
+                                            completion_tokens: curr.completion_tokens + u.completion_tokens,
+                                            total_tokens: curr.total_tokens + u.total_tokens,
+                                        },
+                                        None => u.clone(),
+                                    });
+                                }
+                            }
+                            info!(step, "execution.run.map_all.done");
+                            step += 1;
+                        }
+                        ChatMode::Reduce => {
+                            let request = requests.into_iter().next().unwrap_or_default();
+                            info!("execution.run.reduce.start");
+                            let response = self
+                                .provider
+                                .chat(request)
+                                .await
+                                .map_err(|e| AgentError::ProviderError { source: e })?;
+
+                            messages.push(response.message.clone());
+
+                            if let Some(u) = &response.usage {
+                                total_usage = Some(match &total_usage {
+                                    Some(curr) => Usage {
+                                        prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
+                                        completion_tokens: curr.completion_tokens + u.completion_tokens,
+                                        total_tokens: curr.total_tokens + u.total_tokens,
+                                    },
+                                    None => u.clone(),
+                                });
+                            }
+
+                            info!("execution.run.reduce.done");
+                            return Ok(AgentOutput::with_usage(
+                                json!({"content": response.text()}),
+                                messages,
+                                tool_call_records,
+                                total_usage,
+                            ));
                         }
                     }
-                    info!(step, "execution.run.map_all.done");
-                    step += 1;
-                }
-                AgentDecision::Reduce { request } => {
-                    info!("execution.run.reduce.start");
-                    let response = self
-                        .provider
-                        .chat(*request)
-                        .await
-                        .map_err(|e| AgentError::ProviderError { source: e })?;
-
-                    messages.push(response.message.clone());
-
-                    if let Some(u) = &response.usage {
-                        total_usage = Some(match &total_usage {
-                            Some(curr) => Usage {
-                                prompt_tokens: curr.prompt_tokens + u.prompt_tokens,
-                                completion_tokens: curr.completion_tokens + u.completion_tokens,
-                                total_tokens: curr.total_tokens + u.total_tokens,
-                            },
-                            None => u.clone(),
-                        });
-                    }
-
-                    info!("execution.run.reduce.done");
-                    return Ok(AgentOutput::with_usage(
-                        json!({"content": response.text()}),
-                        messages,
-                        tool_call_records,
-                        total_usage,
-                    ));
                 }
                 AgentDecision::ToolCall {
+                    tool_call_id,
                     name,
                     input: tool_input,
                 } => {
                     // 直接工具调用
                     self._execute_direct_tool(
+                        &tool_call_id,
                         &name,
                         tool_input,
                         &mut messages,
                         &mut tool_call_records,
-                        &mut loop_detector,
+                        &loop_detector,
                     )
                     .await?;
                     step += 1;
@@ -918,7 +930,7 @@ impl DefaultExecution {
         calls: &[ToolCall],
         messages: &mut Vec<ChatMessage>,
         records: &mut Vec<ToolCallRecord>,
-        loop_detector: &mut LoopDetector,
+        loop_detector: &Arc<std::sync::Mutex<LoopDetector>>,
     ) -> Result<Vec<ToolResult>, AgentError> {
         let max = self.max_tool_concurrency.max(1);
 
@@ -940,8 +952,11 @@ impl DefaultExecution {
                 .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
 
                 // 循环检测
-                let detection =
-                    loop_detector.record(&call.name, &call.input, &result.output.to_string());
+                let detection = loop_detector.lock().unwrap_or_else(|poisoned| poisoned.into_inner()).record(
+                    &call.name,
+                    &call.input,
+                    &result.output.to_string(),
+                );
                 match detection {
                     LoopDetectionResult::Ok => {}
                     LoopDetectionResult::Warning(msg) => {
@@ -989,8 +1004,10 @@ impl DefaultExecution {
             return Ok(results);
         }
 
-        // 并发执行（细粒度并发：按工具名取并发数）
-        let results: Vec<Result<(usize, ToolResult), AgentError>> =
+        // 并发执行（细粒度并发：按工具名取并发数）。
+        // 循环检测器通过 Arc<Mutex> 共享，在每个并发任务内部执行检测，
+        // 避免结果收集后串行检测的瓶颈。
+        let results: Vec<Result<(usize, ToolResult, LoopDetectionResult), AgentError>> =
             stream::iter(calls.iter().cloned().enumerate().map(|(idx, call)| {
                 let tools = self.tools.clone();
                 let policy = self.policy.clone();
@@ -998,6 +1015,7 @@ impl DefaultExecution {
                 let middleware_chain = self.middleware_chain.clone();
                 let enhanced_config = self.enhanced_config.clone();
                 let enhanced_runtime = self.enhanced_runtime.clone();
+                let loop_detector = loop_detector.clone();
                 // 细粒度并发：取该工具对应的并发数（这里每个任务独立限流，
                 // 实际并发上限由 buffer_unordered(max) 控制）
                 async move {
@@ -1012,7 +1030,14 @@ impl DefaultExecution {
                     )
                     .await
                     .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
-                    Ok((idx, r))
+
+                    // 循环检测（并发执行，通过互斥锁保证状态一致）
+                    let detection = loop_detector
+                        .lock()
+                        .unwrap_or_else(|poisoned| poisoned.into_inner())
+                        .record(&call.name, &call.input, &r.output.to_string());
+
+                    Ok((idx, r, detection))
                 }
             }))
             .buffer_unordered(max)
@@ -1025,13 +1050,8 @@ impl DefaultExecution {
 
         for r in results {
             match r {
-                Ok((idx, result)) => {
-                    // 循环检测（并发路径：串行处理检测结果）
-                    let detection = loop_detector.record(
-                        &calls[idx].name,
-                        &calls[idx].input,
-                        &result.output.to_string(),
-                    );
+                Ok((idx, result, detection)) => {
+                    // 循环检测结果已在并发任务内计算
                     match detection {
                         LoopDetectionResult::Ok => {
                             ok.push((idx, result));
@@ -1108,15 +1128,15 @@ impl DefaultExecution {
     /// 执行单个工具调用
     async fn _execute_direct_tool(
         &self,
+        tool_call_id: &str,
         name: &str,
         tool_input: Value,
         messages: &mut Vec<ChatMessage>,
         records: &mut Vec<ToolCallRecord>,
-        loop_detector: &mut LoopDetector,
+        loop_detector: &Arc<std::sync::Mutex<LoopDetector>>,
     ) -> Result<(), AgentError> {
-        let tool_call_id = format!("local_call_{name}");
         let call = ToolCall {
-            id: tool_call_id.clone(),
+            id: tool_call_id.to_string(),
             name: name.to_string(),
             input: tool_input.clone(),
         };
@@ -1134,7 +1154,10 @@ impl DefaultExecution {
         .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
 
         // 循环检测
-        let detection = loop_detector.record(name, &tool_input, &result.output.to_string());
+        let detection = loop_detector
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .record(name, &tool_input, &result.output.to_string());
         match detection {
             LoopDetectionResult::Ok => {}
             LoopDetectionResult::Warning(msg) => {
@@ -1191,201 +1214,8 @@ impl DefaultExecution {
         &self,
         input: AgentInput,
     ) -> BoxStream<'static, Result<ChannelEvent, AgentError>> {
-        let provider = self.provider.clone();
-        let tools = self.tools.clone();
-        let policy = self.policy.clone();
-        let observer = self.observer.clone();
-        let max_steps = self.max_steps;
-        let model = self.model.clone();
-        let system_prompt = self.system_prompt.clone();
-        let llm_params = self.llm_params.clone();
-        let loop_detector_config = self.loop_detector_config.clone();
-        let conversation_manager = self.conversation_manager.clone();
-
-        let stream = try_stream! {
-            let mut messages = Vec::new();
-
-            // 添加系统提示词
-            if let Some(ref prompt) = system_prompt {
-                messages.push(ChatMessage::system(prompt.clone()));
-            }
-
-            // 添加用户消息
-            messages.push(ChatMessage::user(input.text.clone()));
-
-            // 保存用户消息到会话管理器
-            if let Some(ref conv_arc) = conversation_manager {
-                let mut conv = conv_arc.lock().await;
-                conv.add_user_message(input.text.clone());
-            }
-
-            let tool_defs = tools.definitions();
-            let mut tool_call_records: Vec<ToolCallRecord> = Vec::new();
-            let mut loop_detector = LoopDetector::new(loop_detector_config);
-
-            info!(
-                tool_count = tool_defs.len(),
-                max_steps,
-                "stream_execution.start"
-            );
-
-            for step in 0..max_steps {
-                let mut request = ChatRequest {
-                    messages: messages.clone(),
-                    model: model.clone(),
-                    tools: if !tool_defs.is_empty() { Some(tool_defs.clone()) } else { None },
-                    ..Default::default()
-                };
-                llm_params.apply_to(&mut request);
-
-                let mut assistant_text = String::new();
-                let mut tool_calls: Vec<ToolCall> = Vec::new();
-
-                let mut s = match provider.stream_chat(request) {
-                    Ok(v) => v,
-                    Err(e) => {
-                        let err = AgentError::ProviderError { source: e };
-                        let ev = ChannelEvent::Error(ErrorEvent {
-                            kind: "provider".to_string(),
-                            message: err.to_string(),
-                            data: Some(json!({"step": step})),
-                        });
-                        observer.on_event(ev.clone());
-                        yield ev;
-                        break;
-                    }
-                };
-
-                while let Some(item) = s.next().await {
-                    let chunk = match item {
-                        Ok(v) => v,
-                        Err(e) => {
-                            let err = AgentError::ProviderError { source: e };
-                            let ev = ChannelEvent::Error(ErrorEvent {
-                                kind: "provider".to_string(),
-                                message: err.to_string(),
-                                data: Some(json!({"step": step})),
-                            });
-                            observer.on_event(ev.clone());
-                            yield ev;
-                            break;
-                        }
-                    };
-
-                    if let Some(delta) = chunk.delta {
-                        assistant_text.push_str(&delta);
-                        let ev = ChannelEvent::TokenDelta(TokenDeltaEvent { delta });
-                        observer.on_event(ev.clone());
-                        yield ev;
-                    }
-
-                    if !chunk.tool_calls.is_empty() {
-                        tool_calls.extend(chunk.tool_calls);
-                    }
-                }
-
-                let assistant_msg = if !tool_calls.is_empty() {
-                    ChatMessage::assistant_with_tool_calls(assistant_text, tool_calls.clone())
-                } else {
-                    ChatMessage::assistant(assistant_text)
-                };
-
-                messages.push(assistant_msg.clone());
-                let ev = ChannelEvent::Message(assistant_msg);
-                observer.on_event(ev.clone());
-                yield ev;
-
-                if tool_calls.is_empty() {
-                    // 保存助手回复到会话管理器
-                    if let Some(ref conv_arc) = conversation_manager {
-                        let mut conv = conv_arc.lock().await;
-                        conv.add_assistant_message(
-                            messages.last()
-                                .map(|m| m.content_text().to_string())
-                                .unwrap_or_default()
-                        );
-                        conv.add_tool_call_records(tool_call_records.clone());
-                    }
-                    break;
-                }
-
-                info!(
-                    step,
-                    tool_call_count = tool_calls.len(),
-                    "stream_execution.tool_calls"
-                );
-
-                // 手动实现工具执行（闭包中无法访问 self）
-                let mut results: Vec<(usize, ToolResult)> = Vec::new();
-                for (idx, call) in tool_calls.iter().enumerate() {
-                    let r = execute_tool_call_with_policy_and_observer(
-                        &tools, &policy, &observer, call,
-                    )
-                    .await
-                    .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;
-
-                    let detection = loop_detector.record(&call.name, &call.input, &r.output.to_string());
-                    match detection {
-                        LoopDetectionResult::Ok => {
-                            tool_call_records.push(ToolCallRecord {
-                                name: call.name.clone(),
-                                tool_call_id: r.tool_call_id.clone(),
-                                input: call.input.clone(),
-                                result: r.output.clone(),
-                            });
-                            results.push((idx, r));
-                        }
-                        LoopDetectionResult::Warning(msg) => {
-                            tracing::warn!(tool = %call.name, "{}", msg);
-                            let system_msg = ChatMessage::system(msg);
-                            messages.push(system_msg.clone());
-                            let ev = ChannelEvent::Message(system_msg);
-                            observer.on_event(ev.clone());
-                            yield ev;
-                            results.push((idx, r));
-                        }
-                        LoopDetectionResult::Block(msg) => {
-                            tracing::warn!(tool = %call.name, "{}", msg);
-                            let blocked = ToolResult {
-                                tool_call_id: r.tool_call_id.clone(),
-                                output: Value::String(msg),
-                                ..Default::default()
-                            };
-                            tool_call_records.push(ToolCallRecord {
-                                name: call.name.clone(),
-                                tool_call_id: r.tool_call_id.clone(),
-                                input: call.input.clone(),
-                                result: blocked.output.clone(),
-                            });
-                            results.push((idx, blocked));
-                        }
-                        LoopDetectionResult::Break(msg) => {
-                            tracing::error!(tool = %call.name, "{}", msg);
-                            Err(AgentError::Message(format!("[LoopDetector] {msg}")))?;
-                        }
-                    }
-                }
-
-                for (idx, result) in &results {
-                    let call = &tool_calls[*idx];
-
-                    let ev = ChannelEvent::ToolCall(call.clone());
-                    observer.on_event(ev.clone());
-                    yield ev;
-
-                    let ev = ChannelEvent::ToolResult(result.clone());
-                    observer.on_event(ev.clone());
-                    yield ev;
-
-                    let tool_msg = tool_result_to_message(result, &call.name);
-                    messages.push(tool_msg);
-                }
-            }
-
-            info!("stream_execution.done");
-        };
-
-        Box::pin(stream)
+        // 委托给流式执行引擎（StreamEngine 组件）
+        self.stream_engine().run_stream(input)
     }
 
     /// 高层流式 API：运行并返回拼接后的最终文本。
@@ -1404,24 +1234,22 @@ impl DefaultExecution {
         &self,
         input: AgentInput,
     ) -> Result<String, rucora_core::agent::AgentError> {
-        use futures_util::StreamExt;
-        use rucora_core::channel::types::ChannelEvent;
+        self.stream_engine().run_stream_text(input).await
+    }
 
-        let mut stream = self.run_stream_simple(input);
-        let mut text = String::new();
-
-        while let Some(event) = stream.next().await {
-            match event? {
-                ChannelEvent::TokenDelta(delta) => {
-                    text.push_str(&delta.delta);
-                }
-                ChannelEvent::Error(err) => {
-                    return Err(rucora_core::agent::AgentError::Message(err.message));
-                }
-                _ => {}
-            }
-        }
-
-        Ok(text)
+    /// 构建流式执行引擎（用于委托流式任务）。
+    pub(crate) fn stream_engine(&self) -> crate::agent::stream_engine::StreamEngine {
+        crate::agent::stream_engine::StreamEngine::new(
+            self.provider.clone(),
+            self.model.clone(),
+            self.system_prompt.clone(),
+            self.tools.clone(),
+            self.policy.clone(),
+            self.observer.clone(),
+            self.max_steps,
+            self.conversation_manager.clone(),
+            self.loop_detector_config.clone(),
+            self.llm_params.clone(),
+        )
     }
 }

@@ -8,7 +8,7 @@ use futures_util::stream::BoxStream;
 use rucora::provider::{ResilientProvider, RetryConfig};
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, LlmParams};
 
 // ====== 基础工具 ======
 
@@ -18,16 +18,8 @@ fn make_request(content: &str) -> ChatRequest {
         messages: vec![ChatMessage::user(content)],
         model: None,
         tools: None,
-        temperature: None,
-        max_tokens: None,
-        response_format: None,
+        params: LlmParams::default(),
         metadata: None,
-        top_p: None,
-        top_k: None,
-        frequency_penalty: None,
-        presence_penalty: None,
-        stop: None,
-        extra: None,
     }
 }
 

@@ -31,32 +31,32 @@ pub(crate) async fn validate_public_http_url(
     blocked_domains: Option<&[String]>,
 ) -> Result<(), ToolError> {
     let parsed =
-        url::Url::parse(url).map_err(|e| ToolError::Message(format!("无效的 URL: {e}")))?;
+        url::Url::parse(url).map_err(|e| ToolError::Message { message: format!("无效的 URL: {e}"), source: None })?;
 
     let scheme = parsed.scheme().to_lowercase();
     if scheme != "http" && scheme != "https" {
-        return Err(ToolError::Message(format!(
+        return Err(ToolError::Message { message: format!(
             "不支持的协议：{scheme}（仅支持 http/https）"
-        )));
+        ), source: None });
     }
 
     let host = parsed
         .host_str()
-        .ok_or_else(|| ToolError::Message("URL 缺少主机名".to_string()))?;
+        .ok_or_else(|| ToolError::message("URL 缺少主机名".to_string()))?;
     let host_lower = host.to_lowercase();
 
     if host_lower == "localhost"
         || host_lower.ends_with(".localhost")
         || host_lower.ends_with(".local")
     {
-        return Err(ToolError::Message(format!("禁止访问本地资源：{host}")));
+        return Err(ToolError::Message { message: format!("禁止访问本地资源：{host}"), source: None });
     }
 
     if let Some(blocked) = blocked_domains {
         for domain in blocked {
             let domain = domain.to_lowercase();
             if host_lower == domain || host_lower.ends_with(&format!(".{domain}")) {
-                return Err(ToolError::Message(format!("域名 {host} 在黑名单中")));
+                return Err(ToolError::Message { message: format!("域名 {host} 在黑名单中"), source: None });
             }
         }
     }
@@ -67,28 +67,28 @@ pub(crate) async fn validate_public_http_url(
             host_lower == domain || host_lower.ends_with(&format!(".{domain}"))
         });
         if !is_allowed {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "域名 {host} 不在白名单中（允许的域名：{allowed:?}）"
-            )));
+            ), source: None });
         }
     }
 
     if let Ok(ip) = host.parse::<IpAddr>()
         && is_forbidden_ip(ip)
     {
-        return Err(ToolError::Message(format!("禁止访问内网资源：{host}")));
+        return Err(ToolError::Message { message: format!("禁止访问内网资源：{host}"), source: None });
     }
 
     let port = parsed.port_or_known_default().unwrap_or(80);
     let addrs = tokio::net::lookup_host((host, port))
         .await
-        .map_err(|e| ToolError::Message(format!("解析主机失败：{e}")))?;
+        .map_err(|e| ToolError::Message { message: format!("解析主机失败：{e}"), source: None })?;
 
     for addr in addrs {
         if is_forbidden_ip(addr.ip()) {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "禁止访问解析到内网地址的主机：{host}"
-            )));
+            ), source: None });
         }
     }
 

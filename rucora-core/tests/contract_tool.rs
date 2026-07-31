@@ -25,7 +25,7 @@ impl Tool for EchoTool {
         let text = input
             .get("text")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("missing field: text".to_string()))?;
+            .ok_or_else(|| ToolError::message("missing field: text".to_string()))?;
         Ok(json!({"success": true, "output": text}))
     }
 }
@@ -46,7 +46,7 @@ async fn tool_contract_call_should_return_json_value_or_tool_error() {
 
     let err = t.call(json!({}), &ctx).await.unwrap_err();
     match err {
-        ToolError::Message(msg) => assert!(msg.contains("text")),
+        ToolError::Message { message: msg, source: None } => assert!(msg.contains("text")),
         _ => panic!("unexpected ToolError variant"),
     }
 }

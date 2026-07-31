@@ -20,7 +20,7 @@ all = ["openai", "ollama"]
 [dependencies]
 rucora-core.workspace = true
 async-trait = "0.1"
-reqwest = { version = "0.13", features = ["json"] }
+reqwest = { workspace = true }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 tracing = "0.1"

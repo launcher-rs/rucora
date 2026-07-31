@@ -272,9 +272,7 @@ where
         match step {
             0 if total <= 1 => {
                 debug!("单块模式，直接发送摘要请求");
-                AgentDecision::Chat {
-                    request: Box::new(self.build_single_request(text)),
-                }
+                AgentDecision::chat(self.build_single_request(text))
             }
             0 => {
                 debug!(
@@ -309,10 +307,7 @@ where
                         request
                     })
                     .collect();
-                AgentDecision::MapAll {
-                    requests,
-                    max_concurrency: self.max_concurrency,
-                }
+                AgentDecision::map_all(requests, self.max_concurrency)
             }
             1 if total > 1 => {
                 let summaries = self.extract_chunk_summaries(context);
@@ -330,9 +325,7 @@ where
                     "多块模式，进入合并阶段（{} 个局部摘要）",
                     total
                 );
-                AgentDecision::Reduce {
-                    request: Box::new(self.build_multi_request(context, content)),
-                }
+                AgentDecision::reduce(self.build_multi_request(context, content))
             }
             _ => {
                 debug!("步骤 {}，返回最终结果", step);
@@ -750,7 +743,6 @@ impl<P> Default for SummaryAgentBuilder<P> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

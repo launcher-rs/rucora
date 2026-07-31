@@ -387,7 +387,7 @@ impl Tool for McpTool {
             .client
             .call_tool(self.spec.name.as_ref(), input)
             .await
-            .map_err(ToolError::Message)?;
+            .map_err(ToolError::message)?;
 
         // 优先返回结构化内容
         if let Some(v) = result.structured_content {

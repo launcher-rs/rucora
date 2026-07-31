@@ -48,10 +48,10 @@ impl BrowseTool {
         };
 
         let mut readability = Readability::new(content, None, Some(cfg))
-            .map_err(|e| ToolError::Message(e.to_string()))?;
+            .map_err(|e| ToolError::Message { message: e.to_string(), source: None })?;
         let article = readability
             .parse()
-            .map_err(|e| ToolError::Message(e.to_string()))?;
+            .map_err(|e| ToolError::Message { message: e.to_string(), source: None })?;
 
         let title = article.title.trim().to_string();
         let mut text = article.text_content.to_string();
@@ -78,22 +78,22 @@ impl BrowseTool {
             .timeout(Duration::from_millis(timeout_ms))
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("HTTP 客户端创建失败: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("HTTP 客户端创建失败: {e}"), source: None })?;
 
         let resp = client
             .get(url)
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("请求失败: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("请求失败: {e}"), source: None })?;
 
         let status = resp.status();
         let text = resp
             .text()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应体失败: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("读取响应体失败: {e}"), source: None })?;
 
         if !status.is_success() {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::message(format!(
                 "HTTP 状态码异常: {}",
                 status.as_u16()
             )));
@@ -134,7 +134,7 @@ impl Tool for BrowseTool {
         let action = input
             .get("action")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'action' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'action' 字段".to_string()))?;
 
         let session = input
             .get("session")
@@ -145,7 +145,7 @@ impl Tool for BrowseTool {
         match action {
             "navigate" => {
                 let url = input.get("url").and_then(|v| v.as_str()).ok_or_else(|| {
-                    ToolError::Message("navigate 缺少必需的 'url' 字段".to_string())
+                    ToolError::message("navigate 缺少必需的 'url' 字段".to_string())
                 })?;
 
                 let timeout_ms = input
@@ -176,7 +176,7 @@ impl Tool for BrowseTool {
                 let mut sessions = self
                     .sessions
                     .lock()
-                    .map_err(|_| ToolError::Message("browse session lock poisoned".to_string()))?;
+                    .map_err(|_| ToolError::message("browse session lock poisoned".to_string()))?;
                 let ent = sessions.entry(session.clone()).or_default();
                 ent.url = Some(url.to_string());
                 ent.content = Some(extracted);
@@ -203,7 +203,7 @@ impl Tool for BrowseTool {
                 let sessions = self
                     .sessions
                     .lock()
-                    .map_err(|_| ToolError::Message("browse session lock poisoned".to_string()))?;
+                    .map_err(|_| ToolError::message("browse session lock poisoned".to_string()))?;
                 let ent = sessions.get(&session);
                 let content = ent.and_then(|s| s.content.clone()).unwrap_or_default();
                 let raw_html = ent.and_then(|s| s.raw_html.clone()).unwrap_or_default();
@@ -248,11 +248,11 @@ impl Tool for BrowseTool {
                 let mut sessions = self
                     .sessions
                     .lock()
-                    .map_err(|_| ToolError::Message("browse session lock poisoned".to_string()))?;
+                    .map_err(|_| ToolError::message("browse session lock poisoned".to_string()))?;
                 sessions.remove(&session);
                 Ok(json!({"success": true}))
             }
-            other => Err(ToolError::Message(format!("未知 action: {other}"))),
+            other => Err(ToolError::Message { message: format!("未知 action: {other}"), source: None }),
         }
     }
 }
@@ -274,15 +274,15 @@ impl BrowserOpenTool {
         let url = url.trim();
 
         if url.is_empty() {
-            return Err(ToolError::Message("URL 不能为空".to_string()));
+            return Err(ToolError::message("URL 不能为空".to_string()));
         }
 
         if url.chars().any(char::is_whitespace) {
-            return Err(ToolError::Message("URL 不能包含空白字符".to_string()));
+            return Err(ToolError::message("URL 不能包含空白字符".to_string()));
         }
 
         if !url.starts_with("https://") {
-            return Err(ToolError::Message("只允许 https:// URL".to_string()));
+            return Err(ToolError::message("只允许 https:// URL".to_string()));
         }
 
         // 检查是否为本地或私有地址
@@ -298,7 +298,7 @@ impl BrowserOpenTool {
             || host.starts_with("10.")
             || host.starts_with("172.")
         {
-            return Err(ToolError::Message(format!("阻止访问本地/私有主机: {host}")));
+            return Err(ToolError::Message { message: format!("阻止访问本地/私有主机: {host}"), source: None });
         }
 
         Ok(url.to_string())
@@ -342,7 +342,7 @@ impl Tool for BrowserOpenTool {
         let url = input
             .get("url")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'url' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'url' 字段".to_string()))?;
 
         // 验证 URL
         let validated_url = self.validate_url(url)?;
@@ -353,7 +353,7 @@ impl Tool for BrowserOpenTool {
             tokio::process::Command::new("cmd")
                 .args(["/C", "start", "", &validated_url])
                 .spawn()
-                .map_err(|e| ToolError::Message(format!("打开浏览器失败: {e}")))?;
+                .map_err(|e| ToolError::Message { message: format!("打开浏览器失败: {e}"), source: None })?;
         }
 
         #[cfg(target_os = "macos")]
@@ -361,7 +361,7 @@ impl Tool for BrowserOpenTool {
             tokio::process::Command::new("open")
                 .arg(&validated_url)
                 .spawn()
-                .map_err(|e| ToolError::Message(format!("打开浏览器失败: {}", e)))?;
+                .map_err(|e| ToolError::Message { message: format!("打开浏览器失败: {}", e), source: None })?;
         }
 
         #[cfg(target_os = "linux")]
@@ -369,7 +369,7 @@ impl Tool for BrowserOpenTool {
             tokio::process::Command::new("xdg-open")
                 .arg(&validated_url)
                 .spawn()
-                .map_err(|e| ToolError::Message(format!("打开浏览器失败: {}", e)))?;
+                .map_err(|e| ToolError::Message { message: format!("打开浏览器失败: {}", e), source: None })?;
         }
 
         Ok(json!({

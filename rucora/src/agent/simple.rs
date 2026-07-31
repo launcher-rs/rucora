@@ -69,14 +69,12 @@ where
 {
     async fn think(&self, context: &AgentContext) -> AgentDecision {
         // 简单策略：直接让 LLM 回答，不调用工具
-        AgentDecision::Chat {
-            request: Box::new({
-                let mut request = context.default_chat_request_with(&self.llm_params);
-                request.model = self.model.clone();
-                request.tools = None; // 不使用工具
-                request
-            }),
-        }
+        AgentDecision::chat({
+            let mut request = context.default_chat_request_with(&self.llm_params);
+            request.model = self.model.clone();
+            request.tools = None; // 不使用工具
+            request
+        })
     }
 
     fn name(&self) -> &str {
@@ -301,7 +299,6 @@ impl<P> Default for SimpleAgentBuilder<P> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

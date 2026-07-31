@@ -87,15 +87,11 @@ where
         // 检查是否有工具调用结果需要处理
         if !context.tool_results.is_empty() {
             // 有工具结果，让 LLM 生成最终回复
-            return AgentDecision::Chat {
-                request: Box::new(self._build_chat_request(context)),
-            };
+            return AgentDecision::chat(self._build_chat_request(context));
         }
 
         // 默认：让 LLM 决定是否调用工具
-        AgentDecision::Chat {
-            request: Box::new(self._build_chat_request_with_tools(context)),
-        }
+        AgentDecision::chat(self._build_chat_request_with_tools(context))
     }
 
     fn name(&self) -> &str {
@@ -471,7 +467,6 @@ impl<P> Default for ToolAgentBuilder<P> {
 }
 
 #[cfg(test)]
-#[allow(deprecated)]
 mod tests {
     use super::*;
     use rucora_core::test_utils::MockProvider;

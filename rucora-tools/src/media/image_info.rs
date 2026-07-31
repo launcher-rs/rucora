@@ -195,28 +195,28 @@ impl Tool for ImageInfoTool {
         let path_str = input
             .get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少 'path' 参数".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少 'path' 参数".to_string()))?;
 
         let path = Path::new(path_str);
 
         // 检查文件是否存在
         if !path.exists() {
-            return Err(ToolError::Message(format!("文件不存在: {path_str}")));
+            return Err(ToolError::Message { message: format!("文件不存在: {path_str}"), source: None });
         }
 
         if !path.is_file() {
-            return Err(ToolError::Message(format!("路径不是文件: {path_str}")));
+            return Err(ToolError::Message { message: format!("路径不是文件: {path_str}"), source: None });
         }
 
         // 获取文件元数据
         let metadata = std::fs::metadata(path)
-            .map_err(|e| ToolError::Message(format!("无法读取文件: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("无法读取文件: {e}"), source: None })?;
 
         let file_size = metadata.len();
 
         // 检查文件大小
         if file_size > MAX_IMAGE_BYTES {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::message(format!(
                 "文件过大 ({file_size} > {MAX_IMAGE_BYTES} bytes)"
             )));
         }
@@ -225,9 +225,9 @@ impl Tool for ImageInfoTool {
         let mut header = vec![0u8; 1024.min(file_size as usize)];
         use std::io::Read;
         let mut file = std::fs::File::open(path)
-            .map_err(|e| ToolError::Message(format!("无法打开文件: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("无法打开文件: {e}"), source: None })?;
         file.read_exact(&mut header)
-            .map_err(|e| ToolError::Message(format!("无法读取文件: {e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("无法读取文件: {e}"), source: None })?;
 
         // 检测格式
         let format = Self::detect_format(&header);

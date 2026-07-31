@@ -56,14 +56,14 @@ async fn calculator(a: f64, b: f64, operation: String) -> Result<Value, ToolErro
         "mul" | "*" => a * b,
         "div" | "/" => {
             if b == 0.0 {
-                return Err(ToolError::Message("除数不能为零".to_string()));
+                return Err(ToolError::message("除数不能为零".to_string()));
             }
             a / b
         }
         _ => {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "不支持的运算：{operation}，支持 add/sub/mul/div"
-            )));
+            ), source: None });
         }
     };
     Ok(json!({
@@ -148,7 +148,7 @@ impl rucora_core::tool::Tool for DangerTool {
     ) -> Result<Value, ToolError> {
         let confirm = input["confirm"].as_bool().unwrap_or(false);
         if !confirm {
-            return Err(ToolError::Message("未确认删除操作".to_string()));
+            return Err(ToolError::message("未确认删除操作".to_string()));
         }
         // 仅示例，不真正删除
         Ok(json!({ "status": "simulated", "message": "已模拟删除操作" }))

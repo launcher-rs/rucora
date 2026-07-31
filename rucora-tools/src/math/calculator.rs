@@ -343,14 +343,14 @@ impl Tool for CalculatorTool {
         let function = input
             .get("function")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少 'function' 参数".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少 'function' 参数".to_string()))?;
 
         match self.calculate(function, &input) {
             Ok(result) => Ok(json!({
                 "result": result,
                 "function": function
             })),
-            Err(e) => Err(ToolError::Message(e)),
+            Err(e) => Err(ToolError::Message { message: e, source: None }),
         }
     }
 }

@@ -421,7 +421,7 @@ impl LlmProvider for GeminiProvider {
         {
             map.insert("topK".to_string(), json!(v));
         }
-        if let Some(stop) = request.stop
+        if let Some(stop) = request.params.stop.as_ref()
             && !stop.is_empty()
             && let Some(map) = generation_config.as_object_mut()
         {
@@ -591,7 +591,7 @@ impl LlmProvider for GeminiProvider {
         {
             map.insert("topK".to_string(), json!(v));
         }
-        if let Some(stop) = request.stop
+        if let Some(stop) = request.params.stop.as_ref()
             && !stop.is_empty()
             && let Some(map) = generation_config.as_object_mut()
         {

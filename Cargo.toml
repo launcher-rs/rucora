@@ -43,6 +43,10 @@ rucora-retrieval = { path = "rucora-retrieval", version = "0.4.0" }
 rucora-tools = { path = "rucora-tools", version = "0.4.0" }
 rucora-skills = { path = "rucora-skills", version = "0.4.0" }
 
+# ===== 共享第三方依赖 =====
+# 在工作区中统一锁定第三方依赖版本，下游 crate 通过 `{ workspace = true }` 引用
+reqwest = { version = "0.13", features = ["json", "stream", "query", "gzip", "brotli", "deflate", "zstd"] }
+
 # ===== Workspace 级别的 Lint 配置 =====
 # 这些配置将应用于 workspace 中的所有 crate
 

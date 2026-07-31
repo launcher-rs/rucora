@@ -22,6 +22,7 @@ use async_trait::async_trait;
 use futures_util::stream::BoxStream;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use std::sync::Arc;
 
 use crate::channel::types::ChannelEvent;
 use crate::provider::types::ChatRequest;
@@ -29,32 +30,44 @@ use crate::provider::types::ChatRequest;
 /// Agent 决策结果。
 ///
 /// Agent 通过 `think()` 方法返回决策，Runtime 或其他执行器负责执行。
-#[derive(Debug, Clone)]
-pub enum AgentDecision {
-    /// 调用 LLM 进行对话。
-    Chat {
-        /// 对话请求。
-        request: Box<ChatRequest>,
-    },
+/// 对话执行模式。
+///
+/// `MapAll` 和 `Reduce` 本质上都是 `Chat` 的变体（需要调用 LLM），
+/// 通过此枚举区分执行方式，减少 `AgentDecision` 的枚举复杂度。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ChatMode {
+    /// 单次对话（默认）。
+    Single,
     /// 并行处理多个对话请求（Map 阶段）。
     ///
     /// 所有请求会按 `max_concurrency` 限制并发执行，
     /// 结果追加到消息历史后继续循环。
-    MapAll {
-        /// 对话请求列表。
-        requests: Vec<ChatRequest>,
-        /// 最大并发数。
-        max_concurrency: usize,
-    },
-    /// 执行归约对话（Reduce 阶段）。
+    MapAll,
+    /// 归约对话（Reduce 阶段）。
     ///
     /// 处理单个 ChatRequest 后返回最终结果。
-    Reduce {
-        /// 对话请求。
-        request: Box<ChatRequest>,
+    Reduce,
+}
+
+#[derive(Debug, Clone)]
+pub enum AgentDecision {
+    /// 调用 LLM 进行对话。
+    Chat {
+        /// 对话请求列表。
+        ///
+        /// `Single`/`Reduce` 模式为一个请求，`MapAll` 模式为多个请求。
+        requests: Vec<ChatRequest>,
+        /// 最大并发数（仅 `MapAll` 模式使用）。
+        max_concurrency: usize,
+        /// 对话执行模式。
+        mode: ChatMode,
     },
     /// 调用工具。
     ToolCall {
+        /// 工具调用 ID。
+        ///
+        /// 与 `ToolCall.id` 一致，用于关联调用与结果。
+        tool_call_id: String,
         /// 工具名称。
         name: String,
         /// 工具输入参数。
@@ -66,6 +79,35 @@ pub enum AgentDecision {
     ThinkAgain,
     /// 停止执行。
     Stop,
+}
+
+impl AgentDecision {
+    /// 创建单次对话决策。
+    pub fn chat(request: ChatRequest) -> Self {
+        Self::Chat {
+            requests: vec![request],
+            max_concurrency: 1,
+            mode: ChatMode::Single,
+        }
+    }
+
+    /// 创建 Map 阶段决策（并发执行多个对话请求）。
+    pub fn map_all(requests: Vec<ChatRequest>, max_concurrency: usize) -> Self {
+        Self::Chat {
+            requests,
+            max_concurrency,
+            mode: ChatMode::MapAll,
+        }
+    }
+
+    /// 创建 Reduce 阶段决策（处理单个请求后返回最终结果）。
+    pub fn reduce(request: ChatRequest) -> Self {
+        Self::Chat {
+            requests: vec![request],
+            max_concurrency: 1,
+            mode: ChatMode::Reduce,
+        }
+    }
 }
 
 /// Agent 上下文。
@@ -116,16 +158,8 @@ impl AgentContext {
             messages: self.messages.clone(),
             model: None,
             tools: None,
-            temperature: None,
-            max_tokens: None,
-            response_format: None,
+            params: crate::provider::types::LlmParams::default(),
             metadata: None,
-            top_p: None,
-            top_k: None,
-            frequency_penalty: None,
-            presence_penalty: None,
-            stop: None,
-            extra: None,
         }
     }
 
@@ -480,15 +514,15 @@ pub struct ToolCallRecord {
 ///
 /// ## 使用方式
 ///
-/// ```rust,no_run
-/// use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+/// ```rust
+/// use rucora_core::agent::{Agent, AgentContext, AgentDecision};
 /// use async_trait::async_trait;
 ///
 /// struct MyAgent;
 ///
 /// #[async_trait]
 /// impl Agent for MyAgent {
-///     async fn think(&self, context: &AgentContext) -> AgentDecision {
+///     async fn think(&self, _context: &AgentContext) -> AgentDecision {
 ///         // 自定义决策逻辑
 ///         AgentDecision::Return(serde_json::json!({"content": "Hello"}))
 ///     }
@@ -535,40 +569,61 @@ pub trait Agent: Send + Sync {
 
     /// 运行 Agent（非流式）。
     ///
-    /// 默认实现适用于简单场景（直接返回结果）。
-    /// 需要工具调用等复杂能力的 Agent 应该使用 `run_with()` 方法配合 `AgentExecutor`。
+    /// 此默认实现仅适用于**纯推理 Agent**（无需 LLM 调用和工具调用，例如自定义的
+    /// 决策型 Agent）。需要 LLM 对话、工具执行或流式输出的 Agent 请使用
+    /// `run_with(executor, input)` 或 `run_stream()`。
     ///
     /// # 默认行为
     ///
-    /// 默认实现会循环调用 `think()` 直到返回 `Return` 或 `Stop`。
-    /// 如果返回 `Chat` 或 `ToolCall`，会返回错误（需要 Runtime 支持）。
+    /// 默认实现会循环调用 `think()` 直到返回 `Return` 或 `Stop`，并受
+    /// `AgentContext.max_steps`（默认 20）限制。
+    ///
+    /// 如果 `think()` 返回 `Chat`（含 `MapAll`/`Reduce` 模式）或 `ToolCall`，
+    /// 则返回 `AgentError::RequiresRuntime`——这些决策需要执行器（LLM 调用、
+    /// 工具执行）支持，请改用 `run_with(executor, input)`。
     ///
     /// # 何时使用默认 `run()` vs `run_with()`
     ///
-    /// - **纯推理 Agent**（无需工具调用）：直接使用 `run()` 即可，例如 ReAct Agent 的思考部分。
-    /// - **需要工具调用的 Agent**：使用 `run_with(executor, input)`，传入一个 `AgentExecutor` 实现（如 `DefaultExecution`）。
+    /// - **纯推理 Agent**（无需 LLM/工具调用）：直接使用 `run()` 即可。
+    /// - **需要工具调用或 LLM 的 Agent**：使用 `run_with(executor, input)`，传入一个
+    ///   `AgentExecutor` 实现（如 `DefaultExecution`）。
     /// - **需要流式输出的 Agent**：使用 `run_stream()` 或 `run_with().run_stream()`。
     ///
     /// # 示例
     ///
-    /// ## 简单推理 Agent（无需工具）
-    /// ```rust,ignore
-    /// use rucora_core::agent::{Agent, AgentInput};
+    /// ## 纯推理 Agent（无 LLM/工具调用）
+    /// ```rust
+    /// use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
+    /// use async_trait::async_trait;
     ///
-    /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
-    /// let output = agent.run(AgentInput::new("你好")).await?;
-    /// # Ok(())
-    /// # }
+    /// struct EchoAgent;
+    ///
+    /// #[async_trait]
+    /// impl Agent for EchoAgent {
+    ///     async fn think(&self, context: &AgentContext) -> AgentDecision {
+    ///         let value = serde_json::json!({"content": context.input.text()});
+    ///         AgentDecision::Return(value)
+    ///     }
+    ///
+    ///     fn name(&self) -> &str { "echo" }
+    /// }
+    ///
+    /// #[tokio::main(flavor = "current_thread")]
+    /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    ///     let output = EchoAgent.run(AgentInput::new("你好")?).await?;
+    ///     assert_eq!(output.text().unwrap(), "你好");
+    ///     Ok(())
+    /// }
     /// ```
     ///
-    /// ## 带工具执行的 Agent
+    /// ## 需要 LLM/工具执行的 Agent
     /// ```rust,ignore
     /// use rucora::agent::execution::DefaultExecution;
     /// use rucora::agent::ToolAgent;
     /// use rucora_core::agent::{Agent, AgentInput, AgentExecutor};
     ///
     /// # async fn example(agent: &impl Agent, executor: &dyn AgentExecutor) -> Result<(), Box<dyn std::error::Error>> {
-    /// let output = agent.run_with(executor, AgentInput::new("你好")).await?;
+    /// let output = agent.run_with(executor, AgentInput::new("你好")?).await?;
     /// # Ok(())
     /// # }
     /// ```
@@ -605,16 +660,9 @@ pub trait Agent: Send + Sync {
                         });
                     }
                 }
-                AgentDecision::Chat { request: _ } => {
-                    // Chat 决策需要 LLM 调用，请使用 `run_with(executor, input)` 方法
-                    return Err(AgentError::RequiresRuntime);
-                }
-                AgentDecision::MapAll { .. } | AgentDecision::Reduce { .. } => {
-                    // MapAll/Reduce 决策需要执行器支持，请使用 `run_with(executor, input)` 方法
-                    return Err(AgentError::RequiresRuntime);
-                }
-                AgentDecision::ToolCall { .. } => {
-                    // ToolCall 决策需要工具执行，请使用 `run_with(executor, input)` 方法
+                AgentDecision::Chat { .. } | AgentDecision::ToolCall { .. } => {
+                    // 这些决策需要 LLM 调用或工具执行，默认 run() 仅适用于纯推理 Agent。
+                    // 请改用 run_with(executor, input) 或 run_stream()。
                     return Err(AgentError::RequiresRuntime);
                 }
             }
@@ -655,8 +703,11 @@ pub trait Agent: Send + Sync {
 
     /// 并发运行多个独立输入。
     ///
-    /// 默认实现使用 `buffer_unordered` 并发执行所有输入，按输入顺序返回结果。
+    /// 默认实现为每个输入 `tokio::task::spawn` 一个独立任务，可在多核 CPU 上
+    /// 真正并行执行，然后通过 `buffer_unordered` 按完成顺序收集结果。
     /// 适用于翻译、批量问答等场景。
+    ///
+    /// 此方法要求 `Self: 'static`，因此以 `Arc<Self>` 接收者调用。
     ///
     /// # 参数
     ///
@@ -668,7 +719,7 @@ pub trait Agent: Send + Sync {
     /// ```rust,ignore
     /// use rucora_core::agent::{Agent, AgentInput};
     ///
-    /// # async fn example(agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
+    /// # async fn example(agent: std::sync::Arc<impl Agent>) -> Result<(), Box<dyn std::error::Error>> {
     /// let inputs = vec![
     ///     AgentInput::new("Hello")?,
     ///     AgentInput::new("World")?,
@@ -689,18 +740,28 @@ pub trait Agent: Send + Sync {
     /// 需要重试时，使用 `ResilientProvider` 包裹底层 provider 即可，
     /// 无需在 `run_batch` 层额外处理。
     async fn run_batch(
-        &self,
+        self: Arc<Self>,
         inputs: Vec<AgentInput>,
         max_concurrency: usize,
-    ) -> Vec<Result<AgentOutput, AgentError>> {
+    ) -> Vec<Result<AgentOutput, AgentError>>
+    where
+        Self: 'static,
+    {
         use futures_util::StreamExt;
 
-        let results: Vec<_> = futures_util::stream::iter(
-            inputs.into_iter().map(|input| self.run(input)),
-        )
-        .buffer_unordered(max_concurrency)
-        .collect()
-        .await;
+        let tasks = inputs.into_iter().map(|input| {
+            let this = self.clone();
+            tokio::task::spawn(async move { this.run(input).await })
+        });
+        let results: Vec<_> = futures_util::stream::iter(tasks)
+            .buffer_unordered(max_concurrency)
+            .map(|handle| {
+                handle.unwrap_or_else(|join_err| {
+                    Err(AgentError::Message(format!("run_batch 任务执行失败：{join_err}")))
+                })
+            })
+            .collect()
+            .await;
 
         results
     }

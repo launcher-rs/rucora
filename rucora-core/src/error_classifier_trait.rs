@@ -5,7 +5,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::error::ProviderError;
+use crate::error::{DiagnosticError, ProviderError};
 
 /// 失败原因分类
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -154,7 +154,70 @@ pub struct ErrorContext {
 /// 具体实现位于 rucora crate。
 pub trait ErrorClassifier: Send + Sync {
     /// 分类 API 错误
-    fn classify(&self, error: &ProviderError, context: &ErrorContext) -> ClassifiedError;
+    fn classify(&self, error: &ProviderError, context: &ErrorContext) -> ClassifiedError {
+        default_classify(error, context)
+    }
+}
+
+/// 基于 [`ProviderError`] 内建分类的默认分类器。
+///
+/// 通过 [`ErrorCategory`] 与 HTTP 状态码推断失败原因，
+/// 无需实现者编写分类逻辑即可获得基础分类能力。
+#[derive(Debug, Clone, Copy, Default)]
+pub struct DefaultErrorClassifier;
+
+impl ErrorClassifier for DefaultErrorClassifier {
+    fn classify(&self, error: &ProviderError, context: &ErrorContext) -> ClassifiedError {
+        default_classify(error, context)
+    }
+}
+
+/// 默认分类逻辑：根据错误类别与状态码映射到 [`FailoverReason`]。
+fn default_classify(error: &ProviderError, context: &ErrorContext) -> ClassifiedError {
+    let diag = error.diagnostic();
+    let reason = classify_by_category(diag.category, diag.status_code);
+    let status_code = context.status_code.or(diag.status_code);
+    let message = diag.message;
+
+    ClassifiedError {
+        reason,
+        status_code,
+        message,
+        retryable: reason.is_retryable(),
+        should_compress: reason.should_compress(),
+        should_fallback: reason.should_fallback(),
+        should_rotate_credential: reason.should_rotate_credential(),
+    }
+}
+
+/// 将错误类别映射到失败原因。
+fn classify_by_category(category: crate::error::ErrorCategory, status_code: Option<u16>) -> FailoverReason {
+    use crate::error::ErrorCategory;
+
+    match category {
+        ErrorCategory::Network => FailoverReason::Timeout,
+        ErrorCategory::Api => match status_code {
+            Some(401 | 403) => FailoverReason::AuthPermanent,
+            Some(402) => FailoverReason::Billing,
+            Some(413) => FailoverReason::PayloadTooLarge,
+            Some(404) => FailoverReason::ModelNotFound,
+            Some(429) => FailoverReason::RateLimit,
+            Some(5..=599) => FailoverReason::ServerError,
+            _ => FailoverReason::FormatError,
+        },
+        ErrorCategory::Authentication => match status_code {
+            Some(401 | 403) => FailoverReason::AuthPermanent,
+            _ => FailoverReason::Auth,
+        },
+        ErrorCategory::Authorization => FailoverReason::AuthPermanent,
+        ErrorCategory::RateLimit => FailoverReason::RateLimit,
+        ErrorCategory::Timeout => FailoverReason::Timeout,
+        ErrorCategory::Model => FailoverReason::ModelNotFound,
+        ErrorCategory::Policy => FailoverReason::FormatError,
+        ErrorCategory::Configuration => FailoverReason::FormatError,
+        ErrorCategory::Tool => FailoverReason::Unknown,
+        ErrorCategory::Other => FailoverReason::Unknown,
+    }
 }
 
 /// 为 ProviderError 添加分类方法的 trait
@@ -163,6 +226,12 @@ pub trait ErrorClassifier: Send + Sync {
 pub trait ProviderErrorExt {
     /// 使用默认分类器分类错误
     fn classify(&self, context: &ErrorContext) -> ClassifiedError;
+}
+
+impl ProviderErrorExt for ProviderError {
+    fn classify(&self, context: &ErrorContext) -> ClassifiedError {
+        default_classify(self, context)
+    }
 }
 
 #[cfg(test)]
@@ -199,5 +268,46 @@ mod tests {
         );
         assert_eq!(FailoverReason::Timeout.recommended_backoff_ms(), Some(2000));
         assert_eq!(FailoverReason::Billing.recommended_backoff_ms(), None);
+    }
+
+    #[test]
+    fn test_default_classifier_rate_limit() {
+        let classifier = DefaultErrorClassifier;
+        let error = crate::error::ProviderError::rate_limit("限流", None);
+        let classified = classifier.classify(&error, &ErrorContext::default());
+
+        assert_eq!(classified.reason, FailoverReason::RateLimit);
+        assert!(classified.retryable);
+        assert!(classified.should_fallback);
+        assert_eq!(classified.status_code, Some(429));
+    }
+
+    #[test]
+    fn test_default_classifier_auth() {
+        let classifier = DefaultErrorClassifier;
+        let error = crate::error::ProviderError::authentication("无效 API Key");
+        let classified = classifier.classify(&error, &ErrorContext::default());
+
+        // Auth（如 Token 过期）可重试；401/403 会映射为 AuthPermanent
+        assert_eq!(classified.reason, FailoverReason::Auth);
+        assert!(classified.retryable);
+        assert!(classified.should_rotate_credential);
+    }
+
+    #[test]
+    fn test_default_classifier_timeout() {
+        let classifier = DefaultErrorClassifier;
+        let error = crate::error::ProviderError::network("连接超时");
+        let classified = classifier.classify(&error, &ErrorContext::default());
+
+        assert_eq!(classified.reason, FailoverReason::Timeout);
+        assert!(classified.retryable);
+    }
+
+    #[test]
+    fn test_provider_error_ext_classify() {
+        let error = crate::error::ProviderError::rate_limit("限流", None);
+        let classified = error.classify(&ErrorContext::default());
+        assert_eq!(classified.reason, FailoverReason::RateLimit);
     }
 }

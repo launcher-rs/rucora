@@ -99,12 +99,12 @@ impl Tool for FileWriteTool {
         let path_str = input
             .get("path")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'path' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'path' 字段".to_string()))?;
 
         let content = input
             .get("content")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'content' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'content' 字段".to_string()))?;
 
         // 检查内容大小
         self.config.check_file_size(content.len() as u64, "内容")?;
@@ -113,7 +113,7 @@ impl Tool for FileWriteTool {
 
         tokio::fs::write(&path, content)
             .await
-            .map_err(|e| ToolError::Message(format!("写入文件失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("写入文件失败：{e}"), source: None })?;
 
         Ok(json!({
             "path": path_str,

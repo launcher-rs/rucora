@@ -234,7 +234,8 @@ pub use error::{AgentError, ChannelError, MemoryError, ProviderError, SkillError
 
 // 重新导出错误分类器 trait
 pub use error_classifier_trait::{
-    ClassifiedError, ErrorClassifier, ErrorContext, FailoverReason, ProviderErrorExt,
+    ClassifiedError, DefaultErrorClassifier, ErrorClassifier, ErrorContext, FailoverReason,
+    ProviderErrorExt,
 };
 
 // 重新导出注入防护 trait

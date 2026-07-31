@@ -1,0 +1,65 @@
+# Cargo Deny 配置
+#
+# 使用方式：
+#   cargo install cargo-deny
+#   cargo deny check
+#
+# 用于持续检测依赖安全（advisories）、许可证合规（licenses）、
+# 来源可信度（sources）与依赖引用（bans）。
+
+[advisories]
+# 本地补丁数据库的路径（如果配置了 mirrors/vuln db）
+db-path = "~/.cargo/advisory-db"
+# 通过配置文件手动忽略的 advisory ID
+ignore = []
+# 依赖树中未通过审核的 YAML 列表（一般不需要）
+unmaintained = "warn"
+# 标记为已失效（yanked）的依赖处理方式
+yanked = "warn"
+# 通知模式：可以通过消息传递平台通知安全更新
+notice = "deny"
+
+[bans]
+# 禁止多个版本的 crate 同时出现在依赖树中
+multiple-versions = "warn"
+# 特定 crate 的版本限制
+# wildcard = "warn"
+highlight = "all"
+# 允许的特定版本组合覆盖
+# deny = []
+# skip = []
+# skip-tree = []
+
+[licenses]
+# 允许的许可证列表
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Unicode-3.0",
+    "Zlib",
+    "Unlicense",
+    "CC0-1.0",
+    "MPL-2.0",
+    "BSL-1.0",
+    "OpenSSL",
+]
+# 需要明确的许可证（但没有匹配到 SPDX 表达式时的处理）
+unlicensed = "deny"
+# 允许的 COPYRIGHT 字段长度（0 表示不限制）
+copyright = "warn"
+# 按 crate 指定许可证覆盖
+# exceptions = []
+
+[sources]
+# 未知来源的 crate 处理方式（如本地路径依赖）
+unknown-registry = "warn"
+# 未知 Git 仓库来源
+unknown-git = "warn"
+
+[graph]
+# 是否允许多个版本共存（与 bans.multiple-versions 对应）
+# 不单独配置，交由 [bans] 处理

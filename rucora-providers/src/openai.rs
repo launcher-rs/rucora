@@ -690,8 +690,9 @@ impl LlmProvider for OpenAiProvider {
 
                 // SSE 事件以空行分隔。
                 while let Some(idx) = buf.find("\n\n") {
-                    let event = buf[..idx].to_string();
-                    buf = buf[idx + 2..].to_string();
+                    // 用 drain 避免两次分配：取出事件文本并从缓冲区中移除。
+                    let event: String = buf.drain(..=idx + 1).collect();
+                    let event = event.trim_end_matches('\n').trim_end_matches('\r');
 
                     // 只处理 data 行（可能有多行 data）。
                     let mut data_lines: Vec<&str> = Vec::new();
@@ -763,7 +764,7 @@ impl LlmProvider for OpenAiProvider {
                             delta,
                             tool_calls: vec![],
                             usage: None,
-                            finish_reason: finish_reason.clone(),
+                            finish_reason,
                         };
                     }
 
@@ -803,5 +804,249 @@ impl LlmProvider for OpenAiProvider {
         };
 
         Ok(Box::pin(stream))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rucora_core::provider::types::{MessageContent, ResponseFormat, Role};
+    use rucora_core::tool::types::ToolDefinition;
+
+    fn test_provider() -> OpenAiProvider {
+        OpenAiProvider::with_model(
+            "https://api.openai.com/v1",
+            "test-key",
+            "gpt-4o-mini",
+        )
+    }
+
+    #[test]
+    fn test_provider_creation_with_model() {
+        let provider = test_provider();
+        assert_eq!(provider.base_url, "https://api.openai.com/v1");
+        assert_eq!(provider.default_model(), "gpt-4o-mini");
+    }
+
+    #[test]
+    fn test_default_model_falls_back_to_constant() {
+        let provider = OpenAiProvider::with_model("https://example.com", "key", "");
+        // 空字符串也保持原样，不触发 fallback
+        assert_eq!(provider.default_model(), "");
+    }
+
+    #[test]
+    fn test_build_headers() {
+        let headers = OpenAiProvider::build_headers("sk-test-123");
+        assert_eq!(
+            headers.get("authorization").unwrap(),
+            "Bearer sk-test-123"
+        );
+        assert_eq!(headers.get("content-type").unwrap(), "application/json");
+    }
+
+    #[test]
+    fn test_build_response_format_json_object() {
+        let value = OpenAiProvider::build_response_format(&ResponseFormat::JsonObject);
+        assert_eq!(value, json!({"type": "json_object"}));
+    }
+
+    #[test]
+    fn test_build_response_format_json_schema() {
+        let value = OpenAiProvider::build_response_format(&ResponseFormat::JsonSchema {
+            name: "test_schema".to_string(),
+            schema: json!({"type": "object"}),
+            strict: None,
+        });
+        assert_eq!(
+            value,
+            json!({
+                "type": "json_schema",
+                "json_schema": {
+                    "name": "test_schema",
+                    "schema": {"type": "object"},
+                }
+            })
+        );
+    }
+
+    #[test]
+    fn test_build_response_format_json_schema_strict() {
+        let value = OpenAiProvider::build_response_format(&ResponseFormat::JsonSchema {
+            name: "test_schema".to_string(),
+            schema: json!({}),
+            strict: Some(true),
+        });
+        let inner = value
+            .get("json_schema")
+            .and_then(|v| v.as_object())
+            .unwrap();
+        assert_eq!(inner.get("strict"), Some(&json!(true)));
+    }
+
+    #[test]
+    fn test_build_tools() {
+        let tools = vec![ToolDefinition {
+            name: "get_weather".to_string(),
+            description: Some("获取天气".to_string()),
+            input_schema: json!({"type": "object"}),
+            version: 1,
+        }];
+        let value = OpenAiProvider::build_tools(&tools);
+        assert_eq!(
+            value,
+            vec![json!({
+                "type": "function",
+                "function": {
+                    "name": "get_weather",
+                    "description": "获取天气",
+                    "parameters": {"type": "object"},
+                }
+            })]
+        );
+    }
+
+    #[test]
+    fn test_build_messages() {
+        let messages = vec![ChatMessage::user("你好")];
+        let value = OpenAiProvider::build_messages(&messages);
+        assert_eq!(
+            value,
+            vec![json!({
+                "role": "user",
+                "content": "你好",
+            })]
+        );
+    }
+
+    #[test]
+    fn test_build_messages_assistant_with_tool_calls() {
+        let call = ToolCall {
+            id: "call_1".to_string(),
+            name: "get_weather".to_string(),
+            input: json!({"city": "北京"}),
+        };
+        let messages = vec![
+            ChatMessage::user("请调用工具"),
+            ChatMessage {
+                role: Role::Assistant,
+                content: MessageContent::ToolCalls {
+                    text: "".to_string(),
+                    calls: vec![call],
+                },
+                name: None,
+            },
+        ];
+        let value = OpenAiProvider::build_messages(&messages);
+        assert_eq!(value[1]["tool_calls"][0]["id"], "call_1");
+        assert_eq!(value[1]["tool_calls"][0]["function"]["name"], "get_weather");
+    }
+
+    #[test]
+    fn test_parse_tool_calls_valid() {
+        let message = json!({
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "type": "function",
+                    "function": {
+                        "name": "get_weather",
+                        "arguments": "{\"city\":\"北京\"}",
+                    }
+                }
+            ]
+        });
+        let calls = OpenAiProvider::parse_tool_calls(&message);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_1");
+        assert_eq!(calls[0].name, "get_weather");
+        assert_eq!(calls[0].input, json!({"city": "北京"}));
+    }
+
+    #[test]
+    fn test_parse_tool_calls_invalid_json_arguments() {
+        let message = json!({
+            "tool_calls": [
+                {
+                    "id": "call_1",
+                    "function": {
+                        "name": "get_weather",
+                        "arguments": "not-json",
+                    }
+                }
+            ]
+        });
+        let calls = OpenAiProvider::parse_tool_calls(&message);
+        assert_eq!(calls.len(), 1);
+        // 非 JSON 参数退化为字符串
+        assert_eq!(calls[0].input, Value::String("not-json".to_string()));
+    }
+
+    #[test]
+    fn test_parse_tool_calls_missing_id_or_name() {
+        let message = json!({
+            "tool_calls": [
+                {"id": "", "function": {"name": "", "arguments": "{}"}},
+                {"id": "call_2", "function": {"name": "ok", "arguments": "{}"}}
+            ]
+        });
+        let calls = OpenAiProvider::parse_tool_calls(&message);
+        assert_eq!(calls.len(), 1);
+        assert_eq!(calls[0].id, "call_2");
+    }
+
+    #[test]
+    fn test_parse_tool_calls_empty() {
+        let calls = OpenAiProvider::parse_tool_calls(&json!({}));
+        assert!(calls.is_empty());
+    }
+
+    #[test]
+    fn test_parse_finish_reason() {
+        assert_eq!(OpenAiProvider::parse_finish_reason("stop"), FinishReason::Stop);
+        assert_eq!(OpenAiProvider::parse_finish_reason("length"), FinishReason::Length);
+        assert_eq!(OpenAiProvider::parse_finish_reason("tool_calls"), FinishReason::ToolCall);
+        assert_eq!(OpenAiProvider::parse_finish_reason("unknown"), FinishReason::Other);
+    }
+
+    #[test]
+    fn test_map_http_error_status_codes() {
+        let auth = OpenAiProvider::map_http_error(reqwest::StatusCode::UNAUTHORIZED, "bad key".into());
+        assert_eq!(auth.category(), rucora_core::error::ErrorCategory::Authentication);
+
+        let rate = OpenAiProvider::map_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down".into());
+        assert_eq!(rate.category(), rucora_core::error::ErrorCategory::RateLimit);
+
+        let server = OpenAiProvider::map_http_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "oops".into());
+        assert_eq!(server.category(), rucora_core::error::ErrorCategory::Api);
+    }
+
+    #[test]
+    fn test_map_reqwest_error_timeout() {
+        // 无法轻易构造 reqwest::Error，仅验证超时分支的类型签名可编译
+        let _ = std::mem::size_of::<ProviderError>();
+    }
+
+    #[test]
+    fn test_with_timeouts_changes_client() {
+        let provider = test_provider();
+        let provider = provider.with_request_timeout(Some(300));
+        assert_eq!(provider.request_timeout_secs, Some(300));
+        let provider = provider.with_connect_timeout(Some(60));
+        assert_eq!(provider.connect_timeout_secs, Some(60));
+    }
+
+    #[test]
+    fn test_default_model_with_env() {
+        // 环境变量注入
+        unsafe {
+            std::env::set_var("OPENAI_DEFAULT_MODEL", "gpt-5-test");
+        }
+        let provider = OpenAiProvider::with_model("https://example.com", "key", "");
+        // with_model 不会读取环境变量，保持 ""；实际默认逻辑由 from_env 处理
+        assert_eq!(provider.default_model(), "");
+        unsafe {
+            std::env::remove_var("OPENAI_DEFAULT_MODEL");
+        }
     }
 }

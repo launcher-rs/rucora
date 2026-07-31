@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use rucora_core::error::ProviderError;
 use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, Role};
+use rucora_core::provider::types::{ChatMessage, ChatRequest, ChatResponse, LlmParams, Role};
 
 struct MockProvider;
 
@@ -32,16 +32,8 @@ async fn provider_contract_chat_should_return_assistant_message() {
         messages: vec![ChatMessage::user("hi")],
         model: None,
         tools: None,
-        temperature: None,
-        max_tokens: None,
-        response_format: None,
+        params: LlmParams::default(),
         metadata: None,
-        top_p: None,
-        top_k: None,
-        frequency_penalty: None,
-        presence_penalty: None,
-        stop: None,
-        extra: None,
     };
 
     let resp = p.chat(req).await.unwrap();
@@ -58,16 +50,8 @@ async fn provider_contract_stream_chat_default_should_error() {
         messages: vec![ChatMessage::user("hi")],
         model: None,
         tools: None,
-        temperature: None,
-        max_tokens: None,
-        response_format: None,
+        params: LlmParams::default(),
         metadata: None,
-        top_p: None,
-        top_k: None,
-        frequency_penalty: None,
-        presence_penalty: None,
-        stop: None,
-        extra: None,
     };
 
     match p.stream_chat(req) {

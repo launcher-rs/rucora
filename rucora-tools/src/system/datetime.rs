@@ -151,9 +151,9 @@ impl DatetimeTool {
     /// 计算两个日期之间的天数。
     pub fn days_between(&self, date1: &str, date2: &str) -> Result<i32, ToolError> {
         let d1 = NaiveDate::parse_from_str(date1, "%Y-%m-%d")
-            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("解析日期失败：{e}"), source: None })?;
         let d2 = NaiveDate::parse_from_str(date2, "%Y-%m-%d")
-            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("解析日期失败：{e}"), source: None })?;
 
         Ok((d2 - d1).num_days() as i32)
     }
@@ -161,7 +161,7 @@ impl DatetimeTool {
     /// 获取指定日期的详细信息。
     pub fn get_date_detail(&self, date: &str) -> Result<String, ToolError> {
         let naive_date = NaiveDate::parse_from_str(date, "%Y-%m-%d")
-            .map_err(|e| ToolError::Message(format!("解析日期失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("解析日期失败：{e}"), source: None })?;
 
         let year = naive_date.year();
         let year_index = ((year - 4) % 60) as usize;
@@ -269,7 +269,7 @@ impl Tool for DatetimeTool {
                 let date = input
                     .get("date")
                     .and_then(|v| v.as_str())
-                    .ok_or_else(|| ToolError::Message("detail 操作需要 date 参数".to_string()))?;
+                    .ok_or_else(|| ToolError::message("detail 操作需要 date 参数".to_string()))?;
                 Ok(json!({
                     "date": date,
                     "detail": self.get_date_detail(date)?
@@ -277,10 +277,10 @@ impl Tool for DatetimeTool {
             }
             "days_between" => {
                 let date1 = input.get("date1").and_then(|v| v.as_str()).ok_or_else(|| {
-                    ToolError::Message("days_between 操作需要 date1 参数".to_string())
+                    ToolError::message("days_between 操作需要 date1 参数".to_string())
                 })?;
                 let date2 = input.get("date2").and_then(|v| v.as_str()).ok_or_else(|| {
-                    ToolError::Message("days_between 操作需要 date2 参数".to_string())
+                    ToolError::message("days_between 操作需要 date2 参数".to_string())
                 })?;
 
                 Ok(json!({
@@ -289,7 +289,7 @@ impl Tool for DatetimeTool {
                     "days": self.days_between(date1, date2)?
                 }))
             }
-            other => Err(ToolError::Message(format!("未知 action：{other}"))),
+            other => Err(ToolError::Message { message: format!("未知 action：{other}"), source: None }),
         }
     }
 }

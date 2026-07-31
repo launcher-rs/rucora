@@ -36,7 +36,7 @@ impl SerpapiTool {
     /// 当 `api_keys` 为空时返回错误，而不是 panic。
     pub fn with_keys(api_keys: Vec<String>) -> Result<Self, ToolError> {
         if api_keys.is_empty() {
-            return Err(ToolError::Message("API Keys 不能为空".to_string()));
+            return Err(ToolError::message("API Keys 不能为空".to_string()));
         }
         Ok(Self { api_keys })
     }
@@ -48,7 +48,7 @@ impl SerpapiTool {
         let api_keys_str = std::env::var("SERPAPI_API_KEYS")
             .or_else(|_| std::env::var("SERPAPI_API_KEY"))
             .map_err(|_| {
-                ToolError::Message("缺少环境变量 SERPAPI_API_KEYS 或 SERPAPI_API_KEY".to_string())
+                ToolError::message("缺少环境变量 SERPAPI_API_KEYS 或 SERPAPI_API_KEY".to_string())
             })?;
 
         let api_keys: Vec<String> = api_keys_str
@@ -58,7 +58,7 @@ impl SerpapiTool {
             .collect();
 
         if api_keys.is_empty() {
-            return Err(ToolError::Message("API Keys 不能为空".to_string()));
+            return Err(ToolError::message("API Keys 不能为空".to_string()));
         }
 
         Ok(Self { api_keys })
@@ -122,7 +122,7 @@ impl Tool for SerpapiTool {
 
     async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let args: SerpapiArgs = serde_json::from_value(input)
-            .map_err(|e| ToolError::Message(format!("解析参数失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("解析参数失败：{e}"), source: None })?;
 
         let config = ExponentialBuilder::default();
         let api_keys = self.api_keys.clone();
@@ -162,17 +162,17 @@ impl Tool for SerpapiTool {
                     .query(&params)
                     .send()
                     .await
-                    .map_err(|e| ToolError::Message(format!("请求失败：{e}")))?;
+                    .map_err(|e| ToolError::Message { message: format!("请求失败：{e}"), source: None })?;
 
                 let search_result: Value = response
                     .json()
                     .await
-                    .map_err(|e| ToolError::Message(format!("解析 JSON 失败：{e}")))?;
+                    .map_err(|e| ToolError::Message { message: format!("解析 JSON 失败：{e}"), source: None })?;
 
                 // 提取有机搜索结果
                 let organic_results = search_result
                     .get("organic_results")
-                    .ok_or_else(|| ToolError::Message("没有搜索结果".to_string()))?;
+                    .ok_or_else(|| ToolError::message("没有搜索结果".to_string()))?;
 
                 Ok(organic_results.clone())
             }
@@ -217,7 +217,7 @@ impl TavilyTool {
     /// 当 `api_keys` 为空时返回错误，而不是 panic。
     pub fn with_keys(api_keys: Vec<String>) -> Result<Self, ToolError> {
         if api_keys.is_empty() {
-            return Err(ToolError::Message("API Keys 不能为空".to_string()));
+            return Err(ToolError::message("API Keys 不能为空".to_string()));
         }
         Ok(Self { api_keys })
     }
@@ -229,7 +229,7 @@ impl TavilyTool {
         let api_keys_str = std::env::var("TAVILY_API_KEYS")
             .or_else(|_| std::env::var("TAVILY_API_KEY"))
             .map_err(|_| {
-                ToolError::Message("缺少环境变量 TAVILY_API_KEYS 或 TAVILY_API_KEY".to_string())
+                ToolError::message("缺少环境变量 TAVILY_API_KEYS 或 TAVILY_API_KEY".to_string())
             })?;
 
         let api_keys: Vec<String> = api_keys_str
@@ -239,7 +239,7 @@ impl TavilyTool {
             .collect();
 
         if api_keys.is_empty() {
-            return Err(ToolError::Message("API Keys 不能为空".to_string()));
+            return Err(ToolError::message("API Keys 不能为空".to_string()));
         }
 
         Ok(Self { api_keys })
@@ -319,7 +319,7 @@ impl Tool for TavilyTool {
 
     async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         let args: TavilyArgs = serde_json::from_value(input)
-            .map_err(|e| ToolError::Message(format!("解析参数失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("解析参数失败：{e}"), source: None })?;
 
         // 选择一个 API Key
         let now = std::time::SystemTime::now()
@@ -345,20 +345,20 @@ impl Tool for TavilyTool {
             .json(&request_body)
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("请求失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("请求失败：{e}"), source: None })?;
 
         if !response.status().is_success() {
             let error_text = response
                 .text()
                 .await
                 .unwrap_or_else(|_| "未知错误".to_string());
-            return Err(ToolError::Message(format!("Tavily API 错误：{error_text}")));
+            return Err(ToolError::Message { message: format!("Tavily API 错误：{error_text}"), source: None });
         }
 
         let search_result: Value = response
             .json()
             .await
-            .map_err(|e| ToolError::Message(format!("解析 JSON 失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("解析 JSON 失败：{e}"), source: None })?;
 
         Ok(json!({
             "success": true,
@@ -406,24 +406,24 @@ impl GithubTrendingTool {
         let client = reqwest::Client::builder()
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")
             .build()
-            .map_err(|e| ToolError::Message(format!("创建 HTTP 客户端失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("创建 HTTP 客户端失败：{e}"), source: None })?;
 
         let resp = client
             .get("https://github.com/trending")
             .send()
             .await
-            .map_err(|e| ToolError::Message(format!("网络请求失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("网络请求失败：{e}"), source: None })?;
 
         let content = resp
             .text()
             .await
-            .map_err(|e| ToolError::Message(format!("读取响应失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("读取响应失败：{e}"), source: None })?;
 
         let document = scraper::Html::parse_document(&content);
 
         // 选择器：每行一个项目
         let row_selector = scraper::Selector::parse(".Box-row")
-            .map_err(|e| ToolError::Message(format!("选择器解析失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("选择器解析失败：{e}"), source: None })?;
 
         let mut results = Vec::new();
 

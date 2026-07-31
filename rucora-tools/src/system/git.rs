@@ -113,16 +113,16 @@ impl GitTool {
 
         // 检查是否在白名单中
         if !ALLOWED_COMMANDS.contains(&cmd_lower.as_str()) {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "不支持的 Git 命令：{command}（允许的命令：{ALLOWED_COMMANDS:?}）"
-            )));
+            ), source: None });
         }
 
         // 检查是否允许写入操作
         if self.is_write_command(&cmd_lower) && !self.allow_write {
-            return Err(ToolError::Message(format!(
+            return Err(ToolError::Message { message: format!(
                 "Git 写入操作已被禁用：{command}"
-            )));
+            ), source: None });
         }
 
         Ok(())
@@ -149,9 +149,9 @@ impl GitTool {
                 .iter()
                 .any(|root| canonical_path.starts_with(root));
             if !is_allowed {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "Git 仓库路径不在允许的范围内（允许的根目录：{allowed_roots:?}）"
-                )));
+                ), source: None });
             }
         }
 
@@ -170,7 +170,7 @@ impl GitTool {
         ];
         for prefix in &forbidden_prefixes {
             if path_str.starts_with(prefix) {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::message(format!(
                     "禁止在系统敏感路径执行 Git 操作：{}",
                     canonical_path.display()
                 )));
@@ -190,9 +190,9 @@ impl GitTool {
             // 检查禁止的参数
             for forbidden in FORBIDDEN_ARGS {
                 if arg_lower.starts_with(&forbidden.to_lowercase()) {
-                    return Err(ToolError::Message(format!(
+                    return Err(ToolError::Message { message: format!(
                         "禁止使用 Git 参数：{arg}（存在安全风险）"
-                    )));
+                    ), source: None });
                 }
             }
 
@@ -208,9 +208,9 @@ impl GitTool {
                 || arg.contains('\n')
                 || arg.contains('\r')
             {
-                return Err(ToolError::Message(format!(
+                return Err(ToolError::Message { message: format!(
                     "参数包含危险字符，可能存在注入风险：{arg}"
-                )));
+                ), source: None });
             }
 
             // 检查路径遍历
@@ -221,7 +221,7 @@ impl GitTool {
                     || arg.contains("/../")
                     || arg.contains("\\..\\")
                 {
-                    return Err(ToolError::Message(format!("参数包含路径遍历：{arg}")));
+                    return Err(ToolError::Message { message: format!("参数包含路径遍历：{arg}"), source: None });
                 }
             }
 
@@ -286,7 +286,7 @@ impl Tool for GitTool {
         let command = input
             .get("command")
             .and_then(|v| v.as_str())
-            .ok_or_else(|| ToolError::Message("缺少必需的 'command' 字段".to_string()))?;
+            .ok_or_else(|| ToolError::message("缺少必需的 'command' 字段".to_string()))?;
 
         // 验证命令
         self.validate_command(command)?;
@@ -322,7 +322,7 @@ impl Tool for GitTool {
             )
             .output()
             .await
-            .map_err(|e| ToolError::Message(format!("Git 命令执行失败：{e}")))?;
+            .map_err(|e| ToolError::Message { message: format!("Git 命令执行失败：{e}"), source: None })?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

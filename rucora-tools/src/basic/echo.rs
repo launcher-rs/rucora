@@ -62,7 +62,7 @@ impl Tool for EchoTool {
     async fn call(&self, input: Value, _context: &ToolContext) -> Result<Value, ToolError> {
         // 验证输入是否包含必需的字段
         if input.get("text").is_none() {
-            return Err(ToolError::Message("缺少必需的 'text' 字段".to_string()));
+            return Err(ToolError::Message { message: "缺少必需的 'text' 字段".to_string(), source: None });
         }
 
         Ok(input)

@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
     info!("开始翻译 {} 条文本（并发 4）\n", inputs.len());
 
     let start = std::time::Instant::now();
-    let results = agent.run_batch(inputs, 4).await;
+    let results = std::sync::Arc::new(agent).run_batch(inputs, 4).await;
     let elapsed = start.elapsed();
 
     info!("翻译完成，耗时 {:.2}s\n", elapsed.as_secs_f64());
