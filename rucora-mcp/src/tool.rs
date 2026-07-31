@@ -82,7 +82,7 @@ use std::{borrow::Cow, sync::Arc};
 use async_trait::async_trait;
 use rmcp::{
     model::{
-        CallToolRequestParams, CallToolResult, InitializeRequestParams, JsonObject, RawContent,
+        CallToolRequestParams, CallToolResult, ContentBlock, InitializeRequestParams, JsonObject,
         Tool as RmcpTool,
     },
     service::{Peer, RoleClient, RunningService},
@@ -397,7 +397,7 @@ impl Tool for McpTool {
         // 拼接文本内容
         let mut text = String::new();
         for c in result.content {
-            if let RawContent::Text(t) = c.raw {
+            if let ContentBlock::Text(t) = c {
                 if !text.is_empty() {
                     text.push('\n');
                 }
