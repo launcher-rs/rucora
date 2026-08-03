@@ -461,7 +461,7 @@ impl DiagnosticError for ToolError {
             ToolError::Timeout { message } => ErrorDiagnostic {
                 kind: "tool".to_string(),
                 message: format!("工具执行超时：{message}"),
-                retriable: false, // 工具超时通常不应该重试
+                retriable: true, // 超时通常由临时性原因引起，可重试（与其他错误类型一致）
                 source: None,
                 category: ErrorCategory::Timeout,
                 status_code: None,

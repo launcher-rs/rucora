@@ -749,6 +749,9 @@ pub trait Agent: Send + Sync {
     {
         use futures_util::StreamExt;
 
+        // buffer_unordered(0) 会 panic，至少并行为 1
+        let max_concurrency = max_concurrency.max(1);
+
         let tasks = inputs.into_iter().map(|input| {
             let this = self.clone();
             tokio::task::spawn(async move { this.run(input).await })

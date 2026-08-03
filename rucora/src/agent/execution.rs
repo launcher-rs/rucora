@@ -12,11 +12,12 @@
 //!
 //! 所有 Agent 类型都可以组合此结构来获得执行能力。
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
 use futures_util::{StreamExt, stream, stream::BoxStream};
 use serde_json::{Value, json};
-use tokio::sync::Mutex;
+use tokio::sync::{Mutex, Semaphore};
 use tracing::{debug, info};
 
 use rucora_core::agent::{
@@ -314,8 +315,6 @@ pub struct DefaultExecution {
     pub(crate) max_steps: usize,
     /// 工具并发执行数
     pub(crate) max_tool_concurrency: usize,
-    /// 是否启用工具日志
-    pub(crate) enable_tool_logging: bool,
     /// 对话管理器（可选）
     pub(crate) conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// 中间件链
@@ -401,7 +400,6 @@ impl DefaultExecution {
             observer: Arc::new(NoopChannelObserver),
             max_steps: 10,
             max_tool_concurrency: 1,
-            enable_tool_logging: true,
             conversation_manager: None,
             middleware_chain: MiddlewareChain::new(),
             enhanced_config: ToolCallEnhancedConfig::default(),
@@ -467,12 +465,6 @@ impl DefaultExecution {
     /// 设置最大工具并发数
     pub fn with_max_tool_concurrency(mut self, max_concurrency: usize) -> Self {
         self.max_tool_concurrency = max_concurrency.max(1);
-        self
-    }
-
-    /// 设置是否启用工具日志
-    pub fn with_tool_logging(mut self, enable_tool_logging: bool) -> Self {
-        self.enable_tool_logging = enable_tool_logging;
         self
     }
 
@@ -1037,6 +1029,9 @@ impl DefaultExecution {
         // 并发执行（细粒度并发：按工具名取并发数）。
         // 循环检测器通过 Arc<Mutex> 共享，在每个并发任务内部执行检测，
         // 避免结果收集后串行检测的瓶颈。
+        // 每个工具一个 Semaphore，实现按工具名设置的独立并发上限。
+        let tool_semaphores: Arc<Mutex<HashMap<String, Arc<Semaphore>>>> =
+            Arc::new(Mutex::new(HashMap::new()));
         let results: Vec<Result<(usize, ToolResult, LoopDetectionResult), AgentError>> =
             stream::iter(calls.iter().cloned().enumerate().map(|(idx, call)| {
                 let tools = self.tools.clone();
@@ -1046,9 +1041,28 @@ impl DefaultExecution {
                 let enhanced_config = self.enhanced_config.clone();
                 let enhanced_runtime = self.enhanced_runtime.clone();
                 let loop_detector = loop_detector.clone();
-                // 细粒度并发：取该工具对应的并发数（这里每个任务独立限流，
-                // 实际并发上限由 buffer_unordered(max) 控制）
+                let concurrency_config = enhanced_config.concurrency.clone();
+                let tool_semaphores = tool_semaphores.clone();
                 async move {
+                    // 获取该工具对应的信号量并按配置限流（permit 持有到任务结束，
+                    // 保证工具执行期间占用的并发额度不被释放）
+                    let _permit = {
+                        let mut map = tool_semaphores.lock().await;
+                        let semaphore = map
+                            .entry(call.name.clone())
+                            .or_insert_with(|| {
+                                Arc::new(Semaphore::new(
+                                    concurrency_config.get_concurrency(&call.name, max),
+                                ))
+                            })
+                            .clone();
+                        semaphore.acquire_owned().await.map_err(|_| {
+                            AgentError::Message(format!(
+                                "工具 {} 的并发信号量已关闭",
+                                call.name
+                            ))
+                        })?
+                    };
                     let r = execute_tool_call_enhanced(
                         &tools,
                         &policy,

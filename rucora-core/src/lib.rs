@@ -70,8 +70,7 @@
 //! - [`skill::Skill`][]: Skill trait
 //!
 //! 相关类型：
-//! - [`skill::types::SkillContext`][]: 技能上下文
-//! - [`skill::types::SkillOutput`][]: 技能输出
+//! - [`skill::SkillContext`][]: 技能上下文
 //!
 //! ## Memory（记忆）
 //!

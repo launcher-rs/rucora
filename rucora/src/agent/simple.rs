@@ -53,8 +53,6 @@ pub struct SimpleAgent<P> {
     provider: Arc<P>,
     /// Agent 级模型覆盖；为空时使用 Provider 默认模型。
     model: Option<String>,
-    /// 系统提示词
-    _system_prompt: Option<String>,
     /// LLM 请求参数
     llm_params: LlmParams,
     /// 执行能力（内聚）
@@ -274,7 +272,6 @@ where
         SimpleAgent {
             provider: provider_arc,
             model: self.model,
-            _system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             execution,
         }

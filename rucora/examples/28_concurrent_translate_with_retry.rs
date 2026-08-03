@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
         .system_prompt("你是翻译助手。将用户输入翻译成中文，只输出翻译结果。")
         .build();
 
-    let texts = vec![
+    let texts = [
         "Hello, how are you?",
         "The weather is nice today.",
         "Artificial intelligence is transforming the world.",

@@ -350,6 +350,14 @@ where
         self.execution.run(self, input).await
     }
 
+    /// 流式运行。
+    ///
+    /// # 注意
+    ///
+    /// 流式路径使用基础流式执行器（`run_stream_simple`），不包含
+    /// 分块-并发摘要-合并的多步编排逻辑，与 `run()` 的行为不同：
+    /// 长文本不会自动分块，而是作为整体单次请求发送。如需
+    /// 分块摘要能力，请使用非流式 `run()`。
     fn run_stream(
         &self,
         input: AgentInput,

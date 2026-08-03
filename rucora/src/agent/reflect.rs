@@ -59,7 +59,7 @@ use crate::conversation::ConversationManager;
 /// - 自我批评、持续改进
 /// - 适合需要高质量输出的任务
 pub struct ReflectAgent<P> {
-    /// LLM Provider
+    /// LLM Provider（持有泛型参数 P）
     _provider: Arc<P>,
     /// Agent 级模型覆盖；为空时使用 Provider 默认模型。
     model: Option<String>,
@@ -71,8 +71,6 @@ pub struct ReflectAgent<P> {
     max_iterations: usize,
     /// 质量阈值（0.0-1.0）
     quality_threshold: f32,
-    /// 对话管理器（可选）
-    _conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// LLM 请求参数
     llm_params: LlmParams,
     /// 执行能力（内聚）
@@ -446,7 +444,7 @@ where
             system_prompt: self.system_prompt.clone(),
             max_steps: self.max_iterations * 2 + 1, // 每次迭代需要 2 步，额外 1 步用于返回最终结果
             max_tool_concurrency: 1,
-            conversation_manager: conversation_manager.clone(),
+            conversation_manager,
             middleware_chain: self.middleware_chain.clone(),
             enhanced_config: crate::agent::tool_call_config::ToolCallEnhancedConfig::default(),
             llm_params: self.llm_params.clone(),
@@ -459,7 +457,6 @@ where
             tools: self.tools,
             max_iterations: self.max_iterations,
             quality_threshold: self.quality_threshold,
-            _conversation_manager: conversation_manager,
             llm_params: self.llm_params,
             execution,
         }

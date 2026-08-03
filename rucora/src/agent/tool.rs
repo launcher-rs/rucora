@@ -67,8 +67,6 @@ pub struct ToolAgent<P> {
     system_prompt: Option<String>,
     /// 工具注册表
     tools: ToolRegistry,
-    /// 最大步骤数
-    _max_steps: usize,
     /// 对话管理器（可选）
     conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
     /// LLM 请求参数
@@ -442,7 +440,6 @@ where
             model: self.model,
             system_prompt: self.system_prompt,
             tools: self.tools,
-            _max_steps: self.max_steps,
             conversation_manager,
             llm_params: self.llm_params,
             execution,

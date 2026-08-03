@@ -1,7 +1,6 @@
 //! Skill（技能）核心定义模块
 
 pub mod skill_trait;
-pub mod types;
 
 pub use skill_trait::Skill;
 

@@ -55,7 +55,7 @@ impl FromStr for RuntimeKey {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().replace(['-', '_', ' '], "") {
-            s if s == "openai" || s == "openai compatible" => Ok(RuntimeKey::OpenAi),
+            s if s == "openai" || s == "openaicompatible" => Ok(RuntimeKey::OpenAi),
             s if s == "anthropic" => Ok(RuntimeKey::Anthropic),
             s if s == "gemini" || s == "google" => Ok(RuntimeKey::Gemini),
             s if s == "deepseek" => Ok(RuntimeKey::DeepSeek),

@@ -309,8 +309,9 @@ impl GeminiProvider {
                         .and_then(|v| v.as_str())
                         .unwrap_or("")
                         .to_string();
-                    // Gemini 使用 name 作为 id
-                    let id = name.clone();
+                    // Gemini API 未提供工具调用 id，这里使用"函数名@序号"生成唯一 id，
+                    // 避免并行/多次调用同一工具时名字冲突导致结果关联失败。
+                    let id = format!("{}@{}", name, out.len());
                     let args = fn_call.get("args").cloned().unwrap_or_else(|| json!({}));
 
                     if !name.is_empty() {
