@@ -4,6 +4,52 @@
 
 ---
 
+## [0.5.0] - 2026-08-03
+
+**破坏性变更（Breaking Changes）**
+- Agent 构建器 `provider` 改为必填参数：`XxxAgent::builder(provider)` / `XxxAgentBuilder::new(provider)`
+- `build()` 不再返回 `Result`，删除 `try_build()`、`.provider()` setter 与 `Default for XxxAgentBuilder`
+- `agent!` 宏返回 Agent（不再需要 `?`），`Extractor` 内部构建同步更新
+- 更新全部 24 个示例/测试与文档注释
+
+**代码审查修复（docs/CODE_REVIEW_OVERALL.md）**
+- P0：流式工具调用解析与历史消息回归（H1/H3/H4/H5/H7/H8）
+- P1：统一 8 个 Provider 错误映射（H6）、工具 SSRF 防护与响应体流式读取（H10）、重写 `#[rucora_guard]` 宏为同步双参数（H9）、技能权限检查与缓存回填（H11）、流式执行引擎透传中间件链与增强配置（H2）
+
+**MCP**
+- 升级 `rmcp` 依赖 1.8 → 3.0，适配破坏性变更
+
+**修复**
+- `ToolRegistry` doctest 命名空间分隔符（`::` → `__`）
+- `DefaultExecution::run` doctest 中 `AgentInput::new` 缺少 `?`
+
+## [0.4.0] - 2026-07-21
+
+**Provider 增强**
+- 所有 8 个 Provider 新增 `with_request_timeout` / `with_connect_timeout` / `with_client`
+- 修复 `elapsed: 0ns` bug（`map_reqwest_error` 改用实际耗时）
+
+**基础设施**
+- 结构化路由：`RouteSelection` + `RuntimeKey`（`FromStr` 解析 + 序列化）
+- `InterruptSignal` 可打断信号（`AtomicBool` + `Notify`）
+- `ToolErrorKind` + `ToolError::kind()` 轻量级错误分类
+
+## [0.3.0] - 2026-07-03
+
+**破坏性变更（Breaking Changes）**
+- Deprecate agent builder `build()`，改用 `try_build()` 处理配置错误
+- `AgentInput` 构造函数改为返回 `Result`
+- 统一 `thiserror` 至 v2；从库依赖中移除 `anyhow`
+
+**修复**
+- 修复 `SummaryAgent::run_stream` 返回空流问题
+- `ReActAgent` 中 `unreachable!()` 改为日志回退
+- 移除重复的 memory 后端（`memory.rs`）
+- 修复 15 个 `rucora-mcp` doctest 及其它历史 doctest
+- 所有示例改用 `try_build().unwrap()`
+
+---
+
 ## [0.2.0] - 2026-06-25
 
 **SummaryAgent 摘要生成 Agent**
