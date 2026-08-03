@@ -29,7 +29,7 @@
 //! ## 实现自定义策略
 //!
 //! ```rust
-//! use rucora_core::retry::{RetryPolicy, RetryAction};
+//! use rucora_core::retry::RetryPolicy;
 //! use std::time::Duration;
 //!
 //! struct MyPolicy;
@@ -46,17 +46,6 @@
 //! ```
 
 use std::time::Duration;
-
-/// 重试动作
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RetryAction {
-    /// 应该重试
-    ShouldRetry(Duration),
-    /// 不应该重试
-    NoRetry,
-    /// 永久失败
-    PermanentFailure,
-}
 
 /// 重试策略 trait
 ///
@@ -155,10 +144,15 @@ impl ExponentialBackoff {
         };
 
         if self.jitter {
-            use std::time::Instant;
-            let now = Instant::now();
-            let nanos = now.elapsed().as_nanos() as f64;
+            // 基于系统时间的纳秒值生成伪随机抖动，避免固定偏移导致的重试风暴
+            use std::time::{SystemTime, UNIX_EPOCH};
+            let nanos = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_or(0.0, |d| d.as_nanos() as f64);
             let jitter_range = delay * 0.2;
+            if jitter_range <= 0.0 {
+                return delay;
+            }
             let jitter = nanos % jitter_range;
             delay - jitter_range / 2.0 + jitter
         } else {

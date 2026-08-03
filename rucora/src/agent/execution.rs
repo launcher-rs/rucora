@@ -622,6 +622,9 @@ impl DefaultExecution {
 
         let mut messages = self.build_messages(&input).await;
         let mut tool_call_records = Vec::new();
+        // 最近一次工具执行的结果，供下一次迭代的 observe 分支消费。
+        // 若为空，Agent 无法感知工具执行完成，observe/最终回复分支将永远不可达。
+        let mut tool_results: Vec<rucora_core::agent::ToolResult> = Vec::new();
         let mut step = 0;
         let mut total_usage: Option<Usage> = None;
         // 循环检测器（防止 Agent 陷入无限重复调用同一工具）。
@@ -652,7 +655,7 @@ impl DefaultExecution {
             let context = AgentContext {
                 input: input.clone(),
                 messages: messages.clone(),
-                tool_results: Vec::new(),
+                tool_results: tool_results.clone(),
                 step,
                 max_steps: self.max_steps,
             };
@@ -772,14 +775,27 @@ impl DefaultExecution {
                             }
 
                             // 4. 执行工具调用
+                            let tool_calls = response.tool_calls();
                             let _tool_results = self
                                 ._execute_tool_calls(
-                                    response.tool_calls(),
+                                    tool_calls,
                                     &mut messages,
                                     &mut tool_call_records,
                                     &loop_detector,
                                 )
                                 .await?;
+                            // 将执行结果转换为 AgentContext 可消费的形式，
+                            // 使下一次迭代的 observe 分支能够感知工具执行完成
+                            tool_results = _tool_results
+                                .iter()
+                                .map(|r| rucora_core::agent::ToolResult {
+                                    tool_name: tool_calls
+                                        .iter()
+                                        .find(|c| c.id == r.tool_call_id)
+                                        .map_or_else(|| "unknown".to_string(), |c| c.name.clone()),
+                                    result: r.output.clone(),
+                                })
+                                .collect();
 
                             step += 1;
                         }
@@ -868,6 +884,7 @@ impl DefaultExecution {
                     input: tool_input,
                 } => {
                     // 直接工具调用
+                    let records_before = tool_call_records.len();
                     self._execute_direct_tool(
                         &tool_call_id,
                         &name,
@@ -877,6 +894,14 @@ impl DefaultExecution {
                         &loop_detector,
                     )
                     .await?;
+                    // 从本次新增的记录中提取工具结果，供 observe 分支消费
+                    tool_results = tool_call_records[records_before..]
+                        .iter()
+                        .map(|r| rucora_core::agent::ToolResult {
+                            tool_name: r.name.clone(),
+                            result: r.result.clone(),
+                        })
+                        .collect();
                     step += 1;
                 }
                 AgentDecision::Return(value) => {

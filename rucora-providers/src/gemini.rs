@@ -207,10 +207,16 @@ impl GeminiProvider {
     }
 
     fn build_system_instruction(messages: &[ChatMessage]) -> Option<String> {
-        messages
+        let system_parts: Vec<&str> = messages
             .iter()
-            .find(|m| m.role == Role::System)
-            .map(|m| m.content_text().to_string())
+            .filter(|m| m.role == Role::System)
+            .map(|m| m.content_text())
+            .collect();
+        if system_parts.is_empty() {
+            None
+        } else {
+            Some(system_parts.join("\n\n"))
+        }
     }
 
     fn build_messages(messages: &[ChatMessage]) -> Vec<Value> {

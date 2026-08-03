@@ -444,7 +444,7 @@ where
             model: self.model.clone(),
             tools: self.tools.clone(),
             system_prompt: self.system_prompt.clone(),
-            max_steps: self.max_iterations * 2, // 每次迭代需要 2 步
+            max_steps: self.max_iterations * 2 + 1, // 每次迭代需要 2 步，额外 1 步用于返回最终结果
             max_tool_concurrency: 1,
             conversation_manager: conversation_manager.clone(),
             middleware_chain: self.middleware_chain.clone(),

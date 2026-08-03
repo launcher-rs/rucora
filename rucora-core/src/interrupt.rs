@@ -1,8 +1,7 @@
 //! 可中断信号 —— 用于工具执行、流式响应的取消控制
 
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use tokio::sync::Notify;
+use tokio::sync::watch;
 
 /// 可中断信号。可安全跨线程共享，用于通知异步任务提前退出。
 ///
@@ -49,18 +48,16 @@ pub struct InterruptSignal {
 
 #[derive(Debug)]
 struct Inner {
-    flag: AtomicBool,
-    notify: Notify,
+    tx: watch::Sender<bool>,
+    rx: watch::Receiver<bool>,
 }
 
 impl InterruptSignal {
     /// 创建新的中断信号。
     pub fn new() -> Self {
+        let (tx, rx) = watch::channel(false);
         Self {
-            inner: Arc::new(Inner {
-                flag: AtomicBool::new(false),
-                notify: Notify::new(),
-            }),
+            inner: Arc::new(Inner { tx, rx }),
         }
     }
 
@@ -75,21 +72,21 @@ impl InterruptSignal {
 
     /// 是否已被中断。
     pub fn interrupted(&self) -> bool {
-        self.inner.flag.load(Ordering::Acquire)
+        *self.inner.rx.borrow()
     }
 
     /// 等待中断信号。
+    ///
+    /// 基于 `watch` 通道实现，从创建等待到检查状态之间无竞态窗口，
+    /// 避免"先检查再等待"（TOCTOU）导致的通知丢失。
     pub async fn wait_for_interrupt(&self) {
-        if self.interrupted() {
-            return;
-        }
-        self.inner.notify.notified().await;
+        let mut rx = self.inner.rx.clone();
+        let _ = rx.wait_for(|v| *v).await;
     }
 
     /// 重置中断状态（允许复用信号）。
     pub fn reset(&self) {
-        self.inner.flag.store(false, Ordering::Release);
-        // 不重置 Notify，因为 Notify 的一次性语义不影响后续使用
+        self.inner.tx.send_replace(false);
     }
 }
 
@@ -118,13 +115,12 @@ pub struct InterruptHandle {
 impl InterruptHandle {
     /// 触发中断。
     pub fn interrupt(&self) {
-        self.inner.flag.store(true, Ordering::Release);
-        self.inner.notify.notify_waiters();
+        self.inner.tx.send_replace(true);
     }
 
     /// 是否已被中断。
     pub fn interrupted(&self) -> bool {
-        self.inner.flag.load(Ordering::Acquire)
+        *self.inner.rx.borrow()
     }
 }
 
