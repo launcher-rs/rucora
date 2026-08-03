@@ -91,8 +91,7 @@ async fn main() -> anyhow::Result<()> {
     info!("4. 创建带 Skills 的 Agent...");
     let provider = OpenAiProvider::from_env()?;
 
-    let agent = ToolAgent::builder()
-        .provider(provider)
+    let agent = ToolAgent::builder(provider)
         .model(&model_name)
         .system_prompt(
             "你是一个有用的助手，可以使用各种技能帮助用户解决问题。\n\
@@ -104,8 +103,7 @@ async fn main() -> anyhow::Result<()> {
         .temperature(0.7)
         .top_p(0.9)
         .max_tokens(2048)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("✓ Agent 创建成功\n");
 

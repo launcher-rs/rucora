@@ -567,7 +567,7 @@ impl DefaultExecution {
     /// use rucora_core::agent::{Agent, AgentInput};
     ///
     /// # async fn example(execution: &DefaultExecution, agent: &dyn Agent) -> Result<(), Box<dyn std::error::Error>> {
-    /// let output = execution.run(agent, AgentInput::new("你好")).await?;
+    /// let output = execution.run(agent, AgentInput::new("你好")?).await?;
     /// # Ok(())
     /// # }
     /// ```

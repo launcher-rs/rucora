@@ -62,8 +62,7 @@
 //! use rucora::agent::ToolAgent;
 //! use rucora::middleware::{MiddlewareChain, LoggingMiddleware, RateLimitMiddleware};
 //!
-//! let agent = ToolAgent::builder()
-//!     .provider(provider)
+//! let agent = ToolAgent::builder(provider)
 //!     .with_middleware_chain(
 //!         MiddlewareChain::new()
 //!             .with(LoggingMiddleware::new())
@@ -78,8 +77,7 @@
 //! use rucora::agent::ToolAgent;
 //! use rucora::middleware::{LoggingMiddleware, CacheMiddleware};
 //!
-//! let agent = ToolAgent::builder()
-//!     .provider(provider)
+//! let agent = ToolAgent::builder(provider)
 //!     .with_middleware(LoggingMiddleware::new())
 //!     .with_middleware(CacheMiddleware::new())
 //!     .build();

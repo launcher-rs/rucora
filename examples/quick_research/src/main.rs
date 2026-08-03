@@ -55,14 +55,13 @@ async fn run_quick_research(provider: &Arc<dyn LlmProvider>, topic: &str) -> Res
 请根据用户的主题进行简要研究，提供清晰的回答并标注信息来源。
 注意：回答要简洁准确，尽量引用可靠的来源。"#;
 
-    let agent = ToolAgent::builder()
-        .provider(provider.clone())
+    let agent = ToolAgent::builder(provider.clone())
         .model("gpt-4o-mini")
         .system_prompt(system_prompt)
         .tool(TavilyTool::from_env()?)
         .tool(DatetimeTool)
         .max_steps(5)
-        .try_build()?;
+        .build();
 
     let query = format!(
         "请帮我研究以下主题 '{}'，提供简要介绍和主要信息来源。",

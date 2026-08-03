@@ -52,8 +52,8 @@
 //! let merged = registry1.merge(registry2);
 //!
 //! // 通过完整名称访问
-//! assert!(merged.get("system::shell").is_some());
-//! assert!(merged.get("file::file_read").is_some());
+//! assert!(merged.get("system__shell").is_some());
+//! assert!(merged.get("file__file_read").is_some());
 //! ```
 //!
 //! ## 按来源过滤
@@ -333,7 +333,7 @@ impl ToolWrapper {
 ///     .register(ShellTool::new());
 ///
 /// // 需要使用完整名称
-/// assert!(registry.get("system::shell").is_some());
+/// assert!(registry.get("system__shell").is_some());
 /// assert!(registry.get("shell").is_none());
 /// ```
 ///
@@ -352,8 +352,8 @@ impl ToolWrapper {
 ///     .register(FileReadTool::new());
 ///
 /// let merged = registry1.merge(registry2);
-/// assert!(merged.get("sys::shell").is_some());
-/// assert!(merged.get("file::file_read").is_some());
+/// assert!(merged.get("sys__shell").is_some());
+/// assert!(merged.get("file__file_read").is_some());
 /// ```
 #[derive(Default)]
 pub struct ToolRegistry {
@@ -409,7 +409,7 @@ impl ToolRegistry {
     ///     .register(ShellTool::new());
     ///
     /// // 工具名称会被添加前缀
-    /// assert!(registry.get("system::shell").is_some());
+    /// assert!(registry.get("system__shell").is_some());
     /// ```
     pub fn with_namespace(mut self, namespace: impl Into<String>) -> Self {
         self.namespace_prefix = Some(namespace.into());
@@ -562,8 +562,8 @@ impl ToolRegistry {
     ///     .register(FileReadTool::new());
     ///
     /// let merged = registry1.merge(registry2);
-    /// assert!(merged.get("sys::shell").is_some());
-    /// assert!(merged.get("file::file_read").is_some());
+    /// assert!(merged.get("sys__shell").is_some());
+    /// assert!(merged.get("file__file_read").is_some());
     /// ```
     pub fn merge(mut self, other: ToolRegistry) -> Self {
         for (name, wrapper) in other.tools {
@@ -736,7 +736,7 @@ impl ToolRegistry {
     ///     .register(ShellTool::new());
     ///
     /// // 可以通过完整名称获取
-    /// assert!(registry.get("sys::shell").is_some());
+    /// assert!(registry.get("sys__shell").is_some());
     /// ```
     pub fn get(&self, name: &str) -> Option<Arc<dyn Tool>> {
         // 先尝试直接查找

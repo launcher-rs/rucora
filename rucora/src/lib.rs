@@ -34,8 +34,7 @@
 //! async fn main() -> anyhow::Result<()> {
 //!     let provider = OpenAiProvider::new("https://api.openai.com/v1","sk-*******************");
 //!     
-//!     let agent = ToolAgent::builder()
-//!         .provider(provider)
+//!     let agent = ToolAgent::builder(provider)
 //!         .model("gpt-4o-mini")
 //!         .system_prompt("你是有用的助手")
 //!         .build();
@@ -62,8 +61,7 @@
 //! ```rust,ignore
 //! use rucora::agent::ToolAgent;
 //!
-//! let agent = ToolAgent::builder()
-//!     .provider(provider)
+//! let agent = ToolAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
 //!     .build();
@@ -79,8 +77,7 @@
 //! use rucora::tools::{ShellTool, FileReadTool};
 //! use rucora::agent::ToolAgent;
 //!
-//! let agent = ToolAgent::builder()
-//!     .provider(provider)
+//! let agent = ToolAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!      .tool(ShellTool::new())
 //!      .tool(FileReadTool::new())

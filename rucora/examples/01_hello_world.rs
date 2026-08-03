@@ -46,13 +46,11 @@ async fn main() -> anyhow::Result<()> {
 
     // 创建 SimpleAgent
     info!("2. 创建 SimpleAgent...");
-    let agent = SimpleAgent::builder()
-        .provider(provider)
+    let agent = SimpleAgent::builder(provider)
         .model(model_name)
         .system_prompt("你是友好的 AI 助手。请简洁地回答用户的问题。")
         .temperature(0.7)
-        .try_build()
-        .unwrap();
+        .build();
     info!("✓ SimpleAgent 创建成功\n");
 
     // 运行对话

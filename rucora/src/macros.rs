@@ -46,7 +46,7 @@
 ///     system_prompt: "你是有用的助手",
 ///     tools: [ShellTool::new()],
 ///     max_steps: 10,
-/// )?;
+/// );
 ///
 /// let output = agent.run("列出当前目录".into()).await?;
 /// # Ok(())
@@ -69,7 +69,7 @@
 ///     model: "gpt-4o-mini",
 ///     system_prompt: "你是翻译助手",
 ///     temperature: 0.3,
-/// )?;
+/// );
 /// # Ok(())
 /// # }
 /// ```
@@ -77,32 +77,27 @@
 macro_rules! agent {
     // Entry points
     (ToolAgent, provider: $provider:expr, model: $model:expr, $( $rest:tt )*) => {{
-        let mut builder = $crate::agent::ToolAgentBuilder::new()
-            .provider($provider)
+        let mut builder = $crate::agent::ToolAgentBuilder::new($provider)
             .model($model);
         $crate::__agent_build!(@apply builder, $( $rest )*)
     }};
     (SimpleAgent, provider: $provider:expr, model: $model:expr, $( $rest:tt )*) => {{
-        let mut builder = $crate::agent::SimpleAgentBuilder::new()
-            .provider($provider)
+        let mut builder = $crate::agent::SimpleAgentBuilder::new($provider)
             .model($model);
         $crate::__agent_build!(@apply builder, $( $rest )*)
     }};
     (ChatAgent, provider: $provider:expr, model: $model:expr, $( $rest:tt )*) => {{
-        let mut builder = $crate::agent::ChatAgentBuilder::new()
-            .provider($provider)
+        let mut builder = $crate::agent::ChatAgentBuilder::new($provider)
             .model($model);
         $crate::__agent_build!(@apply builder, $( $rest )*)
     }};
     (ReActAgent, provider: $provider:expr, model: $model:expr, $( $rest:tt )*) => {{
-        let mut builder = $crate::agent::ReActAgentBuilder::new()
-            .provider($provider)
+        let mut builder = $crate::agent::ReActAgentBuilder::new($provider)
             .model($model);
         $crate::__agent_build!(@apply builder, $( $rest )*)
     }};
     (ReflectAgent, provider: $provider:expr, model: $model:expr, $( $rest:tt )*) => {{
-        let mut builder = $crate::agent::ReflectAgentBuilder::new()
-            .provider($provider)
+        let mut builder = $crate::agent::ReflectAgentBuilder::new($provider)
             .model($model);
         $crate::__agent_build!(@apply builder, $( $rest )*)
     }};
@@ -112,8 +107,8 @@ macro_rules! agent {
 #[macro_export]
 macro_rules! __agent_build {
     // Terminal
-    (@apply $b:expr) => { $b.try_build() };
-    (@apply $b:expr,) => { $b.try_build() };
+    (@apply $b:expr) => { $b.build() };
+    (@apply $b:expr,) => { $b.build() };
 
     // Keys
     (@apply $b:expr, system_prompt: $v:expr, $( $rest:tt )*) => {

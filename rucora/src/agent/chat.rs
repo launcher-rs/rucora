@@ -21,13 +21,12 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = ChatAgent::builder()
-//!     .provider(provider)
+//! let agent = ChatAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是友好的心理咨询助手")
 //!     .with_conversation(true)  // 启用对话历史
 //!     .max_history_messages(20) // 保留最近 20 条消息
-//!     .try_build()?;
+//!     .build();
 //!
 //! // 第一轮
 //! agent.run("我今天心情不好".into()).await?;
@@ -42,7 +41,7 @@
 //! ```
 
 use async_trait::async_trait;
-use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, LlmParams};
 use std::sync::Arc;
@@ -126,10 +125,14 @@ where
 }
 
 impl<P> ChatAgent<P> {
-    /// 创建新的构建器
-    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
-    pub fn builder() -> ChatAgentBuilder<P> {
-        ChatAgentBuilder::new()
+    /// 创建新的构建器。
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider（必需）
+    #[must_use = "构建器必须调用 build() 来创建 Agent"]
+    pub fn builder(provider: P) -> ChatAgentBuilder<P> {
+        ChatAgentBuilder::new(provider)
     }
 
     /// 获取 Provider 引用
@@ -168,7 +171,7 @@ impl<P> ChatAgent<P> {
 
 /// ChatAgent 构建器
 pub struct ChatAgentBuilder<P> {
-    provider: Option<P>,
+    provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
     llm_params: LlmParams,
@@ -178,10 +181,14 @@ pub struct ChatAgentBuilder<P> {
 }
 
 impl<P> ChatAgentBuilder<P> {
-    /// 创建新的构建器
-    pub fn new() -> Self {
+    /// 创建新的构建器。
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider（必需）
+    pub fn new(provider: P) -> Self {
         Self {
-            provider: None,
+            provider,
             system_prompt: None,
             model: None,
             llm_params: LlmParams::default(),
@@ -196,12 +203,6 @@ impl<P> ChatAgentBuilder<P>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
-    /// 设置 Provider（必需）
-    pub fn provider(mut self, provider: P) -> Self {
-        self.provider = Some(provider);
-        self
-    }
-
     /// 设置系统提示词
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
@@ -306,11 +307,9 @@ where
         self
     }
 
-    /// 尝试构建 Agent。
-    pub fn try_build(self) -> Result<ChatAgent<P>, AgentError> {
-        let provider = self
-            .provider
-            .ok_or_else(|| AgentError::Message("构建 ChatAgent 失败：缺少 provider".to_string()))?;
+    /// 构建 Agent。
+    pub fn build(self) -> ChatAgent<P> {
+        let provider = self.provider;
         // 创建对话管理器
         let conversation_manager = if self.with_conversation {
             let mut conv = ConversationManager::new();
@@ -340,30 +339,14 @@ where
             llm_params: self.llm_params.clone(),
         });
 
-        Ok(ChatAgent {
+        ChatAgent {
             provider: provider_arc,
             model: self.model,
             system_prompt: self.system_prompt,
             llm_params: self.llm_params,
             conversation_manager,
             execution,
-        })
-    }
-
-    /// 构建 Agent。
-    ///
-    /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
-    /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
-    #[deprecated(note = "请使用 try_build() 处理配置错误")]
-    pub fn build(self) -> ChatAgent<P> {
-        self.try_build()
-            .unwrap_or_else(|err| panic!("ChatAgentBuilder::build 失败：{err}"))
-    }
-}
-
-impl<P> Default for ChatAgentBuilder<P> {
-    fn default() -> Self {
-        Self::new()
+        }
     }
 }
 
@@ -374,8 +357,7 @@ mod tests {
 
     #[test]
     fn test_chat_agent_builder() {
-        let _agent = ChatAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let _agent = ChatAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .system_prompt("test")
             .with_conversation(true)

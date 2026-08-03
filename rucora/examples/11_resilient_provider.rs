@@ -139,12 +139,10 @@ async fn main() -> anyhow::Result<()> {
 
         let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
 
-        let agent = SimpleAgent::builder()
-            .provider(resilient_provider)
+        let agent = SimpleAgent::builder(resilient_provider)
             .model(&model_name)
             .system_prompt("你是一个友好的助手。")
-            .try_build()
-            .unwrap();
+            .build();
 
         info!("✓ 带重试的 Agent 创建成功\n");
 

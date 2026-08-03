@@ -56,12 +56,11 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = SimpleAgent::builder()
-//!     .provider(provider)
+//! let agent = SimpleAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是一个翻译助手")
 //!     .temperature(0.3)
-//!     .try_build()?;
+//!     .build();
 //!
 //! let output = agent.run("把'Hello'翻译成中文".into()).await?;
 //! # Ok(())
@@ -78,12 +77,11 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = ChatAgent::builder()
-//!     .provider(provider)
+//! let agent = ChatAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是友好的助手")
 //!     .with_conversation(true)
-//!     .try_build()?;
+//!     .build();
 //!
 //! agent.run("你好".into()).await?;
 //! agent.run("今天天气怎么样？".into()).await?;
@@ -102,12 +100,11 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = ToolAgent::builder()
-//!     .provider(provider)
+//! let agent = ToolAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
 //!     .tool(ShellTool::new())
-//!     .try_build()?;
+//!     .build();
 //!
 //! let output = agent.run("帮我列出当前目录的文件".into()).await?;
 //! # Ok(())
@@ -125,13 +122,12 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = ReActAgent::builder()
-//!     .provider(provider)
+//! let agent = ReActAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .tool(ShellTool::new())
 //!     .tool(FileReadTool::new())
 //!     .max_steps(15)
-//!     .try_build()?;
+//!     .build();
 //!
 //! let output = agent.run("帮我分析这个项目的代码结构".into()).await?;
 //! # Ok(())
@@ -149,12 +145,11 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = ReflectAgent::builder()
-//!     .provider(provider)
+//! let agent = ReflectAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .tool(FileWriteTool::new())
 //!     .max_iterations(3)
-//!     .try_build()?;
+//!     .build();
 //!
 //! let output = agent.run("帮我写一个快速排序算法".into()).await?;
 //! # Ok(())
@@ -269,8 +264,7 @@ use std::task::{Context, Poll};
 /// use rucora::prelude::*;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # let agent = SimpleAgent::builder()
-/// #     .provider(rucora::provider::OpenAiProvider::from_env()?)
+/// # let agent = SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
 /// #     .model("gpt-4o-mini")
 /// #     .build();
 /// let mut stream = AgentStream::new(agent.run_stream("你好".into()));
@@ -291,8 +285,7 @@ use std::task::{Context, Poll};
 /// use rucora::prelude::Agent;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # let agent = rucora::agent::SimpleAgent::builder()
-/// #     .provider(rucora::provider::OpenAiProvider::from_env()?)
+/// # let agent = rucora::agent::SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
 /// #     .model("gpt-4o-mini")
 /// #     .build();
 /// let text = AgentStream::new(agent.run_stream("你好".into())).collect_text().await?;
@@ -308,8 +301,7 @@ use std::task::{Context, Poll};
 /// use rucora::prelude::*;
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-/// # let agent = rucora::agent::SimpleAgent::builder()
-/// #     .provider(rucora::provider::OpenAiProvider::from_env()?)
+/// # let agent = rucora::agent::SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
 /// #     .model("gpt-4o-mini")
 /// #     .build();
 /// let text = agent.run_stream_text("你好").await?;
@@ -343,8 +335,7 @@ impl AgentStream {
     /// use rucora::agent::AgentStream;
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
-    /// # let agent = rucora::agent::SimpleAgent::builder()
-    /// #     .provider(rucora::provider::OpenAiProvider::from_env()?)
+    /// # let agent = rucora::agent::SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
     /// #     .model("gpt-4o-mini")
     /// #     .build();
     /// let text = AgentStream::new(agent.run_stream("你好".into())).collect_text().await?;

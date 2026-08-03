@@ -263,15 +263,13 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ Provider 创建成功\n");
 
         info!("4.2 创建带中间件的 SimpleAgent...");
-        let simple_agent = SimpleAgent::builder()
-            .provider(provider)
+        let simple_agent = SimpleAgent::builder(provider)
             .model(&model_name)
             .system_prompt("你是一个翻译助手，负责将中文翻译成英文。")
             .temperature(0.3)
             .with_middleware(LoggingMiddleware::new())
             .with_middleware(RateLimitMiddleware::new(60))
-            .try_build()
-            .unwrap();
+            .build();
         info!("✓ SimpleAgent 创建成功（带日志和限流中间件）\n");
 
         info!("4.3 测试 SimpleAgent...");
@@ -306,8 +304,7 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ Provider 创建成功\n");
 
         info!("5.2 创建带中间件和对话历史的 ChatAgent...");
-        let chat_agent = ChatAgent::builder()
-            .provider(provider)
+        let chat_agent = ChatAgent::builder(provider)
             .model(&model_name)
             .system_prompt("你是友好的心理咨询助手。")
             .with_conversation(true)
@@ -317,8 +314,7 @@ async fn main() -> anyhow::Result<()> {
                     .with(CacheMiddleware::new())
                     .with(auth_middleware.clone()),
             )
-            .try_build()
-            .unwrap();
+            .build();
         info!("✓ ChatAgent 创建成功（带日志、缓存、认证中间件）\n");
 
         info!("5.3 测试 ChatAgent - 第一轮...");
@@ -369,8 +365,7 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ Provider 创建成功\n");
 
         info!("6.2 创建带中间件的 ToolAgent...");
-        let tool_agent = ToolAgent::builder()
-            .provider(provider)
+        let tool_agent = ToolAgent::builder(provider)
             .model(&model_name)
             .system_prompt("你是一个友好的助手。")
             .tool(EchoTool)
@@ -381,8 +376,7 @@ async fn main() -> anyhow::Result<()> {
             .with_middleware(format_middleware.clone())
             .with_middleware(tool_call_logging.clone())
             .max_steps(5)
-            .try_build()
-            .unwrap();
+            .build();
         info!("✓ ToolAgent 创建成功（带多个中间件，包括工具调用日志）\n");
 
         info!("6.3 测试 ToolAgent...");
@@ -434,8 +428,7 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ Provider 创建成功\n");
 
         info!("7.2 创建带中间件的 ReActAgent...");
-        let react_agent = ReActAgent::builder()
-            .provider(provider)
+        let react_agent = ReActAgent::builder(provider)
             .model(&model_name)
             .system_prompt("你是一个善于推理的助手。请先思考，再行动。")
             .tool(EchoTool)
@@ -445,8 +438,7 @@ async fn main() -> anyhow::Result<()> {
                     .with(RateLimitMiddleware::new(30)),
             )
             .max_steps(15)
-            .try_build()
-            .unwrap();
+            .build();
         info!("✓ ReActAgent 创建成功（带日志和限流中间件）\n");
 
         info!("7.3 测试 ReActAgent...");
@@ -481,15 +473,13 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ Provider 创建成功\n");
 
         info!("8.2 创建带中间件的 ReflectAgent...");
-        let reflect_agent = ReflectAgent::builder()
-            .provider(provider)
+        let reflect_agent = ReflectAgent::builder(provider)
             .model(&model_name)
             .system_prompt("你是一个追求卓越的助手。请不断反思和改进你的答案。")
             .with_middleware(LoggingMiddleware::new())
             .with_middleware(ResponseFormatMiddleware)
             .max_iterations(3)
-            .try_build()
-            .unwrap();
+            .build();
         info!("✓ ReflectAgent 创建成功（带日志和格式化中间件）\n");
 
         info!("8.3 测试 ReflectAgent...");

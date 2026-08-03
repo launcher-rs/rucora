@@ -160,8 +160,7 @@ async fn main() -> anyhow::Result<()> {
     // 专家 1: 对话专家
     info!("1. 创建对话专家 (SimpleAgent)...");
     let provider1 = OpenAiProvider::from_env()?;
-    let chat_expert = SimpleAgent::builder()
-        .provider(provider1)
+    let chat_expert = SimpleAgent::builder(provider1)
         .model(&model_name)
         .system_prompt(
             "你是对话专家，擅长：\n\
@@ -170,15 +169,13 @@ async fn main() -> anyhow::Result<()> {
              - 客服问答\n\
              请用友好、专业的语气回答。",
         )
-        .try_build()
-        .unwrap();
+        .build();
     info!("   ✓ 对话专家创建成功\n");
 
     // 专家 2: 工具专家
     info!("2. 创建工具专家 (ToolAgent)...");
     let provider2 = OpenAiProvider::from_env()?;
-    let tool_expert = ToolAgent::builder()
-        .provider(provider2)
+    let tool_expert = ToolAgent::builder(provider2)
         .model(&model_name)
         .system_prompt(
             "你是工具专家，擅长：\n\
@@ -190,15 +187,13 @@ async fn main() -> anyhow::Result<()> {
         .tool(ShellTool::new())
         .tool(EchoTool)
         .max_steps(10)
-        .try_build()
-        .unwrap();
+        .build();
     info!("   ✓ 工具专家创建成功\n");
 
     // 专家 3: 分析专家
     info!("3. 创建分析专家 (SimpleAgent)...");
     let provider3 = OpenAiProvider::from_env()?;
-    let analysis_expert = SimpleAgent::builder()
-        .provider(provider3)
+    let analysis_expert = SimpleAgent::builder(provider3)
         .model(&model_name)
         .system_prompt(
             "你是分析专家，擅长：\n\
@@ -207,8 +202,7 @@ async fn main() -> anyhow::Result<()> {
              - 信息整理和总结\n\
              请提供清晰、结构化的分析结果。",
         )
-        .try_build()
-        .unwrap();
+        .build();
     info!("   ✓ 分析专家创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

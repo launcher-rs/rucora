@@ -231,16 +231,14 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ LLM Provider 创建成功\n");
 
     info!("5.2 创建 Agent...");
-    let agent = SimpleAgent::builder()
-        .provider(llm_provider)
+    let agent = SimpleAgent::builder(llm_provider)
         .model(&model_name)
         .system_prompt(
             "你是一个基于检索结果的问答助手。请根据提供的上下文信息回答问题。\n\
              如果上下文中没有相关信息，请诚实地说明。\n\
              回答时请引用相关的来源。",
         )
-        .try_build()
-        .unwrap();
+        .build();
     info!("✓ Agent 创建成功\n");
 
     // 模拟 RAG 增强的查询

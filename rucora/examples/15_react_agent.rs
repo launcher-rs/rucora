@@ -74,8 +74,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ Provider 创建成功\n");
 
     info!("2. 创建 ReAct Agent...");
-    let agent = ReActAgent::builder()
-        .provider(provider)
+    let agent = ReActAgent::builder(provider)
         .model(&model_name)
         .system_prompt(
             "你是一个善于推理的助手。请遵循以下步骤：\n\
@@ -93,7 +92,7 @@ async fn main() -> anyhow::Result<()> {
         .tool(EchoTool)
         .tool(ShellTool::new())
         .max_steps(50)
-        .try_build().unwrap();
+        .build();
     info!("✓ ReAct Agent 创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

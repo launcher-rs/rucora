@@ -69,8 +69,7 @@ async fn main() -> anyhow::Result<()> {
 
     let provider = OpenAiProvider::from_env()?;
 
-    let agent = ReflectAgent::builder()
-        .provider(provider)
+    let agent = ReflectAgent::builder(provider)
         .model(&model)
         .system_prompt(
             "你是一个追求卓越的助手，擅长使用工具获取信息。\n\
@@ -86,8 +85,7 @@ async fn main() -> anyhow::Result<()> {
         .tool(ShellTool::new())
         .max_iterations(3)
         .quality_threshold(0.85)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("✓ Reflect Agent 创建成功");
     info!("  注册工具: {:?}", agent.tools());

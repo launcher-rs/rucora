@@ -25,11 +25,10 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = SummaryAgent::builder()
-//!     .provider(provider)
+//! let agent = SummaryAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .mode(rucora::agent::SummaryMode::Concise)
-//!     .try_build()?;
+//!     .build();
 //!
 //! let output = agent.run("这是一篇很长的文章...".into()).await?;
 //! println!("{}", output.text().unwrap_or("无回复"));
@@ -377,9 +376,14 @@ where
 }
 
 impl<P> SummaryAgent<P> {
-    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
-    pub fn builder() -> SummaryAgentBuilder<P> {
-        SummaryAgentBuilder::new()
+    /// 创建新的构建器。
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider（必需）
+    #[must_use = "构建器必须调用 build() 来创建 Agent"]
+    pub fn builder(provider: P) -> SummaryAgentBuilder<P> {
+        SummaryAgentBuilder::new(provider)
     }
 
     pub fn provider(&self) -> &P {
@@ -501,7 +505,7 @@ impl<P> SummaryAgent<P> {
 
 /// SummaryAgent 构建器
 pub struct SummaryAgentBuilder<P> {
-    provider: Option<P>,
+    provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
     llm_params: LlmParams,
@@ -514,9 +518,14 @@ pub struct SummaryAgentBuilder<P> {
 }
 
 impl<P> SummaryAgentBuilder<P> {
-    pub fn new() -> Self {
+    /// 创建新的构建器。
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider（必需）
+    pub fn new(provider: P) -> Self {
         Self {
-            provider: None,
+            provider,
             system_prompt: None,
             model: None,
             llm_params: LlmParams::default(),
@@ -534,11 +543,6 @@ impl<P> SummaryAgentBuilder<P>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
-    pub fn provider(mut self, provider: P) -> Self {
-        self.provider = Some(provider);
-        self
-    }
-
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
         self
@@ -687,11 +691,9 @@ where
         self
     }
 
-    /// 尝试构建 Agent。
-    pub fn try_build(self) -> Result<SummaryAgent<P>, AgentError> {
-        let provider = self.provider.ok_or_else(|| {
-            AgentError::Message("构建 SummaryAgent 失败：缺少 provider".to_string())
-        })?;
+    /// 构建 Agent。
+    pub fn build(self) -> SummaryAgent<P> {
+        let provider = self.provider;
         let splitter = self.splitter.unwrap_or_else(|| text_splitter(4000));
 
         let provider_arc = Arc::new(provider);
@@ -705,7 +707,7 @@ where
         .with_system_prompt_opt(self.system_prompt.clone())
         .with_max_steps(10);
 
-        Ok(SummaryAgent {
+        SummaryAgent {
             provider: provider_arc,
             model: self.model,
             system_prompt: self.system_prompt,
@@ -723,22 +725,7 @@ where
                 .combine_template
                 .unwrap_or_else(|| DEFAULT_COMBINE_TEMPLATE.to_string()),
             execution,
-        })
-    }
-
-    /// 构建 Agent。
-    ///
-    /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
-    #[deprecated(note = "请使用 try_build() 处理配置错误")]
-    pub fn build(self) -> SummaryAgent<P> {
-        self.try_build()
-            .unwrap_or_else(|err| panic!("SummaryAgentBuilder::build 失败：{err}"))
-    }
-}
-
-impl<P> Default for SummaryAgentBuilder<P> {
-    fn default() -> Self {
-        Self::new()
+        }
     }
 }
 
@@ -749,8 +736,7 @@ mod tests {
 
     #[test]
     fn test_summary_agent_builder() {
-        let _agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let _agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .mode(SummaryMode::Concise)
             .chunk_size(2000)
@@ -759,8 +745,7 @@ mod tests {
 
     #[test]
     fn test_chunk_text_short() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .chunk_size(4000)
             .build();
@@ -771,8 +756,7 @@ mod tests {
 
     #[test]
     fn test_chunk_text_long() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .chunk_size(100)
             .build();
@@ -824,8 +808,7 @@ mod tests {
 
     #[test]
     fn test_custom_templates() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .prompt_template("自定义单块模板：{text} -- {mode}")
             .chunk_template("第{index}/{total}块：{text}")
@@ -838,8 +821,7 @@ mod tests {
 
     #[test]
     fn test_long_text_chunking_flow() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .chunk_size(100)
             .mode(SummaryMode::Concise)
@@ -878,8 +860,7 @@ mod tests {
 
     #[test]
     fn test_extract_chunk_summaries() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .build();
 
@@ -905,8 +886,7 @@ mod tests {
 
     #[test]
     fn test_empty_summaries_warning() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .build();
 
@@ -930,8 +910,7 @@ mod tests {
 
     #[test]
     fn test_text_splitter_with_builder() {
-        let agent = SummaryAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .splitter(text_splitter(2000))
             .build();

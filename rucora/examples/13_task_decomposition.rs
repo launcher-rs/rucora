@@ -69,8 +69,7 @@ where
     P: rucora_core::provider::LlmProvider + Send + Sync + 'static,
 {
     fn new(provider: P, model: &str) -> Self {
-        let agent = SimpleAgent::builder()
-            .provider(provider)
+        let agent = SimpleAgent::builder(provider)
             .model(model.to_string())
             .system_prompt(
                 "你是一个专业的任务拆解专家。你的职责是：\n\
@@ -85,8 +84,7 @@ where
                  ]\n\n\
                  注意：只返回 JSON 数组，不要有其他内容。",
             )
-            .try_build()
-            .unwrap();
+            .build();
         Self { agent }
     }
 
@@ -126,8 +124,7 @@ where
     P: rucora_core::provider::LlmProvider + Send + Sync + 'static,
 {
     fn new(provider: P, model: &str) -> Self {
-        let agent = SimpleAgent::builder()
-            .provider(provider)
+        let agent = SimpleAgent::builder(provider)
             .model(model.to_string())
             .system_prompt(
                 "你是一个专业的答案综合专家。你的职责是：\n\
@@ -143,8 +140,7 @@ where
                  【改进建议】\n\
                  (可选的改进建议)",
             )
-            .try_build()
-            .unwrap();
+            .build();
         Self { agent }
     }
 
@@ -199,8 +195,7 @@ where
     P: rucora_core::provider::LlmProvider + Send + Sync + 'static,
 {
     fn new(provider: P, model: &str) -> Self {
-        let agent = ToolAgent::builder()
-            .provider(provider)
+        let agent = ToolAgent::builder(provider)
             .model(model.to_string())
             .system_prompt(
                 "你是一个专业的子问题回答专家。你的职责是：\n\
@@ -216,8 +211,7 @@ where
             .tool(EchoTool)
             .tool(ShellTool::new())
             .max_steps(5)
-            .try_build()
-            .unwrap();
+            .build();
         Self { agent }
     }
 

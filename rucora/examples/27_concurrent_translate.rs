@@ -26,11 +26,10 @@ async fn main() -> anyhow::Result<()> {
     let model_name = std::env::var("MODEL_NAME").expect("MODEL_NAME 未设置");
     let provider = OpenAiProvider::from_env()?;
 
-    let agent = SimpleAgent::builder()
-        .provider(provider)
+    let agent = SimpleAgent::builder(provider)
         .model(model_name)
         .system_prompt("你是翻译助手。将用户输入翻译成中文，只输出翻译结果。")
-        .try_build()?;
+        .build();
 
     let texts = vec![
         "Hello, how are you?",

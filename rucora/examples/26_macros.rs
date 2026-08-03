@@ -308,7 +308,7 @@ async fn main() -> anyhow::Result<()> {
         tools: [GetWeatherTool, CalculatorTool, RandomTool],
         max_steps: 10,
         temperature: 0.7,
-    )?;
+    );
 
     info!("   ✓ Agent 创建成功\n");
     info!("   已注册工具：{:?}", agent.tools());

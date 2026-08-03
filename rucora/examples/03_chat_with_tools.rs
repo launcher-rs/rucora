@@ -46,15 +46,13 @@ async fn main() -> anyhow::Result<()> {
 
     // 创建 ToolAgent（注册工具）
     info!("2. 创建 ToolAgent（注册工具）...");
-    let agent = ToolAgent::builder()
-        .provider(provider)
+    let agent = ToolAgent::builder(provider)
         .model(model_name)
         .system_prompt("你是有用的智能助手。当用户询问时间或需要回显时，使用相应的工具。")
         .tool(DatetimeTool) // 注册日期时间工具
         .tool(EchoTool) // 注册回显工具
         .max_steps(10)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("✓ ToolAgent 创建成功\n");
 

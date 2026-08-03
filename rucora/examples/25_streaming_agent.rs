@@ -49,12 +49,10 @@ async fn main() -> anyhow::Result<()> {
     // ========================================
     println!("\n=== 示例 1: AgentStream.next() - 逐帧流式输出 ===\n");
 
-    let agent = SimpleAgent::builder()
-        .provider(make_provider()?)
+    let agent = SimpleAgent::builder(make_provider()?)
         .model(model_name())
         .system_prompt("你是一个简洁的助手。")
-        .try_build()
-        .unwrap();
+        .build();
 
     println!("用户: 用一句话介绍你自己，要幽默一些");
     println!("\n助手: ");
@@ -80,12 +78,10 @@ async fn main() -> anyhow::Result<()> {
     // ========================================
     println!("\n=== 示例 2: run_stream_text() - 获取最终文本 ===\n");
 
-    let agent2 = SimpleAgent::builder()
-        .provider(make_provider()?)
+    let agent2 = SimpleAgent::builder(make_provider()?)
         .model(model_name())
         .system_prompt("你是一个翻译助手，只输出翻译结果。")
-        .try_build()
-        .unwrap();
+        .build();
 
     println!("用户: 将 'The quick brown fox jumps over the lazy dog' 翻译成中文");
 
@@ -99,14 +95,12 @@ async fn main() -> anyhow::Result<()> {
     // ========================================
     println!("\n=== 示例 3: ToolAgent AgentStream - 含工具调用事件 ===\n");
 
-    let tool_agent = ToolAgent::builder()
-        .provider(make_provider()?)
+    let tool_agent = ToolAgent::builder(make_provider()?)
         .model(model_name())
         .system_prompt("你是有用的助手。当被问到时间相关问题时，使用 datetime 工具。")
         .tool(DatetimeTool)
         .max_steps(5)
-        .try_build()
-        .unwrap();
+        .build();
 
     println!("用户: 现在几点了？");
     println!("\n[事件流]");

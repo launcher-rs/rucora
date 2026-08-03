@@ -95,14 +95,13 @@ async fn run_iterative_research(
             )
         };
 
-        let agent = ToolAgent::builder()
-            .provider(provider.clone())
+        let agent = ToolAgent::builder(provider.clone())
             .model("gpt-4o-mini")
             .system_prompt(&system_prompt)
             .tool(TavilyTool::from_env()?)
             .tool(DatetimeTool)
             .max_steps(5)
-            .try_build()?;
+            .build();
 
         let query = if iteration == 0 {
             format!("请研究主题 '{}'，提供详细介绍和主要信息来源。", topic)

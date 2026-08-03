@@ -294,12 +294,10 @@ async fn main() -> anyhow::Result<()> {
     info!("═══════════════════════════════════════\n");
 
     info!("5.1 使用 Echo Provider 创建 Agent...");
-    let agent = SimpleAgent::builder()
-        .provider(echo_provider)
+    let agent = SimpleAgent::builder(echo_provider)
         .model("echo-model")
         .system_prompt("你是一个回显助手，会重复用户的话。")
-        .try_build()
-        .unwrap();
+        .build();
     info!("✓ Agent 创建成功\n");
 
     info!("5.2 测试 Agent...");

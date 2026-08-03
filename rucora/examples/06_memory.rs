@@ -132,8 +132,7 @@ async fn main() -> anyhow::Result<()> {
     info!("2.3 创建带记忆功能的 Agent...");
     let provider = OpenAiProvider::from_env()?;
 
-    let agent = ToolAgent::builder()
-        .provider(provider)
+    let agent = ToolAgent::builder(provider)
         .model(&model_name)
         .system_prompt(
             "你是一个有帮助的助手，拥有长期记忆能力。\n\
@@ -145,8 +144,7 @@ async fn main() -> anyhow::Result<()> {
         .tool(memory_store)
         .tool(memory_recall)
         .max_steps(5)
-        .try_build()
-        .unwrap();
+        .build();
     info!("✓ Agent 创建成功\n");
 
     // 第一轮对话：存储信息
@@ -242,16 +240,14 @@ async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
 
     // 创建一个能记住对话历史的 Agent
-    let agent_with_memory = ToolAgent::builder()
-        .provider(provider)
+    let agent_with_memory = ToolAgent::builder(provider)
         .model(&model_name)
         .system_prompt(
             "你是一个友好的对话助手。\n\
              请记住对话中的重要信息，并在适当时候提及。",
         )
         .max_steps(3)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("✓ Agent 创建成功\n");
 

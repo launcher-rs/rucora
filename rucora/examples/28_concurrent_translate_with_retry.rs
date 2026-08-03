@@ -30,11 +30,10 @@ async fn main() -> anyhow::Result<()> {
     // 用 ResilientProvider 包裹，自动重试可恢复的错误（网络超时、限流等）
     let provider = ResilientProvider::new(Arc::new(provider));
 
-    let agent = SimpleAgent::builder()
-        .provider(provider)
+    let agent = SimpleAgent::builder(provider)
         .model(model_name)
         .system_prompt("你是翻译助手。将用户输入翻译成中文，只输出翻译结果。")
-        .try_build()?;
+        .build();
 
     let texts = vec![
         "Hello, how are you?",

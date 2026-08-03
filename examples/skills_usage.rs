@@ -182,8 +182,7 @@ async fn test_agent_with_skills() -> anyhow::Result<()> {
     
     // 注意：当前 Agent API 可能需要调整以支持 Skills
     // 这里展示理想的使用方式
-    let agent = ToolAgent::builder()
-        .provider(Arc::new(provider))
+    let agent = ToolAgent::builder(Arc::new(provider))
         .model("qwen3.5:9b")
         .system_prompt(
             "你是一个有用的助手。你可以使用以下技能：

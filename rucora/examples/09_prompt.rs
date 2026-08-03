@@ -293,12 +293,10 @@ async fn main() -> anyhow::Result<()> {
         info!("系统提示词：\n{}\n", system_prompt);
 
         info!("7.3 创建 Agent...");
-        let agent = SimpleAgent::builder()
-            .provider(provider)
+        let agent = SimpleAgent::builder(provider)
             .model(&model_name)
             .system_prompt(system_prompt)
-            .try_build()
-            .unwrap();
+            .build();
         info!("✓ Agent 创建成功\n");
 
         info!("7.4 测试 Agent...");

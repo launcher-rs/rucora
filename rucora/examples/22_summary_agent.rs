@@ -84,13 +84,11 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
     info!("演示 1: 简洁摘要（Concise）");
     info!("═══════════════════════════════════════\n");
 
-    let agent = SummaryAgent::builder()
-        .provider(provider.clone())
+    let agent = SummaryAgent::builder(provider.clone())
         .model(&model)
         .mode(SummaryMode::Concise)
         .temperature(0.3)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!(
         "文本内容（{} 字）：\n{long_text}\n",
@@ -115,13 +113,11 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
     info!("演示 2: 要点列表（BulletPoints）");
     info!("═══════════════════════════════════════\n");
 
-    let agent = SummaryAgent::builder()
-        .provider(provider.clone())
+    let agent = SummaryAgent::builder(provider.clone())
         .model(&model)
         .mode(SummaryMode::BulletPoints)
         .temperature(0.3)
-        .try_build()
-        .unwrap();
+        .build();
 
     match agent.run(long_text.into()).await {
         Ok(output) => {
@@ -141,8 +137,7 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
     info!("演示 3: 自定义提示词 + 英文输出");
     info!("═══════════════════════════════════════\n");
 
-    let agent = SummaryAgent::builder()
-        .provider(provider.clone())
+    let agent = SummaryAgent::builder(provider.clone())
         .model(&model)
         .mode("Please summarize the following text in English, focusing on key technical details.")
         .prompt_template("Summarize this text:\n\n{text}\n\n{mode}")
@@ -151,8 +146,7 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
             "Now combine all {total} partial summaries into a complete English summary.\n\n{mode}",
         )
         .temperature(0.3)
-        .try_build()
-        .unwrap();
+        .build();
 
     match agent.run(long_text.into()).await {
         Ok(output) => {
@@ -184,14 +178,12 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
 
     // 使用 text_splitter() 创建基于字符数的分词器
     let splitter = text_splitter(200);
-    let agent = SummaryAgent::builder()
-        .provider(provider.clone())
+    let agent = SummaryAgent::builder(provider.clone())
         .model(&model)
         .mode(SummaryMode::Detailed)
         .splitter(splitter)
         .temperature(0.3)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("长文本（{} 字节）：\n{mega_text}\n", mega_text.len());
 
@@ -225,15 +217,13 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
 
     // 方式一：使用 text_splitter_with_sizer() 辅助函数
     let splitter = text_splitter_with_sizer(500, ByteSizer);
-    let agent = SummaryAgent::builder()
-        .provider(provider.clone())
+    let agent = SummaryAgent::builder(provider.clone())
         .model(&model)
         .mode(SummaryMode::KeyPoints)
         .splitter(splitter)
         .max_concurrency(16) // 并发处理块
         .temperature(0.3)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("使用字节数 Sizer（chunk_size=500 字节）");
     info!("max_concurrency=16，块之间并发处理\n");
@@ -259,14 +249,12 @@ GitHub Copilot、Cursor 等工具能够根据上下文自动补全代码、生�
     // 创建带重叠的字符数分词器
     let splitter = text_splitter_with_overlap(300, 30);
 
-    let agent = SummaryAgent::builder()
-        .provider(provider.clone())
+    let agent = SummaryAgent::builder(provider.clone())
         .model(&model)
         .mode(SummaryMode::BulletPoints)
         .splitter(splitter)
         .temperature(0.3)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("使用 text_splitter_with_overlap()");
     info!("块大小 300 字符，块间重叠 30 字符\n");

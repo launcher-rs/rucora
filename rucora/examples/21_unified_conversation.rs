@@ -255,13 +255,11 @@ async fn main() -> anyhow::Result<()> {
 
         let provider = OpenAiProvider::from_env()?;
 
-        let agent = ToolAgent::builder()
-            .provider(provider)
+        let agent = ToolAgent::builder(provider)
             .model(&model_name)
             .with_conversation(true) // 启用对话历史管理
             .system_prompt("你是一个友好的助手。请简洁回答，但要包含必要的信息。")
-            .try_build()
-            .unwrap();
+            .build();
 
         info!("   ✓ Agent 创建成功\n");
 

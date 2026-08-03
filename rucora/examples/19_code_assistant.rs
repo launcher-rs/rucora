@@ -59,8 +59,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ Provider 创建成功\n");
 
     info!("2. 创建代码助手（使用 Reflect Agent 保证代码质量）...\n");
-    let agent = ReflectAgent::builder()
-        .provider(provider)
+    let agent = ReflectAgent::builder(provider)
         .model(&model_name)
         .system_prompt(
             "你是一个专业的代码助手。请遵循以下原则：\n\n\
@@ -79,8 +78,7 @@ async fn main() -> anyhow::Result<()> {
              请不断反思和改进你的代码，直到达到高质量标准。",
         )
         .max_iterations(3)
-        .try_build()
-        .unwrap();
+        .build();
     info!("✓ 代码助手创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

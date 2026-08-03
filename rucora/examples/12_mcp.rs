@@ -240,8 +240,7 @@ async fn main() -> anyhow::Result<()> {
     info!("步骤 5: 创建带 MCP 工具的 Agent");
     info!("═══════════════════════════════════════\n");
 
-    let agent = ToolAgent::builder()
-        .provider(provider)
+    let agent = ToolAgent::builder(provider)
         .model("qwen3.6:27b")
         .system_prompt(
             "你是一个严谨的助手，擅长使用各种工具完成任务。\n\
@@ -250,8 +249,7 @@ async fn main() -> anyhow::Result<()> {
         )
         .tool_registry(tools)
         .max_steps(20)
-        .try_build()
-        .unwrap();
+        .build();
 
     info!("✓ Agent 创建成功\n");
 

@@ -59,8 +59,7 @@ async fn main() -> anyhow::Result<()> {
     info!("✓ Provider 创建成功\n");
 
     info!("2. 创建研究助手 Agent...");
-    let agent = ToolAgent::builder()
-        .provider(provider)
+    let agent = ToolAgent::builder(provider)
         .model(&model_name)
         .system_prompt(
             "你是一个智能研究助手。你可以帮助用户：\n\
@@ -78,8 +77,7 @@ async fn main() -> anyhow::Result<()> {
         .tool(EchoTool)
         .tool(ShellTool::new())
         .max_steps(10)
-        .try_build()
-        .unwrap();
+        .build();
     info!("✓ 研究助手创建成功\n");
 
     // ═══════════════════════════════════════════════════════════

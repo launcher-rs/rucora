@@ -22,15 +22,14 @@
 //! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let agent = ToolAgent::builder()
-//!     .provider(provider)
+//! let agent = ToolAgent::builder(provider)
 //!     .model("gpt-4o-mini")
 //!     .system_prompt("你是有用的助手")
 //!     .tool(ShellTool::new())
 //!     .tool(FileReadTool::new())
 //!     .max_steps(10)
 //!     .max_tool_concurrency(3)
-//!     .try_build()?;
+//!     .build();
 //!
 //! let output = agent.run("帮我列出当前目录的文件".into()).await?;
 //! println!("{}", output.text().unwrap_or("无回复"));
@@ -39,7 +38,7 @@
 //! ```
 
 use async_trait::async_trait;
-use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentError, AgentInput, AgentOutput};
+use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
 use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::{ChatMessage, ChatRequest, LlmParams, Role};
 use rucora_core::tool::Tool;
@@ -137,9 +136,13 @@ where
     P: LlmProvider,
 {
     /// 创建新的构建器
-    #[must_use = "构建器必须调用 try_build() 来创建 Agent"]
-    pub fn builder() -> ToolAgentBuilder<P> {
-        ToolAgentBuilder::new()
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider（必需）
+    #[must_use = "构建器必须调用 build() 来创建 Agent"]
+    pub fn builder(provider: P) -> ToolAgentBuilder<P> {
+        ToolAgentBuilder::new(provider)
     }
 
     /// 构建聊天请求（不带工具）
@@ -233,7 +236,7 @@ where
 
 /// ToolAgent 构建器
 pub struct ToolAgentBuilder<P> {
-    provider: Option<P>,
+    provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
     tools: ToolRegistry,
@@ -246,10 +249,14 @@ pub struct ToolAgentBuilder<P> {
 }
 
 impl<P> ToolAgentBuilder<P> {
-    /// 创建新的构建器
-    pub fn new() -> Self {
+    /// 创建新的构建器。
+    ///
+    /// # 参数
+    ///
+    /// - `provider`: LLM Provider（必需）
+    pub fn new(provider: P) -> Self {
         Self {
-            provider: None,
+            provider,
             system_prompt: None,
             model: None,
             tools: ToolRegistry::new(),
@@ -267,12 +274,6 @@ impl<P> ToolAgentBuilder<P>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
-    /// 设置 Provider（必需）
-    pub fn provider(mut self, provider: P) -> Self {
-        self.provider = Some(provider);
-        self
-    }
-
     /// 设置系统提示词
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
@@ -407,11 +408,10 @@ where
         self
     }
 
-    /// 尝试构建 Agent。
-    pub fn try_build(self) -> Result<ToolAgent<P>, AgentError> {
-        let provider = self
-            .provider
-            .ok_or_else(|| AgentError::Message("构建 ToolAgent 失败：缺少 provider".to_string()))?;
+    /// 构建 Agent。
+    pub fn build(self) -> ToolAgent<P> {
+        let provider = self.provider;
+
         let conversation_manager = if self.with_conversation {
             let mut conv = ConversationManager::new();
             if let Some(ref prompt) = self.system_prompt {
@@ -437,7 +437,7 @@ where
             llm_params: self.llm_params.clone(),
         });
 
-        Ok(ToolAgent {
+        ToolAgent {
             provider: provider_arc,
             model: self.model,
             system_prompt: self.system_prompt,
@@ -446,23 +446,7 @@ where
             conversation_manager,
             llm_params: self.llm_params,
             execution,
-        })
-    }
-
-    /// 构建 Agent。
-    ///
-    /// 推荐优先使用 [`Self::try_build`] 处理配置错误。
-    /// 此方法保留为便捷入口，内部仍会在配置缺失时 panic。
-    #[deprecated(note = "请使用 try_build() 处理配置错误")]
-    pub fn build(self) -> ToolAgent<P> {
-        self.try_build()
-            .unwrap_or_else(|err| panic!("ToolAgentBuilder::build 失败：{err}"))
-    }
-}
-
-impl<P> Default for ToolAgentBuilder<P> {
-    fn default() -> Self {
-        Self::new()
+        }
     }
 }
 
@@ -473,8 +457,7 @@ mod tests {
 
     #[test]
     fn test_tool_agent_builder() {
-        let _agent = ToolAgentBuilder::<MockProvider>::new()
-            .provider(MockProvider)
+        let _agent = ToolAgentBuilder::<MockProvider>::new(MockProvider)
             .model("gpt-4o-mini")
             .system_prompt("test")
             .max_steps(10)

@@ -571,14 +571,12 @@ where
         }
 
         // 创建 Agent
-        let agent = ToolAgent::builder()
-            .provider(self.provider)
+        let agent = ToolAgent::builder(self.provider)
             .model(self.model)
             .system_prompt(system_prompt)
             .tool(SubmitTool::<T>::new())
             .max_steps(3)
-            .try_build()
-            .expect("ToolAgentBuilder::try_build 失败");
+            .build();
 
         Extractor {
             agent,
