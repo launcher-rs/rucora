@@ -1,7 +1,49 @@
 //! Provider 辅助函数模块
 
-use rucora_core::provider::types::{ChatMessage, FinishReason, Role};
+use rucora_core::{
+    error::ProviderError,
+    provider::types::{ChatMessage, FinishReason, Role},
+};
 use serde_json::{Map, Value, json};
+
+/// 将 reqwest 传输层错误映射为 `ProviderError`。
+///
+/// 超时 → `Timeout`，连接/请求失败 → 可重试 `Network`，其余 → `Message`。
+pub fn map_reqwest_error(e: reqwest::Error, elapsed: std::time::Duration) -> ProviderError {
+    if e.is_timeout() {
+        ProviderError::Timeout {
+            message: e.to_string(),
+            elapsed,
+        }
+    } else if e.is_connect() || e.is_request() {
+        ProviderError::Network {
+            message: e.to_string(),
+            source: Some(Box::new(e)),
+            retriable: true,
+        }
+    } else {
+        ProviderError::Message(e.to_string())
+    }
+}
+
+/// 将 HTTP 状态码映射为 `ProviderError`。
+///
+/// 401/403 → `Authentication`，429 → `RateLimit`（保留 `retry_after`），
+/// 其余非成功状态 → `Api`。注意：仅对错误场景调用，成功状态交给调用方处理。
+pub fn map_http_error(status: reqwest::StatusCode, message: String) -> ProviderError {
+    match status.as_u16() {
+        401 | 403 => ProviderError::Authentication { message },
+        429 => ProviderError::RateLimit {
+            message,
+            retry_after: None,
+        },
+        status => ProviderError::Api {
+            status,
+            message,
+            code: None,
+        },
+    }
+}
 
 /// 将 provider 特定的 finish_reason 字符串转换为 FinishReason 枚举。
 pub fn parse_finish_reason(reason: &str) -> FinishReason {

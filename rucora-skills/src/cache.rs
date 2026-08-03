@@ -133,7 +133,7 @@ impl CachedSkillLoader {
         }
     }
 
-    /// 获取 Skill（优先从缓存读取）
+    /// 获取 Skill（优先从缓存读取，未命中时从文件加载并回填缓存）
     #[allow(clippy::unused_async)]
     pub async fn get_skill(&mut self, name: &str) -> Option<crate::SkillDefinition> {
         // 尝试从缓存读取
@@ -141,8 +141,10 @@ impl CachedSkillLoader {
             return Some(skill.clone());
         }
 
-        // 从文件加载（简化实现，实际应该调用 loader）
-        None
+        // 缓存未命中：从文件加载（加载失败时返回 None）
+        let skill = self.loader.load_skill_by_name(name).await.ok()?;
+        self.cache_skill(skill.clone());
+        Some(skill)
     }
 
     /// 缓存 Skill

@@ -15,6 +15,7 @@ use rucora_core::{
 use serde_json::{Value, json};
 
 use super::shell::{SHELL_TIMEOUT_SECS, execute_shell_command};
+use crate::web::security::validate_public_http_url;
 
 /// 受限命令执行工具。
 ///
@@ -40,7 +41,9 @@ impl CmdExecTool {
     ///
     /// - 必须以白名单前缀开头
     /// - 禁止管道/重定向/链式/多行等 shell 操作符
-    fn validate_command(&self, cmd: &str) -> Result<(), ToolError> {
+    /// - 禁止 `curl` 的输出写盘参数（`-o`/`-O`/`--output`），防止利用工具写任意文件
+    /// - 校验命令中的 URL 为公共 http/https 资源（防 SSRF）
+    async fn validate_command(&self, cmd: &str) -> Result<(), ToolError> {
         let t = cmd.trim();
         let prefix_ok = self
             .allowed_prefixes
@@ -58,6 +61,27 @@ impl CmdExecTool {
             return Err(ToolError::message(
                 "出于安全考虑，cmd_exec 禁止管道/重定向/链式/多行命令".to_string(),
             ));
+        }
+
+        // 禁止输出写盘：-o/--output 指定输出文件，-O/--remote-name 写当前目录
+        let output_flags = ["-o", "--output", "-O", "--remote-name"];
+        for flag in output_flags {
+            if t.contains(flag) {
+                return Err(ToolError::message(format!(
+                    "出于安全考虑，cmd_exec 禁止 curl 输出写盘参数：{flag}"
+                )));
+            }
+        }
+
+        // 校验命令中的 URL 是否安全（防 SSRF）
+        for token in t.split_whitespace().skip(1) {
+            if token.starts_with("http://") || token.starts_with("https://") {
+                validate_public_http_url(token, None, None)
+                    .await
+                    .map_err(|e| {
+                        ToolError::message(format!("cmd_exec 的 curl URL 校验失败：{e}"))
+                    })?;
+            }
         }
 
         Ok(())
@@ -121,7 +145,7 @@ impl Tool for CmdExecTool {
             .unwrap_or(SHELL_TIMEOUT_SECS);
 
         // 校验命令
-        self.validate_command(command)?;
+        self.validate_command(command).await?;
 
         // 执行命令
         let mut parts = command.split_whitespace();

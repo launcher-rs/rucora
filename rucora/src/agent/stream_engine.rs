@@ -23,9 +23,13 @@ use rucora_core::tool::types::{ToolCall, ToolResult};
 
 use crate::agent::loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 use crate::agent::policy::ToolPolicy;
-use crate::agent::tool_execution::{execute_tool_call_with_policy_and_observer, tool_result_to_message};
+use crate::agent::tool_call_config::{ToolCallEnhancedConfig, ToolCallEnhancedRuntime};
+use crate::agent::tool_execution::{
+    execute_tool_call_enhanced, tool_result_to_message,
+};
 use crate::agent::tool_registry::ToolRegistry;
 use crate::conversation::ConversationManager;
+use crate::middleware::MiddlewareChain;
 
 /// 流式执行引擎。
 ///
@@ -52,6 +56,12 @@ pub struct StreamEngine {
     pub(crate) loop_detector_config: LoopDetectorConfig,
     /// LLM 请求参数（temperature、top_p 等）
     pub(crate) llm_params: LlmParams,
+    /// 中间件链
+    pub(crate) middleware_chain: MiddlewareChain,
+    /// 工具调用增强配置（重试、超时、熔断、缓存等）
+    pub(crate) enhanced_config: ToolCallEnhancedConfig,
+    /// 工具调用增强运行时状态
+    pub(crate) enhanced_runtime: ToolCallEnhancedRuntime,
 }
 
 impl StreamEngine {
@@ -68,6 +78,9 @@ impl StreamEngine {
         conversation_manager: Option<Arc<Mutex<ConversationManager>>>,
         loop_detector_config: LoopDetectorConfig,
         llm_params: LlmParams,
+        middleware_chain: MiddlewareChain,
+        enhanced_config: ToolCallEnhancedConfig,
+        enhanced_runtime: ToolCallEnhancedRuntime,
     ) -> Self {
         Self {
             provider,
@@ -80,6 +93,9 @@ impl StreamEngine {
             conversation_manager,
             loop_detector_config,
             llm_params,
+            middleware_chain,
+            enhanced_config,
+            enhanced_runtime,
         }
     }
 
@@ -101,6 +117,9 @@ impl StreamEngine {
         let llm_params = self.llm_params.clone();
         let loop_detector_config = self.loop_detector_config.clone();
         let conversation_manager = self.conversation_manager.clone();
+        let middleware_chain = self.middleware_chain.clone();
+        let enhanced_config = self.enhanced_config.clone();
+        let enhanced_runtime = self.enhanced_runtime.clone();
 
         let stream = try_stream! {
             let mut messages = Vec::new();
@@ -215,11 +234,17 @@ impl StreamEngine {
                     "stream_execution.tool_calls"
                 );
 
-                // 手动实现工具执行（闭包中无法访问 self）
+                // 手动实现工具执行（闭包中无法访问 self），使用增强配置
                 let mut results: Vec<(usize, ToolResult)> = Vec::new();
                 for (idx, call) in tool_calls.iter().enumerate() {
-                    let r = execute_tool_call_with_policy_and_observer(
-                        &tools, &policy, &observer, call,
+                    let r = execute_tool_call_enhanced(
+                        &tools,
+                        &policy,
+                        &observer,
+                        call,
+                        &middleware_chain,
+                        &enhanced_config,
+                        &enhanced_runtime,
                     )
                     .await
                     .map_err(|e| AgentError::Message(format!("工具执行失败：{e}")))?;

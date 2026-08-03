@@ -178,16 +178,6 @@ fn apply_output_limit(payload: Value, max_bytes: usize) -> Value {
     obj
 }
 
-pub(crate) async fn execute_tool_call_with_policy_and_observer(
-    tools: &ToolRegistry,
-    policy: &Arc<dyn ToolPolicy>,
-    observer: &Arc<dyn ChannelObserver>,
-    call: &ToolCall,
-) -> Result<ToolResult, AgentError> {
-    // 调用带中间件的版本（无中间件）
-    execute_tool_call_with_middleware(tools, policy, observer, call, &MiddlewareChain::new()).await
-}
-
 pub(crate) async fn execute_tool_call_with_middleware(
     tools: &ToolRegistry,
     policy: &Arc<dyn ToolPolicy>,

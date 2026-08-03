@@ -327,10 +327,37 @@ pub async fn execute_shell_command(
         cmd.current_dir(dir);
     }
 
-    // 清除敏感环境变量
-    cmd.env_remove("AWS_SECRET_ACCESS_KEY");
-    cmd.env_remove("AZURE_CLIENT_SECRET");
-    cmd.env_remove("GCP_SERVICE_ACCOUNT_KEY");
+    // 环境变量白名单：清除所有环境变量后仅保留基础系统变量，
+    // 防止 API Key 等敏感凭证泄漏给子进程（对比 git.rs 的 env_clear 做法）。
+    cmd.env_clear();
+    for key in [
+        "PATH",
+        "HOME",
+        "USERPROFILE",
+        "SystemRoot",
+        "SYSTEMROOT",
+        "WINDIR",
+        "TEMP",
+        "TMP",
+        "COMSPEC",
+        "PATHEXT",
+        "HOMEDRIVE",
+        "HOMEPATH",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "PROGRAMFILES",
+        "PROGRAMDATA",
+        "OS",
+        "NUMBER_OF_PROCESSORS",
+        "PROCESSOR_ARCHITECTURE",
+        "LANG",
+        "LC_ALL",
+        "TERM",
+    ] {
+        if let Ok(v) = std::env::var(key) {
+            cmd.env(key, v);
+        }
+    }
 
     // 执行命令（带超时）
     let output = timeout(timeout_duration, cmd.output())

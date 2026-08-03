@@ -1255,6 +1255,9 @@ impl DefaultExecution {
             self.conversation_manager.clone(),
             self.loop_detector_config.clone(),
             self.llm_params.clone(),
+            self.middleware_chain.clone(),
+            self.enhanced_config.clone(),
+            self.enhanced_runtime.clone(),
         )
     }
 }

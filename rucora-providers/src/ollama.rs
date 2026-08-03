@@ -7,6 +7,7 @@
 use std::env;
 
 use crate::{
+    helpers::{map_http_error, map_reqwest_error},
     http_config::{
         build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
         DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -55,38 +56,6 @@ pub struct OllamaProvider {
 }
 
 impl OllamaProvider {
-    fn map_reqwest_error(e: reqwest::Error, elapsed: std::time::Duration) -> ProviderError {
-        if e.is_timeout() {
-            ProviderError::Timeout {
-                message: e.to_string(),
-                elapsed,
-            }
-        } else if e.is_connect() || e.is_request() {
-            ProviderError::Network {
-                message: e.to_string(),
-                source: Some(Box::new(e)),
-                retriable: true,
-            }
-        } else {
-            ProviderError::Message(e.to_string())
-        }
-    }
-
-    fn map_http_error(status: reqwest::StatusCode, message: String) -> ProviderError {
-        match status.as_u16() {
-            401 | 403 => ProviderError::Authentication { message },
-            429 => ProviderError::RateLimit {
-                message,
-                retry_after: None,
-            },
-            status => ProviderError::Api {
-                status,
-                message,
-                code: None,
-            },
-        }
-    }
-
     /// 从环境变量创建 Provider。
     ///
     /// 默认模型优先级：
@@ -329,20 +298,20 @@ impl LlmProvider for OllamaProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+            .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
         let status = resp.status();
         let data: Value = resp
             .json()
             .await
-            .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+            .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
         debug!(provider = "ollama", status = %status, elapsed_ms, "provider.chat.http.done");
         debug!(provider = "ollama", status = %status, body = %preview(&data.to_string(), 1200), "provider.chat.response_body");
 
         if !status.is_success() {
-            return Err(Self::map_http_error(
+            return Err(map_http_error(
                 status,
                 format!("Ollama 请求失败：status={status} body={data}"),
             ));
@@ -516,11 +485,11 @@ impl LlmProvider for OllamaProvider {
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+                .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
             let status = resp.status();
             if !status.is_success() {
-                Err(Self::map_http_error(
+                Err(map_http_error(
                     status,
                     format!("Ollama stream 请求失败：status={status}"),
                 ))?;
@@ -537,7 +506,7 @@ impl LlmProvider for OllamaProvider {
             let mut bytes_stream = resp.bytes_stream();
 
             while let Some(item) = bytes_stream.next().await {
-                let bytes = item.map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+                let bytes = item.map_err(|e| map_reqwest_error(e, start.elapsed()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
@@ -656,13 +625,13 @@ mod tests {
 
     #[test]
     fn test_ollama_map_http_error() {
-        let auth = OllamaProvider::map_http_error(reqwest::StatusCode::UNAUTHORIZED, "bad key".into());
+        let auth = map_http_error(reqwest::StatusCode::UNAUTHORIZED, "bad key".into());
         assert_eq!(auth.category(), ErrorCategory::Authentication);
 
-        let rate = OllamaProvider::map_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down".into());
+        let rate = map_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down".into());
         assert_eq!(rate.category(), ErrorCategory::RateLimit);
 
-        let server = OllamaProvider::map_http_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "oops".into());
+        let server = map_http_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "oops".into());
         assert_eq!(server.category(), ErrorCategory::Api);
     }
 

@@ -18,6 +18,8 @@ use std::{
 use tokio::time::sleep;
 use tracing::{debug, info, warn};
 
+use super::security::validate_public_http_url;
+
 const DEFAULT_MAX_CONTENT_CHARS: usize = 15_000;
 
 /// 网页浏览工具
@@ -74,6 +76,9 @@ impl BrowseTool {
     }
 
     async fn fetch_html(&self, url: &str, timeout_ms: u64) -> Result<String, ToolError> {
+        // SSRF 校验：禁止内网/私有地址
+        validate_public_http_url(url, None, None).await?;
+
         let client = reqwest::Client::builder()
             .timeout(Duration::from_millis(timeout_ms))
             .user_agent("Mozilla/5.0 (compatible; rucora/0.1)")

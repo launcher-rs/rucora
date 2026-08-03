@@ -274,23 +274,34 @@ impl syn::parse::Parse for GuardAttrs {
     }
 }
 
-/// Generate an `InjectionGuard` implementation from an async function.
+/// Generate an `InjectionGuard` implementation from a function.
+///
+/// The function must match the real `InjectionGuard::scan` signature:
+/// 同步、两个参数 `fn scan(&self, content: &str, source: &str) -> ScanResult`。
 ///
 /// # Example
 ///
 /// ```rust,ignore
 /// use rucora::rucora_guard;
-/// use rucora_core::{InjectionGuard, ScanResult, Threat};
+/// use rucora_core::{InjectionGuard, ScanResult};
 ///
 /// #[rucora_guard(name = "length-limit")]
-/// async fn check_length(content: &str) -> ScanResult {
+/// fn check_length(content: &str, source: &str) -> ScanResult {
+///     let _ = source;
 ///     if content.len() > 50000 {
-///         ScanResult::Blocked {
-///             threat: Threat::new("content_too_long", "Content exceeds length limit"),
-///             confidence: 1.0,
+///         ScanResult {
+///             is_safe: false,
+///             threats: vec![],
+///             cleaned_content: None,
+///             original_length: content.len(),
 ///         }
 ///     } else {
-///         ScanResult::Clean
+///         ScanResult {
+///             is_safe: true,
+///             threats: vec![],
+///             cleaned_content: None,
+///             original_length: content.len(),
+///         }
 ///     }
 /// }
 /// ```
@@ -303,29 +314,94 @@ pub fn rucora_guard(attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 fn guard_impl(attrs: &GuardAttrs, func: &ItemFn) -> proc_macro2::TokenStream {
-    let rucora = rucora_crate_path();
     let guard_name = &attrs.name;
     let struct_name = format_ident!("{}Guard", to_pascal_case(&guard_name.replace('-', "_")));
     let fn_name = &func.sig.ident;
-    let _body = &func.block;
 
-    quote! {
-        pub struct #struct_name;
+    // 解析 InjectionGuard / ScanResult 的正确路径。
+    // - 通过 rucora crate 使用时：::rucora::core::InjectionGuard
+    // - 直接依赖 rucora_core 时：::rucora_core::InjectionGuard
+    let (guard_type, scan_result_type) = injection_guard_paths();
 
-        #[::async_trait::async_trait]
-        impl #rucora::core::InjectionGuard for #struct_name {
-            fn name(&self) -> &str {
-                #guard_name
+    // 校验函数签名为同步的两个参数 (content, source)
+    let content_param = func.sig.inputs.first().and_then(|a| {
+        if let FnArg::Typed(pat_type) = a
+            && let Pat::Ident(pi) = pat_type.pat.as_ref()
+        {
+            Some(pi.ident.clone())
+        } else {
+            None
+        }
+    });
+    let source_param = func.sig.inputs.iter().nth(1).and_then(|a| {
+        if let FnArg::Typed(pat_type) = a
+            && let Pat::Ident(pi) = pat_type.pat.as_ref()
+        {
+            Some(pi.ident.clone())
+        } else {
+            None
+        }
+    });
+
+    match (content_param, source_param) {
+        (Some(_), Some(_)) => {
+            // 保留原函数（去除宏属性避免递归展开），并生成对应的 InjectionGuard 实现
+            let mut original_fn = func.clone();
+            original_fn
+                .attrs
+                .retain(|a| !a.path().is_ident("rucora_guard"));
+            quote! {
+                #original_fn
+
+                pub struct #struct_name;
+
+                impl #guard_type for #struct_name {
+                    fn scan(&self, content: &str, source: &str) -> #scan_result_type {
+                        #fn_name(content, source)
+                    }
+                }
             }
+        }
+        _ => {
+            let err = syn::Error::new_spanned(
+                &func.sig,
+                "#[rucora_guard] 函数必须为同步的两个参数 `fn f(content: &str, source: &str) -> ScanResult`",
+            );
+            err.to_compile_error()
+        }
+    }
+}
 
-            async fn scan(
-                &self,
-                content: &str,
-            ) -> Result<#rucora::core::ScanResult, #rucora::core::AgentError> {
-                #fn_name(content).await
+/// 生成 `InjectionGuard` 与 `ScanResult` 的引用路径。
+///
+/// 优先解析为 `rucora` crate 的 re-export（`::rucora::core::InjectionGuard`），
+/// 回退到 `rucora_core` 的顶层导出（`::rucora_core::InjectionGuard`）。
+fn injection_guard_paths() -> (proc_macro2::TokenStream, proc_macro2::TokenStream) {
+    if let Ok(found) = crate_name("rucora") {
+        match found {
+            FoundCrate::Itself => return (quote!(::rucora::core::InjectionGuard), quote!(::rucora::core::ScanResult)),
+            FoundCrate::Name(name) => {
+                let ident = syn::Ident::new(&name, Span::call_site());
+                return (
+                    quote!(::#ident::core::InjectionGuard),
+                    quote!(::#ident::core::ScanResult),
+                );
             }
         }
     }
+    if let Ok(found) = crate_name("rucora_core") {
+        match found {
+            FoundCrate::Itself => return (quote!(::rucora_core::InjectionGuard), quote!(::rucora_core::ScanResult)),
+            FoundCrate::Name(name) => {
+                let ident = syn::Ident::new(&name, Span::call_site());
+                return (
+                    quote!(::#ident::InjectionGuard),
+                    quote!(::#ident::ScanResult),
+                );
+            }
+        }
+    }
+    (quote!(::rucora::core::InjectionGuard), quote!(::rucora::core::ScanResult))
 }
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

@@ -3,6 +3,7 @@
 //! 提供 HTTP 请求功能，支持多种方法和安全限制
 
 use async_trait::async_trait;
+use futures_util::StreamExt;
 use rucora_core::{
     error::ToolError,
     tool::{Tool, ToolCategory, types::ToolContext},
@@ -228,18 +229,18 @@ impl Tool for HttpRequestTool {
 
         let status = response.status().as_u16();
 
-        // 获取响应体，限制大小
-        let body_bytes = response
-            .bytes()
-            .await
-            .map_err(|e| ToolError::Message { message: format!("读取响应体失败：{e}"), source: None })?;
-
-        if body_bytes.len() > MAX_RESPONSE_SIZE {
-            return Err(ToolError::message(format!(
-                "响应体过大（{} 字节），超过限制（{} 字节）",
-                body_bytes.len(),
-                MAX_RESPONSE_SIZE
-            )));
+        // 流式读取响应体并限制大小，避免超大响应耗尽内存
+        let mut body_bytes: Vec<u8> = Vec::new();
+        let mut stream = response.bytes_stream();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk
+                .map_err(|e| ToolError::Message { message: format!("读取响应体失败：{e}"), source: None })?;
+            body_bytes.extend_from_slice(&chunk);
+            if body_bytes.len() > MAX_RESPONSE_SIZE {
+                return Err(ToolError::message(format!(
+                    "响应体过大（超过 {MAX_RESPONSE_SIZE} 字节）"
+                )));
+            }
         }
 
         let body = String::from_utf8_lossy(&body_bytes).to_string();

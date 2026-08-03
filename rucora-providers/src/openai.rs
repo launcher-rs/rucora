@@ -8,6 +8,7 @@
 use std::{collections::BTreeMap, env};
 
 use crate::{
+    helpers::{map_http_error, map_reqwest_error},
     http_config::{
         build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
         DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -83,38 +84,6 @@ pub struct OpenAiProvider {
 }
 
 impl OpenAiProvider {
-    fn map_reqwest_error(e: reqwest::Error, elapsed: std::time::Duration) -> ProviderError {
-        if e.is_timeout() {
-            ProviderError::Timeout {
-                message: e.to_string(),
-                elapsed,
-            }
-        } else if e.is_connect() || e.is_request() {
-            ProviderError::Network {
-                message: e.to_string(),
-                source: Some(Box::new(e)),
-                retriable: true,
-            }
-        } else {
-            ProviderError::Message(e.to_string())
-        }
-    }
-
-    fn map_http_error(status: reqwest::StatusCode, message: String) -> ProviderError {
-        match status.as_u16() {
-            401 | 403 => ProviderError::Authentication { message },
-            429 => ProviderError::RateLimit {
-                message,
-                retry_after: None,
-            },
-            status => ProviderError::Api {
-                status,
-                message,
-                code: None,
-            },
-        }
-    }
-
     /// 从环境变量创建 Provider。
     ///
     /// 默认模型来源（按优先级）：
@@ -423,7 +392,7 @@ impl LlmProvider for OpenAiProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+            .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
         let status = resp.status();
 
@@ -465,7 +434,7 @@ impl LlmProvider for OpenAiProvider {
                 format!("OpenAI 请求失败：status={status} body={text}")
             };
 
-            return Err(Self::map_http_error(status, error_msg));
+            return Err(map_http_error(status, error_msg));
         }
 
         // 尝试解析 JSON，提供更友好的错误信息
@@ -662,11 +631,11 @@ impl LlmProvider for OpenAiProvider {
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+                .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
             let status = resp.status();
             if !status.is_success() {
-                Err(Self::map_http_error(
+                Err(map_http_error(
                     status,
                     format!("OpenAI stream 请求失败：status={status}"),
                 ))?;
@@ -685,7 +654,7 @@ impl LlmProvider for OpenAiProvider {
             let mut done = false;
 
             'outer: while let Some(item) = bytes_stream.next().await {
-                let bytes = item.map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
+                let bytes = item.map_err(|e| map_reqwest_error(e, start.elapsed()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
@@ -1014,13 +983,13 @@ mod tests {
 
     #[test]
     fn test_map_http_error_status_codes() {
-        let auth = OpenAiProvider::map_http_error(reqwest::StatusCode::UNAUTHORIZED, "bad key".into());
+        let auth = map_http_error(reqwest::StatusCode::UNAUTHORIZED, "bad key".into());
         assert_eq!(auth.category(), rucora_core::error::ErrorCategory::Authentication);
 
-        let rate = OpenAiProvider::map_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down".into());
+        let rate = map_http_error(reqwest::StatusCode::TOO_MANY_REQUESTS, "slow down".into());
         assert_eq!(rate.category(), rucora_core::error::ErrorCategory::RateLimit);
 
-        let server = OpenAiProvider::map_http_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "oops".into());
+        let server = map_http_error(reqwest::StatusCode::INTERNAL_SERVER_ERROR, "oops".into());
         assert_eq!(server.category(), rucora_core::error::ErrorCategory::Api);
     }
 

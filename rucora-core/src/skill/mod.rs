@@ -33,6 +33,11 @@ pub struct SkillDefinition {
     /// 技能来源目录，仅用于运行时定位本地实现文件。
     #[serde(skip)]
     pub location: Option<PathBuf>,
+    /// 技能执行权限配置（network/filesystem/commands/域名黑白名单）。
+    ///
+    /// 以 JSON 值存储，具体校验逻辑位于 `rucora-skills` 的执行器。
+    #[serde(default)]
+    pub permissions: Option<Value>,
 }
 
 fn default_version() -> String {
@@ -57,6 +62,7 @@ impl SkillDefinition {
             homepage: None,
             metadata: None,
             location: None,
+            permissions: None,
         }
     }
 

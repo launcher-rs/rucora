@@ -119,6 +119,17 @@ impl SkillLoader {
         Ok(definition)
     }
 
+    /// 按名称从 `base_dir/<name>` 目录加载技能。
+    pub async fn load_skill_by_name(&self, name: &str) -> Result<SkillDefinition, SkillLoadError> {
+        let skill_dir = self.base_dir.join(name);
+        if !skill_dir.is_dir() {
+            return Err(SkillLoadError::NotFound(format!(
+                "技能目录不存在：{skill_dir:?}"
+            )));
+        }
+        self.load_skill(&skill_dir).await
+    }
+
     pub fn get_skill(&self, name: &str) -> Option<&SkillDefinition> {
         self.skills.get(name)
     }
@@ -226,6 +237,10 @@ fn skill_config_to_definition(config: SkillConfig) -> SkillDefinition {
         homepage: None,
         metadata,
         location: None,
+        permissions: config
+            .permissions
+            .as_ref()
+            .and_then(|p| serde_json::to_value(p).ok()),
     }
 }
 
@@ -339,6 +354,9 @@ impl SkillExecutor {
             return Ok(SkillResult::error(e));
         }
 
+        // 执行前检查权限配置（若配置明确禁止网络/文件系统，则拒绝执行）
+        self.check_permissions(definition, script_path)?;
+
         let implementation = detect_implementation(script_path.parent().unwrap());
 
         match implementation {
@@ -358,6 +376,75 @@ impl SkillExecutor {
                 Err(SkillExecuteError::NotFound("未找到脚本实现".to_string()))
             }
         }
+    }
+
+    /// 检查技能权限配置是否允许执行。
+    ///
+    /// 目前采用保守策略：若配置明确禁止网络或文件系统访问，则直接拒绝执行，
+    /// 因为无法静态保证脚本不联网/不读写文件。
+    fn check_permissions(
+        &self,
+        definition: &SkillDefinition,
+        script_path: &Path,
+    ) -> Result<(), SkillExecuteError> {
+        let Some(permissions) = definition.permissions.as_ref() else {
+            return Ok(());
+        };
+
+        let perms: crate::config::PermissionsConfig = match serde_json::from_value(permissions.clone())
+        {
+            Ok(p) => p,
+            Err(e) => {
+                return Err(SkillExecuteError::ValidationError(format!(
+                    "权限配置解析失败：{e}"
+                )));
+            }
+        };
+
+        if !perms.network {
+            return Err(SkillExecuteError::PermissionDenied(format!(
+                "技能 {} 未授权网络访问",
+                definition.name
+            )));
+        }
+
+        if !perms.filesystem {
+            return Err(SkillExecuteError::PermissionDenied(format!(
+                "技能 {} 未授权文件系统访问",
+                definition.name
+            )));
+        }
+
+        // commands 白名单：Shell 实现要求脚本命令在白名单内
+        if !perms.commands.is_empty() && script_path.extension().and_then(|e| e.to_str()) == Some("sh")
+        {
+            let script = std::fs::read_to_string(script_path).unwrap_or_default();
+            for line in script.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                // 提取命令名（去 shebang、变量赋值、前缀 env 等）
+                let cmd = line.split_whitespace().next().unwrap_or("");
+                let cmd = cmd
+                    .trim_start_matches("export ")
+                    .trim_start_matches("env ")
+                    .trim_start_matches('$')
+                    .trim_matches('"')
+                    .trim_matches('\'');
+                if !cmd.is_empty()
+                    && !cmd.contains('=')
+                    && !perms.commands.iter().any(|allowed| allowed == cmd)
+                {
+                    return Err(SkillExecuteError::PermissionDenied(format!(
+                        "技能 {} 中的命令 {cmd:?} 不在允许白名单内",
+                        definition.name
+                    )));
+                }
+            }
+        }
+
+        Ok(())
     }
 
     async fn execute_python(
@@ -680,4 +767,6 @@ pub enum SkillExecuteError {
     NotFound(String),
     #[error("验证失败：{0}")]
     ValidationError(String),
+    #[error("权限拒绝：{0}")]
+    PermissionDenied(String),
 }

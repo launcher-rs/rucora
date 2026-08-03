@@ -16,7 +16,7 @@
 use std::env;
 
 use crate::{
-    helpers::parse_finish_reason,
+    helpers::{map_http_error, map_reqwest_error, parse_finish_reason},
     http_config::{build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_REQUEST_TIMEOUT_SECS},
     preview,
 };
@@ -454,13 +454,13 @@ impl LlmProvider for GeminiProvider {
             .json(&body)
             .send()
             .await
-            .map_err(|e| ProviderError::Message(e.to_string()))?;
+            .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
         let status = resp.status();
         let data: Value = resp
             .json()
             .await
-            .map_err(|e| ProviderError::Message(e.to_string()))?;
+            .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
         let elapsed_ms = start.elapsed().as_millis() as u64;
         debug!(
@@ -477,9 +477,10 @@ impl LlmProvider for GeminiProvider {
         );
 
         if !status.is_success() {
-            return Err(ProviderError::Message(format!(
-                "Gemini 请求失败：status={status} body={data}"
-            )));
+            return Err(map_http_error(
+                status,
+                format!("Gemini 请求失败：status={status} body={data}"),
+            ));
         }
 
         // Gemini 响应格式
@@ -616,13 +617,14 @@ impl LlmProvider for GeminiProvider {
                 .json(&body)
                 .send()
                 .await
-                .map_err(|e| ProviderError::Message(e.to_string()))?;
+                .map_err(|e| map_reqwest_error(e, std::time::Duration::ZERO))?;
 
             let status = resp.status();
             if !status.is_success() {
-                Err(ProviderError::Message(format!(
-                    "Gemini 流式请求失败：status={status}"
-                )))?;
+                Err(map_http_error(
+                    status,
+                    format!("Gemini 流式请求失败：status={status}"),
+                ))?;
             }
 
             let mut buf = String::new();
