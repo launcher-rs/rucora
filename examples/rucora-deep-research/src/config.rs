@@ -270,7 +270,7 @@ impl AppConfig {
 
         if let Some(ref api_key) = self.api_key {
             let masked_key = if api_key.len() > 10 {
-                format!("{}...{}", &api_key[..4], &api_key[api_key.len() - 4..])
+                format!("{}...{}", &api_key[..api_key.floor_char_boundary(4)], &api_key[api_key.floor_char_boundary(api_key.len() - 4)..])
             } else {
                 "****".to_string()
             };

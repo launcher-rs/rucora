@@ -682,16 +682,18 @@ impl LlmProvider for OpenAiProvider {
             let mut buf = String::new();
             let mut bytes_stream = resp.bytes_stream();
             let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
+            let mut done = false;
 
-            while let Some(item) = bytes_stream.next().await {
+            'outer: while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| Self::map_reqwest_error(e, start.elapsed()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
                 // SSE 事件以空行分隔。
-                while let Some(idx) = buf.find("\n\n") {
+                while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
+                    let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };
                     // 用 drain 避免两次分配：取出事件文本并从缓冲区中移除。
-                    let event: String = buf.drain(..=idx + 1).collect();
+                    let event: String = buf.drain(..idx + sep_len).collect();
                     let event = event.trim_end_matches('\n').trim_end_matches('\r');
 
                     // 只处理 data 行（可能有多行 data）。
@@ -709,6 +711,7 @@ impl LlmProvider for OpenAiProvider {
 
                     let data = data_lines.join("\n");
                     if data == "[DONE]" {
+                        done = true;
                         break;
                     }
 
@@ -796,9 +799,9 @@ impl LlmProvider for OpenAiProvider {
                     }
                 }
 
-                // 如果已经收到 [DONE]，buf 会在上面的 break 后保留剩余内容；这里直接结束流。
-                if buf.contains("[DONE]") {
-                    break;
+                // 收到 [DONE] 后直接结束流。
+                if done {
+                    break 'outer;
                 }
             }
         };

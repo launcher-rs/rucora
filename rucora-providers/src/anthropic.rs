@@ -558,14 +558,19 @@ impl LlmProvider for AnthropicProvider {
             let mut buf = String::new();
             let mut bytes_stream = resp.bytes_stream();
 
+            // 按 content_block index 累积的流式工具调用（id/name/partial_json）
+            let mut tool_accs: std::collections::BTreeMap<usize, (String, String, String)> =
+                std::collections::BTreeMap::new();
+
             while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
-                while let Some(idx) = buf.find("\n\n") {
+                while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
+                    let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };
                     let event = buf[..idx].to_string();
-                    buf = buf[idx + 2..].to_string();
+                    buf = buf[idx + sep_len..].to_string();
 
                     let mut data_lines: Vec<&str> = Vec::new();
                     for line in event.lines() {
@@ -599,6 +604,7 @@ impl LlmProvider for AnthropicProvider {
                             .and_then(|t| t.as_str())
                             == Some("tool_use")
                         {
+                            let index = json.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
                             let tool_call_id = json
                                 .get("content_block")
                                 .and_then(|b| b.get("id"))
@@ -611,35 +617,52 @@ impl LlmProvider for AnthropicProvider {
                                 .and_then(|v| v.as_str())
                                 .unwrap_or("")
                                 .to_string();
-                            let tool_input = json
-                                .get("content_block")
-                                .and_then(|b| b.get("input"))
-                                .cloned()
-                                .unwrap_or_else(|| json!({}));
-                            yield ChatStreamChunk {
-                                delta: None,
-                                tool_calls: vec![(ToolCall {
-                                    id: tool_call_id,
-                                    name: tool_name,
-                                    input: tool_input,
-                                })],
-                                usage: None,
-                                finish_reason: None,
-                            };
+                            // start 事件不含 input；input 由后续 input_json_delta 分片拼装
+                            tool_accs.insert(index, (tool_call_id, tool_name, String::new()));
                         }
                     }
 
                     if event_type == "content_block_delta" {
-                        let delta = json
-                            .get("delta")
+                        let delta = json.get("delta");
+                        // 文本增量
+                        if let Some(text) = delta
                             .and_then(|d| d.get("text"))
                             .and_then(|v| v.as_str())
-                            .map(|s| s.to_string());
-
-                        if delta.is_some() {
+                        {
                             yield ChatStreamChunk {
-                                delta,
+                                delta: Some(text.to_string()),
                                 tool_calls: vec![],
+                                usage: None,
+                                finish_reason: None,
+                            };
+                        }
+                        // 工具调用参数的 JSON 增量
+                        if let Some(partial_json) = delta
+                            .and_then(|d| d.get("input_json_delta"))
+                            .and_then(|v| v.as_str())
+                        {
+                            let index = json.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                            if let Some((_, _, acc)) = tool_accs.get_mut(&index) {
+                                acc.push_str(partial_json);
+                            }
+                        }
+                    }
+
+                    if event_type == "content_block_stop" {
+                        // tool_use 块结束，组装完整 input 并 yield
+                        let index = json.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                        if let Some((tool_call_id, tool_name, acc)) = tool_accs.remove(&index)
+                            && !tool_call_id.is_empty()
+                            && !tool_name.is_empty()
+                        {
+                            let input: Value = serde_json::from_str(acc.as_str()).unwrap_or(Value::String(acc));
+                            yield ChatStreamChunk {
+                                delta: None,
+                                tool_calls: vec![ToolCall {
+                                    id: tool_call_id,
+                                    name: tool_name,
+                                    input,
+                                }],
                                 usage: None,
                                 finish_reason: None,
                             };
@@ -659,10 +682,6 @@ impl LlmProvider for AnthropicProvider {
                             finish_reason,
                         };
                     }
-                }
-
-                if buf.contains("[DONE]") {
-                    break;
                 }
             }
         };

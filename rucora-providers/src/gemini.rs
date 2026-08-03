@@ -27,7 +27,7 @@ use rucora_core::{
     error::ProviderError,
     provider::{
         LlmProvider,
-        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, Role, Usage},
+        types::{ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, Role, Usage},
     },
     tool::types::{ToolCall, ToolDefinition},
 };
@@ -633,38 +633,66 @@ impl LlmProvider for GeminiProvider {
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
-                while let Some(idx) = buf.find("\n\n") {
+                while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
+                    let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };
                     let event = buf[..idx].to_string();
-                    buf = buf[idx + 2..].to_string();
+                    buf = buf[idx + sep_len..].to_string();
 
-                    // Gemini SSE 格式：每行一个 JSON 对象
-                    for line in event.lines() {
-                        let trimmed = line.trim();
-                        if trimmed.is_empty() || trimmed.starts_with('[') {
-                            continue;
-                        }
+                    // 剥离 SSE 的 "data: " 前缀（兼容 alt=sse 格式）
+                    let data = event
+                        .lines()
+                        .filter_map(|l| l.trim().strip_prefix("data:"))
+                        .map(|s| s.trim().to_string())
+                        .collect::<Vec<_>>()
+                        .join("\n");
+                    let trimmed = data.trim();
 
-                        let json: Value = serde_json::from_str(trimmed)
-                            .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{e} data={trimmed}")))?;
-
-                        let content = json
-                            .get("candidates")
-                            .and_then(|v| v.as_array())
-                            .and_then(|arr| arr.first())
-                            .and_then(|c| c.get("content"))
-                            .cloned()
-                            .unwrap_or_else(|| json!({}));
-
-                        let delta = Self::extract_text_content(&content);
-                        if !delta.is_empty() {
-                            yield ChatStreamChunk {
-                                delta: Some(delta),
-                                tool_calls: vec![],
-                                usage: None,
-                                finish_reason: None,
-                            };
-                        }
+                    if trimmed.is_empty() {
+                        continue;
                     }
+
+                    let json: Value = serde_json::from_str(trimmed)
+                        .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{e} data={trimmed}")))?;
+
+                    let candidates = json
+                        .get("candidates")
+                        .and_then(|v| v.as_array());
+
+                    let content = candidates
+                        .and_then(|arr| arr.first())
+                        .and_then(|c| c.get("content"))
+                        .cloned()
+                        .unwrap_or_else(|| json!({}));
+
+                    // 工具调用
+                    let tool_calls = Self::parse_tool_calls(&content);
+
+                    // 文本增量
+                    let delta = Self::extract_text_content(&content);
+
+                    // finish_reason
+                    let finish_reason = candidates
+                        .and_then(|arr| arr.first())
+                        .and_then(|c| c.get("finishReason"))
+                        .and_then(|v| v.as_str())
+                        .map(|fr| match fr {
+                            "STOP" => FinishReason::Stop,
+                            "MAX_TOKENS" => FinishReason::Length,
+                            "TOOL_CALL" | "FUNCTION_CALL" => FinishReason::ToolCall,
+                            _ => FinishReason::Other,
+                        })
+                        .filter(|r| *r != FinishReason::Other);
+
+                    if delta.is_empty() && tool_calls.is_empty() && finish_reason.is_none() {
+                        continue;
+                    }
+
+                    yield ChatStreamChunk {
+                        delta: if delta.is_empty() { None } else { Some(delta) },
+                        tool_calls,
+                        usage: None,
+                        finish_reason,
+                    };
                 }
             }
         };

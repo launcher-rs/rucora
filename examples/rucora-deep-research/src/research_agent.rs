@@ -240,7 +240,7 @@ fn build_search_prompt(topic: &str) -> String {
 fn build_deep_read_prompt(topic: &str, search_summary: &str) -> String {
     // 截取前 6000 字符，避免 prompt 过长
     let summary_preview = if search_summary.len() > 6000 {
-        format!("{}...[已截断]", &search_summary[..6000])
+        format!("{}...[已截断]", &search_summary[..search_summary.floor_char_boundary(6000)])
     } else {
         search_summary.to_string()
     };
@@ -291,13 +291,13 @@ fn format_combined_context(topic: &str, search: &str, deep_read: &str) -> String
     let max_per_section = 8000usize;
 
     let search_trimmed = if search.len() > max_per_section {
-        format!("{}...[内容过长已截断]", &search[..max_per_section])
+        format!("{}...[内容过长已截断]", &search[..search.floor_char_boundary(max_per_section)])
     } else {
         search.to_string()
     };
 
     let read_trimmed = if deep_read.len() > max_per_section {
-        format!("{}...[内容过长已截断]", &deep_read[..max_per_section])
+        format!("{}...[内容过长已截断]", &deep_read[..deep_read.floor_char_boundary(max_per_section)])
     } else {
         deep_read.to_string()
     };

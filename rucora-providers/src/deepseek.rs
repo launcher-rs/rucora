@@ -6,7 +6,7 @@
 //! - 使用 OpenAI 兼容的 API 格式
 //! - 支持 DeepSeek 系列模型（DeepSeek-V3, DeepSeek-R1 等）
 
-use std::env;
+use std::{collections::BTreeMap, env};
 
 use crate::{
     helpers::{apply_sampling_params, parse_finish_reason},
@@ -24,7 +24,8 @@ use rucora_core::{
     provider::{
         LlmProvider,
         types::{
-            ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, ResponseFormat, Role, Usage,
+            ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat,
+            Role, Usage,
         },
     },
     tool::types::{ToolCall, ToolDefinition},
@@ -458,15 +459,18 @@ impl LlmProvider for DeepSeekProvider {
 
             let mut buf = String::new();
             let mut bytes_stream = resp.bytes_stream();
+            let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
+            let mut done = false;
 
             while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
                 let chunk = String::from_utf8_lossy(&bytes);
                 buf.push_str(&chunk);
 
-                while let Some(idx) = buf.find("\n\n") {
-                    let event = buf[..idx].to_string();
-                    buf = buf[idx + 2..].to_string();
+                while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
+                    let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };
+                    let event = buf.drain(..idx + sep_len).collect::<String>();
+                    let event = event.trim_end_matches('\n').trim_end_matches('\r');
 
                     let mut data_lines: Vec<&str> = Vec::new();
                     for line in event.lines() {
@@ -482,29 +486,96 @@ impl LlmProvider for DeepSeekProvider {
 
                     let data = data_lines.join("\n");
                     if data == "[DONE]" {
+                        done = true;
                         break;
                     }
 
                     let v: Value = serde_json::from_str(&data)
                         .map_err(|e| ProviderError::Message(format!("SSE 解析失败：{e} data={data}")))?;
 
-                    let delta = v
+                    let choice = v
                         .get("choices")
                         .and_then(|c| c.as_array())
-                        .and_then(|arr| arr.first())
-                        .and_then(|c0| c0.get("delta"))
+                        .and_then(|arr| arr.first());
+                    let delta_obj = choice.and_then(|c0| c0.get("delta"));
+
+                    let delta = delta_obj
                         .and_then(|d| d.get("content"))
                         .and_then(|s| s.as_str())
                         .map(|s| s.to_string());
+
+                    // 增量累积工具调用碎片（工具参数可能是分片 JSON）
+                    if let Some(tool_calls) = delta_obj
+                        .and_then(|d| d.get("tool_calls"))
+                        .and_then(|tc| tc.as_array())
+                    {
+                        for item in tool_calls {
+                            let index = item.get("index").and_then(|v| v.as_u64()).unwrap_or(0) as usize;
+                            let entry = tool_call_parts
+                                .entry(index)
+                                .or_insert_with(|| (String::new(), String::new(), String::new()));
+
+                            if let Some(id) = item.get("id").and_then(|v| v.as_str())
+                                && !id.is_empty()
+                            {
+                                entry.0 = id.to_string();
+                            }
+
+                            if let Some(function) = item.get("function") {
+                                if let Some(name) = function.get("name").and_then(|v| v.as_str()) {
+                                    entry.1.push_str(name);
+                                }
+                                if let Some(arguments) = function.get("arguments").and_then(|v| v.as_str()) {
+                                    entry.2.push_str(arguments);
+                                }
+                            }
+                        }
+                    }
+
+                    let finish_reason = choice
+                        .and_then(|c0| c0.get("finish_reason"))
+                        .and_then(|fr| fr.as_str())
+                        .map(parse_finish_reason);
 
                     if delta.is_some() {
                         yield ChatStreamChunk {
                             delta,
                             tool_calls: vec![],
                             usage: None,
-                            finish_reason: None,
+                            finish_reason,
                         };
                     }
+
+                    if matches!(finish_reason, Some(FinishReason::ToolCall)) {
+                        let tool_calls = tool_call_parts
+                            .values()
+                            .filter_map(|(id, name, args_raw)| {
+                                if name.is_empty() {
+                                    return None;
+                                }
+                                let input = serde_json::from_str(args_raw)
+                                    .unwrap_or_else(|_| Value::String(args_raw.clone()));
+                                Some(ToolCall {
+                                    id: id.clone(),
+                                    name: name.clone(),
+                                    input,
+                                })
+                            })
+                            .collect::<Vec<_>>();
+
+                        if !tool_calls.is_empty() {
+                            yield ChatStreamChunk {
+                                delta: None,
+                                tool_calls,
+                                usage: None,
+                                finish_reason,
+                            };
+                        }
+                    }
+                }
+
+                if done {
+                    break;
                 }
             }
         };

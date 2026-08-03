@@ -735,6 +735,11 @@ impl DefaultExecution {
                                 });
                             }
 
+                            // 将 assistant 消息（含可能的 tool_calls）加入历史，
+                            // 使下一轮循环能看到本轮的推理与工具调用，
+                            // 否则 remove_orphaned_tool_messages 会误删工具结果。
+                            messages.push(response.message.clone());
+
                             // 3. 检查工具调用
                             if response.tool_calls().is_empty() {
                                 // 无工具调用，返回最终结果

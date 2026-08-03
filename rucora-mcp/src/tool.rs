@@ -230,7 +230,7 @@ impl McpClient {
             if s.len() <= MAX {
                 s
             } else {
-                format!("{}...<truncated:{}>", &s[..MAX], s.len())
+                format!("{}...<truncated:{}>", s.floor_char_boundary(MAX), s.len())
             }
         };
         debug!(tool.name = %name, tool.input = %input_preview, "mcp.call_tool.start");
@@ -276,7 +276,7 @@ impl McpClient {
             if s.len() <= MAX {
                 s
             } else {
-                format!("{}...<truncated:{}>", &s[..MAX], s.len())
+                format!("{}...<truncated:{}>", s.floor_char_boundary(MAX), s.len())
             }
         };
         trace!(tool.name = %name, result = %result_preview, "mcp.call_tool.result_preview");
