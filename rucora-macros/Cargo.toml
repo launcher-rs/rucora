@@ -17,7 +17,6 @@ syn = { version = "2", features = ["full"] }
 proc-macro-crate = "3"
 
 [dev-dependencies]
-rucora.workspace = true
 rucora-core.workspace = true
 
 [lints]

@@ -389,6 +389,19 @@ fn injection_guard_paths() -> (proc_macro2::TokenStream, proc_macro2::TokenStrea
             }
         }
     }
+    if let Ok(found) = crate_name("rucora-core") {
+        match found {
+            FoundCrate::Itself => return (quote!(::rucora_core::InjectionGuard), quote!(::rucora_core::ScanResult)),
+            FoundCrate::Name(name) => {
+                let ident = syn::Ident::new(&name, Span::call_site());
+                return (
+                    quote!(::#ident::InjectionGuard),
+                    quote!(::#ident::ScanResult),
+                );
+            }
+        }
+    }
+    // 回退：尝试下划线形式（部分版本以包名作为键）
     if let Ok(found) = crate_name("rucora_core") {
         match found {
             FoundCrate::Itself => return (quote!(::rucora_core::InjectionGuard), quote!(::rucora_core::ScanResult)),

@@ -1,7 +1,7 @@
 //! #[rucora_guard] 宏集成测试：验证生成代码能匹配真实的 InjectionGuard trait。
 
-use rucora::rucora_guard;
 use rucora_core::{InjectionGuard, ScanResult};
+use rucora_macros::rucora_guard;
 
 /// 简单的长度限制守卫
 #[rucora_guard(name = "length-limit")]

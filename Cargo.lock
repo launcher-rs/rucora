@@ -2505,7 +2505,6 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "rucora",
  "rucora-core",
  "syn 2.0.119",
 ]
