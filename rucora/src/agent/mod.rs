@@ -219,6 +219,21 @@ pub mod summary;
 // 重新导出主要类型
 pub use loop_detector::{LoopDetectionResult, LoopDetector, LoopDetectorConfig};
 pub use policy::{DefaultToolPolicy, ToolPolicy};
+
+/// 构建器状态：尚未设置 model（此状态下无法调用 build()）
+///
+/// 所有 Agent 构建器（`SimpleAgentBuilder`、`ChatAgentBuilder`、`ToolAgentBuilder` 等）
+/// 使用 Typestate 模式，`builder(provider)` 返回此状态，调用 `.model(...)` 后
+/// 转为 [`WithModel`] 状态，此时才可调用 `.build()`。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct NoModel;
+
+/// 构建器状态：已设置 model（此状态下可调用 build()）
+///
+/// 所有 Agent 构建器的 `build()` 仅存在于该状态，因此在编译期强制必须先设置 model。
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct WithModel;
+
 pub use tool_call_config::{
     CacheConfig, CircuitBreakerConfig, ConcurrencyConfig, RetryConfig, RetryStrategy,
     TimeoutConfig, ToolCallEnhancedConfig, ToolCallEnhancedRuntime,

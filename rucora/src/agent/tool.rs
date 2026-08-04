@@ -36,6 +36,23 @@
 //! # Ok(())
 //! # }
 //! ```
+//!
+//! # Typestate 强制 model
+//!
+//! 忘记调用 `.model(...)` 时无法调用 `.build()`，会直接编译报错：
+//!
+//! ```compile_fail
+//! use rucora::agent::ToolAgent;
+//! use rucora::provider::OpenAiProvider;
+//!
+//! # async fn example() -> Result<(), Box<dyn std::error::Error>> {
+//! let provider = OpenAiProvider::from_env()?;
+//!
+//! // 编译错误：未设置 model 时 build() 不存在
+//! let _agent = ToolAgent::builder(provider).build();
+//! # Ok(())
+//! # }
+//! ```
 
 use async_trait::async_trait;
 use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput, AgentOutput};
@@ -232,8 +249,17 @@ where
     }
 }
 
-/// ToolAgent 构建器
-pub struct ToolAgentBuilder<P> {
+/// 构建器状态：尚未设置 model（此状态下无法调用 build()）
+// 上述状态类型 `NoModel`/`WithModel` 在 `crate::agent` 模块中定义并导出。
+use crate::agent::{NoModel, WithModel};
+
+/// ToolAgent 构建器（Typestate 模式）
+///
+/// 泛型参数 `S` 为构建器状态，用于在编译期强制调用 `.model(...)`：
+/// - `builder(provider)` 返回「未设置 model」状态的构建器 `ToolAgentBuilder<P, NoModel>`；
+/// - 只有调用 `.model(...)` 后才会转为「已设置 model」状态 `ToolAgentBuilder<P, WithModel>`；
+/// - `build()` 仅存在于 `WithModel` 状态，因此忘记设置 model 将无法通过编译。
+pub struct ToolAgentBuilder<P, S = NoModel> {
     provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
@@ -244,16 +270,19 @@ pub struct ToolAgentBuilder<P> {
     middleware_chain: crate::middleware::MiddlewareChain,
     enhanced_config: ToolCallEnhancedConfig,
     llm_params: LlmParams,
+    _marker: std::marker::PhantomData<S>,
 }
 
-impl<P> ToolAgentBuilder<P> {
+impl<P> ToolAgentBuilder<P, NoModel> {
     /// 创建新的构建器。
     ///
     /// # 参数
     ///
     /// - `provider`: LLM Provider（必需）
-    pub fn new(provider: P) -> Self {
-        Self {
+    ///
+    /// 初始为「未设置 model」状态，需调用 `.model(...)` 后才可 `.build()`。
+    pub fn new(provider: P) -> ToolAgentBuilder<P, NoModel> {
+        ToolAgentBuilder {
             provider,
             system_prompt: None,
             model: None,
@@ -264,23 +293,36 @@ impl<P> ToolAgentBuilder<P> {
             middleware_chain: crate::middleware::MiddlewareChain::new(),
             enhanced_config: ToolCallEnhancedConfig::default(),
             llm_params: LlmParams::default(),
+            _marker: std::marker::PhantomData,
         }
     }
+
+    /// 设置 Agent 级模型。必须调用后才能 [`build`](ToolAgentBuilder::build)，
+    /// 状态会从「未设置 model」转为「已设置 model」。
+    pub fn model(self, model: impl Into<String>) -> ToolAgentBuilder<P, WithModel> {
+        ToolAgentBuilder {
+            provider: self.provider,
+            system_prompt: self.system_prompt,
+            model: Some(model.into()),
+            tools: self.tools,
+            max_steps: self.max_steps,
+            max_tool_concurrency: self.max_tool_concurrency,
+            with_conversation: self.with_conversation,
+            middleware_chain: self.middleware_chain,
+            enhanced_config: self.enhanced_config,
+            llm_params: self.llm_params,
+            _marker: std::marker::PhantomData,
+        }
+}
 }
 
-impl<P> ToolAgentBuilder<P>
+impl<P, S> ToolAgentBuilder<P, S>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
     /// 设置系统提示词
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
-        self
-    }
-
-    /// 设置 Agent 级模型覆盖。不设置时使用 Provider 默认模型。
-    pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
         self
     }
 
@@ -405,7 +447,12 @@ where
         self.llm_params.extra = Some(value);
         self
     }
+}
 
+impl<P> ToolAgentBuilder<P, WithModel>
+where
+    P: LlmProvider + Send + Sync + 'static,
+{
     /// 构建 Agent。
     pub fn build(self) -> ToolAgent<P> {
         let provider = self.provider;
@@ -459,5 +506,23 @@ mod tests {
             .system_prompt("test")
             .max_steps(10)
             .build();
+    }
+
+    /// 验证 Typestate 状态转换：`.model()` 将构建器从 NoModel 状态转为 WithModel 状态。
+    #[test]
+    fn test_builder_typestate_transition() {
+        // builder() 初始返回 NoModel 状态
+        let builder: ToolAgentBuilder<MockProvider, NoModel> =
+            ToolAgentBuilder::<MockProvider>::new(MockProvider);
+        // 调用 .model() 后转为 WithModel 状态，此时才可调用 .build()
+        let builder: ToolAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let _agent = builder.build();
+    }
+
+    /// 验证 builder() 直接返回「未设置 model」状态。
+    #[test]
+    fn test_builder_starts_without_model() {
+        let _builder: ToolAgentBuilder<MockProvider, NoModel> =
+            ToolAgent::<MockProvider>::builder(MockProvider);
     }
 }

@@ -47,6 +47,7 @@ use tracing::{debug, info, warn};
 
 use crate::agent::execution::DefaultExecution;
 use crate::agent::tool_registry::ToolRegistry;
+use crate::agent::{NoModel, WithModel};
 
 /// 类型擦除的 ChunkSizer 包装。
 /// 类型擦除的 ChunkSizer 包装（内部实现，不推荐直接使用）。
@@ -511,8 +512,13 @@ impl<P> SummaryAgent<P> {
     }
 }
 
-/// SummaryAgent 构建器
-pub struct SummaryAgentBuilder<P> {
+/// SummaryAgent 构建器（Typestate 模式）
+///
+/// 泛型参数 `S` 为构建器状态，用于在编译期强制调用 `.model(...)`：
+/// - `builder(provider)` 返回「未设置 model」状态的构建器 `SummaryAgentBuilder<P, NoModel>`；
+/// - 只有调用 `.model(...)` 后才会转为「已设置 model」状态 `SummaryAgentBuilder<P, WithModel>`；
+/// - `build()` 仅存在于 `WithModel` 状态，因此忘记设置 model 将无法通过编译。
+pub struct SummaryAgentBuilder<P, S = NoModel> {
     provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
@@ -523,16 +529,19 @@ pub struct SummaryAgentBuilder<P> {
     prompt_template: Option<String>,
     chunk_template: Option<String>,
     combine_template: Option<String>,
+    _marker: std::marker::PhantomData<S>,
 }
 
-impl<P> SummaryAgentBuilder<P> {
+impl<P> SummaryAgentBuilder<P, NoModel> {
     /// 创建新的构建器。
     ///
     /// # 参数
     ///
     /// - `provider`: LLM Provider（必需）
-    pub fn new(provider: P) -> Self {
-        Self {
+    ///
+    /// 初始为「未设置 model」状态，需调用 `.model(...)` 后才可 `.build()`。
+    pub fn new(provider: P) -> SummaryAgentBuilder<P, NoModel> {
+        SummaryAgentBuilder {
             provider,
             system_prompt: None,
             model: None,
@@ -543,21 +552,35 @@ impl<P> SummaryAgentBuilder<P> {
             prompt_template: None,
             chunk_template: None,
             combine_template: None,
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    /// 设置默认模型。必须调用后才能 [`build`](SummaryAgentBuilder::build)，
+    /// 状态会从「未设置 model」转为「已设置 model」。
+    pub fn model(self, model: impl Into<String>) -> SummaryAgentBuilder<P, WithModel> {
+        SummaryAgentBuilder {
+            provider: self.provider,
+            system_prompt: self.system_prompt,
+            model: Some(model.into()),
+            llm_params: self.llm_params,
+            mode: self.mode,
+            splitter: self.splitter,
+            max_concurrency: self.max_concurrency,
+            prompt_template: self.prompt_template,
+            chunk_template: self.chunk_template,
+            combine_template: self.combine_template,
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl<P> SummaryAgentBuilder<P>
+impl<P, S> SummaryAgentBuilder<P, S>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
-        self
-    }
-
-    pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
         self
     }
 
@@ -698,7 +721,12 @@ where
         self.llm_params = params;
         self
     }
+}
 
+impl<P> SummaryAgentBuilder<P, WithModel>
+where
+    P: LlmProvider + Send + Sync + 'static,
+{
     /// 构建 Agent。
     pub fn build(self) -> SummaryAgent<P> {
         let provider = self.provider;
@@ -962,5 +990,14 @@ mod tests {
                 "分块 {chunk} 应在原文中恰好出现一次"
             );
         }
+    }
+
+    /// 验证 Typestate 状态转换：`.model()` 将构建器从 NoModel 状态转为 WithModel 状态。
+    #[test]
+    fn test_builder_typestate_transition() {
+        let builder: SummaryAgentBuilder<MockProvider, NoModel> =
+            SummaryAgentBuilder::<MockProvider>::new(MockProvider);
+        let builder: SummaryAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let _agent = builder.build();
     }
 }

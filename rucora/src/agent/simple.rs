@@ -39,6 +39,7 @@ use rucora_core::provider::LlmProvider;
 use rucora_core::provider::types::LlmParams;
 use std::sync::Arc;
 
+use crate::agent::{NoModel, WithModel};
 use crate::agent::execution::{DefaultExecution, build_default_execution};
 
 /// SimpleAgent - 简单问答 Agent
@@ -134,45 +135,61 @@ impl<P> SimpleAgent<P> {
     }
 }
 
-/// SimpleAgent 构建器
-pub struct SimpleAgentBuilder<P> {
+/// SimpleAgent 构建器（Typestate 模式）
+///
+/// 泛型参数 `S` 为构建器状态，用于在编译期强制调用 `.model(...)`：
+/// - `builder(provider)` 返回「未设置 model」状态的构建器 `SimpleAgentBuilder<P, NoModel>`；
+/// - 只有调用 `.model(...)` 后才会转为「已设置 model」状态 `SimpleAgentBuilder<P, WithModel>`；
+/// - `build()` 仅存在于 `WithModel` 状态，因此忘记设置 model 将无法通过编译。
+pub struct SimpleAgentBuilder<P, S = NoModel> {
     provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
     llm_params: LlmParams,
     middleware_chain: crate::middleware::MiddlewareChain,
+    _marker: std::marker::PhantomData<S>,
 }
 
-impl<P> SimpleAgentBuilder<P> {
+impl<P> SimpleAgentBuilder<P, NoModel> {
     /// 创建新的构建器。
     ///
     /// # 参数
     ///
     /// - `provider`: LLM Provider（必需）
-    pub fn new(provider: P) -> Self {
-        Self {
+    ///
+    /// 初始为「未设置 model」状态，需调用 `.model(...)` 后才可 `.build()`。
+    pub fn new(provider: P) -> SimpleAgentBuilder<P, NoModel> {
+        SimpleAgentBuilder {
             provider,
             system_prompt: None,
             model: None,
             llm_params: LlmParams::default(),
             middleware_chain: crate::middleware::MiddlewareChain::new(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    /// 设置 Agent 级模型。必须调用后才能 [`build`](SimpleAgentBuilder::build)，
+    /// 状态会从「未设置 model」转为「已设置 model」。
+    pub fn model(self, model: impl Into<String>) -> SimpleAgentBuilder<P, WithModel> {
+        SimpleAgentBuilder {
+            provider: self.provider,
+            system_prompt: self.system_prompt,
+            model: Some(model.into()),
+            llm_params: self.llm_params,
+            middleware_chain: self.middleware_chain,
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl<P> SimpleAgentBuilder<P>
+impl<P, S> SimpleAgentBuilder<P, S>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
     /// 设置系统提示词
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
-        self
-    }
-
-    /// 设置 Agent 级模型覆盖。不设置时使用 Provider 默认模型。
-    pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
         self
     }
 
@@ -250,7 +267,12 @@ where
         self.middleware_chain = self.middleware_chain.with(middleware);
         self
     }
+}
 
+impl<P> SimpleAgentBuilder<P, WithModel>
+where
+    P: LlmProvider + Send + Sync + 'static,
+{
     /// 构建 Agent。
     pub fn build(self) -> SimpleAgent<P> {
         let provider = self.provider;
@@ -290,5 +312,14 @@ mod tests {
             .system_prompt("test")
             .temperature(0.5)
             .build();
+    }
+
+    /// 验证 Typestate 状态转换：`.model()` 将构建器从 NoModel 状态转为 WithModel 状态。
+    #[test]
+    fn test_builder_typestate_transition() {
+        let builder: SimpleAgentBuilder<MockProvider, NoModel> =
+            SimpleAgentBuilder::<MockProvider>::new(MockProvider);
+        let builder: SimpleAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let _agent = builder.build();
     }
 }

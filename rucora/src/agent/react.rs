@@ -48,6 +48,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::agent::ToolRegistry;
+use crate::agent::{NoModel, WithModel};
 use crate::agent::execution::{DefaultExecution, build_default_execution};
 use crate::conversation::ConversationManager;
 
@@ -214,8 +215,13 @@ where
     }
 }
 
-/// ReActAgent 构建器
-pub struct ReActAgentBuilder<P> {
+/// ReActAgent 构建器（Typestate 模式）
+///
+/// 泛型参数 `S` 为构建器状态，用于在编译期强制调用 `.model(...)`：
+/// - `builder(provider)` 返回「未设置 model」状态的构建器 `ReActAgentBuilder<P, NoModel>`；
+/// - 只有调用 `.model(...)` 后才会转为「已设置 model」状态 `ReActAgentBuilder<P, WithModel>`；
+/// - `build()` 仅存在于 `WithModel` 状态，因此忘记设置 model 将无法通过编译。
+pub struct ReActAgentBuilder<P, S = NoModel> {
     provider: P,
     system_prompt: Option<String>,
     model: Option<String>,
@@ -224,16 +230,19 @@ pub struct ReActAgentBuilder<P> {
     with_conversation: bool,
     middleware_chain: crate::middleware::MiddlewareChain,
     llm_params: LlmParams,
+    _marker: std::marker::PhantomData<S>,
 }
 
-impl<P> ReActAgentBuilder<P> {
+impl<P> ReActAgentBuilder<P, NoModel> {
     /// 创建新的构建器。
     ///
     /// # 参数
     ///
     /// - `provider`: LLM Provider（必需）
-    pub fn new(provider: P) -> Self {
-        Self {
+    ///
+    /// 初始为「未设置 model」状态，需调用 `.model(...)` 后才可 `.build()`。
+    pub fn new(provider: P) -> ReActAgentBuilder<P, NoModel> {
+        ReActAgentBuilder {
             provider,
             system_prompt: None,
             model: None,
@@ -242,23 +251,34 @@ impl<P> ReActAgentBuilder<P> {
             with_conversation: false,
             middleware_chain: crate::middleware::MiddlewareChain::new(),
             llm_params: LlmParams::default(),
+            _marker: std::marker::PhantomData,
+        }
+    }
+
+    /// 设置默认模型（必需）。必须调用后才能 [`build`](ReActAgentBuilder::build)，
+    /// 状态会从「未设置 model」转为「已设置 model」。
+    pub fn model(self, model: impl Into<String>) -> ReActAgentBuilder<P, WithModel> {
+        ReActAgentBuilder {
+            provider: self.provider,
+            system_prompt: self.system_prompt,
+            model: Some(model.into()),
+            tools: self.tools,
+            max_steps: self.max_steps,
+            with_conversation: self.with_conversation,
+            middleware_chain: self.middleware_chain,
+            llm_params: self.llm_params,
+            _marker: std::marker::PhantomData,
         }
     }
 }
 
-impl<P> ReActAgentBuilder<P>
+impl<P, S> ReActAgentBuilder<P, S>
 where
     P: LlmProvider + Send + Sync + 'static,
 {
     /// 设置系统提示词
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
-        self
-    }
-
-    /// 设置默认模型（必需）
-    pub fn model(mut self, model: impl Into<String>) -> Self {
-        self.model = Some(model.into());
         self
     }
 
@@ -363,7 +383,12 @@ where
         self.middleware_chain = self.middleware_chain.with(middleware);
         self
     }
+}
 
+impl<P> ReActAgentBuilder<P, WithModel>
+where
+    P: LlmProvider + Send + Sync + 'static,
+{
     /// 构建 Agent。
     pub fn build(self) -> ReActAgent<P> {
         let provider = self.provider;
@@ -414,5 +439,14 @@ mod tests {
             .model("gpt-4o-mini")
             .max_steps(15)
             .build();
+    }
+
+    /// 验证 Typestate 状态转换：`.model()` 将构建器从 NoModel 状态转为 WithModel 状态。
+    #[test]
+    fn test_builder_typestate_transition() {
+        let builder: ReActAgentBuilder<MockProvider, NoModel> =
+            ReActAgentBuilder::<MockProvider>::new(MockProvider);
+        let builder: ReActAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let _agent = builder.build();
     }
 }
