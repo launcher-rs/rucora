@@ -1,9 +1,11 @@
 //! Integration tests for rucora macros
 
+use rucora::rucora_guard;
 use rucora::rucora_tool;
 use rucora::tool_params;
 use rucora_core::tool::Tool;
 use rucora_core::tool::types::ToolContext;
+use rucora_core::{InjectionGuard, ScanResult};
 use serde_json::json;
 
 #[rucora_tool(name = "test_add", description = "Test addition")]
@@ -69,4 +71,30 @@ fn test_tool_params_macro_in_test() {
     let required = schema["required"].as_array().unwrap();
     assert_eq!(required.len(), 1);
     assert_eq!(required[0], "id");
+}
+
+/// 简单的长度限制守卫
+#[rucora_guard(name = "length-limit")]
+fn check_length(content: &str, source: &str) -> ScanResult {
+    let _ = source;
+    let too_long = content.len() > 5;
+    ScanResult {
+        is_safe: !too_long,
+        threats: vec![],
+        cleaned_content: None,
+        original_length: content.len(),
+    }
+}
+
+#[test]
+fn test_rucora_guard_macro_generates_working_impl() {
+    let guard = LengthLimitGuard;
+
+    let safe = guard.scan("abc", "test");
+    assert!(safe.is_safe);
+    assert_eq!(safe.original_length, 3);
+
+    let blocked = guard.scan("this is too long", "test");
+    assert!(!blocked.is_safe);
+    assert_eq!(blocked.original_length, 16);
 }
