@@ -73,15 +73,17 @@ let http_tool = HttpRequestTool::new();
 - 💾 记忆存储
 - 🔧 系统命令
 
-### 3. Runtime（运行时）
+### 3. Agent（智能体）
 
-Runtime 负责协调 Provider 和 Tool 的工作：
+Agent 负责协调 Provider 和 Tool 的工作：
 
 ```rust
-use rucora_runtime::DefaultRuntime;
+use rucora::agent::ToolAgent;
 
-let runtime = DefaultRuntime::new(provider, tools)
-    .with_system_prompt("你是有用的助手");
+let agent = ToolAgent::builder(provider)
+    .model("gpt-4o-mini")
+    .system_prompt("你是有用的助手")
+    .build();
 ```
 
 ### 4. Conversation（对话管理）
@@ -108,8 +110,7 @@ conv.add_assistant_message("你好！有什么可以帮助你的？");
 
 ```toml
 [dependencies]
-rucora = "0.1"
-rucora-runtime = "0.1"
+rucora = "0.5"
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 ```
@@ -127,38 +128,25 @@ export OLLAMA_BASE_URL=http://localhost:11434
 ### 3. 第一个 Agent 应用
 
 ```rust
+use rucora::agent::SimpleAgent;
+use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
-use rucora_runtime::{DefaultRuntime, ToolRegistry};
-use rucora_core::agent::types::AgentInput;
-use rucora_core::provider::types::{ChatMessage, Role};
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // 1. 创建 Provider
     let provider = OpenAiProvider::from_env()?;
     
-    // 2. 创建工具注册表
-    let tools = ToolRegistry::new();
+    // 2. 创建 Agent
+    let agent = SimpleAgent::builder(provider)
+        .model("gpt-4o-mini")
+        .system_prompt("你是有用的助手")
+        .build();
     
-    // 3. 创建运行时
-    let runtime = DefaultRuntime::new(Arc::new(provider), tools)
-        .with_system_prompt("你是有用的助手");
+    // 3. 运行 Agent
+    let output = agent.run("用一句话介绍 Rust".into()).await?;
     
-    // 4. 创建输入
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "用一句话介绍 Rust".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
-    
-    // 5. 运行 Agent
-    let output = runtime.run(input).await?;
-    
-    println!("助手回复：{}", output.message.content);
+    println!("助手回复：{}", output.text().unwrap_or("无回复"));
     
     Ok(())
 }
@@ -524,7 +512,7 @@ let chain = MiddlewareChain::new()
 
 ## 下一步
 
-- 📚 查看 [API 参考文档](./api_reference.md) 了解完整 API
+- 📚 查看 [快速参考](./QUICK_REFERENCE.md) 了解完整 API
 - 🍳 查看 [示例集合](./cookbook.md) 学习更多用例
 - ❓ 查看 [常见问题](./faq.md) 解决问题
 

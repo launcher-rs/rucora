@@ -71,8 +71,7 @@ chain = chain.with(LoggingMiddleware::new());
 ```rust
 use rucora::middleware::LoggingMiddleware;
 
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .with_middleware(LoggingMiddleware::new())
     .build();
 ```
@@ -85,8 +84,7 @@ let agent = ToolAgent::builder()
 use rucora::middleware::RateLimitMiddleware;
 
 // 每分钟最多 60 个请求
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .with_middleware(RateLimitMiddleware::new(60))
     .build();
 ```
@@ -98,8 +96,7 @@ let agent = ToolAgent::builder()
 ```rust
 use rucora::middleware::CacheMiddleware;
 
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .with_middleware(CacheMiddleware::new())
     .build();
 ```
@@ -112,8 +109,7 @@ let agent = ToolAgent::builder()
 use rucora::middleware::MetricsMiddleware;
 
 let metrics = MetricsMiddleware::new();
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .with_middleware(metrics.clone())
     .build();
 
@@ -157,8 +153,7 @@ impl Middleware for AuthMiddleware {
 }
 
 // 使用
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .with_middleware(AuthMiddleware::new("sk-test-key"))
     .build();
 ```
@@ -202,8 +197,7 @@ impl Middleware for SensitiveWordFilterMiddleware {
 }
 
 // 使用
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .with_middleware(SensitiveWordFilterMiddleware::new(vec!["敏感词", "违规"]))
     .build();
 ```
@@ -280,8 +274,7 @@ impl Middleware for ToolCallLoggingMiddleware {
 use rucora::agent::ToolAgent;
 use rucora::middleware::MiddlewareChain;
 
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("gpt-4o-mini")
     .with_middleware_chain(
         MiddlewareChain::new()
@@ -297,8 +290,7 @@ let agent = ToolAgent::builder()
 逐个添加中间件：
 
 ```rust
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("gpt-4o-mini")
     .with_middleware(LoggingMiddleware::new())
     .with_middleware(CacheMiddleware::new())
@@ -310,14 +302,12 @@ let agent = ToolAgent::builder()
 
 ```rust
 // SimpleAgent
-let simple = SimpleAgent::builder()
-    .provider(provider)
+let simple = SimpleAgent::builder(provider)
     .with_middleware(LoggingMiddleware::new())
     .build();
 
 // ChatAgent
-let chat = ChatAgent::builder()
-    .provider(provider)
+let chat = ChatAgent::builder(provider)
     .with_middleware_chain(MiddlewareChain::new()
         .with(LoggingMiddleware::new())
         .with(AuthMiddleware::new("key"))
@@ -325,21 +315,18 @@ let chat = ChatAgent::builder()
     .build();
 
 // ToolAgent
-let tool = ToolAgent::builder()
-    .provider(provider)
+let tool = ToolAgent::builder(provider)
     .with_middleware(LoggingMiddleware::new())
     .with_middleware(ToolCallLoggingMiddleware)
     .build();
 
 // ReActAgent
-let react = ReActAgent::builder()
-    .provider(provider)
+let react = ReActAgent::builder(provider)
     .with_middleware(RateLimitMiddleware::new(30))
     .build();
 
 // ReflectAgent
-let reflect = ReflectAgent::builder()
-    .provider(provider)
+let reflect = ReflectAgent::builder(provider)
     .with_middleware(ResponseFormatMiddleware)
     .build();
 ```
@@ -944,14 +931,12 @@ impl Middleware for CacheMiddleware {
 // ❌ 错误 - 创建了中间件链但未使用
 let chain = MiddlewareChain::new()
     .with(LoggingMiddleware::new());
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("gpt-4o-mini")
     .build();  // 忘记添加 with_middleware_chain()
 
 // ✅ 正确
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("gpt-4o-mini")
     .with_middleware_chain(chain)
     .build();

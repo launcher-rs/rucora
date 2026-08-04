@@ -26,8 +26,7 @@ rustup update stable
 
 ```toml
 [dependencies]
-rucora = "0.1"
-rucora-runtime = "0.1"
+rucora = "0.5"
 tokio = { version = "1", features = ["full"] }
 ```
 
@@ -92,14 +91,17 @@ let messages = conv.get_messages();
 
 ### Q: 如何让 Agent 使用工具？
 
-**A**: 在 `ToolRegistry` 中注册工具：
+**A**: 使用 `ToolAgent` 并注册工具：
 
 ```rust
-let tools = ToolRegistry::new()
-    .register(FileReadTool::new())
-    .register(HttpRequestTool::new());
+use rucora::agent::ToolAgent;
+use rucora::tools::{FileReadTool, HttpRequestTool};
 
-let runtime = DefaultRuntime::new(provider, tools);
+let agent = ToolAgent::builder(provider)
+    .model("gpt-4o-mini")
+    .tool(FileReadTool::new())
+    .tool(HttpRequestTool::new())
+    .build();
 ```
 
 ### Q: 如何创建自定义工具？
@@ -132,40 +134,15 @@ let manager = ConversationManager::new()
 
 ## 性能和成本
 
-### Q: 如何追踪 API 成本？
-
-**A**: 使用 `CostTracker`：
-
-```rust
-use rucora::cost::CostTracker;
-
-let tracker = CostTracker::new();
-tracker.record_usage("gpt-4", 100, 50, 0.0045).await;
-
-let cost = tracker.get_current_cost().await;
-```
-
-### Q: 如何设置预算限制？
-
-**A**: 
-
-```rust
-let tracker = CostTracker::new()
-    .with_budget_limit(10.0);  // $10 预算
-
-if !tracker.check_budget(10.0).await {
-    // 超出预算，停止服务
-}
-```
-
 ### Q: 如何计算 Token 数？
 
-**A**: 使用 `TokenCounter`：
+**A**: 使用 `TokenCounter`（位于 `rucora::compact`）：
 
 ```rust
-let counter = TokenCounter::new("gpt-4");
-let tokens = counter.count_text("Hello");
-let msg_tokens = counter.count_messages(&messages);
+use rucora::compact::TokenCounter;
+
+let counter = TokenCounter::new();
+let tokens = counter.estimate("Hello, World!");
 ```
 
 ### Q: rucora 的性能如何？
@@ -180,8 +157,7 @@ let msg_tokens = counter.count_messages(&messages);
 **A**: 
 1. 使用 `ConversationManager` 限制历史长度
 2. 使用 `TokenCounter` 监控用量
-3. 设置预算警报
-4. 对简单任务使用更便宜的模型
+3. 对简单任务使用更便宜的模型
 
 ---
 
@@ -364,6 +340,6 @@ let template = PromptTemplate::from_string(
 - [用户指南](./user_guide.md) - 详细使用文档
 - [快速入门](./quick_start.md) - 10 分钟上手
 - [示例集合](./cookbook.md) - 实用代码示例
-- [API 参考](./api_reference.md) - 完整 API 文档
+- [快速参考](./QUICK_REFERENCE.md) - API 快速查询
 
 **没有找到答案？欢迎提交 Issue！**

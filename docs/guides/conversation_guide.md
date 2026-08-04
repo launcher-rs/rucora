@@ -6,13 +6,13 @@
 - 管理多轮对话的上下文
 - 自动添加消息到历史
 - 窗口限制（保留最近 N 条消息）
-- 与 Agent/Runtime 配合实现连续对话
+- 与 Agent 配合实现连续对话
 
 ## 核心概念
 
 ```
 ConversationManager = 对话历史管理器（负责存储和检索）
-Agent/Runtime       = 推理和执行单元（使用历史进行对话）
+Agent               = 推理和执行单元（使用历史进行对话）
 ```
 
 ## 基本使用
@@ -66,7 +66,7 @@ for msg in messages {
 }
 ```
 
-## 与 Runtime 配合使用
+## 与 Agent 配合使用
 
 ### 方式 1：每次手动传递历史
 
@@ -74,50 +74,26 @@ for msg in messages {
 use rucora::conversation::ConversationManager;
 use rucora::prelude::*;
 use rucora::provider::OpenAiProvider;
-use rucora::runtime::DefaultRuntime;
+use rucora::agent::ChatAgent;
 
 let provider = OpenAiProvider::from_env()?;
-let runtime = DefaultRuntime::new(
-    Arc::new(provider),
-    ToolRegistry::new(),
-    "qwen3.5:9b",
-);
-
-let mut conv = ConversationManager::new()
-    .with_system_prompt("你是项目助手");
+let agent = ChatAgent::builder(provider)
+    .model("qwen3.5:9b")
+    .system_prompt("你是项目助手")
+    .with_conversation(true)  // 开启对话历史记忆
+    .build();
 
 // 第 1 轮
 conv.add_user_message("rucora 是什么？".to_string());
-let input = AgentInput::new("rucora 是什么？");
-let output = runtime.run(input).await?;
+let output = agent.run("rucora 是什么？".into()).await?;
 conv.add_assistant_message(output.text().unwrap().to_string());
 
 // 第 2 轮（带上下文）
 conv.add_user_message("它支持哪些工具？".to_string());
-let input = AgentInput::new("它支持哪些工具？");
-let output = runtime.run(input).await?;
+let output = agent.run("它支持哪些工具？".into()).await?;
 ```
 
-**注意**：Runtime 本身不维护对话历史，每次请求是独立的。如需多轮对话，需要手动管理历史。
-
-## 与 Agent 配合使用
-
-### 方式 1：简单对话（无历史）
-
-```rust
-use rucora::prelude::*;
-use rucora::provider::OpenAiProvider;
-use rucora::agent::DefaultAgent;
-
-let provider = OpenAiProvider::from_env()?;
-let agent = DefaultAgent::builder()
-    .provider(provider)
-    .model("qwen3.5:9b")
-    .build();
-
-// 每次对话是独立的
-let output = agent.run("你好").await?;
-```
+**注意**：ChatAgent 使用 `with_conversation(true)` 自行维护对话历史；如需手动控制历史，可使用 `ConversationManager` 后通过 `SimpleAgent` 调用。
 
 ### 方式 2：配合 ConversationManager（推荐）
 
@@ -125,15 +101,14 @@ let output = agent.run("你好").await?;
 use rucora::conversation::ConversationManager;
 use rucora::prelude::*;
 use rucora::provider::OpenAiProvider;
-use rucora::agent::DefaultAgent;
+use rucora::agent::SimpleAgent;
 use rucora_core::provider::types::Role;
 
 let provider = OpenAiProvider::from_env()?;
 let mut conv = ConversationManager::new()
     .with_system_prompt("你是个人助手");
 
-let agent = DefaultAgent::builder()
-    .provider(provider)
+let agent = SimpleAgent::builder(provider)
     .model("qwen3.5:9b")
     .build();
 
@@ -165,7 +140,7 @@ for user_input in conversations {
     full_input.push_str("助手：");
     
     // 3. 运行 Agent
-    let output = agent.run(AgentInput::new(full_input)).await?;
+    let output = agent.run(full_input).await?;
     if let Some(content) = output.text() {
         println!("助手：{}", content);
         // 4. 添加助手回复到历史
@@ -205,20 +180,20 @@ for msg in messages {
 }
 ```
 
-### 示例 2：Runtime 多轮对话
+### 示例 2：Agent 多轮对话
 
 ```rust
 use rucora::conversation::ConversationManager;
 use rucora::prelude::*;
 use rucora::provider::OpenAiProvider;
-use rucora::runtime::DefaultRuntime;
+use rucora::agent::ChatAgent;
 
 let provider = OpenAiProvider::from_env()?;
-let runtime = DefaultRuntime::new(
-    Arc::new(provider),
-    ToolRegistry::new(),
-    "qwen3.5:9b",
-);
+let agent = ChatAgent::builder(provider)
+    .model("qwen3.5:9b")
+    .system_prompt("你是项目助手")
+    .with_conversation(true)
+    .build();
 
 let mut conv = ConversationManager::new()
     .with_system_prompt("你是项目助手");
@@ -226,7 +201,7 @@ let mut conv = ConversationManager::new()
 // 第 1 轮
 println!("用户：rucora 是什么？");
 conv.add_user_message("rucora 是什么？".to_string());
-let output = runtime.run(AgentInput::new("rucora 是什么？")).await?;
+let output = agent.run("rucora 是什么？".into()).await?;
 if let Some(content) = output.text() {
     println!("助手：{}", content);
     conv.add_assistant_message(content.to_string());
@@ -235,7 +210,7 @@ if let Some(content) = output.text() {
 // 第 2 轮
 println!("\n用户：它支持哪些 Provider？");
 conv.add_user_message("它支持哪些 Provider？".to_string());
-let output = runtime.run(AgentInput::new("它支持哪些 Provider？")).await?;
+let output = agent.run("它支持哪些 Provider？".into()).await?;
 if let Some(content) = output.text() {
     println!("助手：{}", content);
     conv.add_assistant_message(content.to_string());
@@ -248,7 +223,7 @@ if let Some(content) = output.text() {
 use rucora::conversation::ConversationManager;
 use rucora::prelude::*;
 use rucora::provider::OpenAiProvider;
-use rucora::agent::DefaultAgent;
+use rucora::agent::ChatAgent;
 use rucora_core::provider::types::Role;
 
 let provider = OpenAiProvider::from_env()?;
@@ -256,8 +231,7 @@ let mut conv = ConversationManager::new()
     .with_system_prompt("你是贴心的个人助手")
     .with_max_messages(20);
 
-let agent = DefaultAgent::builder()
-    .provider(provider)
+let agent = ChatAgent::builder(provider)
     .model("qwen3.5:9b")
     .build();
 
@@ -294,7 +268,7 @@ for (i, user_input) in inputs.iter().enumerate() {
     context.push_str("助手：");
     
     // 运行 Agent
-    let output = agent.run(AgentInput::new(context)).await?;
+    let output = agent.run(context).await?;
     if let Some(content) = output.text() {
         println!("助手：{}", content);
         conv.add_assistant_message(content.to_string());
@@ -399,9 +373,9 @@ cargo run --example 05_conversation -p rucora
 
 ## 常见问题
 
-### Q: Runtime 和 Agent 本身不维护对话历史吗？
+### Q: Agent 本身不维护对话历史吗？
 
-A: 不维护。Runtime 和 Agent 是无状态的，每次请求独立。需要使用 `ConversationManager` 来管理历史。
+A: 默认不维护（`SimpleAgent` 每次请求独立）。如需自动记忆，使用 `ChatAgent` 的 `with_conversation(true)`，或使用 `ConversationManager` 手动管理历史。
 
 ### Q: 如何避免 token 超限？
 

@@ -426,16 +426,16 @@ grep -i error app.log
 ```rust
 // minimal.rs
 use rucora::provider::OpenAiProvider;
-use rucora::agent::DefaultAgent;
+use rucora::agent::SimpleAgent;
+use rucora::prelude::Agent;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
-    let agent = DefaultAgent::builder()
-        .provider(provider)
+    let agent = SimpleAgent::builder(provider)
         .model("gpt-4o-mini")
         .build();
-    agent.run("你好").await?;
+    agent.run("你好".into()).await?;
     Ok(())
 }
 ```
@@ -494,4 +494,4 @@ let config = SkillConfig::from_dir_with_options(&path, &options)?;
 
 - [Skill 配置规范](skill_yaml_spec.md)
 - [Skill 配置示例](skill_yaml_examples.md)
-- [Hello World 示例](../examples/hello_world.rs)
+- [Hello World 示例](../../rucora/examples/01_hello_world.rs)

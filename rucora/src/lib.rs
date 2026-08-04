@@ -18,7 +18,7 @@
 //!
 //! ```toml
 //! [dependencies]
-//! rucora = "0.1"
+//! rucora = "0.5"
 //! tokio = { version = "1", features = ["full"] }
 //! anyhow = "1"
 //! ```

@@ -17,21 +17,21 @@
 ### 1. 最简单的 Agent
 
 ```rust
+use rucora::agent::SimpleAgent;
+use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
-use rucora_runtime::{DefaultRuntime, ToolRegistry};
-use rucora_core::agent::types::AgentInput;
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = OpenAiProvider::from_env()?;
-    let runtime = DefaultRuntime::new(Arc::new(provider), ToolRegistry::new())
-        .with_system_prompt("你是有用的助手");
+    let agent = SimpleAgent::builder(provider)
+        .model("gpt-4o-mini")
+        .system_prompt("你是有用的助手")
+        .build();
 
-    let input = AgentInput::from("你好，请介绍下自己");
-    let output = runtime.run(input).await?;
+    let output = agent.run("你好，请介绍下自己".into()).await?;
 
-    println!("{}", output.message.content);
+    println!("{}", output.text().unwrap_or("无回复"));
     Ok(())
 }
 ```
@@ -39,10 +39,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ### 2. 流式输出
 
 ```rust
-use rucora_runtime::{DefaultRuntime, ChannelEvent};
-use futures_util::StreamExt;
+use rucora::agent::AgentStream;
+use rucora::prelude::*;
 
-let mut stream = runtime.run_stream(input);
+let mut stream = AgentStream::new(agent.run_stream("你好".into()));
 while let Some(event) = stream.next().await {
     match event? {
         ChannelEvent::TokenDelta(delta) => {
@@ -110,16 +110,19 @@ manager.compress("用户询问了 Rust 的所有权概念，已解释基本规�
 ### 7. 使用内置工具
 
 ```rust
+use rucora::agent::ToolAgent;
 use rucora::tools::{
     FileReadTool, FileWriteTool,
     HttpRequestTool, ShellTool,
 };
 
-let tools = ToolRegistry::new()
-    .register(FileReadTool::new())
-    .register(FileWriteTool::new())
-    .register(HttpRequestTool::new())
-    .register(ShellTool::new());
+let agent = ToolAgent::builder(provider)
+    .model("gpt-4o-mini")
+    .tool(FileReadTool::new())
+    .tool(FileWriteTool::new())
+    .tool(HttpRequestTool::new())
+    .tool(ShellTool::new())
+    .build();
 ```
 
 ### 8. 创建自定义工具
@@ -177,13 +180,16 @@ impl Tool for CalculatorTool {
 ### 9. 工具组合使用
 
 ```rust
-// 创建工具链
-let tools = ToolRegistry::new()
-    .register(FileReadTool::new())
-    .register(CalculatorTool);
+use rucora::agent::ToolAgent;
 
 // Agent 会自动选择合适的工具
-let input = AgentInput::from("读取 data.txt 并计算其中数字的总和");
+let agent = ToolAgent::builder(provider)
+    .model("gpt-4o-mini")
+    .tool(FileReadTool::new())
+    .tool(CalculatorTool)
+    .build();
+
+let output = agent.run("读取 data.txt 并计算其中数字的总和".into()).await?;
 ```
 
 ---
@@ -193,75 +199,33 @@ let input = AgentInput::from("读取 data.txt 并计算其中数字的总和");
 ### 10. Token 计数
 
 ```rust
-use rucora::cost::TokenCounter;
+use rucora::compact::TokenCounter;
 
-let counter = TokenCounter::new("gpt-4");
+let counter = TokenCounter::new();
 
-// 计算文本
-let tokens = counter.count_text("Hello, World!");
+// 估算文本
+let tokens = counter.estimate("Hello, World!");
 
-// 计算消息
-let tokens = counter.count_messages(&messages);
+// 估算文件内容
+let tokens = counter.estimate_file(content, "md");
 
-// 计算工具定义
-let tokens = counter.count_tools(&tools);
+// 上下文窗口管理
+let manager = ContextWindowManager::new(8192);
 ```
 
-### 11. 成本追踪
+### 11. 使用统计
 
 ```rust
-use rucora::cost::CostTracker;
-
-let tracker = CostTracker::new();
-
-// 记录使用
-tracker.record_usage("gpt-4", 100, 50, 0.0045).await;
-
-// 获取总成本
-let cost = tracker.get_current_cost().await;
-println!("总成本：${}", cost);
-
-// 获取使用量
-let usage = tracker.get_total_usage().await;
-println!("Token: {}", usage.total_tokens);
-```
-
-### 12. 预算控制
-
-```rust
-let tracker = CostTracker::new()
-    .with_budget_limit(10.0);  // $10 预算
-
-// 每次调用前检查
-if !tracker.check_budget(10.0).await {
-    return Err("超出预算".into());
-}
-
-// 记录使用
-tracker.record_usage(model, prompt_tokens, completion_tokens, cost).await;
-```
-
-### 13. 使用统计
-
-```rust
-let stats = tracker.get_statistics().await;
-
-println!("总成本：${}", stats.total_cost);
-println!("总请求：{}", stats.total_requests);
-println!("输入 Token: {}", stats.total_prompt_tokens);
-println!("输出 Token: {}", stats.total_completion_tokens);
-
-// 按模型统计
-for (model, model_stats) in &stats.models {
-    println!("{}: {} 次请求", model, model_stats.requests);
-}
+let messages = conv.get_messages();
+let tokens = estimate_messages_tokens(messages);
+println!("预计消耗 Token：{}", tokens);
 ```
 
 ---
 
 ## 高级用法
 
-### 14. 中间件：日志记录
+### 12. 中间件：日志记录
 
 ```rust
 use rucora::middleware::{MiddlewareChain, LoggingMiddleware};
@@ -274,7 +238,7 @@ chain.process_request(&mut input).await?;
 chain.process_response(&mut output).await?;
 ```
 
-### 15. 中间件：限流
+### 13. 中间件：限流
 
 ```rust
 use rucora::middleware::RateLimitMiddleware;
@@ -284,7 +248,7 @@ let chain = MiddlewareChain::new()
         .with_window_secs(60));
 ```
 
-### 16. 中间件：指标收集
+### 14. 中间件：指标收集
 
 ```rust
 use rucora::middleware::MetricsMiddleware;
@@ -298,7 +262,7 @@ println!("请求数：{}", metrics.get_request_count());
 println!("响应数：{}", metrics.get_response_count());
 ```
 
-### 17. Prompt 模板
+### 15. Prompt 模板
 
 ```rust
 use rucora::prompt::PromptTemplate;
@@ -325,7 +289,7 @@ let template = PromptTemplate::from_string(
 );
 ```
 
-### 18. 错误处理最佳实践
+### 16. 错误处理最佳实践
 
 ```rust
 use rucora_core::error::{DiagnosticError, ErrorCategory};
@@ -356,7 +320,7 @@ match provider.chat(request).await {
 }
 ```
 
-### 19. 向量检索（RAG）
+### 17. 向量检索（RAG）
 
 ```rust
 use rucora::retrieval::InMemoryVectorStore;
@@ -384,72 +348,54 @@ for result in results {
 }
 ```
 
-### 20. 完整应用示例
+### 18. 完整应用示例
 
 ```rust
 use rucora::prelude::*;
+use rucora::agent::ToolAgent;
 use rucora::conversation::ConversationManager;
-use rucora::cost::{TokenCounter, CostTracker};
 use rucora::middleware::{MiddlewareChain, LoggingMiddleware};
-use rucora_runtime::DefaultRuntime;
-use std::sync::Arc;
+use rucora::provider::OpenAiProvider;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // 1. 初始化组件
     let provider = OpenAiProvider::from_env()?;
-    let tools = ToolRegistry::new();
     let mut conv = ConversationManager::new()
         .with_max_messages(20);
-    
-    let counter = TokenCounter::new("gpt-4");
-    let tracker = CostTracker::new()
-        .with_budget_limit(10.0);
-    
+
     let middleware = MiddlewareChain::new()
         .with(LoggingMiddleware::new());
-    
-    // 2. 创建运行时
-    let runtime = DefaultRuntime::new(Arc::new(provider), tools)
-        .with_system_prompt("你是有用的助手");
-    
+
+    // 2. 创建 Agent
+    let agent = ToolAgent::builder(provider)
+        .model("gpt-4o-mini")
+        .system_prompt("你是有用的助手")
+        .build();
+
     // 3. 对话循环
     loop {
         // 读取用户输入
         let mut input = String::new();
         std::io::stdin().read_line(&mut input)?;
-        
+
         if input.trim() == "exit" {
             break;
         }
-        
+
         // 添加到对话
-        conv.add_user_message(input);
-        
-        // 中间件处理
-        let mut agent_input = AgentInput {
-            messages: conv.get_messages().to_vec(),
-            metadata: None,
-        };
-        middleware.process_request(&mut agent_input).await?;
-        
+        conv.add_user_message(input.trim());
+
         // 运行 Agent
-        let output = runtime.run(agent_input).await?;
-        
-        // 记录成本
-        let tokens = counter.count_messages(conv.get_messages());
-        tracker.record_usage("gpt-4", tokens, 0, 0.0).await;
-        
+        let output = agent.run(input.trim().to_string()).await?;
+
         // 显示回复
-        println!("助手：{}", output.message.content);
-        conv.add_assistant_message(output.message.content);
+        if let Some(text) = output.text() {
+            println!("助手：{}", text);
+            conv.add_assistant_message(text);
+        }
     }
-    
-    // 4. 显示统计
-    let stats = tracker.get_statistics().await;
-    println!("\n总成本：${}", stats.total_cost);
-    println!("总请求：{}", stats.total_requests);
-    
+
     Ok(())
 }
 ```
@@ -460,5 +406,5 @@ async fn main() -> anyhow::Result<()> {
 
 - [用户指南](./user_guide.md) - 详细使用文档
 - [快速入门](./quick_start.md) - 10 分钟上手
-- [API 参考](./api_reference.md) - 完整 API 文档
+- [快速参考](./QUICK_REFERENCE.md) - API 快速查询
 - [常见问题](./faq.md) - 问题解答

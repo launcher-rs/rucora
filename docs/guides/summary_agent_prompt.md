@@ -53,8 +53,7 @@ SummaryAgent 使用 **MapReduce** 策略处理长文本。当文本较短（不�
 以下示例展示各模板如何与 mode 配合：
 
 ```rust
-let agent = SummaryAgent::builder()
-    .provider(provider)
+let agent = SummaryAgent::builder(provider)
     .model("gpt-4o-mini")
     .mode(SummaryMode::BulletPoints)          // ← 决定 {mode} 的值
     .prompt_template(                         // ← 短文本使用
@@ -66,7 +65,7 @@ let agent = SummaryAgent::builder()
     .combine_template(                        // ← 长文本 Reduce 阶段使用
         "以下为各块摘要：\n{summaries}\n\n{mode}"
     )
-    .try_build().unwrap();
+    .build();
 ```
 
 对于长文本（>1 块），最终生成的 prompt 大致为：

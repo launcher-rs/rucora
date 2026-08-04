@@ -106,8 +106,7 @@ Extractor 内部的 `_extract_json_with_usage()` 方法硬编码了 `temperature
 use rucora::LlmParams;
 use rucora::agent::ToolAgent;
 
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("gpt-4")
     .system_prompt("你是有用的助手")
     .tool_registry(registry)

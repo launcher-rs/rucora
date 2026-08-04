@@ -240,7 +240,5 @@ impl SearchStrategy for MyCustomStrategy {
 
 ## 相关文档
 
-- [Deep Research 0.2 实施计划](./deep_research_v2_plan.md)
-- [实现思路详解](./deep_research_v2_implementation.md)
 - [用户指南](./user_guide.md)
-- [Tools 系统](./tools_guide.md)
+- [快速参考](./QUICK_REFERENCE.md)

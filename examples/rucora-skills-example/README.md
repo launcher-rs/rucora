@@ -272,9 +272,9 @@ export OPENAI_BASE_URL=http://localhost:11434
 
 ## 相关文档
 
-- [rucora 用户指南](../../docs/user_guide.md)
-- [Skills 系统设计](../../docs/skills_design.md)
-- [自定义 Skills](../../docs/custom_skills.md)
+- [rucora 用户指南](../../docs/guides/user_guide.md)
+- [Skill 配置规范](../../docs/guides/skill_yaml_spec.md)
+- [Skill 配置示例](../../docs/guides/skill_yaml_examples.md)
 
 ## License
 

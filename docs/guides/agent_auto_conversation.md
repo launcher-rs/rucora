@@ -25,15 +25,14 @@ use rucora::provider::OpenAiProvider;
 
 let provider = OpenAiProvider::from_env()?;
 
-let agent = ChatAgent::builder()
-    .provider(provider)
+let agent = ChatAgent::builder(provider)
     .model("qwen3.5:9b")
     .with_conversation(true)
     .max_history_messages(20)
-    .try_build()?;
+    .build();
 
-agent.run("你好，我叫小明").await?;
-agent.run("你还记得我叫什么吗？").await?;
+agent.run("你好，我叫小明".into()).await?;
+agent.run("你还记得我叫什么吗？".into()).await?;
 ```
 
 ### ToolAgent
@@ -45,12 +44,11 @@ use rucora::tools::ShellTool;
 
 let provider = OpenAiProvider::from_env()?;
 
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("qwen3.5:9b")
-    .tool(ShellTool)
+    .tool(ShellTool::new())
     .with_conversation(true)
-    .try_build()?;
+    .build();
 ```
 
 ## API 说明
@@ -60,11 +58,10 @@ let agent = ToolAgent::builder()
 启用或禁用自动对话历史管理。
 
 ```rust
-let agent = ChatAgent::builder()
-    .provider(provider)
+let agent = ChatAgent::builder(provider)
     .model("qwen3.5:9b")
     .with_conversation(true)
-    .try_build()?;
+    .build();
 ```
 
 ### `max_history_messages(max: usize)`
@@ -72,12 +69,11 @@ let agent = ChatAgent::builder()
 仅 `ChatAgentBuilder` 支持，用于限制保留的历史消息条数。
 
 ```rust
-let agent = ChatAgent::builder()
-    .provider(provider)
+let agent = ChatAgent::builder(provider)
     .model("qwen3.5:9b")
     .with_conversation(true)
     .max_history_messages(20)
-    .try_build()?;
+    .build();
 ```
 
 ### `get_conversation_history().await`

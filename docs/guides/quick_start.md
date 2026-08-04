@@ -24,11 +24,10 @@ cd my-agent
 [package]
 name = "my-agent"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-rucora = "0.1"
-rucora-runtime = "0.1"
+rucora = "0.5"
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 anyhow = "1"
@@ -49,11 +48,9 @@ export OPENAI_API_KEY=sk-your-api-key
 编辑 `src/main.rs`：
 
 ```rust
+use rucora::agent::SimpleAgent;
+use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
-use rucora_runtime::{DefaultRuntime, ToolRegistry};
-use rucora_core::agent::types::AgentInput;
-use rucora_core::provider::types::{ChatMessage, Role};
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -63,32 +60,20 @@ async fn main() -> anyhow::Result<()> {
     println!("1️⃣ 创建 Provider...");
     let provider = OpenAiProvider::from_env()?;
 
-    // 2. 创建工具注册表
-    println!("2️⃣ 创建工具...");
-    let tools = ToolRegistry::new();
+    // 2. 创建 Agent
+    println!("2️⃣ 创建 Agent...");
+    let agent = SimpleAgent::builder(provider)
+        .model("gpt-4o-mini")
+        .system_prompt("你是有用的助手，用简洁的中文回答")
+        .build();
 
-    // 3. 创建运行时
-    println!("3️⃣ 创建运行时...");
-    let runtime = DefaultRuntime::new(Arc::new(provider), tools)
-        .with_system_prompt("你是有用的助手，用简洁的中文回答");
+    // 3. 开始对话
+    println!("3️⃣ 开始对话...\n");
+    let output = agent.run("用一句话介绍 Rust 编程语言".into()).await?;
 
-    // 4. 创建对话
-    println!("4️⃣ 开始对话...\n");
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "用一句话介绍 Rust 编程语言".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
-
-    // 5. 运行 Agent
-    let output = runtime.run(input).await?;
-
-    // 6. 显示结果
+    // 4. 显示结果
     println!("💬 助手回复：\n");
-    println!("{}", output.message.content);
+    println!("{}", output.text().unwrap_or("无回复"));
 
     Ok(())
 }
@@ -120,8 +105,7 @@ Rust 是一门系统编程语言，专注于安全性和性能，由 Mozilla 研
 
 ```toml
 [dependencies]
-rucora = { version = "0.1", features = ["builtin-tools"] }
-rucora-runtime = "0.1"
+rucora = { version = "0.5", features = ["builtin-tools"] }
 tokio = { version = "1", features = ["full"] }
 serde_json = "1"
 anyhow = "1"
@@ -130,12 +114,10 @@ anyhow = "1"
 ### 步骤 2：修改代码
 
 ```rust
+use rucora::agent::ToolAgent;
+use rucora::prelude::Agent;
 use rucora::provider::OpenAiProvider;
 use rucora::tools::{FileReadTool, FileWriteTool};
-use rucora_runtime::{DefaultRuntime, ToolRegistry};
-use rucora_core::agent::types::AgentInput;
-use rucora_core::provider::types::{ChatMessage, Role};
-use std::sync::Arc;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -144,42 +126,25 @@ async fn main() -> anyhow::Result<()> {
     // 创建 Provider
     let provider = OpenAiProvider::from_env()?;
 
-    // 创建工具注册表，添加文件工具
-    let tools = ToolRegistry::new()
-        .register(FileReadTool::new())
-        .register(FileWriteTool::new());
-
-    // 创建运行时
-    let runtime = DefaultRuntime::new(Arc::new(provider), tools)
-        .with_system_prompt(
+    // 创建 ToolAgent，注册文件工具
+    let agent = ToolAgent::builder(provider)
+        .model("gpt-4o-mini")
+        .system_prompt(
             "你是有用的助手。你可以使用工具来完成任务。
             可用工具：
             - file_read: 读取文件内容
             - file_write: 写入文件内容"
         )
-        .with_max_steps(5);
-
-    // 创建对话
-    let input = AgentInput {
-        messages: vec![ChatMessage {
-            role: Role::User,
-            content: "请创建一个文件 hello.txt，内容为'Hello, rucora!'".to_string(),
-            name: None,
-        }],
-        metadata: None,
-    };
+        .tool(FileReadTool::new())
+        .tool(FileWriteTool::new())
+        .max_steps(5)
+        .build();
 
     // 运行 Agent（会自动调用工具）
-    let output = runtime.run(input).await?;
+    let output = agent.run("请创建一个文件 hello.txt，内容为'Hello, rucora!'".into()).await?;
 
     println!("💬 助手回复：\n");
-    println!("{}", output.message.content);
-
-    // 显示工具调用
-    println!("\n🔧 工具调用：");
-    for result in &output.tool_results {
-        println!("  - 工具结果：{}", result.output);
-    }
+    println!("{}", output.text().unwrap_or("无回复"));
 
     Ok(())
 }
@@ -224,12 +189,13 @@ let provider = OllamaProvider::from_env();
 
 ### Q: 如何添加更多工具？
 
-A: 在 ToolRegistry 中注册：
+A: 在 ToolAgent 中注册：
 ```rust
-let tools = ToolRegistry::new()
-    .register(FileReadTool::new())
-    .register(FileWriteTool::new())
-    .register(HttpRequestTool::new());
+let agent = ToolAgent::builder(provider)
+    .tool(FileReadTool::new())
+    .tool(FileWriteTool::new())
+    .tool(HttpRequestTool::new())
+    .build();
 ```
 
 ---

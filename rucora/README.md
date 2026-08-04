@@ -12,8 +12,8 @@
 
 ## 推荐入口
 
-- 设计文档：`docs/design.md`
-- 示例索引：`docs/examples.md`
+- 设计文档：`docs/design/design.md`
+- 示例索引：`docs/guides/examples.md`
 
 ## 快速开始（流式 + trace）
 

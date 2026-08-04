@@ -155,7 +155,7 @@
 //!
 //! # 更多信息
 //!
-//! 详细使用指南请参考：`docs/middleware_guide.md`
+//! 详细使用指南请参考：`docs/guides/middleware_guide.md`
 
 use async_trait::async_trait;
 use rucora_core::agent::AgentError;

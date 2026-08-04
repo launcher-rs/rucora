@@ -72,16 +72,15 @@ set OPENAI_BASE_URL=http://localhost:11434/v1
 ### 3. 运行示例代码
 
 ```rust
-use rucora::provider::OpenAiProvider;
-use rucora::agent::DefaultAgent;
+use rucora::agent::SimpleAgent;
 use rucora::prelude::Agent;
+use rucora::provider::OpenAiProvider;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
 
-    let agent = DefaultAgent::builder()
-        .provider(provider)
+    let agent = SimpleAgent::builder(provider)
         .model("gpt-4o-mini")
         .system_prompt("你是有用的助手")
         .build();
@@ -99,23 +98,23 @@ async fn main() -> anyhow::Result<()> {
 **完整文档请查看 [docs/README.md](docs/README.md)**
 
 ### 新手入门
-- [快速开始](docs/quick_start.md) - 5 分钟上手
-- [用户指南](docs/user_guide.md) - 完整功能说明
-- [示例集合](docs/cookbook.md) - 实际使用示例
-- [常见问题](docs/faq.md) - FAQ
+- [快速开始](docs/guides/quick_start.md) - 5 分钟上手
+- [用户指南](docs/guides/user_guide.md) - 完整功能说明
+- [示例集合](docs/guides/cookbook.md) - 实际使用示例
+- [常见问题](docs/guides/faq.md) - FAQ
 
 ### 技能系统
-- [Skill 配置规范](docs/skill_yaml_spec.md) - 配置文件完整说明
-- [Skill 配置示例](docs/skill_yaml_examples.md) - 实际使用示例
+- [Skill 配置规范](docs/guides/skill_yaml_spec.md) - 配置文件完整说明
+- [Skill 配置示例](docs/guides/skill_yaml_examples.md) - 实际使用示例
 
 ### 架构设计
-- [设计文档](docs/design.md) - 系统设计理念
-- [Agent 与 Runtime](docs/agent_runtime_relationship.md) - 核心架构说明
-- [快速参考](docs/QUICK_REFERENCE.md) - API 快速查询
+- [设计文档](docs/design/design.md) - 系统设计理念
+- [Agent 架构](docs/design/agent_runtime_relationship.md) - 核心架构说明
+- [快速参考](docs/guides/QUICK_REFERENCE.md) - API 快速查询
 
 ### 项目文档
-- [更新日志](docs/CHANGELOG.md) - 版本更新记录
-- [文档索引](docs/INDEX.md) - 完整文档列表
+- [故障排查](docs/guides/TROUBLESHOOTING.md) - 常见问题解决
+- [示例说明](docs/guides/examples.md) - 示例项目说明
 
 ## 📦 项目结构
 
@@ -123,15 +122,18 @@ async fn main() -> anyhow::Result<()> {
 rucora/
 ├── docs/                      # 文档目录
 │   ├── README.md              # 文档导航
-│   ├── INDEX.md               # 文档索引
-│   ├── quick_start.md         # 快速开始
-│   ├── user_guide.md          # 用户指南
-│   ├── skill_yaml_spec.md     # Skill 配置规范
-│   └── ...
+│   ├── guides/                # 用户指南（快速开始、用户指南、示例等）
+│   ├── design/                # 架构设计文档
+│   └── archive/               # 历史存档文档
 ├── rucora/                  # 主库（实现聚合）
 ├── rucora-core/             # 核心抽象层
-├── rucora-runtime/          # 运行时实现
-├── rucora-cli/              # 命令行工具
+├── rucora-providers/        # LLM 提供者实现
+├── rucora-tools/            # 工具实现
+├── rucora-skills/           # 技能系统
+├── rucora-mcp/              # MCP 协议集成
+├── rucora-a2a/              # A2A 协议集成
+├── rucora-embed/            # 嵌入提供者
+├── rucora-retrieval/        # 向量存储实现
 └── examples/                  # 示例代码
 ```
 
@@ -148,10 +150,10 @@ rucora/
 
 | Provider | 环境变量 | 文档 |
 |----------|----------|------|
-| OpenAI | `OPENAI_API_KEY` | [用户指南](docs/user_guide.md) |
-| Anthropic | `ANTHROPIC_API_KEY` | [用户指南](docs/user_guide.md) |
-| Google Gemini | `GOOGLE_API_KEY` | [用户指南](docs/user_guide.md) |
-| Ollama | `OPENAI_BASE_URL` | [快速开始](docs/quick_start.md) |
+| OpenAI | `OPENAI_API_KEY` | [用户指南](docs/guides/user_guide.md) |
+| Anthropic | `ANTHROPIC_API_KEY` | [用户指南](docs/guides/user_guide.md) |
+| Google Gemini | `GOOGLE_API_KEY` | [用户指南](docs/guides/user_guide.md) |
+| Ollama | `OPENAI_BASE_URL` | [快速开始](docs/guides/quick_start.md) |
 
 ## 📝 更新日志
 

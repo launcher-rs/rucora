@@ -329,9 +329,8 @@ let mut tools = ToolRegistry::new()
 
 ## 相关文档
 
-- [rucora 用户指南](../../docs/user_guide.md)
-- [Runtime 使用](../../docs/runtime_guide.md)
-- [Tools 系统](../../docs/tools_guide.md)
+- [rucora 用户指南](../../docs/guides/user_guide.md)
+- [快速参考](../../docs/guides/QUICK_REFERENCE.md)
 
 ## License
 

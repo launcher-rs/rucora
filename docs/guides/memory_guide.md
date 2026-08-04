@@ -78,8 +78,7 @@ let memory_store = MemoryStoreTool::from_memory(shared_memory.clone());
 let memory_recall = MemoryRecallTool::from_memory(shared_memory.clone());
 
 // 创建带记忆功能的 Agent
-let agent = ToolAgent::builder()
-    .provider(provider)
+let agent = ToolAgent::builder(provider)
     .model("gpt-4o-mini")
     .system_prompt(
         "你是一个有帮助的助手，拥有长期记忆能力。\n\
@@ -210,11 +209,11 @@ memory.clear().await;
 ```rust
 let shared_memory = Arc::new(InMemoryMemory::new());
 
-let agent1 = ToolAgent::builder()
+let agent1 = ToolAgent::builder(provider)
     .tool(MemoryStoreTool::from_memory(shared_memory.clone()))
     .build();
 
-let agent2 = ToolAgent::builder()
+let agent2 = ToolAgent::builder(provider)
     .tool(MemoryRecallTool::from_memory(shared_memory.clone()))
     .build();
 

@@ -8,53 +8,49 @@
 
 | 文档 | 说明 | 适合人群 |
 |------|------|----------|
-| [快速开始](quick_start.md) | 5 分钟上手 rucora | 新用户 |
-| [用户指南](user_guide.md) | 完整的使用指南 | 所有用户 |
-| [示例集合](cookbook.md) | 实际使用示例 | 实践者 |
-| [常见问题](faq.md) | 常见问题解答 | 所有人 |
+| [快速开始](guides/quick_start.md) | 5 分钟上手 rucora | 新用户 |
+| [用户指南](guides/user_guide.md) | 完整的使用指南 | 所有用户 |
+| [示例集合](guides/cookbook.md) | 实际使用示例 | 实践者 |
+| [常见问题](guides/faq.md) | 常见问题解答 | 所有人 |
+| [快速参考](guides/QUICK_REFERENCE.md) | API 快速查询 | 所有用户 |
+| [故障排查](guides/TROUBLESHOOTING.md) | 常见问题解决 | 所有用户 |
+| [示例说明](guides/examples.md) | 示例项目说明 | 实践者 |
 
 ### 核心概念
 
 | 文档 | 说明 |
 |------|------|
-| [设计文档](design.md) | 系统设计理念 |
-| [Agent 与 Runtime](agent_runtime_relationship.md) | 理解核心架构 |
-| [快速参考](QUICK_REFERENCE.md) | API 快速查询 |
-| [架构改进](ARCHITECTURE_IMPROVEMENT.md) | 架构演进方案 |
+| [设计文档](design/design.md) | 系统设计理念 |
+| [Agent 架构](design/agent_runtime_relationship.md) | 理解核心架构 |
 
 ### 技能系统
 
 | 文档 | 说明 |
 |------|------|
-| [Skill 配置规范](skill_yaml_spec.md) | 配置文件完整说明 |
-| [Skill 配置示例](skill_yaml_examples.md) | 实际使用示例 |
+| [Skill 配置规范](guides/skill_yaml_spec.md) | 配置文件完整说明 |
+| [Skill 配置示例](guides/skill_yaml_examples.md) | 实际使用示例 |
 
 ### 开发指南
 
 | 文档 | 说明 |
 |------|------|
-| [对话设计](conversation_guide.md) | 对话系统指南 |
-| [Provider 设计](provider_default_model.md) | LLM Provider 实现 |
-| [运行时设计](runtime_agent_model_design.md) | Runtime 实现细节 |
-| [内存指南](memory_guide.md) | 内存系统使用 |
-| [中间件指南](middleware_guide.md) | 中间件开发 |
-| [自动对话](agent_auto_conversation.md) | 自动对话功能 |
-| [发布与版本管理](release_versioning.md) | crates.io 发布与版本策略 |
+| [对话设计](guides/conversation_guide.md) | 对话系统指南 |
+| [内存指南](guides/memory_guide.md) | 内存系统使用 |
+| [中间件指南](guides/middleware_guide.md) | 中间件开发 |
+| [自动对话](guides/agent_auto_conversation.md) | 自动对话功能 |
+| [发布与版本管理](guides/release_versioning.md) | crates.io 发布与版本策略 |
 
 ### Deep Research
 
 | 文档 | 说明 |
 |------|------|
-| [Deep Research 0.2 实施计划](deep_research_v2_plan.md) | 0.2 版本功能规划 |
-| [实现思路详解](deep_research_v2_implementation.md) | 技术实现方案 |
-| [快速开始指南](deep_research_v2_quickstart.md) | 使用指南 |
+| [快速开始指南](guides/deep_research_v2_quickstart.md) | 使用指南 |
 
 ### 其他
 
 | 文档 | 说明 |
 |------|------|
-| [示例说明](examples.md) | 示例项目说明 |
-| [故障排查](TROUBLESHOOTING.md) | 常见问题解决 |
+| [历史存档](archive/README.md) | 历史规划、提案与审查文档 |
 
 ## 🚀 快速开始
 
@@ -67,16 +63,15 @@ cargo add rucora
 ### 基本使用
 
 ```rust
-use rucora::provider::OpenAiProvider;
-use rucora::agent::DefaultAgent;
+use rucora::agent::SimpleAgent;
 use rucora::prelude::Agent;
+use rucora::provider::OpenAiProvider;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
 
-    let agent = DefaultAgent::builder()
-        .provider(provider)
+    let agent = SimpleAgent::builder(provider)
         .model("gpt-4o-mini")
         .system_prompt("你是有用的助手")
         .build();
