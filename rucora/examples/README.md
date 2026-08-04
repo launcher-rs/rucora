@@ -49,6 +49,14 @@
 | `19` | Code Assistant | `code_assistant.rs` | 代码助手 | ⭐⭐⭐⭐⭐ |
 | `21` | Task Decomposition | `task_decomposition.rs` | 任务拆解与综合 | ⭐⭐⭐⭐⭐ |
 
+### 批量执行（27-29）
+
+| 编号 | 示例名称 | 文件 | 功能 | 难度 |
+|------|----------|------|------|------|
+| `27` | Concurrent Translate | `concurrent_translate.rs` | `run_batch` 并发翻译 | ⭐⭐ |
+| `28` | Translate with Retry | `concurrent_translate_with_retry.rs` | `run_batch` + 自动重试 | ⭐⭐⭐ |
+| `29` | Run Batch Stream | `run_batch_stream.rs` | `run_batch_stream` 流式批量 | ⭐⭐⭐ |
+
 ---
 
 ## 🚀 快速开始
@@ -527,6 +535,26 @@ cargo run --example 21_task_decomposition
 1. 技术调研：如何设计高可用的分布式系统？
 2. 学习计划：3 个月内学会 Rust 编程
 3. 产品分析：AI 驱动的个人知识管理应用
+
+---
+
+### 29 Run Batch Stream
+
+**文件**: `run_batch_stream.rs`
+
+**作用**: 展示 `Agent::run_batch_stream` 批量流式 API——并发执行多条输入，每完成一条立即产出 `(原始索引, 结果)`。
+
+**运行**:
+```bash
+export OPENAI_API_KEY=sk-your-key
+cargo run --example 29_run_batch_stream
+```
+
+**学习要点**:
+- 逐条消费：结果按完成顺序产出，可实时感知进度，无需等全量完成
+- 原始索引：每条自带输入中的原始位置，按序回填不会乱序、重复文本不串位
+- 提前终止：drop 流即可停止剩余任务（`run_batch` 必须收齐全量结果）
+- 与 `run_batch`（一次性收集）的取舍
 
 ---
 
