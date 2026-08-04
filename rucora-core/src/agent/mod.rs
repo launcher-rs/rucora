@@ -550,6 +550,30 @@ pub struct ToolCallRecord {
 ///     // DefaultExecution 提供默认的 run/run_stream 实现
 /// }
 /// ```
+/// 批量运行进度快照，用于 `Agent::run_batch_with_callback` 回调。
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct BatchProgress {
+    /// 总条目数。
+    pub total: usize,
+    /// 已完成数（成功 + 失败）。
+    pub completed: usize,
+    /// 成功数。
+    pub succeeded: usize,
+    /// 失败数。
+    pub failed: usize,
+}
+
+impl BatchProgress {
+    /// 完成百分比（0.0 ~ 1.0），无任务时视为已完成。
+    pub fn percent(&self) -> f32 {
+        if self.total == 0 {
+            1.0
+        } else {
+            self.completed as f32 / self.total as f32
+        }
+    }
+}
+
 #[async_trait]
 pub trait Agent: Send + Sync {
     /// 思考：分析当前情况，决定下一步行动。
@@ -749,24 +773,72 @@ pub trait Agent: Send + Sync {
     {
         use futures_util::StreamExt;
 
+        self.run_batch_stream(inputs, max_concurrency)
+            .await
+            .map(|(_, result)| result)
+            .collect()
+            .await
+    }
+
+    /// 并发运行多个独立输入，并以流形式逐个产出结果。
+    ///
+    /// 与 `run_batch` 的区别在于：结果不是一次性收集，而是**每完成一条就产出一条**，
+    /// 调用方可实时感知进度、逐条处理或提前终止（drop 流即可）。
+    /// 每条产出为 `(索引, 结果)`，`索引` 对应当前条目在 `inputs` 中的原始位置，
+    /// 便于按输入顺序回填。
+    ///
+    /// 此方法要求 `Self: 'static`，因此以 `Arc<Self>` 接收者调用。
+    ///
+    /// # 示例
+    ///
+    /// ```rust,ignore
+    /// use rucora_core::agent::{Agent, AgentInput};
+    /// use futures_util::StreamExt;
+    ///
+    /// # async fn example(agent: std::sync::Arc<impl Agent>) -> Result<(), Box<dyn std::error::Error>> {
+    /// let inputs = vec![
+    ///     AgentInput::new("Hello")?,
+    ///     AgentInput::new("World")?,
+    /// ];
+    /// let mut stream = agent.run_batch_stream(inputs, 4).await;
+    /// while let Some((idx, result)) = stream.next().await {
+    ///     println!("[{idx}] {:?}", result);
+    /// }
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn run_batch_stream(
+        self: Arc<Self>,
+        inputs: Vec<AgentInput>,
+        max_concurrency: usize,
+    ) -> BoxStream<'static, (usize, Result<AgentOutput, AgentError>)>
+    where
+        Self: 'static,
+    {
+        use futures_util::StreamExt;
+
         // buffer_unordered(0) 会 panic，至少并行为 1
         let max_concurrency = max_concurrency.max(1);
 
-        let tasks = inputs.into_iter().map(|input| {
-            let this = self.clone();
-            tokio::task::spawn(async move { this.run(input).await })
+        // 闭包以 move 捕获自有的 Arc，使生成的流满足 'static
+        let this = self;
+        let tasks = inputs.into_iter().enumerate().map(move |(idx, input)| {
+            let inner = this.clone();
+            tokio::task::spawn(async move { (idx, inner.run(input).await) })
         });
-        let results: Vec<_> = futures_util::stream::iter(tasks)
+        futures_util::stream::iter(tasks)
             .buffer_unordered(max_concurrency)
             .map(|handle| {
                 handle.unwrap_or_else(|join_err| {
-                    Err(AgentError::Message(format!("run_batch 任务执行失败：{join_err}")))
+                    (
+                        usize::MAX,
+                        Err(AgentError::Message(format!(
+                            "run_batch 任务执行失败：{join_err}"
+                        ))),
+                    )
                 })
             })
-            .collect()
-            .await;
-
-        results
+            .boxed()
     }
 
     /// 运行 Agent（流式）。
@@ -852,6 +924,88 @@ pub trait Agent: Send + Sync {
         executor.run(self, input).await
     }
 }
+
+/// 批量运行的扩展能力：提供带逐条回调的 `run_batch_with_callback`。
+///
+/// 该方法带泛型参数 `F`，放在 `Agent` trait 上会破坏其 dyn 兼容性
+/// （`AgentExecutor` 依赖 `&dyn Agent`），因此单独定义为扩展 trait。
+/// 所有实现 `Agent` 的类型都自动获得该能力，调用时需引入本 trait。
+#[async_trait]
+pub trait AgentBatchExt: Agent {
+    /// 并发运行多个独立输入，并在每条结果完成时回调。
+    ///
+    /// 在 [`Agent::run_batch`] 的基础上增加了**逐条完成通知**：每完成一条，
+    /// 以「原始索引 + 进度快照 + 该条结果」调用一次 `on_item`。
+    /// 适合与进度条、日志等观察者结合，或在失败时立即处理。
+    ///
+    /// 此方法要求 `Self: 'static`，因此以 `Arc<Self>` 接收者调用。
+    ///
+    /// # 参数
+    ///
+    /// - `inputs`: 多个用户输入
+    /// - `max_concurrency`: 最大并发数
+    /// - `on_item`: 每条结果完成时的回调
+    ///   - 第一个参数：该条目在 `inputs` 中的原始索引
+    ///   - 第二个参数：当前进度快照（[`BatchProgress`]）
+    ///   - 第三个参数：该条的执行结果（成功或失败）
+    ///
+    /// # 示例
+    ///
+    /// ```rust,ignore
+    /// use rucora_core::agent::{Agent, AgentInput, AgentBatchExt};
+    ///
+    /// # async fn example(agent: std::sync::Arc<impl Agent>) -> Result<(), Box<dyn std::error::Error>> {
+    /// let inputs = vec![
+    ///     AgentInput::new("Hello")?,
+    ///     AgentInput::new("World")?,
+    /// ];
+    /// let results = agent
+    ///     .run_batch_with_callback(inputs, 4, |idx, progress, result| {
+    ///         println!("[{idx}] {}/{} 完成", progress.completed, progress.total);
+    ///         if let Err(e) = result {
+    ///             eprintln!("[{idx}] 失败：{e}");
+    ///         }
+    ///     })
+    ///     .await;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn run_batch_with_callback<F>(
+        self: Arc<Self>,
+        inputs: Vec<AgentInput>,
+        max_concurrency: usize,
+        mut on_item: F,
+    ) -> Vec<Result<AgentOutput, AgentError>>
+    where
+        Self: 'static,
+        F: FnMut(usize, BatchProgress, &Result<AgentOutput, AgentError>) + Send + Sync + 'static,
+    {
+        use futures_util::StreamExt;
+
+        let total = inputs.len();
+        let mut progress = BatchProgress {
+            total,
+            ..Default::default()
+        };
+        let mut results = Vec::with_capacity(total);
+
+        let mut stream = self.run_batch_stream(inputs, max_concurrency).await;
+        while let Some((idx, result)) = stream.next().await {
+            progress.completed += 1;
+            if result.is_ok() {
+                progress.succeeded += 1;
+            } else {
+                progress.failed += 1;
+            }
+            on_item(idx, progress, &result);
+            results.push(result);
+        }
+
+        results
+    }
+}
+
+impl<T: Agent> AgentBatchExt for T {}
 
 /// Agent 执行器 trait
 ///

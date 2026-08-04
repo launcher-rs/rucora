@@ -3,7 +3,7 @@
 //! 将 `Agent` trait 文档中的示例转换为实际运行验证的集成测试，
 //! 确保文档中的用法始终与代码保持一致（对应 improvements 6.2）。
 
-use rucora_core::agent::{Agent, AgentContext, AgentDecision, AgentInput};
+use rucora_core::agent::{Agent, AgentBatchExt, AgentContext, AgentDecision, AgentInput};
 use rucora_core::provider::types::{ChatMessage, ChatRequest};
 use async_trait::async_trait;
 use futures_util::StreamExt;
@@ -115,6 +115,55 @@ async fn test_doc_run_batch_respects_concurrency() {
         let output = result.as_ref().unwrap();
         assert_eq!(output.text().unwrap(), "done");
     }
+}
+
+#[tokio::test]
+async fn test_doc_run_batch_stream_preserves_index() {
+    use futures_util::StreamExt;
+
+    let agent = std::sync::Arc::new(EchoAgent);
+    let inputs = vec![
+        AgentInput::new("Hello").unwrap(),
+        AgentInput::new("World").unwrap(),
+    ];
+    let mut stream = agent.run_batch_stream(inputs, 4).await;
+    let mut seen = Vec::new();
+    while let Some((idx, result)) = stream.next().await {
+        assert!(result.is_ok());
+        seen.push(idx);
+    }
+    // 索引取自 inputs 的原始位置，排序后应为 [0, 1]
+    seen.sort_unstable();
+    assert_eq!(seen, vec![0, 1]);
+}
+
+#[tokio::test]
+async fn test_doc_run_batch_with_callback_reports_progress() {
+    use std::sync::{Arc, Mutex};
+
+    let agent = std::sync::Arc::new(EchoAgent);
+    let inputs = (0..5)
+        .map(|i| AgentInput::new(format!("input-{i}")).unwrap())
+        .collect::<Vec<_>>();
+
+    let events = Arc::new(Mutex::new(Vec::new()));
+    let ev = events.clone();
+    let results = agent
+        .run_batch_with_callback(inputs, 4, move |idx, progress, result| {
+            assert!(result.is_ok());
+            ev.lock().unwrap()
+                .push((idx, progress.completed, progress.succeeded, progress.failed));
+        })
+        .await;
+
+    assert_eq!(results.len(), 5);
+    // 回调被调用 5 次，且 completed 从 1 递增到 5
+    let events = events.lock().unwrap();
+    assert_eq!(events.len(), 5);
+    let completed: Vec<usize> = events.iter().map(|(_, c, _, _)| *c).collect();
+    assert_eq!(completed, vec![1, 2, 3, 4, 5]);
+    // 全成功，无失败
+    assert!(events.iter().all(|(_, _, s, f)| *s > 0 && *f == 0));
 }
 
 // ===== Agent::run_stream() 默认实现示例 =====
