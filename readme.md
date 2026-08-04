@@ -4,7 +4,7 @@
 
 [![crate](https://img.shields.io/crates/v/rucora.svg?color=dca282)](https://crates.io/crates/rucora)
 [![Documentation](https://img.shields.io/badge/docs-latest-blue)](https://docs.rs/rucora/latest/rucora/)
-[![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![License](https://img.shields.io/badge/license-MIT-green)](https://github.com/launcher-rs/rucora/blob/HEAD/LICENSE)
 [![star](https://img.shields.io/github/stars/launcher-rs/rucora?style=social)](https://github.com/launcher-rs/rucora)
 
 ## ✨ 特性
@@ -95,26 +95,26 @@ async fn main() -> anyhow::Result<()> {
 
 ## 📚 文档
 
-**完整文档请查看 [docs/README.md](docs/README.md)**
+**完整文档请查看 [docs/README.md](https://github.com/launcher-rs/rucora/blob/HEAD/docs/README.md)**
 
 ### 新手入门
-- [快速开始](docs/guides/quick_start.md) - 5 分钟上手
-- [用户指南](docs/guides/user_guide.md) - 完整功能说明
-- [示例集合](docs/guides/cookbook.md) - 实际使用示例
-- [常见问题](docs/guides/faq.md) - FAQ
+- [快速开始](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/quick_start.md) - 5 分钟上手
+- [用户指南](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/user_guide.md) - 完整功能说明
+- [示例集合](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/cookbook.md) - 实际使用示例
+- [常见问题](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/faq.md) - FAQ
 
 ### 技能系统
-- [Skill 配置规范](docs/guides/skill_yaml_spec.md) - 配置文件完整说明
-- [Skill 配置示例](docs/guides/skill_yaml_examples.md) - 实际使用示例
+- [Skill 配置规范](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/skill_yaml_spec.md) - 配置文件完整说明
+- [Skill 配置示例](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/skill_yaml_examples.md) - 实际使用示例
 
 ### 架构设计
-- [设计文档](docs/design/design.md) - 系统设计理念
-- [Agent 架构](docs/design/agent_runtime_relationship.md) - 核心架构说明
-- [快速参考](docs/guides/QUICK_REFERENCE.md) - API 快速查询
+- [设计文档](https://github.com/launcher-rs/rucora/blob/HEAD/docs/design/design.md) - 系统设计理念
+- [Agent 架构](https://github.com/launcher-rs/rucora/blob/HEAD/docs/design/agent_runtime_relationship.md) - 核心架构说明
+- [快速参考](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/QUICK_REFERENCE.md) - API 快速查询
 
 ### 项目文档
-- [故障排查](docs/guides/TROUBLESHOOTING.md) - 常见问题解决
-- [示例说明](docs/guides/examples.md) - 示例项目说明
+- [故障排查](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/TROUBLESHOOTING.md) - 常见问题解决
+- [示例说明](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/examples.md) - 示例项目说明
 
 ## 📦 项目结构
 
@@ -150,14 +150,14 @@ rucora/
 
 | Provider | 环境变量 | 文档 |
 |----------|----------|------|
-| OpenAI | `OPENAI_API_KEY` | [用户指南](docs/guides/user_guide.md) |
-| Anthropic | `ANTHROPIC_API_KEY` | [用户指南](docs/guides/user_guide.md) |
-| Google Gemini | `GOOGLE_API_KEY` | [用户指南](docs/guides/user_guide.md) |
-| Ollama | `OPENAI_BASE_URL` | [快速开始](docs/guides/quick_start.md) |
+| OpenAI | `OPENAI_API_KEY` | [用户指南](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/user_guide.md) |
+| Anthropic | `ANTHROPIC_API_KEY` | [用户指南](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/user_guide.md) |
+| Google Gemini | `GOOGLE_API_KEY` | [用户指南](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/user_guide.md) |
+| Ollama | `OPENAI_BASE_URL` | [快速开始](https://github.com/launcher-rs/rucora/blob/HEAD/docs/guides/quick_start.md) |
 
 ## 📝 更新日志
 
-查看 [CHANGELOG.md](CHANGELOG.md) 了解最新版本和变更。
+查看 [CHANGELOG.md](https://github.com/launcher-rs/rucora/blob/HEAD/CHANGELOG.md) 了解最新版本和变更。
 
 ## 🤝 贡献
 
