@@ -4,6 +4,19 @@
 
 ---
 
+## [0.5.1] - 2026-08-04
+
+**新增（New Features）**
+- `Agent::run_batch_stream`：批量执行并逐条产出 `(原始索引, Result)` 的流，顺序永不乱，无需自行反查回填
+- `AgentBatchExt::run_batch_with_callback`：批量执行带回调（索引 + `BatchProgress` 进度快照 + 结果），置于扩展 trait 以保持 `&dyn Agent` 的 dyn 兼容
+- `BatchProgress { total, completed, succeeded, failed }` 进度结构体，附 `percent()` 便捷方法
+- `Agent::run_batch` 重构为委托给 `run_batch_stream` 实现，行为不变（向后兼容）
+
+**修复**
+- 批量翻译场景下重复文本错位问题（结果自带索引后无需按文本反查）
+
+---
+
 ## [0.5.0] - 2026-08-03
 
 **破坏性变更（Breaking Changes）**
