@@ -38,6 +38,7 @@
 | [内存指南](guides/memory_guide.md) | 内存系统使用 |
 | [中间件指南](guides/middleware_guide.md) | 中间件开发 |
 | [自动对话](guides/agent_auto_conversation.md) | 自动对话功能 |
+| [Typestate 模式](guides/typestate_pattern.md) | 构建器为何强制设置 model |
 | [发布与版本管理](guides/release_versioning.md) | crates.io 发布与版本策略 |
 
 ### Deep Research
