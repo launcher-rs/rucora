@@ -1,6 +1,7 @@
 //! rucora-providers - LLM Providers for rucora
 
 pub mod anthropic;
+pub mod asr;
 pub mod azure_openai;
 pub mod deepseek;
 pub mod gemini;
@@ -13,6 +14,7 @@ pub mod openrouter;
 pub mod resilient;
 
 pub use anthropic::AnthropicProvider;
+pub use asr::OpenAiAsrProvider;
 pub use azure_openai::AzureOpenAiProvider;
 pub use deepseek::DeepSeekProvider;
 pub use gemini::GeminiProvider;

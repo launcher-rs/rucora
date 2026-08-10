@@ -181,6 +181,9 @@
 /// Agent 核心抽象（运行入口）
 pub mod agent;
 
+/// 自动语音识别抽象（音频转文字）
+pub mod asr;
+
 /// 通信渠道抽象（事件发送与订阅）
 pub mod channel;
 
@@ -245,6 +248,7 @@ pub use provider::LlmProvider;
 pub use provider::types::LlmParams;
 pub use retry::{ExponentialBackoff, FixedDelay, NoRetry, RetryPolicy, RetryPolicyExt};
 pub use tool::Tool;
+pub use asr::AsrProvider;
 
 // 重新导出 Deep Research 类型
 pub use research::{

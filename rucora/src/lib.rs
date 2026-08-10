@@ -161,8 +161,11 @@ pub mod prelude {
     pub use crate::agent::ToolAgent;
     pub use crate::agent::{AgentStream, StreamExt};
     #[cfg(feature = "providers")]
+    pub use crate::provider::OpenAiAsrProvider;
+    #[cfg(feature = "providers")]
     pub use crate::provider::OpenAiProvider;
     pub use rucora_core::agent::{Agent, AgentInput, AgentOutput, AgentBatchExt, BatchProgress};
+    pub use rucora_core::asr::{AsrProvider, AsrRequest, AsrResponseFormat, AsrResult, AsrSegment};
     pub use rucora_core::channel::types::{ChannelEvent, TokenDeltaEvent};
     pub use rucora_core::error::{AgentError, ProviderError, ToolError};
     pub use rucora_core::provider::LlmProvider;

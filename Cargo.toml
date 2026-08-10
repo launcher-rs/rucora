@@ -24,7 +24,7 @@ members = [
 ]
 
 [workspace.package]
-version = "0.5.1"
+version = "0.6.0"
 license = "MIT"
 repository = "https://github.com/launcher-rs/rucora"
 authors = ["rucora contributors"]
@@ -32,20 +32,20 @@ keywords = ["llm", "agent", "ai", "openai", "rag"]
 categories = ["api-bindings", "asynchronous", "text-processing"]
 
 [workspace.dependencies]
-rucora = { path = "rucora", version = "0.5.1" }
-rucora-core = { path = "rucora-core", version = "0.5.1" }
-rucora-macros = { path = "rucora-macros", version = "0.5.1" }
-rucora-mcp = { path = "rucora-mcp", version = "0.5.1" }
-rucora-a2a = { path = "rucora-a2a", version = "0.5.1" }
-rucora-providers = { path = "rucora-providers", version = "0.5.1" }
-rucora-embed = { path = "rucora-embed", version = "0.5.1" }
-rucora-retrieval = { path = "rucora-retrieval", version = "0.5.1" }
-rucora-tools = { path = "rucora-tools", version = "0.5.1" }
-rucora-skills = { path = "rucora-skills", version = "0.5.1" }
+rucora = { path = "rucora", version = "0.6.0" }
+rucora-core = { path = "rucora-core", version = "0.6.0" }
+rucora-macros = { path = "rucora-macros", version = "0.6.0" }
+rucora-mcp = { path = "rucora-mcp", version = "0.6.0" }
+rucora-a2a = { path = "rucora-a2a", version = "0.6.0" }
+rucora-providers = { path = "rucora-providers", version = "0.6.0" }
+rucora-embed = { path = "rucora-embed", version = "0.6.0" }
+rucora-retrieval = { path = "rucora-retrieval", version = "0.6.0" }
+rucora-tools = { path = "rucora-tools", version = "0.6.0" }
+rucora-skills = { path = "rucora-skills", version = "0.6.0" }
 
 # ===== 共享第三方依赖 =====
 # 在工作区中统一锁定第三方依赖版本，下游 crate 通过 `{ workspace = true }` 引用
-reqwest = { version = "0.13", features = ["json", "stream", "query", "gzip", "brotli", "deflate", "zstd"] }
+reqwest = { version = "0.13", features = ["json", "stream", "query", "gzip", "brotli", "deflate", "zstd", "multipart"] }
 futures-util = "0.3"
 
 # ===== Workspace 级别的 Lint 配置 =====

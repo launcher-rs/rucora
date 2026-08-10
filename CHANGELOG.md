@@ -4,6 +4,23 @@
 
 ---
 
+## [0.6.0] - 2026-08-10
+
+**新增（New Features）**
+- ASR（自动语音识别）支持：`rucora-core` 新增 `asr` 模块与 `AsrProvider` trait（`AsrRequest` / `AsrResult` / `AsrSegment`）
+- `rucora-providers` 新增 `OpenAiAsrProvider`：通过 multipart 上传音频到 `/v1/audio/transcriptions`，解析 `verbose_json` 分段（含时间戳与说话人），支持 `from_env()` 与超时/自定义客户端配置
+- `rucora::prelude` 导出 `AsrProvider`、`AsrRequest`、`AsrResult`、`AsrSegment` 与 `OpenAiAsrProvider`
+- `AsrRequest` 全面对齐 OpenAI Audio API 参数：`response_format`（json/text/srt/vtt/verbose_json）、`word_timestamps`、`audio_address`（URL 模式）、`prompt`、`temperature`，并提供 `AsrRequest::builder()` 便捷构建
+- 新增示例 `30_asr`：展示本地语音识别服务的音频转写（支持说话人分离、词级时间戳、URL 音频）
+
+**优化**
+- 可选参数默认 `None` 时不发送，由服务端默认行为决定，保证 OpenAI API 兼容且可自定义
+- 修复 `enable_speaker_diarization` 默认值问题：qwen3-asr 默认开启，现通过 `Option<bool>` 显式控制，`Some(false)` 能真正关闭
+- ASR 文件上传改为流式传输（`Part::stream` + `tokio-util`），大音频文件不再整体读入内存
+- 转写响应改用类型化 `serde` 反序列化（替代手工 `Value` 解析），字段缺失安全默认
+
+---
+
 ## [0.5.1] - 2026-08-04
 
 **新增（New Features）**

@@ -336,4 +336,4 @@ export RUST_LOG=rucora=debug
 
 ---
 
-**版本**: v0.5.1
+**版本**: v0.6.0

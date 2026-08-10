@@ -57,6 +57,12 @@
 | `28` | Translate with Retry | `concurrent_translate_with_retry.rs` | `run_batch` + 自动重试 | ⭐⭐⭐ |
 | `29` | Run Batch Stream | `run_batch_stream.rs` | `run_batch_stream` 流式批量 | ⭐⭐⭐ |
 
+### 音频转写（30）
+
+| 编号 | 示例名称 | 文件 | 功能 | 难度 | Feature |
+|------|----------|------|------|------|---------|
+| `30` | ASR 语音转写 | `30_asr.rs` | 音频转文字（说话人/词级时间戳） | ⭐⭐ | `providers` |
+
 ---
 
 ## 🚀 快速开始
@@ -555,6 +561,29 @@ cargo run --example 29_run_batch_stream
 - 原始索引：每条自带输入中的原始位置，按序回填不会乱序、重复文本不串位
 - 提前终止：drop 流即可停止剩余任务（`run_batch` 必须收齐全量结果）
 - 与 `run_batch`（一次性收集）的取舍
+
+---
+
+### 30 ASR 语音转写
+
+**文件**: `30_asr.rs`
+
+**作用**: 展示 `OpenAiAsrProvider` 将音频/视频文件转写为文本，支持说话人分离、词级时间戳与自定义响应格式。
+
+**运行**:
+```bash
+# 先启动 OpenAI Audio API 兼容的本地服务（如 qwen3-asr）
+docker-compose up -d
+
+# 运行示例（支持 ASR_BASE_URL / ASR_API_KEY / ASR_MODEL / ASR_FILE 环境变量）
+cargo run --example 30_asr
+```
+
+**学习要点**:
+- 创建 `OpenAiAsrProvider`（`new` / `with_model` / `from_env`）
+- 使用 `AsrRequest::builder()` 构建请求（`file` 或 `audio_address` 二选一）
+- 可选参数自动选择：`None` 时不发送，由服务端默认决定，保持 OpenAI 兼容
+- 分段结果：时间戳 + 说话人 + 文本
 
 ---
 
