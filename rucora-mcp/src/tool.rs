@@ -81,6 +81,7 @@ use std::{borrow::Cow, sync::Arc};
 
 use async_trait::async_trait;
 use rmcp::{
+    ClientHandler,
     model::{
         CallToolRequestParams, CallToolResult, ContentBlock, InitializeRequestParams, JsonObject,
         Tool as RmcpTool,
@@ -122,12 +123,16 @@ use tracing::{debug, trace};
 /// # }
 /// ```
 #[derive(Clone)]
-pub struct McpClient {
+pub struct McpClient<H: ClientHandler = InitializeRequestParams> {
     /// 底层 rmcp 客户端服务
-    client: Arc<RunningService<RoleClient, InitializeRequestParams>>,
+    ///
+    /// `H` 为客户端处理器类型：默认为 rmcp 的 `InitializeRequestParams`
+    /// （无交互能力）；使用 [`crate::interactive::McpClientBuilder`] 连接时
+    /// 为 `InteractiveClientHandler`（支持 Elicitation / Sampling）。
+    client: Arc<RunningService<RoleClient, H>>,
 }
 
-impl McpClient {
+impl<H: ClientHandler> McpClient<H> {
     /// 使用已初始化的 `rmcp` client service 构造一个 `McpClient`
     ///
     /// # 参数
@@ -145,7 +150,7 @@ impl McpClient {
     /// let client = McpClient::new(client);
     /// # }
     /// ```
-    pub fn new(client: RunningService<RoleClient, InitializeRequestParams>) -> Self {
+    pub fn new(client: RunningService<RoleClient, H>) -> Self {
         Self {
             client: Arc::new(client),
         }
@@ -313,14 +318,14 @@ impl McpClient {
 /// # Ok(())
 /// # }
 /// ```
-pub struct McpTool {
+pub struct McpTool<H: ClientHandler = InitializeRequestParams> {
     /// MCP 客户端
-    client: McpClient,
+    client: McpClient<H>,
     /// MCP 工具定义
     spec: RmcpTool,
 }
 
-impl McpTool {
+impl<H: ClientHandler> McpTool<H> {
     /// 使用 `McpClient` 与远端工具定义构造 `McpTool`
     ///
     /// # 参数
@@ -338,13 +343,13 @@ impl McpTool {
     /// let tool = McpTool::new(client, spec);
     /// # }
     /// ```
-    pub fn new(client: McpClient, spec: RmcpTool) -> Self {
+    pub fn new(client: McpClient<H>, spec: RmcpTool) -> Self {
         Self { client, spec }
     }
 }
 
 #[async_trait]
-impl Tool for McpTool {
+impl<H: ClientHandler + Send + Sync + 'static> Tool for McpTool<H> {
     /// 工具名称
     fn name(&self) -> &str {
         self.spec.name.as_ref()

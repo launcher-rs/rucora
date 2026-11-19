@@ -17,6 +17,11 @@
 **新增（New Features）**
 - `AnthropicProvider::with_prompt_caching`：Prompt Caching 支持（system 提示词与最后一个工具定义自动附加 `cache_control: ephemeral`，命中可大幅降低重复前缀成本）
 - 流式 usage 收集：Anthropic 流式解析 `message_start` / `message_delta` 的 token 用量；OpenAI 新增 `with_include_usage` 选项（发送 `stream_options.include_usage`，流末尾分块携带 usage）
+- **OpenAI Responses API Provider**（`OpenAiResponsesProvider`，`POST /v1/responses`）：面向 Agent 场景的新一代 API——`input` 数组承载会话历史（`function_call` / `function_call_output` 项）、system 走 `instructions`、扁平工具定义、`text.format` 结构化输出；流式解析 `output_text.delta` / `function_call_arguments.delta` / `output_item.done` / `response.completed` 事件并收集 usage；`reasoning` / `store` / `background` / `previous_response_id` 等参数通过 `extra` 顶层透传
+- **MCP Elicitation / Sampling 支持**（`rucora-mcp` 新增 `interactive` 模块）：
+  - `McpClientBuilder`：注册 Elicitation / Sampling 处理器后通过 Streamable HTTP 或 stdio 子进程连接 MCP 服务器，仅在注册时声明对应客户端能力
+  - `McpClient` / `McpTool` 泛型化（默认参数向后兼容），自定义处理器类型的客户端同样可包装为 `Tool`
+  - `sampling_fn_from_provider` / `with_sampling_provider`：将 rucora 的 `LlmProvider` 直接接入服务器采样请求（含 stop_reason 映射）
 - `AnthropicProvider` 请求体构建抽取为 `build_request_body`，消除 chat / stream_chat 约 90 行重复逻辑
 
 **默认模型更新**

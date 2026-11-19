@@ -142,6 +142,9 @@
 /// MCP 协议模型
 pub mod protocol;
 
+/// 交互式客户端支持（Elicitation / Sampling）
+pub mod interactive;
+
 /// MCP 工具适配器
 pub mod tool;
 
@@ -156,6 +159,9 @@ pub use protocol::*;
 
 /// MCP 工具适配（将远端 MCP 工具包装为 `rucora-core` 的 Tool）
 pub use tool::*;
+
+/// 交互式客户端（Elicitation / Sampling 处理器与构建器）
+pub use interactive::{InteractiveClientHandler, McpClientBuilder, SamplingHandler, sampling_fn_from_provider};
 
 /// MCP 传输层（从 `rmcp::transport` 转导出）
 pub use transport::*;
