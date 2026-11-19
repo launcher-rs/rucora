@@ -26,7 +26,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ReActAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是一个善于推理的助手")
 //!     .tool(ShellTool::new())
 //!     .tool(FileReadTool::new())
@@ -436,7 +436,7 @@ mod tests {
     #[test]
     fn test_react_agent_builder() {
         let _agent = ReActAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .max_steps(15)
             .build();
     }
@@ -446,7 +446,7 @@ mod tests {
     fn test_builder_typestate_transition() {
         let builder: ReActAgentBuilder<MockProvider, NoModel> =
             ReActAgentBuilder::<MockProvider>::new(MockProvider);
-        let builder: ReActAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let builder: ReActAgentBuilder<MockProvider, WithModel> = builder.model("gpt-5-mini");
         let _agent = builder.build();
     }
 }

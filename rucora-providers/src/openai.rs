@@ -3,12 +3,12 @@
 //! 约定：
 //! - API Key 从 `OPENAI_API_KEY` 环境变量读取
 //! - Base URL 默认 `https://api.openai.com/v1`，也可通过 `OPENAI_BASE_URL` 覆盖
-//! - 默认模型优先级：1) 手动设置 `with_default_model()` 2) `OPENAI_DEFAULT_MODEL` 环境变量 3) 内置默认值 `gpt-4o-mini`
+//! - 默认模型优先级：1) 手动设置 `with_default_model()` 2) `OPENAI_DEFAULT_MODEL` 环境变量 3) 内置默认值 `gpt-5-mini`
 
 use std::{collections::BTreeMap, env};
 
 use crate::{
-    helpers::{map_http_error, map_reqwest_error},
+    helpers::{IncrementalUtf8Decoder, apply_sampling_params, map_http_error, map_reqwest_error},
     http_config::{
         build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
         DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -24,7 +24,7 @@ use rucora_core::{
         LlmProvider,
         types::{
             ChatMessage, ChatRequest, ChatResponse, ChatStreamChunk, FinishReason, ResponseFormat,
-            Role,
+            Role, Usage,
         },
     },
     tool::types::{ToolCall, ToolDefinition},
@@ -33,7 +33,7 @@ use serde_json::{Value, json};
 use tracing::debug;
 
 /// OpenAI 默认模型（当未指定时使用）
-const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
+const OPENAI_DEFAULT_MODEL: &str = "gpt-5-mini";
 
 /// OpenAI Chat Completions Provider。
 ///
@@ -46,7 +46,7 @@ const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
 /// 默认模型的优先级顺序：
 /// 1. 手动调用 `with_default_model()` 设置的值
 /// 2. `OPENAI_DEFAULT_MODEL` 环境变量
-/// 3. 内置默认值 `gpt-4o-mini`
+/// 3. 内置默认值 `gpt-5-mini`
 ///
 /// # 超时配置
 ///
@@ -72,7 +72,7 @@ const OPENAI_DEFAULT_MODEL: &str = "gpt-4o-mini";
 ///     .with_client(client);
 /// # Ok(())
 /// # }
-/// /// ```
+/// ```
 #[derive(Clone)]
 pub struct OpenAiProvider {
     client: reqwest::Client,
@@ -81,6 +81,7 @@ pub struct OpenAiProvider {
     default_model: String,
     request_timeout_secs: Option<u64>,
     connect_timeout_secs: Option<u64>,
+    include_usage: bool,
 }
 
 impl OpenAiProvider {
@@ -88,7 +89,7 @@ impl OpenAiProvider {
     ///
     /// 默认模型来源（按优先级）：
     /// 1. `OPENAI_DEFAULT_MODEL` 环境变量
-    /// 2. 内置默认值 `gpt-4o-mini`
+    /// 2. 内置默认值 `gpt-5-mini`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("OPENAI_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 OPENAI_API_KEY".to_string()))?;
@@ -100,7 +101,7 @@ impl OpenAiProvider {
         Ok(Self::with_model(base_url, api_key, default_model))
     }
 
-    /// 创建 Provider（使用内置默认模型 `gpt-4o-mini`）。
+    /// 创建 Provider（使用内置默认模型 `gpt-5-mini`）。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
         Self::with_model(base_url, api_key, OPENAI_DEFAULT_MODEL.to_string())
     }
@@ -146,6 +147,7 @@ impl OpenAiProvider {
             default_model: default_model.into(),
             request_timeout_secs: None,
             connect_timeout_secs: None,
+            include_usage: false,
         }
     }
 
@@ -178,6 +180,16 @@ impl OpenAiProvider {
     /// 可用于完全控制客户端配置（代理、TLS、超时等）。
     pub fn with_client(mut self, client: reqwest::Client) -> Self {
         self.client = client;
+        self
+    }
+
+    /// 流式请求是否附带 `stream_options.include_usage` 以在流末尾获取 token 用量。
+    ///
+    /// 默认关闭：部分第三方 OpenAI 兼容服务不支持该参数，开启后可能返回 400。
+    ///
+    /// 开启后 `stream_chat` 的最后一个分块会携带 `usage` 字段。
+    pub fn with_include_usage(mut self, enabled: bool) -> Self {
+        self.include_usage = enabled;
         self
     }
 
@@ -590,28 +602,31 @@ impl LlmProvider for OpenAiProvider {
             "stream": true,
         });
 
-        if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-        }
-        if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("temperature".to_string(), json!(t));
-        }
-        if let Some(max_tokens) = request.max_tokens
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("max_tokens".to_string(), json!(max_tokens));
-        }
-
-        if let Some(fmt) = request.response_format.as_ref()
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert(
-                "response_format".to_string(),
-                Self::build_response_format(fmt),
+        if let Some(map) = body.as_object_mut() {
+            if let Some(tools) = request.tools.as_ref() {
+                map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
+            }
+            if let Some(fmt) = request.response_format.as_ref() {
+                map.insert(
+                    "response_format".to_string(),
+                    Self::build_response_format(fmt),
+                );
+            }
+            // 开启后可在流末尾获取 usage；放在采样参数之前，允许 extra 中的同名参数覆盖
+            if self.include_usage {
+                map.insert("stream_options".to_string(), json!({"include_usage": true}));
+            }
+            // 与 chat 保持一致：透传全部采样参数与 provider 特定参数
+            apply_sampling_params(
+                map,
+                request.temperature,
+                request.top_p,
+                request.top_k,
+                request.max_tokens,
+                request.frequency_penalty,
+                request.presence_penalty,
+                request.stop.as_ref(),
+                request.extra.as_ref(),
             );
         }
 
@@ -649,14 +664,15 @@ impl LlmProvider for OpenAiProvider {
             );
 
             let mut buf = String::new();
+            let mut decoder = IncrementalUtf8Decoder::new();
             let mut bytes_stream = resp.bytes_stream();
             let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
             let mut done = false;
 
             'outer: while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| map_reqwest_error(e, start.elapsed()))?;
-                let chunk = String::from_utf8_lossy(&bytes);
-                buf.push_str(&chunk);
+                // 增量解码：保留被分块边界切断的多字节字符，避免中文乱码
+                buf.push_str(&decoder.feed(&bytes));
 
                 // SSE 事件以空行分隔。
                 while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
@@ -698,6 +714,34 @@ impl LlmProvider for OpenAiProvider {
                         .and_then(|d| d.get("content"))
                         .and_then(|s| s.as_str())
                         .map(|s| s.to_string());
+
+                    // 开启 stream_options.include_usage 时，OpenAI 会在流末尾发送
+                    // 一个 choices 为空、携带 usage 的分块
+                    if choice.is_none()
+                        && let Some(u) = v.get("usage")
+                        && let Some(usage_obj) = u.as_object()
+                    {
+                        let usage = Usage {
+                            prompt_tokens: usage_obj
+                                .get("prompt_tokens")
+                                .and_then(|x| x.as_u64())
+                                .unwrap_or(0) as u32,
+                            completion_tokens: usage_obj
+                                .get("completion_tokens")
+                                .and_then(|x| x.as_u64())
+                                .unwrap_or(0) as u32,
+                            total_tokens: usage_obj
+                                .get("total_tokens")
+                                .and_then(|x| x.as_u64())
+                                .unwrap_or(0) as u32,
+                        };
+                        yield ChatStreamChunk {
+                            delta: None,
+                            tool_calls: vec![],
+                            usage: Some(usage),
+                            finish_reason: None,
+                        };
+                    }
 
                     if let Some(tool_calls) = delta_obj
                         .and_then(|d| d.get("tool_calls"))
@@ -789,7 +833,7 @@ mod tests {
         OpenAiProvider::with_model(
             "https://api.openai.com/v1",
             "test-key",
-            "gpt-4o-mini",
+            "gpt-5-mini",
         )
     }
 
@@ -797,7 +841,7 @@ mod tests {
     fn test_provider_creation_with_model() {
         let provider = test_provider();
         assert_eq!(provider.base_url, "https://api.openai.com/v1");
-        assert_eq!(provider.default_model(), "gpt-4o-mini");
+        assert_eq!(provider.default_model(), "gpt-5-mini");
     }
 
     #[test]

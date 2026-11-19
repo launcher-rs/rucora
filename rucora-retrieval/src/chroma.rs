@@ -293,12 +293,11 @@ impl VectorStore for ChromaVectorStore {
             let vector = result_embeddings
                 .get(i)
                 .and_then(|e| e.as_array())
-                .map(|arr| {
+                .map_or_default(|arr| {
                     arr.iter()
                         .filter_map(|v| v.as_f64().map(|f| f as f32))
                         .collect()
-                })
-                .unwrap_or_default();
+                });
 
             let metadata = result_metadatas.get(i).cloned();
             let text = metadata

@@ -385,7 +385,7 @@ impl DefaultExecution {
     /// let tools = ToolRegistry::new().register(ShellTool::new());
     /// let execution = DefaultExecution::new(
     ///     Arc::new(provider),
-    ///     "gpt-4o-mini",
+    ///     "gpt-5-mini",
     ///     tools,
     /// );
     /// # Ok::<_, Box<dyn std::error::Error>>(())
@@ -991,13 +991,13 @@ impl DefaultExecution {
                         tracing::warn!(tool = %call.name, "{}", msg);
                         let blocked_result = ToolResult {
                             tool_call_id: result.tool_call_id.clone(),
-                            output: serde_json::Value::String(msg.clone()),
+                            output: serde_json::Value::String(msg),
                             ..Default::default()
                         };
                         results.push(blocked_result.clone());
                         records.push(ToolCallRecord {
                             name: call.name.clone(),
-                            tool_call_id: result.tool_call_id.clone(),
+                            tool_call_id: result.tool_call_id,
                             input: call.input.clone(),
                             result: blocked_result.output.clone(),
                         });
@@ -1107,7 +1107,7 @@ impl DefaultExecution {
                         LoopDetectionResult::Block(msg) => {
                             tracing::warn!(tool = %calls[idx].name, "{}", msg);
                             let blocked = ToolResult {
-                                tool_call_id: result.tool_call_id.clone(),
+                                tool_call_id: result.tool_call_id,
                                 output: serde_json::Value::String(msg),
                                 ..Default::default()
                             };

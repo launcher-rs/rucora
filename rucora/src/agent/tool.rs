@@ -23,7 +23,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ToolAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是有用的助手")
 //!     .tool(ShellTool::new())
 //!     .tool(FileReadTool::new())
@@ -502,7 +502,7 @@ mod tests {
     #[test]
     fn test_tool_agent_builder() {
         let _agent = ToolAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .system_prompt("test")
             .max_steps(10)
             .build();
@@ -515,7 +515,7 @@ mod tests {
         let builder: ToolAgentBuilder<MockProvider, NoModel> =
             ToolAgentBuilder::<MockProvider>::new(MockProvider);
         // 调用 .model() 后转为 WithModel 状态，此时才可调用 .build()
-        let builder: ToolAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let builder: ToolAgentBuilder<MockProvider, WithModel> = builder.model("gpt-5-mini");
         let _agent = builder.build();
     }
 

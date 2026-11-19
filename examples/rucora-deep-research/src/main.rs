@@ -110,7 +110,7 @@ fn build_research_engine(
     config: &AppConfig,
     provider: &Arc<dyn LlmProvider + Send + Sync>,
 ) -> anyhow::Result<DeepResearchEngine> {
-    let model = config.model.as_deref().unwrap_or("gpt-4o-mini");
+    let model = config.model.as_deref().unwrap_or("gpt-5-mini");
     let has_tavily = config.tavily_keys.is_some();
 
     // ── 工具调用增强配置 ───────────────────────────────────

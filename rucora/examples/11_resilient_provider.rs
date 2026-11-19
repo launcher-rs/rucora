@@ -88,7 +88,7 @@ async fn main() -> anyhow::Result<()> {
         info!("✓ ResilientProvider 创建成功\n");
 
         info!("1.3 测试 ResilientProvider...");
-        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
         use rucora_core::provider::{LlmProvider, types::ChatRequest};
 
@@ -137,7 +137,7 @@ async fn main() -> anyhow::Result<()> {
         let resilient_provider = ResilientProvider::new(Arc::new(openai_provider))
             .with_config(rucora::provider::resilient::RetryConfig::default());
 
-        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
         let agent = SimpleAgent::builder(resilient_provider)
             .model(&model_name)

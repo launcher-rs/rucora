@@ -9,7 +9,7 @@
 use std::{collections::BTreeMap, env};
 
 use crate::{
-    helpers::{apply_sampling_params, map_http_error, map_reqwest_error, parse_finish_reason},
+    helpers::{IncrementalUtf8Decoder, apply_sampling_params, map_http_error, map_reqwest_error, parse_finish_reason},
     http_config::{
         build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
         DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -461,14 +461,15 @@ impl LlmProvider for MoonshotProvider {
             }
 
             let mut buf = String::new();
+            let mut decoder = IncrementalUtf8Decoder::new();
             let mut bytes_stream = resp.bytes_stream();
             let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
             let mut done = false;
 
             while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
-                let chunk = String::from_utf8_lossy(&bytes);
-                buf.push_str(&chunk);
+                // 增量解码：保留被分块边界切断的多字节字符，避免中文乱码
+                buf.push_str(&decoder.feed(&bytes));
 
                 while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
                     let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };

@@ -201,7 +201,7 @@ async fn main() -> anyhow::Result<()> {
     } else {
         use rucora::provider::OpenAiProvider;
 
-        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
         info!("5.1 创建 Provider...\n");
 
@@ -249,7 +249,7 @@ async fn main() -> anyhow::Result<()> {
         use rucora::prelude::Agent;
         use rucora::provider::OpenAiProvider;
 
-        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
         info!("6.1 创建带对话管理的 Agent...\n");
 

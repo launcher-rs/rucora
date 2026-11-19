@@ -45,7 +45,7 @@ use rucora::prelude::Agent;
 let provider = OpenAiProvider::from_env()?;
 
 let agent = SimpleAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .build();
 
@@ -72,7 +72,7 @@ let provider = OpenAiProvider::from_env()?;
 
 // 创建 ToolAgent（注册工具）
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .tool(HttpRequestTool::new())
     .max_steps(5)
@@ -156,7 +156,7 @@ use rucora::prelude::*;
 use rucora::agent::{SimpleAgent, AgentStream};
 
 let agent = SimpleAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .build();
 
 // 逐事件处理

@@ -81,7 +81,7 @@ Agent 负责协调 Provider 和 Tool 的工作：
 use rucora::agent::ToolAgent;
 
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .build();
 ```
@@ -139,7 +139,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     // 2. 创建 Agent
     let agent = SimpleAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手")
         .build();
     

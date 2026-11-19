@@ -148,13 +148,12 @@ impl DefaultToolPolicy {
                 let args = input
                     .get("args")
                     .and_then(|v| v.as_array())
-                    .map(|arr| {
+                    .map_or_default(|arr| {
                         arr.iter()
                             .filter_map(|x| x.as_str())
                             .map(|s| s.to_string())
                             .collect::<Vec<_>>()
-                    })
-                    .unwrap_or_default();
+                    });
 
                 if args.is_empty() {
                     Some(command)

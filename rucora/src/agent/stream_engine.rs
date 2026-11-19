@@ -220,8 +220,7 @@ impl StreamEngine {
                         let mut conv = conv_arc.lock().await;
                         conv.add_assistant_message(
                             messages.last()
-                                .map(|m| m.content_text().to_string())
-                                .unwrap_or_default()
+                                .map_or_default(|m| m.content_text().to_string())
                         );
                         conv.add_tool_call_records(tool_call_records.clone());
                     }

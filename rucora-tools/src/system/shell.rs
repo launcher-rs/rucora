@@ -260,12 +260,11 @@ impl Tool for ShellTool {
         let args: Vec<String> = input
             .get("args")
             .and_then(|v| v.as_array())
-            .map(|arr| {
+            .map_or_default(|arr| {
                 arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect()
-            })
-            .unwrap_or_default();
+            });
 
         let timeout_secs = input
             .get("timeout")

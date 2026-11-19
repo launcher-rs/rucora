@@ -28,12 +28,12 @@ async fn main() -> Result<()> {
     let topic = DEFAULT_TOPIC;
 
     println!("【研究主题】");
-    println!("  {}", topic);
+    println!("  {topic}");
 
     println!("\n【执行学术研究】");
     info!("开始学术研究: {}", topic);
 
-    let report = run_academic_research(topic).await;
+    let report = run_academic_research(topic);
 
     println!("\n【研究报告】");
     println!("{}", report.to_markdown());
@@ -43,7 +43,7 @@ async fn main() -> Result<()> {
 }
 
 /// 模拟学术研究（实际需要使用 Arxiv/PubMed 工具）
-async fn run_academic_research(topic: &str) -> ResearchReport {
+fn run_academic_research(topic: &str) -> ResearchReport {
     let mut report = ResearchReport::new(topic.to_string(), ResearchStrategy::Academic);
 
     let citations = vec![
@@ -72,7 +72,7 @@ async fn run_academic_research(topic: &str) -> ResearchReport {
     }
 
     let content = format!(
-        r#"# {} - 学术研究报告
+        r#"# {topic} - 学术研究报告
 
 ## 摘要
 
@@ -110,12 +110,11 @@ async fn run_academic_research(topic: &str) -> ResearchReport {
 1. arXiv:2103.00001 - Deep Learning for Medical Image Analysis
 2. PubMed:12345678 - Transformer-based Methods
 3. Semantic Scholar - Attention Mechanisms in Medical Imaging
-"#,
-        topic
+"#
     );
 
     report = report.with_content(content);
-    report = report.with_summary(format!("本报告综述了 {} 领域的深度学习技术应用。", topic));
+    report = report.with_summary(format!("本报告综述了 {topic} 领域的深度学习技术应用。"));
 
     report
 }

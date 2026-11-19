@@ -7,7 +7,7 @@
 use std::env;
 
 use crate::{
-    helpers::{map_http_error, map_reqwest_error},
+    helpers::{IncrementalUtf8Decoder, map_http_error, map_reqwest_error},
     http_config::{
         build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
         DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -329,7 +329,7 @@ impl LlmProvider for OllamaProvider {
             .get("message")
             .and_then(|m| m.get("tool_calls"))
             .and_then(|tc| tc.as_array())
-            .map(|arr| {
+            .map_or_default(|arr| {
                 arr.iter()
                     .filter_map(|tc| {
                         let function = tc.get("function")?;
@@ -355,8 +355,7 @@ impl LlmProvider for OllamaProvider {
                         }
                     })
                     .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
+            });
 
         debug!(
             provider = "ollama",
@@ -503,12 +502,13 @@ impl LlmProvider for OllamaProvider {
             );
 
             let mut buf = String::new();
+            let mut decoder = IncrementalUtf8Decoder::new();
             let mut bytes_stream = resp.bytes_stream();
 
             while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| map_reqwest_error(e, start.elapsed()))?;
-                let chunk = String::from_utf8_lossy(&bytes);
-                buf.push_str(&chunk);
+                // 增量解码：保留被分块边界切断的多字节字符，避免中文乱码
+                buf.push_str(&decoder.feed(&bytes));
 
                 while let Some(idx) = buf.find('\n') {
                     let line = buf[..idx].trim().to_string();

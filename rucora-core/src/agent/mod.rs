@@ -429,7 +429,7 @@ impl AgentOutput {
 
     /// 消费自身，获取文本内容的所有权。
     pub fn into_text(self) -> String {
-        self.text().map(String::from).unwrap_or_default()
+        self.text().map_or_default(String::from)
     }
 
     /// 获取对话历史长度。

@@ -37,7 +37,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! // 创建 Extractor
-//! let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
+//! let extractor = Extractor::<Person>::builder(provider, "gpt-5-mini")
 //!     .build();
 //!
 //! // 提取结构化数据
@@ -70,7 +70,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
+//! let extractor = Extractor::<Person>::builder(provider, "gpt-5-mini")
 //!     .build();
 //!
 //! let response = extractor.extract_with_usage("Jane Smith 是数据科学家")
@@ -104,7 +104,7 @@
 //! # async fn main() -> Result<(), Box<dyn std::error::Error>> {
 //! let provider = OpenAiProvider::from_env()?;
 //!
-//! let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
+//! let extractor = Extractor::<Person>::builder(provider, "gpt-5-mini")
 //!     .preamble("只提取明确提到的信息，不要推测。")
 //!     .retries(3)
 //!     .build();
@@ -235,7 +235,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let provider = OpenAiProvider::from_env()?;
-    /// let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini").build();
+    /// let extractor = Extractor::<Person>::builder(provider, "gpt-5-mini").build();
     ///
     /// let person = extractor.extract("John Doe 是 30 岁").await?;
     /// # Ok(())
@@ -413,12 +413,11 @@ where
         // 构建 usage（如果 provider 支持）
         let usage = response
             .usage
-            .map(|u| TokenUsage {
+            .map_or_default(|u| TokenUsage {
                 input_tokens: u.prompt_tokens,
                 output_tokens: u.completion_tokens,
                 total_tokens: u.total_tokens,
-            })
-            .unwrap_or_default();
+            });
 
         Ok((data, usage))
     }
@@ -501,7 +500,7 @@ where
     /// # #[tokio::main]
     /// # async fn main() -> Result<(), Box<dyn std::error::Error>> {
     /// let provider = OpenAiProvider::from_env()?;
-    /// let extractor = Extractor::<Person>::builder(provider, "gpt-4o-mini")
+    /// let extractor = Extractor::<Person>::builder(provider, "gpt-5-mini")
     ///     .llm_params(LlmParams::new().temperature(0.1).max_tokens(1024))
     ///     .build();
     /// # Ok(())

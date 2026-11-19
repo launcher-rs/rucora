@@ -79,7 +79,7 @@ let memory_recall = MemoryRecallTool::from_memory(shared_memory.clone());
 
 // 创建带记忆功能的 Agent
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt(
         "你是一个有帮助的助手，拥有长期记忆能力。\n\
          你可以使用 memory_store 工具存储重要信息。\n\

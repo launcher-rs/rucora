@@ -56,11 +56,11 @@ impl ProviderType {
 
     pub fn default_model(&self) -> &'static str {
         match self {
-            ProviderType::OpenAI => "gpt-4o-mini",
-            ProviderType::Anthropic => "claude-3-5-sonnet-20241022",
-            ProviderType::Gemini => "gemini-1.5-pro",
+            ProviderType::OpenAI => "gpt-5-mini",
+            ProviderType::Anthropic => "claude-sonnet-4-5",
+            ProviderType::Gemini => "gemini-2.5-pro",
             ProviderType::AzureOpenAI => "gpt-4o",
-            ProviderType::OpenRouter => "anthropic/claude-3-5-sonnet",
+            ProviderType::OpenRouter => "anthropic/claude-sonnet-4.5",
             ProviderType::DeepSeek => "deepseek-chat",
             ProviderType::Moonshot => "moonshot-v1-8k",
             ProviderType::Ollama => "qwen3.5:9b",

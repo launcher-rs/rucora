@@ -26,7 +26,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = SummaryAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .mode(rucora::agent::SummaryMode::Concise)
 //!     .build();
 //!
@@ -483,8 +483,7 @@ impl<P> SummaryAgent<P> {
             .iter()
             .rev()
             .find(|m| m.role == Role::Assistant)
-            .map(|m| m.content_text().to_string())
-            .unwrap_or_default();
+            .map_or_default(|m| m.content_text().to_string());
         AgentDecision::Return(json!({"content": content}))
     }
 
@@ -773,7 +772,7 @@ mod tests {
     #[test]
     fn test_summary_agent_builder() {
         let _agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .mode(SummaryMode::Concise)
             .chunk_size(2000)
             .build();
@@ -782,7 +781,7 @@ mod tests {
     #[test]
     fn test_chunk_text_short() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .chunk_size(4000)
             .build();
         let text = "这是一段短文本。";
@@ -793,7 +792,7 @@ mod tests {
     #[test]
     fn test_chunk_text_long() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .chunk_size(100)
             .build();
         let mut text = String::new();
@@ -845,7 +844,7 @@ mod tests {
     #[test]
     fn test_custom_templates() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .prompt_template("自定义单块模板：{text} -- {mode}")
             .chunk_template("第{index}/{total}块：{text}")
             .combine_template("合并{total}块：{mode}")
@@ -858,7 +857,7 @@ mod tests {
     #[test]
     fn test_long_text_chunking_flow() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .chunk_size(100)
             .mode(SummaryMode::Concise)
             .build();
@@ -897,7 +896,7 @@ mod tests {
     #[test]
     fn test_extract_chunk_summaries() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .build();
 
         let input = AgentInput::new("测试文本").unwrap();
@@ -923,7 +922,7 @@ mod tests {
     #[test]
     fn test_empty_summaries_warning() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .build();
 
         let input = AgentInput::new("测试文本").unwrap();
@@ -947,7 +946,7 @@ mod tests {
     #[test]
     fn test_text_splitter_with_builder() {
         let agent = SummaryAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .splitter(text_splitter(2000))
             .build();
 
@@ -997,7 +996,7 @@ mod tests {
     fn test_builder_typestate_transition() {
         let builder: SummaryAgentBuilder<MockProvider, NoModel> =
             SummaryAgentBuilder::<MockProvider>::new(MockProvider);
-        let builder: SummaryAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let builder: SummaryAgentBuilder<MockProvider, WithModel> = builder.model("gpt-5-mini");
         let _agent = builder.build();
     }
 }

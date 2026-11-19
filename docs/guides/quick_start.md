@@ -63,7 +63,7 @@ async fn main() -> anyhow::Result<()> {
     // 2. 创建 Agent
     println!("2️⃣ 创建 Agent...");
     let agent = SimpleAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手，用简洁的中文回答")
         .build();
 
@@ -128,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 创建 ToolAgent，注册文件工具
     let agent = ToolAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt(
             "你是有用的助手。你可以使用工具来完成任务。
             可用工具：

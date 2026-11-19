@@ -7,33 +7,32 @@ use rucora_core::research::{
 };
 
 #[tokio::main]
-async fn main() -> anyhow::Result<()> {
+async fn main() {
     tracing_subscriber::fmt().with_env_filter("info").init();
 
     println!("=== 研究质量评分系统示例 ===\n");
 
     // 示例 1: 基本评分
     println!("【示例 1】基本评分");
-    basic_scoring_demo().await?;
+    basic_scoring_demo();
 
     // 示例 2: 改进建议生成
     println!("\n【示例 2】改进建议生成");
-    suggestion_demo().await?;
+    suggestion_demo();
 
     // 示例 3: 自定义配置
     println!("\n【示例 3】自定义评分配置");
-    custom_config_demo().await?;
+    custom_config_demo();
 
     // 示例 4: 动态评估循环
     println!("\n【示例 4】动态评估循环");
-    dynamic_evaluation_demo().await?;
+    dynamic_evaluation_demo();
 
     println!("\n=== 示例完成 ===");
-    Ok(())
 }
 
 /// 基本评分演示
-async fn basic_scoring_demo() -> anyhow::Result<()> {
+fn basic_scoring_demo() {
     // 创建评估器
     let assessor = ResearchQualityAssessor::with_default("Rust 异步编程");
 
@@ -92,11 +91,10 @@ async fn basic_scoring_demo() -> anyhow::Result<()> {
     println!("  置信度: {:.2}", score.confidence);
     println!("  综合评分: {:.2} ({})", score.overall, score.level());
 
-    Ok(())
 }
 
 /// 改进建议生成演示
-async fn suggestion_demo() -> anyhow::Result<()> {
+fn suggestion_demo() {
     let assessor = ResearchQualityAssessor::with_default("机器学习");
 
     // 场景 1: 信息不足
@@ -157,11 +155,10 @@ async fn suggestion_demo() -> anyhow::Result<()> {
         score.overall, suggestion.description
     );
 
-    Ok(())
 }
 
 /// 自定义配置演示
-async fn custom_config_demo() -> anyhow::Result<()> {
+fn custom_config_demo() {
     // 创建自定义配置
     let config = ScoringConfig {
         quality_threshold: 0.8,    // 提高质量阈值
@@ -186,11 +183,10 @@ async fn custom_config_demo() -> anyhow::Result<()> {
     println!("    建议: {}", suggestion.description);
     println!("    优先级: {}", suggestion.priority);
 
-    Ok(())
 }
 
 /// 动态评估循环演示
-async fn dynamic_evaluation_demo() -> anyhow::Result<()> {
+fn dynamic_evaluation_demo() {
     let topic = "Python Web 框架";
     let assessor = ResearchQualityAssessor::with_default(topic);
     let max_rounds = 5;
@@ -202,7 +198,7 @@ async fn dynamic_evaluation_demo() -> anyhow::Result<()> {
     for round in 1..=max_rounds {
         // 模拟每轮收集新信息
         let new_info = InfoPiece::new(
-            format!("{} 相关研究信息 #{}", topic, round),
+            format!("{topic} 相关研究信息 #{round}"),
             Some("https://example.com".to_string()),
             match round {
                 1 => SourceType::Official,
@@ -233,7 +229,7 @@ async fn dynamic_evaluation_demo() -> anyhow::Result<()> {
 
         // 获取下一轮搜索提示
         let next_hint = assessor.get_next_search_hint(&score, topic);
-        println!("    → 下一轮搜索提示: {}", next_hint);
+        println!("    → 下一轮搜索提示: {next_hint}");
     }
 
     // 最终评分
@@ -246,5 +242,4 @@ async fn dynamic_evaluation_demo() -> anyhow::Result<()> {
     println!("    信息数量: {}", final_score.details.info_count);
     println!("    来源多样性: {}", final_score.details.source_diversity);
 
-    Ok(())
 }

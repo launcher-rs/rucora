@@ -24,7 +24,7 @@ async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
 
     let agent = SimpleAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手")
         .build();
 
@@ -51,7 +51,7 @@ async fn main() -> anyhow::Result<()> {
 
 ```rust
 let agent = SimpleAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是翻译助手")
     .build();
 
@@ -62,7 +62,7 @@ let output = agent.run("翻译 'Hello' 为中文".into()).await?;
 
 ```rust
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .tool(rucora::tools::EchoTool)
     .tool(rucora::tools::DatetimeTool)
@@ -76,7 +76,7 @@ let output = agent.run("现在几点了？".into()).await?;
 
 ```rust
 let agent = ChatAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是友好的助手")
     .with_conversation(true)
     .build();
@@ -94,21 +94,21 @@ agent.run("我叫什么？".into()).await?;
 
 ```rust
 let provider = OpenAiProvider::from_env()?
-    .with_default_model("gpt-4o-mini");
+    .with_default_model("gpt-5-mini");
 ```
 
 ### Anthropic Claude
 
 ```rust
 let provider = AnthropicProvider::from_env()?
-    .with_default_model("claude-3-5-sonnet-20241022");
+    .with_default_model("claude-sonnet-4-5");
 ```
 
 ### Google Gemini
 
 ```rust
 let provider = GeminiProvider::from_env()?
-    .with_default_model("gemini-1.5-pro");
+    .with_default_model("gemini-2.5-pro");
 ```
 
 ### 环境变量
@@ -165,7 +165,7 @@ use rucora::agent::{SimpleAgent, AgentStream};
 use rucora::provider::OpenAiProvider;
 
 let agent = SimpleAgent::builder(OpenAiProvider::from_env()?)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .build();
 
 // 方式 1：逐事件处理
@@ -189,7 +189,7 @@ let text = agent.run_stream_text("你好").await?;
 
 ```rust
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .tool(rucora::tools::FileReadTool::new())
     .tool(rucora::tools::ShellTool::new())
     .tool(rucora::tools::HttpRequestTool::new())

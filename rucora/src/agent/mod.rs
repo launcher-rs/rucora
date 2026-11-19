@@ -57,7 +57,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = SimpleAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是一个翻译助手")
 //!     .temperature(0.3)
 //!     .build();
@@ -78,7 +78,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ChatAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是友好的助手")
 //!     .with_conversation(true)
 //!     .build();
@@ -101,7 +101,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ToolAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是有用的助手")
 //!     .tool(ShellTool::new())
 //!     .build();
@@ -123,7 +123,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ReActAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .tool(ShellTool::new())
 //!     .tool(FileReadTool::new())
 //!     .max_steps(15)
@@ -146,7 +146,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ReflectAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .tool(FileWriteTool::new())
 //!     .max_iterations(3)
 //!     .build();
@@ -280,7 +280,7 @@ use std::task::{Context, Poll};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let agent = SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
-/// #     .model("gpt-4o-mini")
+/// #     .model("gpt-5-mini")
 /// #     .build();
 /// let mut stream = AgentStream::new(agent.run_stream("你好".into()));
 /// while let Some(event) = stream.next().await {
@@ -301,7 +301,7 @@ use std::task::{Context, Poll};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let agent = rucora::agent::SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
-/// #     .model("gpt-4o-mini")
+/// #     .model("gpt-5-mini")
 /// #     .build();
 /// let text = AgentStream::new(agent.run_stream("你好".into())).collect_text().await?;
 /// # Ok(())
@@ -317,7 +317,7 @@ use std::task::{Context, Poll};
 ///
 /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
 /// # let agent = rucora::agent::SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
-/// #     .model("gpt-4o-mini")
+/// #     .model("gpt-5-mini")
 /// #     .build();
 /// let text = agent.run_stream_text("你好").await?;
 /// # Ok(())
@@ -351,7 +351,7 @@ impl AgentStream {
     ///
     /// # async fn example() -> Result<(), Box<dyn std::error::Error>> {
     /// # let agent = rucora::agent::SimpleAgent::builder(rucora::provider::OpenAiProvider::from_env()?)
-    /// #     .model("gpt-4o-mini")
+    /// #     .model("gpt-5-mini")
     /// #     .build();
     /// let text = AgentStream::new(agent.run_stream("你好".into())).collect_text().await?;
     /// println!("{}", text);

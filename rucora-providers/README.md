@@ -55,7 +55,7 @@ println!("{}", response.message.content);
 use rucora_providers::AnthropicProvider;
 
 let provider = AnthropicProvider::from_env()?
-    .with_default_model("claude-3-5-sonnet-20241022");
+    .with_default_model("claude-sonnet-4-5");
 ```
 
 ### Gemini Provider
@@ -64,7 +64,7 @@ let provider = AnthropicProvider::from_env()?
 use rucora_providers::GeminiProvider;
 
 let provider = GeminiProvider::from_env()?
-    .with_default_model("gemini-1.5-pro");
+    .with_default_model("gemini-2.5-pro");
 ```
 
 ### Resilient Provider（带重试）

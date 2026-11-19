@@ -103,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
     // ═══════════════════════════════════════════════════════════
     // Supervisor 模式说明

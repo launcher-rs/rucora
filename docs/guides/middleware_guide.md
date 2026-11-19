@@ -275,7 +275,7 @@ use rucora::agent::ToolAgent;
 use rucora::middleware::MiddlewareChain;
 
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .with_middleware_chain(
         MiddlewareChain::new()
             .with(LoggingMiddleware::new())
@@ -291,7 +291,7 @@ let agent = ToolAgent::builder(provider)
 
 ```rust
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .with_middleware(LoggingMiddleware::new())
     .with_middleware(CacheMiddleware::new())
     .with_middleware(AuthMiddleware::new("key"))
@@ -682,7 +682,7 @@ impl<P> TimestampAgentBuilder<P> {
         
         let execution = DefaultExecution::new(
             provider.clone(),
-            "gpt-4o-mini",
+            "gpt-5-mini",
             rucora::agent::ToolRegistry::new(),
         )
         .with_middleware_chain(self.middleware_chain);
@@ -932,12 +932,12 @@ impl Middleware for CacheMiddleware {
 let chain = MiddlewareChain::new()
     .with(LoggingMiddleware::new());
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .build();  // 忘记添加 with_middleware_chain()
 
 // ✅ 正确
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .with_middleware_chain(chain)
     .build();
 ```

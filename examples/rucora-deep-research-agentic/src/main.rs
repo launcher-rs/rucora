@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     let topic = DEFAULT_TOPIC;
 
     println!("【研究主题】");
-    println!("  {}", topic);
+    println!("  {topic}");
 
     println!("\n【执行 Agentic 自主研究】");
     info!("开始自主研究: {}", topic);
@@ -49,7 +49,7 @@ async fn main() -> Result<()> {
 
 fn create_provider() -> Result<Arc<dyn LlmProvider>> {
     let api_key = std::env::var("OPENAI_API_KEY").or_else(|_| std::env::var("OPENAI_KEY"))?;
-    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model = std::env::var("OPENAI_MODEL").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
     let base_url = std::env::var("OPENAI_BASE_URL")
         .or_else(|_| std::env::var("BASE_URL"))

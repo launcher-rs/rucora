@@ -14,7 +14,7 @@ let agent = ToolAgent::builder(provider).build();
 
 // 正确：先 .model(...) 再 .build()
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .build();
 ```
 
@@ -154,7 +154,7 @@ struct Config {
 
 ```rust
 // ✅ 编译通过：先 model 再 build
-let config = ConfigBuilder::new().model("gpt-4o-mini").build();
+let config = ConfigBuilder::new().model("gpt-5-mini").build();
 
 // ❌ 编译错误：NoModel 状态没有 build() 方法
 let config = ConfigBuilder::new().build();
@@ -162,7 +162,7 @@ let config = ConfigBuilder::new().build();
 // ✅ 编译通过：temperature 可以放在 model 之前或之后
 let config = ConfigBuilder::new()
     .temperature(0.7)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .build();
 ```
 
@@ -191,7 +191,7 @@ use rucora::prelude::Agent;
 let builder = ChatAgent::builder(provider);
 
 // 调用 .model() 后变为 WithModel 状态
-let builder = builder.model("gpt-4o-mini");
+let builder = builder.model("gpt-5-mini");
 
 // 只有 WithModel 状态能 build()
 let agent = builder.build();
@@ -201,7 +201,7 @@ let agent = builder.build();
 
 ```rust
 let builder: ChatAgentBuilder<_, NoModel> = ChatAgent::builder(provider);
-let builder: ChatAgentBuilder<_, WithModel> = builder.model("gpt-4o-mini");
+let builder: ChatAgentBuilder<_, WithModel> = builder.model("gpt-5-mini");
 ```
 
 ## 常见问题

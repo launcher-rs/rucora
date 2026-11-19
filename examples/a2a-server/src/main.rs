@@ -43,8 +43,7 @@ impl TimeAgent {
         } else {
             // 普通回复
             format!(
-                "收到您的消息：{}\n\n我是一个简单的时间助手，可以告诉您当前时间。\n请问：现在几点了？",
-                input
+                "收到您的消息：{input}\n\n我是一个简单的时间助手，可以告诉您当前时间。\n请问：现在几点了？"
             )
         }
     }
@@ -132,8 +131,8 @@ async fn main() -> anyhow::Result<()> {
     let addr = "0.0.0.0:8080";
     info!("A2A Server 启动在：{}", addr);
     println!("✓ A2A Server 已启动");
-    println!("  地址：http://{}", addr);
-    println!("  AgentCard: http://{}/.well-known/agent.json", addr);
+    println!("  地址：http://{addr}");
+    println!("  AgentCard: http://{addr}/.well-known/agent.json");
     println!("\n等待客户端连接...\n");
 
     let listener = tokio::net::TcpListener::bind(addr).await?;

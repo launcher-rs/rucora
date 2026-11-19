@@ -75,7 +75,7 @@ RUCORA_LIBRARY_PATH=./library cargo run -p rucora-deep-research-library
 ```bash
 # OpenAI 配置示例
 OPENAI_API_KEY=sk-your-key-here
-OPENAI_DEFAULT_MODEL=gpt-4o-mini
+OPENAI_DEFAULT_MODEL=gpt-5-mini
 
 # 或使用 Ollama（本地）
 OLLAMA_BASE_URL=http://localhost:11434/v1

@@ -197,7 +197,7 @@ where
         let provider = Arc::new(self.provider.expect("Provider is required"));
         let system_prompt = self.system_prompt.clone();
         let model = if self.model.is_empty() {
-            "gpt-4o-mini".to_string()
+            "gpt-5-mini".to_string()
         } else {
             self.model
         };

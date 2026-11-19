@@ -25,7 +25,7 @@ use rucora::provider::OpenAiProvider;
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let provider = OpenAiProvider::from_env()?;
     let agent = SimpleAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手")
         .build();
 
@@ -117,7 +117,7 @@ use rucora::tools::{
 };
 
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .tool(FileReadTool::new())
     .tool(FileWriteTool::new())
     .tool(HttpRequestTool::new())
@@ -184,7 +184,7 @@ use rucora::agent::ToolAgent;
 
 // Agent 会自动选择合适的工具
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .tool(FileReadTool::new())
     .tool(CalculatorTool)
     .build();
@@ -369,7 +369,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 2. 创建 Agent
     let agent = ToolAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手")
         .build();
 

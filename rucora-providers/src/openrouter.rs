@@ -9,7 +9,7 @@
 use std::{collections::BTreeMap, env};
 
 use crate::{
-    helpers::{apply_sampling_params, map_http_error, map_reqwest_error, parse_finish_reason},
+    helpers::{IncrementalUtf8Decoder, apply_sampling_params, map_http_error, map_reqwest_error, parse_finish_reason},
     http_config::{
         build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS,
         DEFAULT_REQUEST_TIMEOUT_SECS,
@@ -34,7 +34,7 @@ use serde_json::{Value, json};
 use tracing::debug;
 
 /// OpenRouter 默认模型。
-pub const OPENROUTER_DEFAULT_MODEL: &str = "anthropic/claude-3-5-sonnet";
+pub const OPENROUTER_DEFAULT_MODEL: &str = "anthropic/claude-sonnet-4.5";
 
 /// OpenRouter Provider。
 ///
@@ -72,7 +72,7 @@ pub const OPENROUTER_DEFAULT_MODEL: &str = "anthropic/claude-3-5-sonnet";
 /// | `OPENROUTER_BASE_URL` | OpenRouter Base URL | `https://openrouter.ai/api/v1` |
 /// | `OPENROUTER_SITE_URL` | 网站 URL（可选） | `https://your-app.com` |
 /// | `OPENROUTER_SITE_NAME` | 网站名称（可选） | `Your App` |
-/// | `OPENROUTER_DEFAULT_MODEL` | 默认模型 | `anthropic/claude-3-5-sonnet` |
+/// | `OPENROUTER_DEFAULT_MODEL` | 默认模型 | `anthropic/claude-sonnet-4.5` |
 #[derive(Clone)]
 pub struct OpenRouterProvider {
     client: reqwest::Client,
@@ -108,7 +108,7 @@ impl OpenRouterProvider {
     ///
     /// 默认模型优先级：
     /// 1. `OPENROUTER_DEFAULT_MODEL` 环境变量
-    /// 2. 内置默认值 `anthropic/claude-3-5-sonnet`
+    /// 2. 内置默认值 `anthropic/claude-sonnet-4.5`
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("OPENROUTER_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 OPENROUTER_API_KEY".to_string()))?;
@@ -132,7 +132,7 @@ impl OpenRouterProvider {
 
     /// 创建 Provider。
     ///
-    /// 使用内置默认模型 `anthropic/claude-3-5-sonnet`。
+    /// 使用内置默认模型 `anthropic/claude-sonnet-4.5`。
     pub fn new(base_url: impl Into<String>, api_key: impl Into<String>) -> Self {
         Self::with_model(base_url, api_key, OPENROUTER_DEFAULT_MODEL.to_string())
     }
@@ -510,14 +510,15 @@ impl LlmProvider for OpenRouterProvider {
             }
 
             let mut buf = String::new();
+            let mut decoder = IncrementalUtf8Decoder::new();
             let mut bytes_stream = resp.bytes_stream();
             let mut tool_call_parts: BTreeMap<usize, (String, String, String)> = BTreeMap::new();
             let mut done = false;
 
             while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
-                let chunk = String::from_utf8_lossy(&bytes);
-                buf.push_str(&chunk);
+                // 增量解码：保留被分块边界切断的多字节字符，避免中文乱码
+                buf.push_str(&decoder.feed(&bytes));
 
                 while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
                     let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };

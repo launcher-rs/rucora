@@ -47,7 +47,7 @@ async fn main() -> anyhow::Result<()> {
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         return Ok(());
     }
-    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
     // ═══════════════════════════════════════════════════════════
     // 示例 1: 基础记忆操作

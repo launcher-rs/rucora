@@ -15,7 +15,7 @@
 //! ## 运行方法
 //! ```bash
 //! export OPENAI_API_KEY=sk-your-key
-//! export MODEL_NAME=gpt-4o-mini
+//! export MODEL_NAME=gpt-5-mini
 //! cargo run --example 26_macros
 //! ```
 
@@ -191,7 +191,7 @@ async fn main() -> anyhow::Result<()> {
             system("你是翻译助手"),
             user("把 'Hello World' 翻译成中文"),
         ],
-        model: "gpt-4o-mini",
+        model: "gpt-5-mini",
         temperature: 0.3,
         max_tokens: 1024,
     );
@@ -287,7 +287,7 @@ async fn main() -> anyhow::Result<()> {
         info!("   let agent = agent!(");
         info!("       ToolAgent,");
         info!("       provider: provider,");
-        info!("       model: \"gpt-4o-mini\",");
+        info!("       model: \"gpt-5-mini\",");
         info!("       system_prompt: \"你是有用的助手\",");
         info!("       tools: [GetWeatherTool, CalculatorTool, RandomTool],");
         info!("       max_steps: 10,");
@@ -297,7 +297,7 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
     let provider = OpenAiProvider::from_env()?;
 
     let agent = rucora::agent!(

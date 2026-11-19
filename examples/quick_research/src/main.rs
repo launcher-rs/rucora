@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     let topic = DEFAULT_TOPIC;
 
     println!("【研究主题】");
-    println!("  {}\n", topic);
+    println!("  {topic}\n");
 
     println!("【执行快速研究】");
     info!("开始快速研究: {}", topic);
@@ -39,7 +39,7 @@ async fn main() -> Result<()> {
     let result = run_quick_research(&provider, topic).await?;
 
     println!("【研究结果】\n");
-    println!("{}", result);
+    println!("{result}");
 
     println!("\n=== 完成 ===");
     Ok(())
@@ -56,7 +56,7 @@ async fn run_quick_research(provider: &Arc<dyn LlmProvider>, topic: &str) -> Res
 注意：回答要简洁准确，尽量引用可靠的来源。"#;
 
     let agent = ToolAgent::builder(provider.clone())
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt(system_prompt)
         .tool(TavilyTool::from_env()?)
         .tool(DatetimeTool)
@@ -64,8 +64,7 @@ async fn run_quick_research(provider: &Arc<dyn LlmProvider>, topic: &str) -> Res
         .build();
 
     let query = format!(
-        "请帮我研究以下主题 '{}'，提供简要介绍和主要信息来源。",
-        topic
+        "请帮我研究以下主题 '{topic}'，提供简要介绍和主要信息来源。"
     );
 
     let output = agent.run(query.into()).await?;

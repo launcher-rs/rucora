@@ -13,8 +13,7 @@ impl LlmProvider for MockProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| m.content.clone())
-            .unwrap_or_default();
+            .map_or_default(|m| m.content.clone());
 
         Ok(ChatResponse {
             message: ChatMessage::assistant(format!("echo: {last_user}")),

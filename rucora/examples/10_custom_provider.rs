@@ -148,8 +148,7 @@ impl LlmProvider for EchoProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| m.content_text().to_string())
-            .unwrap_or_default();
+            .map_or_default(|m| m.content_text().to_string());
 
         // 回显用户输入
         Ok(ChatResponse {
@@ -172,8 +171,7 @@ impl LlmProvider for EchoProvider {
             .iter()
             .rev()
             .find(|m| m.role == Role::User)
-            .map(|m| m.content_text().to_string())
-            .unwrap_or_default();
+            .map_or_default(|m| m.content_text().to_string());
 
         // 逐字返回
         let chunks: Vec<_> = user_message

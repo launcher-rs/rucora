@@ -42,7 +42,7 @@
 /// let agent = agent!(
 ///     ToolAgent,
 ///     provider: provider,
-///     model: "gpt-4o-mini",
+///     model: "gpt-5-mini",
 ///     system_prompt: "你是有用的助手",
 ///     tools: [ShellTool::new()],
 ///     max_steps: 10,
@@ -66,7 +66,7 @@
 /// let agent = agent!(
 ///     SimpleAgent,
 ///     provider: provider,
-///     model: "gpt-4o-mini",
+///     model: "gpt-5-mini",
 ///     system_prompt: "你是翻译助手",
 ///     temperature: 0.3,
 /// );
@@ -201,7 +201,7 @@ macro_rules! messages {
 /// ```text
 /// chat_request!(
 ///     messages: [system("..."), user("...")],
-///     model: "gpt-4o-mini",
+///     model: "gpt-5-mini",
 ///     temperature: 0.7,
 ///     max_tokens: 4096,
 ///     top_p: 0.9,
@@ -215,13 +215,13 @@ macro_rules! messages {
 ///
 /// let req = chat_request!(
 ///     messages: [system("你是助手"), user("你好")],
-///     model: "gpt-4o-mini",
+///     model: "gpt-5-mini",
 ///     temperature: 0.7,
 ///     max_tokens: 2048,
 /// );
 ///
 /// assert_eq!(req.messages.len(), 2);
-/// assert_eq!(req.model, Some("gpt-4o-mini".to_string()));
+/// assert_eq!(req.model, Some("gpt-5-mini".to_string()));
 /// assert_eq!(req.temperature, Some(0.7));
 /// ```
 #[macro_export]
@@ -413,13 +413,13 @@ mod tests {
     fn chat_request_macro_basic() {
         let req = chat_request!(
             messages: [system("你是助手"), user("你好")],
-            model: "gpt-4o-mini",
+            model: "gpt-5-mini",
             temperature: 0.7,
             max_tokens: 2048,
         );
 
         assert_eq!(req.messages.len(), 2);
-        assert_eq!(req.model, Some("gpt-4o-mini".to_string()));
+        assert_eq!(req.model, Some("gpt-5-mini".to_string()));
         assert_eq!(req.temperature, Some(0.7));
         assert_eq!(req.max_tokens, Some(2048));
     }

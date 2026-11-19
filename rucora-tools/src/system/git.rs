@@ -298,12 +298,11 @@ impl Tool for GitTool {
         let args_vec: Vec<String> = input
             .get("args")
             .and_then(|v| v.as_array())
-            .map(|arr| {
+            .map_or_default(|arr| {
                 arr.iter()
                     .filter_map(|v| v.as_str().map(String::from))
                     .collect()
-            })
-            .unwrap_or_default();
+            });
 
         // 清理参数
         let sanitized_args = self.sanitize_args(&args_vec)?;

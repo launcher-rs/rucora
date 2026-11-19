@@ -158,7 +158,7 @@ let provider = OpenAiProvider::new("sk-your-key")?;
 use rucora::agent::ToolAgent;
 
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .build();
 ```
@@ -176,7 +176,7 @@ println!("{}", output.text().unwrap_or("无回复"));
 use rucora::agent::ChatAgent;
 
 let agent = ChatAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .with_conversation(true)  // 启用对话历史
     .build();
@@ -189,7 +189,7 @@ use rucora::agent::ToolAgent;
 use rucora::tools::{DatetimeTool, EchoTool};
 
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .system_prompt("你是有用的助手")
     .tool(DatetimeTool)
     .tool(EchoTool)

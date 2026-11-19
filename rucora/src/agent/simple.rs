@@ -22,7 +22,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = SimpleAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是一个翻译助手")
 //!     .temperature(0.3)
 //!     .build();
@@ -308,7 +308,7 @@ mod tests {
     #[test]
     fn test_simple_agent_builder() {
         let _agent = SimpleAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .system_prompt("test")
             .temperature(0.5)
             .build();
@@ -319,7 +319,7 @@ mod tests {
     fn test_builder_typestate_transition() {
         let builder: SimpleAgentBuilder<MockProvider, NoModel> =
             SimpleAgentBuilder::<MockProvider>::new(MockProvider);
-        let builder: SimpleAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let builder: SimpleAgentBuilder<MockProvider, WithModel> = builder.model("gpt-5-mini");
         let _agent = builder.build();
     }
 }

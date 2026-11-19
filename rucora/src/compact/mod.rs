@@ -25,10 +25,10 @@
 //! let mut manager = ContextManager::new(config);
 //!
 //! // 检查是否需要压缩
-//! if manager.should_compact("gpt-4o-mini") {
+//! if manager.should_compact("gpt-5-mini") {
 //!     // 执行压缩
 //!     let provider = OpenAiProvider::from_env()?;
-//!     manager.compact(&provider, "gpt-4o-mini").await?;
+//!     manager.compact(&provider, "gpt-5-mini").await?;
 //! }
 //! # Ok(())
 //! # }

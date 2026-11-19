@@ -110,7 +110,7 @@ use reqwest::header::{AUTHORIZATION, HeaderValue};
 use rucora::agent::ToolAgent;
 use rucora::mcp::{
     ServiceExt,
-    protocol::{ClientCapabilities, ClientInfo, Implementation},
+    protocol::{ClientCapabilities, ClientConfig, Implementation},
     tool::McpTool,
     transport::{
         StreamableHttpClientTransport, streamable_http_client::StreamableHttpClientTransportConfig,
@@ -174,7 +174,7 @@ async fn main() -> anyhow::Result<()> {
     let transport = StreamableHttpClientTransport::from_config(config);
 
     // 创建客户端信息并连接
-    let client_info = ClientInfo::new(
+    let client_info = ClientConfig::new(
         ClientCapabilities::default(),
         Implementation::new("rucora", "0.1.0"),
     );

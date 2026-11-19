@@ -269,7 +269,7 @@ async fn main() -> anyhow::Result<()> {
         info!("   使用 Ollama: export OPENAI_BASE_URL=http://localhost:11434");
         info!("\n注意：以下 Agent 演示将跳过实际 API 调用\n");
     } else {
-        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+        let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
 
         info!("7.1 创建 Provider...");
         let provider = OpenAiProvider::from_env()?;

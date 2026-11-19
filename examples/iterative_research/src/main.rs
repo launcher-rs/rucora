@@ -36,9 +36,9 @@ async fn main() -> Result<()> {
     let iterations = DEFAULT_ITERATIONS;
 
     println!("【研究主题】");
-    println!("  {}", topic);
+    println!("  {topic}");
     println!("\n【迭代轮数】");
-    println!("  {}", iterations);
+    println!("  {iterations}");
 
     println!("\n【执行迭代研究】");
     info!("开始迭代研究: {} ({} 轮)", topic, iterations);
@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
     println!("\n【研究结果】");
     for (i, result) in results.iter().enumerate() {
         println!("\n━━━ 第 {} 轮 ━━━", i + 1);
-        println!("{}", result);
+        println!("{result}");
     }
 
     println!("\n=== 完成 ===");
@@ -73,10 +73,9 @@ async fn run_iterative_research(
 
         let system_prompt = if iteration == 0 {
             format!(
-                r#"你是一名专业研究助手，负责研究主题 "{}"。
+                r#"你是一名专业研究助手，负责研究主题 "{topic}"。
 请进行全面的信息收集和研究。
-注意：提供准确的信息并标注来源。"#,
-                topic
+注意：提供准确的信息并标注来源。"#
             )
         } else {
             format!(
@@ -96,7 +95,7 @@ async fn run_iterative_research(
         };
 
         let agent = ToolAgent::builder(provider.clone())
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .system_prompt(&system_prompt)
             .tool(TavilyTool::from_env()?)
             .tool(DatetimeTool)
@@ -104,11 +103,10 @@ async fn run_iterative_research(
             .build();
 
         let query = if iteration == 0 {
-            format!("请研究主题 '{}'，提供详细介绍和主要信息来源。", topic)
+            format!("请研究主题 '{topic}'，提供详细介绍和主要信息来源。")
         } else {
             format!(
-                "基于之前的研究结果 '{}'，请进行更深入的调查和补充。",
-                previous_summary
+                "基于之前的研究结果 '{previous_summary}'，请进行更深入的调查和补充。"
             )
         };
 

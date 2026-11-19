@@ -226,7 +226,7 @@ async fn main() -> anyhow::Result<()> {
     use rucora::provider::OpenAiProvider;
 
     info!("5.1 创建 LLM Provider...");
-    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model_name = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
     let llm_provider = OpenAiProvider::from_env()?;
     info!("✓ LLM Provider 创建成功\n");
 

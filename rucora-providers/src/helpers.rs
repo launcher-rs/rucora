@@ -117,6 +117,71 @@ pub fn build_openai_messages(messages: &[ChatMessage]) -> Vec<Value> {
         .collect()
 }
 
+/// SSE 流式响应的增量 UTF-8 解码器。
+///
+/// 网络分块的边界可能落在多字节字符（如中文）中间，若逐块调用
+/// `from_utf8_lossy`，被切断的字符会立即替换为 U+FFFD 造成乱码。
+/// 此解码器保留尾部不完整的字节序列，拼接到下一个分块后再解码。
+///
+/// # 用法
+///
+/// ```rust
+/// use rucora_providers::helpers::IncrementalUtf8Decoder;
+///
+/// let mut decoder = IncrementalUtf8Decoder::new();
+/// // 模拟"你"字（3 字节）被从中间切断
+/// assert_eq!(decoder.feed(&[0xE4]), "");
+/// assert_eq!(decoder.feed(&[0xBD]), "");
+/// assert_eq!(decoder.feed(&[0xA0, 0x21]), "你!");
+/// ```
+pub struct IncrementalUtf8Decoder {
+    buf: Vec<u8>,
+}
+
+impl IncrementalUtf8Decoder {
+    pub fn new() -> Self {
+        Self { buf: Vec::new() }
+    }
+
+    /// 喂入一个网络分块，返回本次可安全解码的字符串。
+    ///
+    /// 尾部不完整的多字节序列会保留在内部缓冲区，等待后续分块补齐；
+    /// 真正非法的字节序列会被替换为 U+FFFD 并消费掉。
+    pub fn feed(&mut self, bytes: &[u8]) -> String {
+        self.buf.extend_from_slice(bytes);
+        match std::str::from_utf8(&self.buf) {
+            // 整个缓冲区都是合法 UTF-8
+            Ok(s) => {
+                let out = s.to_string();
+                self.buf.clear();
+                out
+            }
+            Err(e) => {
+                let valid = e.valid_up_to();
+                let mut out = String::from_utf8_lossy(&self.buf[..valid]).into_owned();
+                match e.error_len() {
+                    // 真正非法的字节序列：消费并插入替换符
+                    Some(bad_len) => {
+                        out.push('\u{FFFD}');
+                        self.buf.drain(..valid + bad_len);
+                    }
+                    // 尾部是不完整的多字节序列：保留待下一个分块
+                    None => {
+                        self.buf.drain(..valid);
+                    }
+                }
+                out
+            }
+        }
+    }
+}
+
+impl Default for IncrementalUtf8Decoder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// 将 ChatRequest 中的采样参数添加到 JSON 对象中。
 ///
 /// 这是一个通用的辅助函数，用于所有 OpenAI 兼容格式的 provider。

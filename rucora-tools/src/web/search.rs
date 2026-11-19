@@ -432,19 +432,16 @@ impl GithubTrendingTool {
             let title = element
                 .select(&scraper::Selector::parse("h2 a").unwrap())
                 .next()
-                .map(|el| el.text().collect::<Vec<_>>().join(""))
-                .unwrap_or_default()
+                .map_or_default(|el| el.text().collect::<Vec<_>>().join(""))
                 .trim()
                 .replace("\n", "")
-                .replace(" ", "")
-                .to_string();
+                .replace(" ", "");
 
             // 提取描述
             let description = element
                 .select(&scraper::Selector::parse("p.col-9").unwrap())
                 .next()
-                .map(|el| el.text().collect::<Vec<_>>().join(""))
-                .unwrap_or_default()
+                .map_or_default(|el| el.text().collect::<Vec<_>>().join(""))
                 .trim()
                 .to_string();
 
@@ -453,15 +450,13 @@ impl GithubTrendingTool {
                 .select(&scraper::Selector::parse("h2 a").unwrap())
                 .next()
                 .and_then(|el| el.value().attr("href"))
-                .map(|href| format!("https://github.com{href}"))
-                .unwrap_or_default();
+                .map_or_default(|href| format!("https://github.com{href}"));
 
             // 提取编程语言
             let language = element
                 .select(&scraper::Selector::parse("span[itemprop='programmingLanguage']").unwrap())
                 .next()
-                .map(|el| el.text().collect::<Vec<_>>().join(""))
-                .unwrap_or_default()
+                .map_or_default(|el| el.text().collect::<Vec<_>>().join(""))
                 .trim()
                 .to_string();
 
@@ -469,8 +464,7 @@ impl GithubTrendingTool {
             let stars = element
                 .select(&scraper::Selector::parse("a[href$='/stargazers']").unwrap())
                 .next()
-                .map(|el| el.text().collect::<Vec<_>>().join(""))
-                .unwrap_or_default()
+                .map_or_default(|el| el.text().collect::<Vec<_>>().join(""))
                 .trim()
                 .to_string();
 
@@ -478,8 +472,7 @@ impl GithubTrendingTool {
             let forks = element
                 .select(&scraper::Selector::parse("a[href$='/forks']").unwrap())
                 .next()
-                .map(|el| el.text().collect::<Vec<_>>().join(""))
-                .unwrap_or_default()
+                .map_or_default(|el| el.text().collect::<Vec<_>>().join(""))
                 .trim()
                 .to_string();
 
@@ -487,8 +480,7 @@ impl GithubTrendingTool {
             let today_stars = element
                 .select(&scraper::Selector::parse("span.d-inline-block.float-sm-right").unwrap())
                 .next()
-                .map(|el| el.text().collect::<Vec<_>>().join(""))
-                .unwrap_or_default()
+                .map_or_default(|el| el.text().collect::<Vec<_>>().join(""))
                 .trim()
                 .to_string();
 

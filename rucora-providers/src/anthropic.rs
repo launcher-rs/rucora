@@ -9,7 +9,7 @@
 use std::env;
 
 use crate::{
-    helpers::{map_http_error, map_reqwest_error, parse_finish_reason},
+    helpers::{IncrementalUtf8Decoder, map_http_error, map_reqwest_error, parse_finish_reason},
     http_config::{build_client, build_client_with_timeout, DEFAULT_CONNECT_TIMEOUT_SECS, DEFAULT_REQUEST_TIMEOUT_SECS},
     preview,
 };
@@ -28,23 +28,21 @@ use serde_json::{Value, json};
 use tracing::debug;
 
 /// Anthropic 默认模型。
-pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-3-5-sonnet-20241022";
+pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-sonnet-4-5";
 
 /// Anthropic Claude Provider。
 ///
 /// 支持 Claude 系列模型：
-/// - claude-3-5-sonnet-20241022 (最新，默认)
-/// - claude-3-5-haiku-20241022
-/// - claude-3-opus-20240229
-/// - claude-3-sonnet-20240229
-/// - claude-3-haiku-20240307
-/// - claude-2.1
+/// - claude-sonnet-4-5 (默认，别名自动指向最新快照)
+/// - claude-haiku-4-5
+/// - claude-opus-4-1
+/// - claude-3-5-sonnet 等旧版模型仍可显式指定
 ///
 /// # 默认模型优先级
 ///
 /// 1. **手动设置**：通过 `with_model()` 或 `with_default_model()` 显式设置
 /// 2. **环境变量**：`ANTHROPIC_DEFAULT_MODEL` 环境变量
-/// 3. **内置默认值**：`claude-3-5-sonnet-20241022`
+/// 3. **内置默认值**：`claude-sonnet-4-5`
 ///
 /// # 使用示例
 ///
@@ -70,7 +68,7 @@ pub const ANTHROPIC_DEFAULT_MODEL: &str = "claude-3-5-sonnet-20241022";
 /// |--------|------|------|
 /// | `ANTHROPIC_API_KEY` | Anthropic API Key | `sk-ant-...` |
 /// | `ANTHROPIC_BASE_URL` | Anthropic Base URL | `https://api.anthropic.com/v1` |
-/// | `ANTHROPIC_DEFAULT_MODEL` | 默认模型 | `claude-3-5-sonnet-20241022` |
+/// | `ANTHROPIC_DEFAULT_MODEL` | 默认模型 | `claude-sonnet-4-5` |
 #[derive(Clone)]
 pub struct AnthropicProvider {
     client: reqwest::Client,
@@ -80,6 +78,7 @@ pub struct AnthropicProvider {
     api_version: String,
     request_timeout_secs: Option<u64>,
     connect_timeout_secs: Option<u64>,
+    prompt_caching: bool,
 }
 
 impl AnthropicProvider {
@@ -88,7 +87,7 @@ impl AnthropicProvider {
     /// 从以下环境变量加载配置：
     /// - `ANTHROPIC_API_KEY`: API Key（必需）
     /// - `ANTHROPIC_BASE_URL`: Base URL（可选，默认 `https://api.anthropic.com/v1`）
-    /// - `ANTHROPIC_DEFAULT_MODEL`: 默认模型（可选，默认 `claude-3-5-sonnet-20241022`）
+    /// - `ANTHROPIC_DEFAULT_MODEL`: 默认模型（可选，默认 `claude-sonnet-4-5`）
     pub fn from_env() -> Result<Self, ProviderError> {
         let api_key = env::var("ANTHROPIC_API_KEY")
             .map_err(|_| ProviderError::Message("缺少环境变量 ANTHROPIC_API_KEY".to_string()))?;
@@ -129,6 +128,7 @@ impl AnthropicProvider {
             api_version: "2023-06-01".to_string(),
             request_timeout_secs: None,
             connect_timeout_secs: None,
+            prompt_caching: false,
         }
     }
 
@@ -164,14 +164,38 @@ impl AnthropicProvider {
         self
     }
 
+    /// 是否启用 Prompt Caching。
+    ///
+    /// 开启后：
+    /// - system 提示词改写为带 `cache_control: {type: ephemeral}` 的内容块
+    /// - 最后一个工具定义附加 `cache_control`（Anthropic 建议缓存点放在工具列表末尾）
+    ///
+    /// 命中缓存可大幅降低重复前缀的输入成本（最长 90%）。
+    /// 默认关闭。
+    pub fn with_prompt_caching(mut self, enabled: bool) -> Self {
+        self.prompt_caching = enabled;
+        self
+    }
+
     /// 获取默认模型。
     pub fn default_model(&self) -> &str {
         &self.default_model
     }
 
     /// 设置 API 版本。
+    ///
+    /// 默认 `2023-06-01`。设置后会同步重建请求头与 HTTP 客户端，立即生效。
     pub fn with_api_version(mut self, version: impl Into<String>) -> Self {
         self.api_version = version.into();
+        // 请求头在 with_model 时已构建完成，这里必须同步更新才能生效
+        if let Ok(v) = HeaderValue::from_str(&self.api_version) {
+            self.headers.insert("anthropic-version", v);
+            self.client = Self::build_http_client(
+                &self.headers,
+                self.request_timeout_secs,
+                self.connect_timeout_secs,
+            );
+        }
         self
     }
 
@@ -328,6 +352,75 @@ impl AnthropicProvider {
 
         String::new()
     }
+
+    /// 构建 Messages API 请求体（chat 与 stream_chat 共用）。
+    ///
+    /// 统一处理 system 提示词、工具定义与采样参数；
+    /// Prompt Caching 开启时为 system 与最后一个工具附加 `cache_control`。
+    fn build_request_body(&self, request: &ChatRequest, model: &str, stream: bool) -> Value {
+        let system_prompt = Self::build_system_prompt(&request.messages);
+
+        let mut body = json!({
+            "model": model,
+            "messages": Self::build_messages(&request.messages),
+            "stream": stream,
+        });
+
+        if let Some(map) = body.as_object_mut() {
+            if let Some(system) = system_prompt.as_deref() {
+                // Anthropic 支持 system prompt 作为顶层字段；
+                // Prompt Caching 开启时改写为带 cache_control 的内容块
+                let system_value = if self.prompt_caching {
+                    json!([{
+                        "type": "text",
+                        "text": system,
+                        "cache_control": {"type": "ephemeral"},
+                    }])
+                } else {
+                    json!(system)
+                };
+                map.insert("system".to_string(), system_value);
+            }
+
+            if let Some(tools) = request.tools.as_ref() {
+                let mut tool_values = Self::build_tools(tools);
+                // Prompt Caching：缓存点附加到最后一个工具定义（官方建议做法）
+                if self.prompt_caching
+                    && let Some(last) = tool_values.last_mut()
+                    && let Some(obj) = last.as_object_mut()
+                {
+                    obj.insert("cache_control".to_string(), json!({"type": "ephemeral"}));
+                }
+                map.insert("tools".to_string(), Value::Array(tool_values));
+            }
+
+            if let Some(max_tokens) = request.max_tokens {
+                map.insert("max_tokens".to_string(), json!(max_tokens));
+            } else {
+                // Anthropic 要求必须指定 max_tokens
+                map.insert("max_tokens".to_string(), json!(4096));
+            }
+            if let Some(t) = request.temperature {
+                map.insert("temperature".to_string(), json!(t));
+            }
+            if let Some(v) = request.top_p {
+                map.insert("top_p".to_string(), json!(v));
+            }
+            if let Some(stop) = request.params.stop.as_ref()
+                && !stop.is_empty()
+            {
+                map.insert("stop_sequences".to_string(), json!(stop));
+            }
+            // 额外参数（provider 特定参数）
+            if let Some(Value::Object(extra_map)) = request.extra.as_ref() {
+                for (key, value) in extra_map {
+                    map.insert(key.clone(), value.clone());
+                }
+            }
+        }
+
+        body
+    }
 }
 
 #[async_trait]
@@ -340,7 +433,6 @@ impl LlmProvider for AnthropicProvider {
 
         let url = format!("{}/messages", self.base_url.trim_end_matches('/'));
 
-        let system_prompt = Self::build_system_prompt(&request.messages);
         let messages = Self::build_messages(&request.messages);
 
         let last_user_preview = request
@@ -360,57 +452,7 @@ impl LlmProvider for AnthropicProvider {
             "provider.chat.start"
         );
 
-        let mut body = json!({
-            "model": model,
-            "messages": messages,
-        });
-
-        // Anthropic 支持 system prompt 作为顶层字段
-        if let Some(system) = system_prompt
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("system".to_string(), json!(system));
-        }
-
-        if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-        }
-        if let Some(max_tokens) = request.max_tokens {
-            if let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(max_tokens));
-            }
-        } else {
-            // Anthropic 要求必须指定 max_tokens
-            if let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(4096));
-            }
-        }
-        if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("temperature".to_string(), json!(t));
-        }
-        if let Some(v) = request.top_p
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("top_p".to_string(), json!(v));
-        }
-        if let Some(stop) = request.params.stop.as_ref()
-            && !stop.is_empty()
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("stop_sequences".to_string(), json!(stop));
-        }
-        // 添加额外参数（provider 特定参数）
-        if let Some(Value::Object(extra_map)) = request.extra.as_ref()
-            && let Some(map) = body.as_object_mut()
-        {
-            for (key, value) in extra_map {
-                map.insert(key.clone(), value.clone());
-            }
-        }
+        let body = self.build_request_body(&request, &model, false);
 
         debug!(
             provider = "anthropic",
@@ -430,8 +472,10 @@ impl LlmProvider for AnthropicProvider {
             .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
         let status = resp.status();
-        let data: Value = resp
-            .json()
+        // 先读取文本再解析 JSON：错误响应可能不是 JSON（如代理返回 HTML），
+        // 先检查状态码可以避免反序列化错误掩盖真实的 HTTP 错误
+        let text = resp
+            .text()
             .await
             .map_err(|e| map_reqwest_error(e, start.elapsed()))?;
 
@@ -445,16 +489,23 @@ impl LlmProvider for AnthropicProvider {
         debug!(
             provider = "anthropic",
             status = %status,
-            body = %preview(&data.to_string(), 1200),
+            body = %preview(&text, 1200),
             "provider.chat.response_body"
         );
 
         if !status.is_success() {
             return Err(map_http_error(
                 status,
-                format!("Anthropic 请求失败：status={status} body={data}"),
+                format!("Anthropic 请求失败：status={status} body={text}"),
             ));
         }
+
+        let data: Value = serde_json::from_str(&text).map_err(|e| {
+            ProviderError::Message(format!(
+                "解析响应 JSON 失败：{e}。响应内容：{}",
+                preview(&text, 500)
+            ))
+        })?;
 
         // Anthropic 响应格式
         let content = data.get("content").cloned().unwrap_or_else(|| json!([]));
@@ -492,59 +543,7 @@ impl LlmProvider for AnthropicProvider {
 
         let url = format!("{}/messages", self.base_url.trim_end_matches('/'));
 
-        let system_prompt = Self::build_system_prompt(&request.messages);
-        let messages = Self::build_messages(&request.messages);
-
-        let mut body = json!({
-            "model": model,
-            "messages": messages,
-            "stream": true,
-        });
-
-        if let Some(system) = system_prompt
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("system".to_string(), json!(system));
-        }
-
-        if let Some(tools) = request.tools.as_ref()
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("tools".to_string(), Value::Array(Self::build_tools(tools)));
-        }
-        if let Some(max_tokens) = request.max_tokens {
-            if let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(max_tokens));
-            }
-        } else {
-            if let Some(map) = body.as_object_mut() {
-                map.insert("max_tokens".to_string(), json!(4096));
-            }
-        }
-        if let Some(t) = request.temperature
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("temperature".to_string(), json!(t));
-        }
-        if let Some(v) = request.top_p
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("top_p".to_string(), json!(v));
-        }
-        if let Some(stop) = request.params.stop.as_ref()
-            && !stop.is_empty()
-            && let Some(map) = body.as_object_mut()
-        {
-            map.insert("stop_sequences".to_string(), json!(stop));
-        }
-        // 添加额外参数（provider 特定参数）
-        if let Some(Value::Object(extra_map)) = request.extra.as_ref()
-            && let Some(map) = body.as_object_mut()
-        {
-            for (key, value) in extra_map {
-                map.insert(key.clone(), value.clone());
-            }
-        }
+        let body = self.build_request_body(&request, &model, true);
 
         let client = self.client.clone();
         let stream = async_stream::try_stream! {
@@ -564,21 +563,26 @@ impl LlmProvider for AnthropicProvider {
             }
 
             let mut buf = String::new();
+            let mut decoder = IncrementalUtf8Decoder::new();
             let mut bytes_stream = resp.bytes_stream();
 
             // 按 content_block index 累积的流式工具调用（id/name/partial_json）
             let mut tool_accs: std::collections::BTreeMap<usize, (String, String, String)> =
                 std::collections::BTreeMap::new();
+            // 累积 usage：message_start 携带 input_tokens，message_delta 携带 output_tokens
+            let mut usage_input_tokens: u32 = 0;
+            let mut usage_output_tokens: u32 = 0;
 
             while let Some(item) = bytes_stream.next().await {
                 let bytes = item.map_err(|e| ProviderError::Message(e.to_string()))?;
-                let chunk = String::from_utf8_lossy(&bytes);
-                buf.push_str(&chunk);
+                // 增量解码：保留被分块边界切断的多字节字符，避免中文乱码
+                buf.push_str(&decoder.feed(&bytes));
 
                 while let Some(idx) = buf.find("\r\n\r\n").or_else(|| buf.find("\n\n")) {
                     let sep_len = if buf[idx..].starts_with("\r\n\r\n") { 4 } else { 2 };
-                    let event = buf[..idx].to_string();
-                    buf = buf[idx + sep_len..].to_string();
+                    // 用 drain 避免整段重新分配（O(n²) → O(n)）
+                    let event: String = buf.drain(..idx + sep_len).collect();
+                    let event = event.trim_end_matches('\n').trim_end_matches('\r');
 
                     let mut data_lines: Vec<&str> = Vec::new();
                     for line in event.lines() {
@@ -677,16 +681,38 @@ impl LlmProvider for AnthropicProvider {
                         }
                     }
 
+                    if event_type == "message_start" {
+                        // message_start.message.usage.input_tokens
+                        usage_input_tokens = json
+                            .get("message")
+                            .and_then(|m| m.get("usage"))
+                            .and_then(|u| u.get("input_tokens"))
+                            .and_then(|v| v.as_u64())
+                            .unwrap_or(0) as u32;
+                    }
+
                     if event_type == "message_delta" {
                         let finish_reason = json
                             .get("delta")
                             .and_then(|d| d.get("stop_reason"))
                             .and_then(|v| v.as_str())
                             .map(parse_finish_reason);
+                        // message_delta.usage.output_tokens；input_tokens 已从 message_start 获知
+                        if let Some(out) = json
+                            .get("usage")
+                            .and_then(|u| u.get("output_tokens"))
+                            .and_then(|v| v.as_u64())
+                        {
+                            usage_output_tokens = out as u32;
+                        }
                         yield ChatStreamChunk {
                             delta: None,
                             tool_calls: vec![],
-                            usage: None,
+                            usage: Some(Usage {
+                                prompt_tokens: usage_input_tokens,
+                                completion_tokens: usage_output_tokens,
+                                total_tokens: usage_input_tokens + usage_output_tokens,
+                            }),
                             finish_reason,
                         };
                     }
@@ -712,8 +738,8 @@ mod tests {
     #[test]
     fn test_anthropic_provider_with_custom_model() {
         let provider = AnthropicProvider::new("https://api.anthropic.com/v1", "test-key")
-            .with_default_model("claude-3-5-sonnet-20241022");
-        assert_eq!(provider.default_model(), "claude-3-5-sonnet-20241022");
+            .with_default_model("claude-sonnet-4-5");
+        assert_eq!(provider.default_model(), "claude-sonnet-4-5");
     }
 
     #[test]
@@ -728,6 +754,6 @@ mod tests {
 
     #[test]
     fn test_anthropic_default_model_constant() {
-        assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-3-5-sonnet-20241022");
+        assert_eq!(ANTHROPIC_DEFAULT_MODEL, "claude-sonnet-4-5");
     }
 }

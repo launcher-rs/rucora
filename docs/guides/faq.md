@@ -98,7 +98,7 @@ use rucora::agent::ToolAgent;
 use rucora::tools::{FileReadTool, HttpRequestTool};
 
 let agent = ToolAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .tool(FileReadTool::new())
     .tool(HttpRequestTool::new())
     .build();

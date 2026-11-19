@@ -54,7 +54,7 @@ SummaryAgent 使用 **MapReduce** 策略处理长文本。当文本较短（不�
 
 ```rust
 let agent = SummaryAgent::builder(provider)
-    .model("gpt-4o-mini")
+    .model("gpt-5-mini")
     .mode(SummaryMode::BulletPoints)          // ← 决定 {mode} 的值
     .prompt_template(                         // ← 短文本使用
         "请总结：\n\n{text}\n\n{mode}"

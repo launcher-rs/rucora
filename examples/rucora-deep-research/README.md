@@ -14,11 +14,11 @@
 
 | Provider | 默认模型 | 说明 |
 |----------|----------|------|
-| OpenAI | gpt-4o-mini | OpenAI 官方 API |
+| OpenAI | gpt-5-mini | OpenAI 官方 API |
 | Anthropic | claude-3-5-sonnet | Claude 系列模型 |
-| Google Gemini | gemini-1.5-pro | Google Gemini API |
+| Google Gemini | gemini-2.5-pro | Google Gemini API |
 | Azure OpenAI | gpt-4o | Azure 云服务 |
-| OpenRouter | anthropic/claude-3-5-sonnet | 多模型聚合 |
+| OpenRouter | anthropic/claude-sonnet-4.5 | 多模型聚合 |
 | DeepSeek | deepseek-chat | 深度求索 |
 | Moonshot | moonshot-v1-8k | 月之暗面 (Kimi) |
 | Ollama | llama2 | 本地部署 |
@@ -45,7 +45,7 @@ cp .env.example .env
 # OpenAI 配置
 PROVIDER=OpenAI
 OPENAI_API_KEY=sk-your-api-key-here
-OPENAI_DEFAULT_MODEL=gpt-4o-mini
+OPENAI_DEFAULT_MODEL=gpt-5-mini
 
 # 或使用 NVIDIA
 # PROVIDER=NVIDIA (DGX Cloud)
@@ -74,13 +74,13 @@ cargo run -p rucora-deep-research
 ━━━ 配置向导 ━━━
 
 选择 Provider:
-  0. OpenAI - gpt-4o-mini
+  0. OpenAI - gpt-5-mini
   1. Anthropic - claude-3-5-sonnet
   ...
 
 选择 Provider: 0
 输入 API Key: sk-...
-输入模型名称 [gpt-4o-mini]: 
+输入模型名称 [gpt-5-mini]: 
 输入 Base URL [https://api.openai.com/v1]: 
 ```
 
@@ -109,7 +109,7 @@ cargo run -p rucora-deep-research
 ```bash
 # 直接指定配置
 export API_KEY=sk-your-key
-export MODEL=gpt-4o-mini
+export MODEL=gpt-5-mini
 export BASE_URL=https://api.openai.com/v1
 export PROVIDER=OpenAI
 ```
@@ -119,7 +119,7 @@ export PROVIDER=OpenAI
 ```bash
 # OpenAI
 export OPENAI_API_KEY=sk-your-key
-export OPENAI_DEFAULT_MODEL=gpt-4o-mini
+export OPENAI_DEFAULT_MODEL=gpt-5-mini
 export OPENAI_BASE_URL=https://api.openai.com/v1
 
 # Anthropic
@@ -151,7 +151,7 @@ export SERPAPI_API_KEY=single-key
 ```toml
 provider = "OpenAI"
 api_key = "sk-..."
-model = "gpt-4o-mini"
+model = "gpt-5-mini"
 base_url = "https://api.openai.com/v1"
 serpapi_keys = "key1,key2"
 ```
@@ -214,7 +214,7 @@ export SERPAPI_API_KEYS=key1,key2,key3
 ```toml
 provider = "OpenAI"
 api_key = "sk-..."
-model = "gpt-4o-mini"
+model = "gpt-5-mini"
 base_url = "https://api.openai.com/v1"
 serpapi_keys = "key1,key2"
 ```
@@ -226,7 +226,7 @@ serpapi_keys = "key1,key2"
 ```
 ✓ 已加载现有配置
   Provider: OpenAI
-  模型：gpt-4o-mini
+  模型：gpt-5-mini
 
 是否使用现有配置？ (y/n): n
 

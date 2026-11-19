@@ -81,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
 
     let agent = SimpleAgent::builder(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手")
         .build();
 

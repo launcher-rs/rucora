@@ -20,7 +20,7 @@ async fn add(a: f64, b: f64) -> Result<Value, ToolError> {
 let agent = agent!(
     ToolAgent,
     provider: provider,
-    model: "gpt-4o-mini",
+    model: "gpt-5-mini",
     system_prompt: "你是数学助手",
     tools: [AddTool],
     max_steps: 5,
@@ -180,6 +180,6 @@ res.is_success() // true/false
 
 ```bash
 export OPENAI_API_KEY=sk-your-key
-export MODEL_NAME=gpt-4o-mini
+export MODEL_NAME=gpt-5-mini
 cargo run --example 26_macros
 ```

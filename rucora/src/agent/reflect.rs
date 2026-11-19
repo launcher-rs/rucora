@@ -27,7 +27,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ReflectAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是一个追求卓越的程序员")
 //!     .tool(FileWriteTool::new())
 //!     .max_iterations(3)
@@ -497,7 +497,7 @@ mod tests {
     #[test]
     fn test_reflect_agent_builder() {
         let _agent = ReflectAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .max_iterations(3)
             .quality_threshold(0.9)
             .build();
@@ -508,7 +508,7 @@ mod tests {
     fn test_builder_typestate_transition() {
         let builder: ReflectAgentBuilder<MockProvider, NoModel> =
             ReflectAgentBuilder::<MockProvider>::new(MockProvider);
-        let builder: ReflectAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let builder: ReflectAgentBuilder<MockProvider, WithModel> = builder.model("gpt-5-mini");
         let _agent = builder.build();
     }
 }

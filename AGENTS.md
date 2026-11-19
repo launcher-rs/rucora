@@ -134,7 +134,7 @@ cargo run --example 12_mcp --all-features
   ```rust
   let agent = ToolAgent::builder()
       .provider(provider)
-      .model("gpt-4o-mini")
+      .model("gpt-5-mini")
       .system_prompt("你是有用的助手")
       .tool(ShellTool)
       .try_build()?;
@@ -234,7 +234,7 @@ async fn main() -> anyhow::Result<()> {
     let provider = OpenAiProvider::from_env()?;
     let agent = ToolAgent::builder()
         .provider(provider)
-        .model("gpt-4o-mini")
+        .model("gpt-5-mini")
         .system_prompt("你是有用的助手")
         .try_build()?;
     let output = agent.run("你好".into()).await?;

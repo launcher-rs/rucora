@@ -40,7 +40,7 @@ async fn main() -> anyhow::Result<()> {
         return Ok(());
     }
 
-    let model = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-4o-mini".to_string());
+    let model = std::env::var("MODEL_NAME").unwrap_or_else(|_| "gpt-5-mini".to_string());
     info!("使用模型: {model}\n");
 
     info!("═══════════════════════════════════════");

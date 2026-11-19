@@ -39,7 +39,7 @@ async fn main() -> anyhow::Result<()> {
     let server_url = "http://localhost:8080";
 
     // 创建 A2A 客户端
-    println!("正在连接 A2A Server: {}", server_url);
+    println!("正在连接 A2A Server: {server_url}");
     let client = Client::from_url(server_url)?;
 
     // 获取 AgentCard 验证连接
@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
             println!("  描述：{}", card.description);
         }
         Err(e) => {
-            eprintln!("❌ 无法连接到 A2A Server: {}", e);
+            eprintln!("❌ 无法连接到 A2A Server: {e}");
             eprintln!("\n请确保先启动 A2A Server:");
             eprintln!("  cargo run --example a2a-server\n");
             return Ok(());
@@ -87,7 +87,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 询问时间
     let question = "现在几点了？";
-    println!("🤔 用户问：{}\n", question);
+    println!("🤔 用户问：{question}\n");
     println!("📡 正在通过 A2A 协议调用远程 Agent...\n");
 
     // 直接调用 A2A 工具
@@ -115,12 +115,12 @@ async fn main() -> anyhow::Result<()> {
             println!("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
             let result: serde_json::Value = result;
             if let Some(response) = result.get("response").and_then(|v| v.as_str()) {
-                println!("💬 A2A Server 回复：\n{}\n", response);
+                println!("💬 A2A Server 回复：\n{response}\n");
             }
             println!("✓ 调用完成");
         }
         Err(e) => {
-            eprintln!("❌ 调用失败：{}", e);
+            eprintln!("❌ 调用失败：{e}");
         }
     }
 

@@ -22,7 +22,7 @@
 //! let provider = OpenAiProvider::from_env()?;
 //!
 //! let agent = ChatAgent::builder(provider)
-//!     .model("gpt-4o-mini")
+//!     .model("gpt-5-mini")
 //!     .system_prompt("你是友好的心理咨询助手")
 //!     .with_conversation(true)  // 启用对话历史
 //!     .max_history_messages(20) // 保留最近 20 条消息
@@ -382,7 +382,7 @@ mod tests {
     #[test]
     fn test_chat_agent_builder() {
         let _agent = ChatAgentBuilder::<MockProvider>::new(MockProvider)
-            .model("gpt-4o-mini")
+            .model("gpt-5-mini")
             .system_prompt("test")
             .with_conversation(true)
             .max_history_messages(20)
@@ -394,7 +394,7 @@ mod tests {
     fn test_builder_typestate_transition() {
         let builder: ChatAgentBuilder<MockProvider, NoModel> =
             ChatAgentBuilder::<MockProvider>::new(MockProvider);
-        let builder: ChatAgentBuilder<MockProvider, WithModel> = builder.model("gpt-4o-mini");
+        let builder: ChatAgentBuilder<MockProvider, WithModel> = builder.model("gpt-5-mini");
         let _agent = builder.build();
     }
 }
