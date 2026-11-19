@@ -4,6 +4,37 @@
 
 ---
 
+## [Unreleased]
+
+**修复（Bug Fixes）**
+- 修复流式响应的中文乱码问题：网络分块边界可能切断多字节 UTF-8 字符，原逐块 `from_utf8_lossy` 会将其替换为 U+FFFD。新增 `IncrementalUtf8Decoder` 增量解码器（保留尾部残缺字节拼接下一分块），全部 8 个 Provider 的 SSE 流式解析接入
+- 修复 `AnthropicProvider::with_api_version` 不生效问题：请求头在 `with_model` 时已构建，设置后现同步重建请求头与 HTTP 客户端
+- 修复 `AnthropicProvider::chat` 状态码检查顺序：改为先读取文本、检查状态后再解析 JSON，非 JSON 错误响应（如代理返回 HTML）不再被反序列化错误掩盖
+- 修复 Anthropic 流式解析缓冲区 O(n²) 重复分配（改用 `drain`）
+- 修复 `cargo clippy --all-targets` 编译失败（`rucora-tools/web/search.rs` 冗余 clone）
+- 修复 OpenAI `stream_chat` 与 `chat` 参数不一致：流式现透传 `top_p` / `top_k` / `frequency_penalty` / `presence_penalty` / `stop` / `extra` 全部采样参数
+
+**新增（New Features）**
+- `AnthropicProvider::with_prompt_caching`：Prompt Caching 支持（system 提示词与最后一个工具定义自动附加 `cache_control: ephemeral`，命中可大幅降低重复前缀成本）
+- 流式 usage 收集：Anthropic 流式解析 `message_start` / `message_delta` 的 token 用量；OpenAI 新增 `with_include_usage` 选项（发送 `stream_options.include_usage`，流末尾分块携带 usage）
+- `AnthropicProvider` 请求体构建抽取为 `build_request_body`，消除 chat / stream_chat 约 90 行重复逻辑
+
+**默认模型更新**
+- OpenAI：`gpt-4o-mini` → `gpt-5-mini`
+- Anthropic：`claude-3-5-sonnet-20241022` → `claude-sonnet-4-5`（别名自动指向最新快照）
+- Gemini：`gemini-1.5-flash` → `gemini-2.5-flash`（旧模型已被 Google 弃用退役）
+- OpenRouter：`anthropic/claude-3-5-sonnet` → `anthropic/claude-sonnet-4.5`
+
+**依赖升级**
+- 跨版本：`scraper` 0.27 → 0.29、`dom_smoothie` 0.18 → 0.19、`text-splitter` 0.32 → 0.33、`dashmap` 5 → 6、`toml` 0.8 → 1.2、`dirs` 5 → 7、`dialoguer` 0.11 → 0.12、`console` 0.15 → 0.16
+- 锁定版本刷新：`rmcp` 3.0.1 → 3.11.0（支持 MCP 2026-07-28 规范）、`reqwest` 0.13.5、`tokio` 1.54、`syn` 3.0.10 等 187 个包
+- 移除未使用依赖：`rucora-providers` 的 `backon`、`futures-executor`；`rucora-tools` 的 `schemars`；`rucora-skills` 的 `rucora-tools`；若干示例的 `rucora` / `dotenv` / `anyhow`
+- 9 个示例 manifest 补充 `[lints] workspace = true` 继承，示例代码通过全部 deny 级 lint（消除 19 处 `map_unwrap_or` 等警告）
+- 适配 `rmcp` 3.11 弃用改名：示例 `12_mcp` 的 `ClientInfo` → `ClientConfig`
+- `cargo clippy --workspace --all-targets` 现已零错误零警告
+
+---
+
 ## [0.6.0] - 2026-08-10
 
 **新增（New Features）**

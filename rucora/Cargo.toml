@@ -55,7 +55,7 @@ tracing = "0.1"
 thiserror = "2"
 schemars = "1.2"
 regex = "1"
-text-splitter = "0.32"
+text-splitter = "0.33"
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt","rt-multi-thread"] }

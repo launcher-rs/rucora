@@ -23,10 +23,10 @@ chrono = "0.4"
 dotenv = "0.15"
 
 # 配置管理
-toml = "0.8"
-dirs = "5.0"
-dialoguer = "0.11"
-console = "0.15"
+toml = "1"
+dirs = "7"
+dialoguer = "0.12"
+console = "0.16"
 
 [lints]
 workspace = true

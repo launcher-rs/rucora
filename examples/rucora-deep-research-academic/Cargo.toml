@@ -6,12 +6,12 @@ description = "rucora 学术研究示例"
 publish = false
 
 [dependencies]
-rucora.workspace = true
 rucora-core.workspace = true
-rucora-providers.workspace = true
-rucora-tools.workspace = true
 tokio = { version = "1", features = ["full"] }
 anyhow = "1"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter"] }
 dotenv = "0.15"
+
+[lints]
+workspace = true
