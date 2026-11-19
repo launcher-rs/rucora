@@ -164,6 +164,8 @@ pub mod prelude {
     pub use crate::provider::OpenAiAsrProvider;
     #[cfg(feature = "providers")]
     pub use crate::provider::OpenAiProvider;
+    #[cfg(feature = "providers")]
+    pub use crate::provider::OpenAiResponsesProvider;
     pub use rucora_core::agent::{Agent, AgentInput, AgentOutput, AgentBatchExt, BatchProgress};
     pub use rucora_core::asr::{AsrProvider, AsrRequest, AsrResponseFormat, AsrResult, AsrSegment};
     pub use rucora_core::channel::types::{ChannelEvent, TokenDeltaEvent};

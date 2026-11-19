@@ -10,6 +10,7 @@ pub mod http_config;
 pub mod moonshot;
 pub mod ollama;
 pub mod openai;
+pub mod openai_responses;
 pub mod openrouter;
 pub mod resilient;
 
@@ -21,6 +22,7 @@ pub use gemini::GeminiProvider;
 pub use moonshot::MoonshotProvider;
 pub use ollama::OllamaProvider;
 pub use openai::OpenAiProvider;
+pub use openai_responses::{OPENAI_RESPONSES_DEFAULT_MODEL, OpenAiResponsesProvider};
 pub use openrouter::OpenRouterProvider;
 pub use resilient::{CancelHandle, ResilientProvider, RetryConfig};
 
