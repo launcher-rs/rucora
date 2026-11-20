@@ -1,118 +1,17 @@
 //! 闭环集成测试：任务 → 流式事件 → 审批 → 工具执行 → 文件变更 → 会话持久化。
 
-use std::collections::VecDeque;
-use std::path::PathBuf;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
-use async_trait::async_trait;
-use futures_util::stream::{self, BoxStream, StreamExt};
 use rucora::agent::ToolAgent;
 use rucora::tools::FileEditTool;
-use rucora_core::error::ProviderError;
-use rucora_core::provider::LlmProvider;
-use rucora_core::provider::types::{ChatRequest, ChatResponse, ChatStreamChunk, FinishReason};
 use rucora_core::tool::types::{ToolCall, ToolDefinition};
 use rucora_coding::events::{AgentEvent, EventBus};
 use rucora_coding::permissions::{ApprovalDecision, ApprovalToolPolicy, PermissionConfig};
 use rucora_coding::runner::CodingSession;
 use rucora_coding::session::{FileSessionStore, SessionStatus, TranscriptEntry};
 
-/// 脚本化 Mock Provider：按调用次序回放预设的流式分块。
-struct ScriptedProvider {
-    scripts: Mutex<VecDeque<Script>>,
-    /// 捕获每次 stream_chat 收到的请求（供断言上下文注入）。
-    captured: Arc<Mutex<Vec<ChatRequest>>>,
-}
-
-/// 单次流式调用的脚本。
-enum Script {
-    /// 按序回放的固定分块。
-    Chunks(Vec<ChatStreamChunk>),
-    /// 先发一个增量然后永久挂起（用于取消测试）。
-    HangAfterFirstDelta,
-}
-
-impl ScriptedProvider {
-    fn new(scripts: Vec<Vec<ChatStreamChunk>>) -> Self {
-        Self {
-            scripts: Mutex::new(VecDeque::from(
-                scripts.into_iter().map(Script::Chunks).collect::<Vec<_>>(),
-            )),
-            captured: Arc::new(Mutex::new(Vec::new())),
-        }
-    }
-
-    fn with_captured(mut self, captured: Arc<Mutex<Vec<ChatRequest>>>) -> Self {
-        self.captured = captured;
-        self
-    }
-}
-
-fn text_chunk(text: &str) -> ChatStreamChunk {
-    ChatStreamChunk {
-        delta: Some(text.to_string()),
-        tool_calls: vec![],
-        usage: None,
-        finish_reason: None,
-    }
-}
-
-fn tool_call_chunk(call: ToolCall) -> ChatStreamChunk {
-    ChatStreamChunk {
-        delta: None,
-        tool_calls: vec![call],
-        usage: None,
-        finish_reason: Some(FinishReason::ToolCall),
-    }
-}
-
-#[async_trait]
-impl LlmProvider for ScriptedProvider {
-    async fn chat(&self, _request: ChatRequest) -> Result<ChatResponse, ProviderError> {
-        Err(ProviderError::Message(
-            "ScriptedProvider 仅支持流式路径".to_string(),
-        ))
-    }
-
-    fn stream_chat(
-        &self,
-        request: ChatRequest,
-    ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
-        self.captured
-            .lock()
-            .expect("捕获锁中毒")
-            .push(request);
-        let script = self
-            .scripts
-            .lock()
-            .expect("脚本队列锁中毒")
-            .pop_front()
-            .ok_or_else(|| ProviderError::Message("脚本已耗尽".to_string()))?;
-        let s: BoxStream<'static, Result<ChatStreamChunk, ProviderError>> = match script {
-            Script::Chunks(chunks) => Box::pin(stream::iter(chunks.into_iter().map(Ok))),
-            Script::HangAfterFirstDelta => {
-                // 先发一个增量，然后永久挂起（用于取消测试）
-                let chunk = ChatStreamChunk {
-                    delta: Some("开始工作…".to_string()),
-                    tool_calls: vec![],
-                    usage: None,
-                    finish_reason: None,
-                };
-                Box::pin(stream::iter([Ok(chunk)]).chain(stream::pending()))
-            }
-        };
-        Ok(s)
-    }
-}
-
-fn temp_workspace(tag: &str) -> PathBuf {
-    let dir = std::env::temp_dir().join(format!(
-        "rucora-coding-it-{tag}-{}",
-        uuid::Uuid::new_v4().simple()
-    ));
-    std::fs::create_dir_all(&dir).expect("创建临时工作区");
-    dir
-}
+mod common;
+use common::{temp_workspace, text_chunk, tool_call_chunk, Script, ScriptedProvider};
 
 /// 完整闭环：编辑文件需审批 → 放行 → 文件真实变更 → 会话持久化。
 #[tokio::test]
@@ -140,7 +39,7 @@ async fn closed_loop_with_approval() {
             "new_string": "hello world"
         }),
     };
-    let provider = ScriptedProvider::new(vec![
+    let provider = Arc::new(ScriptedProvider::new(vec![
         // 第一轮：说明意图并发起编辑
         vec![
             text_chunk("我来编辑文件。"),
@@ -148,9 +47,9 @@ async fn closed_loop_with_approval() {
         ],
         // 第二轮：确认完成
         vec![text_chunk("编辑完成，文件已更新。")],
-    ]);
+    ]));
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         .system_prompt("测试用编程助手")
         .tool(FileEditTool::new().with_allowed_dirs(vec![workspace.clone()]))
@@ -164,6 +63,7 @@ async fn closed_loop_with_approval() {
         store,
         bus.clone(),
         policy.clone(),
+        None,
         None,
     )
     .expect("会话启动");
@@ -286,13 +186,13 @@ async fn denied_approval_keeps_agent_working() {
             "new_string": "nope"
         }),
     };
-    let provider = ScriptedProvider::new(vec![
+    let provider = Arc::new(ScriptedProvider::new(vec![
         vec![tool_call_chunk(edit_call)],
         // 被拒后模型改口收尾（不再调用工具）
         vec![text_chunk("用户拒绝了编辑，我不再修改文件。")],
-    ]);
+    ]));
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         .tool(FileEditTool::new().with_allowed_dirs(vec![workspace.clone()]))
         .with_policy(policy.clone())
@@ -305,6 +205,7 @@ async fn denied_approval_keeps_agent_working() {
         store,
         bus.clone(),
         policy.clone(),
+        None,
         None,
     )
     .expect("会话启动");
@@ -382,19 +283,24 @@ async fn context_injection_reaches_provider() {
         bus.clone(),
     ));
 
-    let captured: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
-    let provider = ScriptedProvider::new(vec![vec![text_chunk("收到。")]])
-        .with_captured(captured.clone());
+    let provider = Arc::new(ScriptedProvider::new(vec![vec![text_chunk("收到。")]]));
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         .with_policy(policy.clone())
         .build();
 
     let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
-    let session =
-        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone(), None)
-            .expect("会话启动");
+    let session = CodingSession::start(
+        Arc::new(agent),
+        &workspace,
+        store,
+        bus.clone(),
+        policy.clone(),
+        None,
+        None,
+    )
+    .expect("会话启动");
 
     let assembler = rucora_coding::context::ContextAssembler::new(
         &workspace,
@@ -407,7 +313,7 @@ async fn context_injection_reaches_provider() {
     assert!(outcome.success);
 
     // 模型收到的输入应包含上下文块与任务
-    let requests = captured.lock().expect("捕获锁中毒");
+    let requests = provider.captured_requests();
     assert_eq!(requests.len(), 1);
     let input_text = requests[0].messages.last().expect("应有用户消息").content_text();
     assert!(input_text.contains("<project-context>"), "应有上下文标签：{input_text}");
@@ -429,29 +335,27 @@ async fn cancel_stops_running_task() {
         bus.clone(),
     ));
 
-    let provider = ScriptedProvider::new(vec![vec![]])
-        .with_captured(Arc::new(Mutex::new(Vec::new())));
+    let provider = Arc::new(ScriptedProvider::new(vec![vec![]]));
     // 将脚本替换为"挂起流"：先发一个增量，然后永久等待
-    provider
-        .scripts
-        .lock()
-        .expect("脚本队列锁中毒")
-        .clear();
-    provider
-        .scripts
-        .lock()
-        .expect("脚本队列锁中毒")
-        .push_back(Script::HangAfterFirstDelta);
+    provider.clear_scripts();
+    provider.push_script(Script::HangAfterFirstDelta);
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         .with_policy(policy.clone())
         .build();
 
     let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
-    let session =
-        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone(), None)
-            .expect("会话启动");
+    let session = CodingSession::start(
+        Arc::new(agent),
+        &workspace,
+        store,
+        bus.clone(),
+        policy.clone(),
+        None,
+        None,
+    )
+    .expect("会话启动");
 
     // 后台任务：收到首个 MessageDelta 后取消
     let canceller = {
@@ -526,12 +430,12 @@ async fn tracked_changes_diff_and_rollback() {
             "new_string": "第一行已修改\n新增行"
         }),
     };
-    let provider = ScriptedProvider::new(vec![
+    let provider = Arc::new(ScriptedProvider::new(vec![
         vec![tool_call_chunk(edit_call)],
         vec![text_chunk("编辑完成。")],
-    ]);
+    ]));
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         // 关键：用 ChangeRecorder 包装文件工具，变更才会被捕获
         .tool(rucora_coding::diff::ChangeRecorder::wrap(
@@ -550,6 +454,7 @@ async fn tracked_changes_diff_and_rollback() {
         bus.clone(),
         policy.clone(),
         Some(tracker.clone()),
+        None,
     )
     .expect("会话启动");
 
@@ -608,12 +513,12 @@ async fn rollback_deletes_created_file() {
             "content": "新建内容"
         }),
     };
-    let provider = ScriptedProvider::new(vec![
+    let provider = Arc::new(ScriptedProvider::new(vec![
         vec![tool_call_chunk(write_call)],
         vec![text_chunk("已写入。")],
-    ]);
+    ]));
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         .tool(rucora_coding::diff::ChangeRecorder::wrap(
             rucora::tools::FileWriteTool::new().with_allowed_dirs(vec![workspace.clone()]),
@@ -631,6 +536,7 @@ async fn rollback_deletes_created_file() {
         bus.clone(),
         policy.clone(),
         Some(tracker.clone()),
+        None,
     )
     .expect("会话启动");
 
@@ -659,14 +565,12 @@ async fn multi_turn_history_reaches_provider() {
         bus.clone(),
     ));
 
-    let captured: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
-    let provider = ScriptedProvider::new(vec![
+    let provider = Arc::new(ScriptedProvider::new(vec![
         vec![text_chunk("第一轮回复。")],
         vec![text_chunk("第二轮回复，我看到了之前的对话。")],
-    ])
-    .with_captured(captured.clone());
+    ]));
 
-    let agent = ToolAgent::builder(provider)
+    let agent = ToolAgent::builder(provider.clone())
         .model("scripted-mock")
         .with_policy(policy.clone())
         .build();
@@ -678,6 +582,7 @@ async fn multi_turn_history_reaches_provider() {
         store,
         bus.clone(),
         policy.clone(),
+        None,
         None,
     )
     .expect("会话启动");
@@ -692,7 +597,7 @@ async fn multi_turn_history_reaches_provider() {
         .expect("任务二应成功");
 
     // 第二次请求应携带第一轮的历史
-    let requests = captured.lock().expect("捕获锁中毒");
+    let requests = provider.captured_requests();
     assert_eq!(requests.len(), 2);
     let second = &requests[1];
     let history_text = second
@@ -729,10 +634,8 @@ async fn resume_restores_history() {
     let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
 
     // 第一段会话：完成任务一
-    let captured1: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
-    let provider1 = ScriptedProvider::new(vec![vec![text_chunk("结论：方案 A 可行。")]])
-        .with_captured(captured1.clone());
-    let agent1 = ToolAgent::builder(provider1)
+    let provider1 = Arc::new(ScriptedProvider::new(vec![vec![text_chunk("结论：方案 A 可行。")]]));
+    let agent1 = ToolAgent::builder(provider1.clone())
         .model("scripted-mock")
         .with_policy(policy.clone())
         .build();
@@ -742,6 +645,7 @@ async fn resume_restores_history() {
         store.clone(),
         bus.clone(),
         policy.clone(),
+        None,
         None,
     )
     .expect("会话启动");
@@ -754,17 +658,15 @@ async fn resume_restores_history() {
     };
 
     // "重启"：全新 Agent + resume 同一记录
-    let captured2: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
     let policy2 = Arc::new(ApprovalToolPolicy::new(
         PermissionConfig::default(),
         "resume-session".to_string(),
         bus.clone(),
     ));
-    let provider2 = ScriptedProvider::new(vec![vec![text_chunk(
+    let provider2 = Arc::new(ScriptedProvider::new(vec![vec![text_chunk(
         "基于上轮结论，方案 A 继续推进。",
-    )]])
-    .with_captured(captured2.clone());
-    let agent2 = ToolAgent::builder(provider2)
+    )]]));
+    let agent2 = ToolAgent::builder(provider2.clone())
         .model("scripted-mock")
         .with_policy(policy2.clone())
         .build();
@@ -794,7 +696,7 @@ async fn resume_restores_history() {
 
     // 恢复后的任务携带第一段会话的历史
     session2.run_task("继续推进").await.expect("恢复后任务应成功");
-    let requests = captured2.lock().expect("捕获锁中毒");
+    let requests = provider2.captured_requests();
     assert_eq!(requests.len(), 1);
     let history_text = requests[0]
         .messages

@@ -7,6 +7,8 @@
 //! - [`permissions`]：工具调用权限与交互式审批
 //!   （`ApprovalRequired` → 人工裁决 → 继续/以结构化结果拒绝）
 //! - [`session`]：会话记录与 JSON 持久化
+//! - [`manager`]：多会话管理（并发启动/恢复/审批聚合/批量取消）
+//! - [`worktree`]：git worktree 隔离（多会话并行修改同一仓库互不踩踏）
 //! - [`runner`]：[`CodingSession`] 把 Agent、事件、审批、持久化粘合成
 //!   "接收任务 → 理解项目 → 调用工具 → 审批 → 完成"的完整闭环
 //!
@@ -53,6 +55,7 @@
 //!     bus.clone(),
 //!     policy,
 //!     None,
+//!     None,
 //! )?;
 //!
 //! // 3. 后台消费事件（GUI 渲染用）
@@ -72,9 +75,11 @@
 pub mod context;
 pub mod diff;
 pub mod events;
+pub mod manager;
 pub mod permissions;
 pub mod runner;
 pub mod session;
+pub mod worktree;
 
 pub use context::{
     ContextAssembler, ContextConfig, ProjectInstructions, RepoMap, estimate_tokens,
@@ -85,5 +90,7 @@ pub use permissions::{
     ApprovalDecision, ApprovalRequest, ApprovalToolPolicy, PermissionAction, PermissionConfig,
     ToolPermissionRule,
 };
+pub use manager::{ApprovalRoute, SessionBlueprint, SessionManager, SessionParts};
 pub use runner::{CodingSession, TaskOutcome, transcript_to_history};
+pub use worktree::{create_worktree, list_worktrees, remove_worktree, Worktree};
 pub use session::{FileSessionStore, SessionRecord, SessionStatus, SharedSessionStore, TranscriptEntry};

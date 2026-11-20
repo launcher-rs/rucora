@@ -149,6 +149,15 @@ pub struct EventBus {
     tx: broadcast::Sender<SequencedEvent>,
 }
 
+impl std::fmt::Debug for EventBus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("EventBus")
+            .field("seq", &self.seq.load(std::sync::atomic::Ordering::Relaxed))
+            .field("history_len", &self.history.lock().expect("事件历史锁中毒").len())
+            .finish()
+    }
+}
+
 impl EventBus {
     /// 创建事件总线。
     pub fn new() -> Arc<Self> {

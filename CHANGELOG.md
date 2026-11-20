@@ -55,6 +55,15 @@
 - `ToolAgentBuilder` 新增 `with_policy` / `with_observer`：审批策略与事件观测器
   一等公民化，不再需要绕过构建器手动调整执行器
 
+**新增（New Features）— 多会话管理与 worktree 隔离**
+- `manager::SessionManager`：多会话并发管理——launch/resume/get/detach/cancel_all，
+  装配采用蓝图反转（`SessionBlueprint` 交工厂闭包构建 Agent 与审批策略，
+  管理器保证会话 ID 一致）；跨会话审批聚合路由
+  （`pending_approvals` → `resolve_approval`）；活动会话的记录删除保护
+- `worktree`：git worktree 隔离——`create_worktree`（新分支 `rucora/{name}` +
+  独立工作目录）/ `remove_worktree` / `list_worktrees`（porcelain 解析），
+  多会话并行修改同一仓库互不踩踏；Windows UNC 路径前缀已清理
+
 **新增（New Features）— 会话恢复与多轮对话**
 - `AgentInput` 新增 `history` 字段与 `with_history()`：外部会话历史插入
   系统提示词之后、当前用户消息之前；流式与非流式两条执行路径均已接入

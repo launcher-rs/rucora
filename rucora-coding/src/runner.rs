@@ -159,8 +159,11 @@ impl CodingSession {
         bus: Arc<EventBus>,
         policy: Arc<ApprovalToolPolicy>,
         tracker: Option<Arc<ChangeTracker>>,
+        session_id: Option<&str>,
     ) -> Result<Arc<Self>, AgentError> {
-        let record = SessionRecord::new(workspace);
+        let record = session_id.map_or_else(|| SessionRecord::new(workspace), |id| {
+            SessionRecord::with_id(workspace, id)
+        });
         let session_id = record.id.clone();
         store
             .save(&record)
@@ -416,7 +419,9 @@ impl CodingSession {
             // 取消优先：在事件边界处响应 cancel()
             let item = tokio::select! {
                 biased;
-                _ = self.cancel_state.wait(), if !self.cancel_state.is_cancelled() => {
+                // wait() 内部先检查取消标记：即使 cancel 发生在本轮处理期间，
+                // 下一轮 select 也会立即走取消分支
+                _ = self.cancel_state.wait() => {
                     cancelled = true;
                     break;
                 }

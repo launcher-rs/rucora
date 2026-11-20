@@ -82,6 +82,13 @@ pub struct SessionRecord {
 }
 
 impl SessionRecord {
+    /// 创建新会话记录（状态为 `Running`），使用指定 ID。
+    pub fn with_id(workspace: &Path, id: impl Into<String>) -> Self {
+        let mut record = Self::new(workspace);
+        record.id = id.into();
+        record
+    }
+
     /// 创建新会话记录（状态为 `Running`）。
     pub fn new(workspace: &Path) -> Self {
         let now = now_rfc3339();
