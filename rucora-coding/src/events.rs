@@ -110,6 +110,9 @@ pub enum AgentEvent {
         /// 错误信息。
         message: String,
     },
+
+    /// 任务被用户取消。
+    Cancelled,
 }
 
 /// 带序号的事件信封。

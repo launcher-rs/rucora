@@ -55,6 +55,14 @@
 - `ToolAgentBuilder` 新增 `with_policy` / `with_observer`：审批策略与事件观测器
   一等公民化，不再需要绕过构建器手动调整执行器
 
+**新增（New Features）— context 与取消**
+- `context::ContextAssembler`：预算制上下文组装——项目指令（`AGENTS.md` / `CLAUDE.md` /
+  `README.md` 按优先级加载）+ 仓库结构地图（`RepoMap`：忽略构建产物、体积标注、
+  深度/字符预算截断）注入 `<project-context>` 块，`run_task_with_context` 一行接入
+- 任务取消：`CodingSession::cancel()` 在事件边界打断流消费，
+  待审批请求自动拒绝，会话状态标记 `Cancelled` 并发布 `AgentEvent::Cancelled`，
+  `TaskOutcome` 新增 `cancelled` 字段
+
 **修复（Bug Fixes）**
 - 修复 `ToolResult::success` 恒为默认值的问题：执行器从不设置该字段，
   成功结果（含缓存命中）现依据工具输出 `ok` 字段正确标记；

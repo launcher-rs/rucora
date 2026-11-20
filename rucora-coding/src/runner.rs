@@ -23,9 +23,13 @@ use futures_util::{StreamExt, stream::BoxStream};
 use rucora_core::agent::{Agent, AgentError};
 use rucora_core::channel::types::ChannelEvent;
 use rucora_core::provider::types::Role;
+use rucora_core::tool::types::ToolCall;
 use serde_json::Value;
 use tracing::{debug, info, warn};
 
+use tokio::sync::Notify;
+
+use crate::context::ContextAssembler;
 use crate::events::{AgentEvent, EventBus, SequencedEvent};
 use crate::permissions::{ApprovalDecision, ApprovalRequest, ApprovalToolPolicy};
 use crate::session::{FileSessionStore, SessionRecord, SessionStatus, TranscriptEntry};
@@ -39,14 +43,42 @@ pub struct TaskOutcome {
     pub tool_calls: usize,
     /// 任务耗时（毫秒）。
     pub duration_ms: u64,
-    /// 任务是否成功完成（失败时为 `false`）。
+    /// 任务是否成功完成（失败/取消时为 `false`）。
     pub success: bool,
+    /// 是否被用户取消。
+    pub cancelled: bool,
+}
+
+/// 取消状态：跨任务共享，`cancel()` 唤醒正在消费流的任务。
+#[derive(Default)]
+struct CancelState {
+    cancelled: std::sync::atomic::AtomicBool,
+    notify: Notify,
+}
+
+impl CancelState {
+    fn mark_cancelled(&self) {
+        self.cancelled
+            .store(true, std::sync::atomic::Ordering::Relaxed);
+        self.notify.notify_waiters();
+    }
+
+    async fn wait(&self) {
+        while !self.cancelled.load(std::sync::atomic::Ordering::Relaxed) {
+            self.notify.notified().await;
+        }
+    }
+
+    fn is_cancelled(&self) -> bool {
+        self.cancelled.load(std::sync::atomic::Ordering::Relaxed)
+    }
 }
 
 /// Coding 会话。
 ///
 /// 聚合 Agent、事件总线、审批策略与会话存储。
-/// 会话运行不依赖任何 UI——即使消费者全部退出，`run_task` 也会继续执行。
+/// 会话运行不依赖任何 UI——即使消费者全部退出，`run_task` 也会继续执行；
+/// 可通过 [`CodingSession::cancel`] 随时取消当前任务。
 pub struct CodingSession {
     agent: Arc<dyn Agent>,
     bus: Arc<EventBus>,
@@ -54,6 +86,7 @@ pub struct CodingSession {
     store: FileSessionStore,
     record: Mutex<SessionRecord>,
     workspace: PathBuf,
+    cancel_state: Arc<CancelState>,
 }
 
 /// 工具调用的关联信息（从 ToolCall 事件捕获，供 ToolResult 落转录）。
@@ -90,6 +123,7 @@ impl CodingSession {
             store,
             record: Mutex::new(record),
             workspace: workspace.to_path_buf(),
+            cancel_state: Arc::new(CancelState::default()),
         }))
     }
 
@@ -140,6 +174,31 @@ impl CodingSession {
     /// 注意：工具层面的失败（含审批拒绝）不会中断任务——它们以结构化
     /// 结果回传给模型，由模型决定后续动作。
     pub async fn run_task(&self, task: &str) -> Result<TaskOutcome, AgentError> {
+        self.run_task_inner(task, None).await
+    }
+
+    /// 执行一个任务（带项目上下文注入）。
+    ///
+    /// 先用 [`ContextAssembler`] 组装"项目指令 + 仓库结构 + 任务"作为输入，
+    /// 其余行为与 [`CodingSession::run_task`] 一致。
+    ///
+    /// # Errors
+    ///
+    /// 同 [`CodingSession::run_task`]。
+    pub async fn run_task_with_context(
+        &self,
+        task: &str,
+        assembler: &ContextAssembler,
+    ) -> Result<TaskOutcome, AgentError> {
+        self.run_task_inner(task, Some(assembler)).await
+    }
+
+    /// 任务执行内部实现。
+    async fn run_task_inner(
+        &self,
+        task: &str,
+        context: Option<&ContextAssembler>,
+    ) -> Result<TaskOutcome, AgentError> {
         let started_at = Instant::now();
         let task_text = task.to_string();
         self.publish_and_record(
@@ -150,27 +209,53 @@ impl CodingSession {
             },
         );
 
-        let input = rucora_core::agent::AgentInput::new(task.to_string())?;
+        let input_text = context.map_or_else(|| task.to_string(), |a| a.assemble(task));
+        let input = rucora_core::agent::AgentInput::new(input_text)?;
         let stream = self.agent.run_stream(input);
         let (text, tool_calls, failure) = self.consume_stream(stream).await;
 
+        let cancelled = self.cancel_state.is_cancelled();
         let duration_ms = started_at.elapsed().as_millis() as u64;
-        self.finish_task(&text, tool_calls, duration_ms, failure.as_deref());
+        self.finish_task(&text, tool_calls, duration_ms, failure.as_deref(), cancelled);
 
-        match failure {
-            None => Ok(TaskOutcome {
+        match (failure, cancelled) {
+            (None, false) => Ok(TaskOutcome {
                 text,
                 tool_calls,
                 duration_ms,
                 success: true,
+                cancelled: false,
             }),
-            Some(message) => Err(AgentError::Message(message)),
+            (None, true) => Ok(TaskOutcome {
+                text,
+                tool_calls,
+                duration_ms,
+                success: false,
+                cancelled: true,
+            }),
+            (Some(message), _) => Err(AgentError::Message(message)),
         }
+    }
+
+    /// 取消当前正在执行的任务。
+    ///
+    /// 流消费循环在下一个事件边界处退出；待审批请求被拒绝（模型可见）；
+    /// 会话状态标记为 [`SessionStatus::Cancelled`] 并发布
+    /// [`AgentEvent::Cancelled`]。任务返回
+    /// `Ok(TaskOutcome { cancelled: true, .. })`。
+    pub fn cancel(&self) {
+        // 拒绝所有待审批请求，避免审批等待悬挂
+        for request in self.policy.pending_requests() {
+            self.policy.resolve(&request.request_id, ApprovalDecision::Deny);
+        }
+        self.cancel_state.mark_cancelled();
+        debug!("coding.session.cancel_requested");
     }
 
     /// 消费 Agent 的 ChannelEvent 流，翻译并发布 AgentEvent。
     ///
-    /// 返回（累积文本，工具调用数，失败原因）。
+    /// 返回（累积文本，工具调用数，失败原因）。取消时失败原因为 `None`，
+    /// 由调用方通过取消状态区分。
     async fn consume_stream(
         &self,
         mut stream: BoxStream<'static, Result<ChannelEvent, AgentError>>,
@@ -178,13 +263,27 @@ impl CodingSession {
         let mut final_text = String::new();
         let mut tool_calls = 0usize;
         let mut failure: Option<String> = None;
+        let mut cancelled = false;
         // call_id → 调用信息（ToolResult 只带 call_id，名字/输入由配对的 ToolCall 提供）
         let mut call_infos: HashMap<String, ToolCallInfo> = HashMap::new();
         // 当前步骤累积的文本段（Message 事件用于切分步骤）
         let mut step_text = String::new();
 
-        while let Some(item) = stream.next().await {
-            match item {
+        loop {
+            // 取消优先：在事件边界处响应 cancel()
+            let item = tokio::select! {
+                biased;
+                _ = self.cancel_state.wait(), if !self.cancel_state.is_cancelled() => {
+                    cancelled = true;
+                    break;
+                }
+                item = stream.next() => item,
+            };
+            let Some(result) = item else {
+                break; // 流自然结束
+            };
+
+            match result {
                 Ok(ChannelEvent::TokenDelta(delta)) => {
                     final_text.push_str(&delta.delta);
                     step_text.push_str(&delta.delta);
@@ -204,17 +303,18 @@ impl CodingSession {
                 }
                 Ok(ChannelEvent::ToolCall(call)) => {
                     tool_calls += 1;
+                    let ToolCall { id, name, input } = call;
                     call_infos.insert(
-                        call.id.clone(),
+                        id.clone(),
                         ToolCallInfo {
-                            name: call.name.clone(),
-                            input: call.input.clone(),
+                            name: name.clone(),
+                            input: input.clone(),
                         },
                     );
                     self.bus.publish(AgentEvent::ToolStarted {
-                        call_id: call.id,
-                        name: call.name,
-                        input: call.input,
+                        call_id: id,
+                        name,
+                        input,
                     });
                 }
                 Ok(ChannelEvent::ToolResult(result)) => {
@@ -241,15 +341,22 @@ impl CodingSession {
                     failure = Some(error.message);
                     break;
                 }
-                // Skill / Memory / Debug / Raw 事件对 UI 非必需，M0 忽略
+                // Skill / Memory / Debug / Raw 事件对 UI 非必需，忽略
                 Ok(_) => {}
                 Err(err) => {
                     failure = Some(err.to_string());
                     break;
                 }
             }
+
+            if failure.is_some() {
+                break;
+            }
         }
 
+        if cancelled {
+            return (final_text, tool_calls, None);
+        }
         (final_text, tool_calls, failure)
     }
 
@@ -287,9 +394,18 @@ impl CodingSession {
         }
     }
 
-    /// 任务收尾：更新状态、写转录、发布完成/失败事件。
-    fn finish_task(&self, text: &str, tool_calls: usize, duration_ms: u64, failure: Option<&str>) {
-        let status = if failure.is_some() {
+    /// 任务收尾：更新状态、写转录、发布完成/失败/取消事件。
+    fn finish_task(
+        &self,
+        text: &str,
+        tool_calls: usize,
+        duration_ms: u64,
+        failure: Option<&str>,
+        cancelled: bool,
+    ) {
+        let status = if cancelled {
+            SessionStatus::Cancelled
+        } else if failure.is_some() {
             SessionStatus::Failed
         } else {
             SessionStatus::Completed
@@ -306,8 +422,12 @@ impl CodingSession {
         }
         self.persist();
 
-        match failure {
-            None => {
+        match (failure, cancelled) {
+            (_, true) => {
+                info!(tool_calls, duration_ms, "coding.session.task_cancelled");
+                self.bus.publish(AgentEvent::Cancelled);
+            }
+            (None, false) => {
                 debug!(tool_calls, duration_ms, "coding.session.task_completed");
                 self.bus.publish(AgentEvent::TaskCompleted {
                     text: text.to_string(),
@@ -315,7 +435,7 @@ impl CodingSession {
                     duration_ms,
                 });
             }
-            Some(message) => {
+            (Some(message), false) => {
                 {
                     let mut record = self.record.lock().expect("会话记录锁中毒");
                     if let Some(obj) = record.metadata.as_object_mut() {

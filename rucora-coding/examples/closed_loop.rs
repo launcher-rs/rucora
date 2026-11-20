@@ -110,6 +110,7 @@ fn event_label(event: &AgentEvent) -> String {
             format!("✅ 任务完成（工具 {tool_calls} 次，{duration_ms}ms）")
         }
         AgentEvent::Failed { message } => format!("❌ 失败 {message}"),
+        AgentEvent::Cancelled => "⛔ 已取消".to_string(),
     }
 }
 

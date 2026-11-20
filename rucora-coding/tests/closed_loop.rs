@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use futures_util::stream::{self, BoxStream};
+use futures_util::stream::{self, BoxStream, StreamExt};
 use rucora::agent::ToolAgent;
 use rucora::tools::FileEditTool;
 use rucora_core::error::ProviderError;
@@ -19,14 +19,32 @@ use rucora_coding::session::{FileSessionStore, SessionStatus, TranscriptEntry};
 
 /// 脚本化 Mock Provider：按调用次序回放预设的流式分块。
 struct ScriptedProvider {
-    scripts: Mutex<VecDeque<Vec<ChatStreamChunk>>>,
+    scripts: Mutex<VecDeque<Script>>,
+    /// 捕获每次 stream_chat 收到的请求（供断言上下文注入）。
+    captured: Arc<Mutex<Vec<ChatRequest>>>,
+}
+
+/// 单次流式调用的脚本。
+enum Script {
+    /// 按序回放的固定分块。
+    Chunks(Vec<ChatStreamChunk>),
+    /// 先发一个增量然后永久挂起（用于取消测试）。
+    HangAfterFirstDelta,
 }
 
 impl ScriptedProvider {
     fn new(scripts: Vec<Vec<ChatStreamChunk>>) -> Self {
         Self {
-            scripts: Mutex::new(VecDeque::from(scripts)),
+            scripts: Mutex::new(VecDeque::from(
+                scripts.into_iter().map(Script::Chunks).collect::<Vec<_>>(),
+            )),
+            captured: Arc::new(Mutex::new(Vec::new())),
         }
+    }
+
+    fn with_captured(mut self, captured: Arc<Mutex<Vec<ChatRequest>>>) -> Self {
+        self.captured = captured;
+        self
     }
 }
 
@@ -58,17 +76,32 @@ impl LlmProvider for ScriptedProvider {
 
     fn stream_chat(
         &self,
-        _request: ChatRequest,
+        request: ChatRequest,
     ) -> Result<BoxStream<'static, Result<ChatStreamChunk, ProviderError>>, ProviderError> {
+        self.captured
+            .lock()
+            .expect("捕获锁中毒")
+            .push(request);
         let script = self
             .scripts
             .lock()
             .expect("脚本队列锁中毒")
             .pop_front()
             .ok_or_else(|| ProviderError::Message("脚本已耗尽".to_string()))?;
-        Ok(Box::pin(stream::iter(
-            script.into_iter().map(Ok),
-        )))
+        let s: BoxStream<'static, Result<ChatStreamChunk, ProviderError>> = match script {
+            Script::Chunks(chunks) => Box::pin(stream::iter(chunks.into_iter().map(Ok))),
+            Script::HangAfterFirstDelta => {
+                // 先发一个增量，然后永久挂起（用于取消测试）
+                let chunk = ChatStreamChunk {
+                    delta: Some("开始工作…".to_string()),
+                    tool_calls: vec![],
+                    usage: None,
+                    finish_reason: None,
+                };
+                Box::pin(stream::iter([Ok(chunk)]).chain(stream::pending()))
+            }
+        };
+        Ok(s)
     }
 }
 
@@ -327,4 +360,138 @@ fn tool_definition_shape() {
         version: 1,
     };
     assert_eq!(def.name, "demo");
+}
+
+/// 上下文注入：run_task_with_context 把项目指令与仓库结构带进模型输入。
+#[tokio::test]
+async fn context_injection_reaches_provider() {
+    let workspace = temp_workspace("context");
+    std::fs::write(workspace.join("AGENTS.md"), "# 项目约定：所有注释使用中文").expect("写指令");
+    std::fs::create_dir_all(workspace.join("src")).expect("建 src");
+    std::fs::write(workspace.join("src/app.rs"), "fn app() {}\n").expect("写源码");
+
+    let bus = EventBus::new();
+    let policy = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig {
+            ask_timeout_secs: 10,
+            ..PermissionConfig::default()
+        },
+        "ctx-session".to_string(),
+        bus.clone(),
+    ));
+
+    let captured: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
+    let provider = ScriptedProvider::new(vec![vec![text_chunk("收到。")]])
+        .with_captured(captured.clone());
+
+    let agent = ToolAgent::builder(provider)
+        .model("scripted-mock")
+        .with_policy(policy.clone())
+        .build();
+
+    let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
+    let session =
+        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone())
+            .expect("会话启动");
+
+    let assembler = rucora_coding::context::ContextAssembler::new(
+        &workspace,
+        rucora_coding::context::ContextConfig::default(),
+    );
+    let outcome = session
+        .run_task_with_context("修复编译错误", &assembler)
+        .await
+        .expect("任务应成功");
+    assert!(outcome.success);
+
+    // 模型收到的输入应包含上下文块与任务
+    let requests = captured.lock().expect("捕获锁中毒");
+    assert_eq!(requests.len(), 1);
+    let input_text = requests[0].messages.last().expect("应有用户消息").content_text();
+    assert!(input_text.contains("<project-context>"), "应有上下文标签：{input_text}");
+    assert!(input_text.contains("项目约定"), "应含 AGENTS.md 指令");
+    assert!(input_text.contains("app.rs"), "应含仓库结构：{input_text}");
+    assert!(input_text.contains("<task>修复编译错误</task>"));
+
+    std::fs::remove_dir_all(&workspace).ok();
+}
+
+/// 取消：挂起流 + cancel() → 任务以 Cancelled 结束，事件与状态一致。
+#[tokio::test]
+async fn cancel_stops_running_task() {
+    let workspace = temp_workspace("cancel");
+    let bus = EventBus::new();
+    let policy = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig::default(),
+        "cancel-session".to_string(),
+        bus.clone(),
+    ));
+
+    let provider = ScriptedProvider::new(vec![vec![]])
+        .with_captured(Arc::new(Mutex::new(Vec::new())));
+    // 将脚本替换为"挂起流"：先发一个增量，然后永久等待
+    provider
+        .scripts
+        .lock()
+        .expect("脚本队列锁中毒")
+        .clear();
+    provider
+        .scripts
+        .lock()
+        .expect("脚本队列锁中毒")
+        .push_back(Script::HangAfterFirstDelta);
+
+    let agent = ToolAgent::builder(provider)
+        .model("scripted-mock")
+        .with_policy(policy.clone())
+        .build();
+
+    let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
+    let session =
+        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone())
+            .expect("会话启动");
+
+    // 后台任务：收到首个 MessageDelta 后取消
+    let canceller = {
+        let session = session.clone();
+        let mut sub = session.events().subscribe();
+        tokio::spawn(async move {
+            loop {
+                match sub.receiver.recv().await {
+                    Ok((_, AgentEvent::MessageDelta { .. })) => {
+                        session.cancel();
+                        return;
+                    }
+                    Ok(_) => continue,
+                    Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => continue,
+                    Err(_) => return,
+                }
+            }
+        })
+    };
+
+    let outcome = session.run_task("长时间任务").await.expect("取消不是错误");
+    canceller.await.expect("取消任务不应 panic");
+
+    assert!(outcome.cancelled, "应标记取消");
+    assert!(!outcome.success);
+
+    // 状态与事件一致
+    let record = session.record_snapshot();
+    assert_eq!(record.status, SessionStatus::Cancelled);
+    let events: Vec<AgentEvent> = session
+        .event_history()
+        .into_iter()
+        .map(|(_, ev)| ev)
+        .collect();
+    assert!(
+        events.iter().any(|ev| matches!(ev, AgentEvent::Cancelled)),
+        "应有 Cancelled 事件"
+    );
+    assert!(
+        !events.iter().any(|ev| matches!(ev, AgentEvent::TaskCompleted { .. })),
+        "取消后不应有 TaskCompleted"
+    );
+
+    std::fs::remove_dir_all(&workspace).ok();
 }

@@ -68,11 +68,15 @@
 //! # }
 //! ```
 
+pub mod context;
 pub mod events;
 pub mod permissions;
 pub mod runner;
 pub mod session;
 
+pub use context::{
+    ContextAssembler, ContextConfig, ProjectInstructions, RepoMap, estimate_tokens,
+};
 pub use events::{AgentEvent, EventSubscription, EventBus, SequencedEvent};
 pub use permissions::{
     ApprovalDecision, ApprovalRequest, ApprovalToolPolicy, PermissionAction, PermissionConfig,
