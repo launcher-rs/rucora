@@ -181,6 +181,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         store,
         bus.clone(),
         policy.clone(),
+        None,
     )?;
 
     // 6. "人工"审批：消费事件流，收到 ApprovalRequired 自动放行

@@ -55,6 +55,16 @@
 - `ToolAgentBuilder` 新增 `with_policy` / `with_observer`：审批策略与事件观测器
   一等公民化，不再需要绕过构建器手动调整执行器
 
+**新增（New Features）— 变更追踪与 Diff**
+- `diff::ChangeRecorder`：包装 `file_edit` / `file_write` 工具，调用前后对目标文件
+  做内容快照（不依赖 git，对未跟踪文件同样生效）
+- `diff::ChangeTracker`：变更聚合——统一 diff（`similar`，3 行上下文 + 增删行统计）、
+  按文件/整体回滚（新建文件回滚为删除）、变更摘要
+- `CodingSession` 集成：`start` 接受 `Option<Arc<ChangeTracker>>`，
+  提供 `change_diffs` / `rollback_all` / `change_tracker`；回滚状态同步进
+  `SessionRecord.changes` 并持久化；`TaskOutcome` 新增 `changes` 计数
+- `diff::git_diff`：git 仓库的可选增强视角（diff HEAD + status 简报）
+
 **新增（New Features）— context 与取消**
 - `context::ContextAssembler`：预算制上下文组装——项目指令（`AGENTS.md` / `CLAUDE.md` /
   `README.md` 按优先级加载）+ 仓库结构地图（`RepoMap`：忽略构建产物、体积标注、

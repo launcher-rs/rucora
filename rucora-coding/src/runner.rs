@@ -30,6 +30,7 @@ use tracing::{debug, info, warn};
 use tokio::sync::Notify;
 
 use crate::context::ContextAssembler;
+use crate::diff::ChangeTracker;
 use crate::events::{AgentEvent, EventBus, SequencedEvent};
 use crate::permissions::{ApprovalDecision, ApprovalRequest, ApprovalToolPolicy};
 use crate::session::{FileSessionStore, SessionRecord, SessionStatus, TranscriptEntry};
@@ -47,6 +48,8 @@ pub struct TaskOutcome {
     pub success: bool,
     /// 是否被用户取消。
     pub cancelled: bool,
+    /// 本次任务捕获的文件变更数（未接入 ChangeTracker 时为 0）。
+    pub changes: usize,
 }
 
 /// 取消状态：跨任务共享，`cancel()` 唤醒正在消费流的任务。
@@ -87,6 +90,7 @@ pub struct CodingSession {
     record: Mutex<SessionRecord>,
     workspace: PathBuf,
     cancel_state: Arc<CancelState>,
+    tracker: Option<Arc<ChangeTracker>>,
 }
 
 /// 工具调用的关联信息（从 ToolCall 事件捕获，供 ToolResult 落转录）。
@@ -107,6 +111,7 @@ impl CodingSession {
         store: FileSessionStore,
         bus: Arc<EventBus>,
         policy: Arc<ApprovalToolPolicy>,
+        tracker: Option<Arc<ChangeTracker>>,
     ) -> Result<Arc<Self>, AgentError> {
         let record = SessionRecord::new(workspace);
         let session_id = record.id.clone();
@@ -124,6 +129,7 @@ impl CodingSession {
             record: Mutex::new(record),
             workspace: workspace.to_path_buf(),
             cancel_state: Arc::new(CancelState::default()),
+            tracker,
         }))
     }
 
@@ -164,6 +170,40 @@ impl CodingSession {
     /// 当前会话记录快照。
     pub fn record_snapshot(&self) -> SessionRecord {
         self.record.lock().expect("会话记录锁中毒").clone()
+    }
+
+    /// 变更追踪器（未接入时返回 `None`）。
+    pub fn change_tracker(&self) -> Option<Arc<ChangeTracker>> {
+        self.tracker.clone()
+    }
+
+    /// 会话期间捕获的文件变更统一 diff（未接入追踪器时为空）。
+    pub fn change_diffs(&self) -> Vec<crate::diff::FileDiff> {
+        self.tracker.as_ref().map_or_else(Vec::new, |t| t.diffs())
+    }
+
+    /// 回滚全部已捕获的文件变更。
+    ///
+    /// # 返回
+    ///
+    /// 成功回滚的文件数；未接入追踪器时为 `Ok(0)`。
+    ///
+    /// # Errors
+    ///
+    /// 文件写入/删除失败时返回 IO 错误。
+    pub fn rollback_all(&self) -> std::io::Result<usize> {
+        let count = match &self.tracker {
+            Some(tracker) => tracker.rollback_all()?,
+            None => return Ok(0),
+        };
+        // 回滚状态同步进会话记录并落盘
+        if let Some(tracker) = &self.tracker {
+            let mut record = self.record.lock().expect("会话记录锁中毒");
+            record.changes = tracker.changes();
+            record.touch();
+        }
+        self.persist();
+        Ok(count)
     }
 
     /// 执行一个任务（完整闭环：流式事件 → 翻译 → 持久化）。
@@ -216,6 +256,10 @@ impl CodingSession {
 
         let cancelled = self.cancel_state.is_cancelled();
         let duration_ms = started_at.elapsed().as_millis() as u64;
+        let changes = self
+            .tracker
+            .as_ref()
+            .map_or(0, |tracker| tracker.changes().len());
         self.finish_task(&text, tool_calls, duration_ms, failure.as_deref(), cancelled);
 
         match (failure, cancelled) {
@@ -225,6 +269,7 @@ impl CodingSession {
                 duration_ms,
                 success: true,
                 cancelled: false,
+                changes,
             }),
             (None, true) => Ok(TaskOutcome {
                 text,
@@ -232,6 +277,7 @@ impl CodingSession {
                 duration_ms,
                 success: false,
                 cancelled: true,
+                changes,
             }),
             (Some(message), _) => Err(AgentError::Message(message)),
         }
@@ -417,6 +463,9 @@ impl CodingSession {
                 record.transcript.push(TranscriptEntry::AssistantText {
                     text: text.to_string(),
                 });
+            }
+            if let Some(tracker) = &self.tracker {
+                record.changes = tracker.changes();
             }
             record.touch();
         }

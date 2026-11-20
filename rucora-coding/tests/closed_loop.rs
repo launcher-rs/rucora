@@ -164,6 +164,7 @@ async fn closed_loop_with_approval() {
         store,
         bus.clone(),
         policy.clone(),
+        None,
     )
     .expect("会话启动");
 
@@ -304,6 +305,7 @@ async fn denied_approval_keeps_agent_working() {
         store,
         bus.clone(),
         policy.clone(),
+        None,
     )
     .expect("会话启动");
 
@@ -391,7 +393,7 @@ async fn context_injection_reaches_provider() {
 
     let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
     let session =
-        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone())
+        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone(), None)
             .expect("会话启动");
 
     let assembler = rucora_coding::context::ContextAssembler::new(
@@ -448,7 +450,7 @@ async fn cancel_stops_running_task() {
 
     let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
     let session =
-        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone())
+        CodingSession::start(Arc::new(agent), &workspace, store, bus.clone(), policy.clone(), None)
             .expect("会话启动");
 
     // 后台任务：收到首个 MessageDelta 后取消
@@ -492,6 +494,156 @@ async fn cancel_stops_running_task() {
         !events.iter().any(|ev| matches!(ev, AgentEvent::TaskCompleted { .. })),
         "取消后不应有 TaskCompleted"
     );
+
+    std::fs::remove_dir_all(&workspace).ok();
+}
+
+/// 闭环 + 变更追踪：编辑 → tracker 捕获 → diff/回滚 → 文件还原。
+#[tokio::test]
+async fn tracked_changes_diff_and_rollback() {
+    let workspace = temp_workspace("tracked");
+    let src = workspace.join("src.txt");
+    std::fs::write(&src, "第一行\n第二行\n").expect("写入初始文件");
+
+    let bus = EventBus::new();
+    let tracker = Arc::new(rucora_coding::diff::ChangeTracker::default());
+    let policy = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig {
+            ask_timeout_secs: 10,
+            ..PermissionConfig::default()
+        }
+        .with_rule("file_edit", rucora_coding::permissions::PermissionAction::Allow),
+        "tracked-session".to_string(),
+        bus.clone(),
+    ));
+
+    let edit_call = ToolCall {
+        id: "call-1".to_string(),
+        name: "file_edit".to_string(),
+        input: serde_json::json!({
+            "path": src.display().to_string(),
+            "old_string": "第一行",
+            "new_string": "第一行已修改\n新增行"
+        }),
+    };
+    let provider = ScriptedProvider::new(vec![
+        vec![tool_call_chunk(edit_call)],
+        vec![text_chunk("编辑完成。")],
+    ]);
+
+    let agent = ToolAgent::builder(provider)
+        .model("scripted-mock")
+        // 关键：用 ChangeRecorder 包装文件工具，变更才会被捕获
+        .tool(rucora_coding::diff::ChangeRecorder::wrap(
+            FileEditTool::new().with_allowed_dirs(vec![workspace.clone()]),
+            tracker.clone(),
+            &workspace,
+        ))
+        .with_policy(policy.clone())
+        .build();
+
+    let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
+    let session = CodingSession::start(
+        Arc::new(agent),
+        &workspace,
+        store,
+        bus.clone(),
+        policy.clone(),
+        Some(tracker.clone()),
+    )
+    .expect("会话启动");
+
+    let outcome = session.run_task("修改 src.txt").await.expect("任务应成功");
+    assert!(outcome.success);
+    assert_eq!(outcome.changes, 1, "应捕获 1 个文件变更");
+
+    // diff 内容正确（统一 diff + 统计）
+    let diffs = session.change_diffs();
+    assert_eq!(diffs.len(), 1);
+    let diff = &diffs[0];
+    assert!(diff.diff.contains("---"), "应有统一 diff 头：{}", diff.diff);
+    assert!(diff.diff.contains("+++"));
+    assert!(diff.diff.contains("+第一行已修改"));
+    assert!(diff.diff.contains("-第一行"));
+    assert!(diff.diff.contains("+新增行"));
+    assert_eq!(diff.added_lines, 2);
+    assert_eq!(diff.removed_lines, 1);
+    assert!(!diff.created);
+
+    // 回滚：文件恢复原内容
+    let restored = session.rollback_all().expect("回滚");
+    assert_eq!(restored, 1);
+    let content = std::fs::read_to_string(&src).expect("读取回滚后的文件");
+    assert_eq!(content, "第一行\n第二行\n");
+    assert!(tracker.diffs().is_empty(), "回滚后不再有未回滚变更");
+
+    // 会话记录持久化了变更
+    let record = session.record_snapshot();
+    assert_eq!(record.changes.len(), 1);
+    assert!(record.changes[0].rolled_back);
+
+    std::fs::remove_dir_all(&workspace).ok();
+}
+
+/// 新建文件的回滚：删除文件本身。
+#[tokio::test]
+async fn rollback_deletes_created_file() {
+    let workspace = temp_workspace("created");
+    let new_file = workspace.join("new.txt");
+
+    let bus = EventBus::new();
+    let policy = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig::default().with_rule("file_write", rucora_coding::permissions::PermissionAction::Allow),
+        "created-session".to_string(),
+        bus.clone(),
+    ));
+    let tracker = Arc::new(rucora_coding::diff::ChangeTracker::default());
+
+
+    let write_call = ToolCall {
+        id: "call-1".to_string(),
+        name: "file_write".to_string(),
+        input: serde_json::json!({
+            "path": new_file.display().to_string(),
+            "content": "新建内容"
+        }),
+    };
+    let provider = ScriptedProvider::new(vec![
+        vec![tool_call_chunk(write_call)],
+        vec![text_chunk("已写入。")],
+    ]);
+
+    let agent = ToolAgent::builder(provider)
+        .model("scripted-mock")
+        .tool(rucora_coding::diff::ChangeRecorder::wrap(
+            rucora::tools::FileWriteTool::new().with_allowed_dirs(vec![workspace.clone()]),
+            tracker.clone(),
+            &workspace,
+        ))
+        .with_policy(policy.clone())
+        .build();
+
+    let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
+    let session = CodingSession::start(
+        Arc::new(agent),
+        &workspace,
+        store,
+        bus.clone(),
+        policy.clone(),
+        Some(tracker.clone()),
+    )
+    .expect("会话启动");
+
+    session.run_task("新建 new.txt").await.expect("任务应成功");
+
+    // 新建文件出现在 diff 中且 created=true
+    let diffs = session.change_diffs();
+    assert_eq!(diffs.len(), 1);
+    assert!(diffs[0].created, "应为新建文件");
+
+    // 回滚 → 文件被删除
+    assert_eq!(session.rollback_all().expect("回滚"), 1);
+    assert!(!new_file.exists(), "回滚后新建文件应被删除");
 
     std::fs::remove_dir_all(&workspace).ok();
 }

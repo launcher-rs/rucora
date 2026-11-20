@@ -76,6 +76,9 @@ pub struct SessionRecord {
     pub usage: Option<Value>,
     /// 扩展元数据。
     pub metadata: Value,
+    /// 会话期间捕获的文件变更（由 ChangeRecorder 填充）。
+    #[serde(default)]
+    pub changes: Vec<crate::diff::FileChange>,
 }
 
 impl SessionRecord {
@@ -92,6 +95,7 @@ impl SessionRecord {
             transcript: Vec::new(),
             usage: None,
             metadata: json!({}),
+            changes: Vec::new(),
         }
     }
 

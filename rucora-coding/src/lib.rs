@@ -52,6 +52,7 @@
 //!     store,
 //!     bus.clone(),
 //!     policy,
+//!     None,
 //! )?;
 //!
 //! // 3. 后台消费事件（GUI 渲染用）
@@ -69,6 +70,7 @@
 //! ```
 
 pub mod context;
+pub mod diff;
 pub mod events;
 pub mod permissions;
 pub mod runner;
@@ -77,6 +79,7 @@ pub mod session;
 pub use context::{
     ContextAssembler, ContextConfig, ProjectInstructions, RepoMap, estimate_tokens,
 };
+pub use diff::{ChangeRecorder, ChangeTracker, FileChange, FileDiff, FILE_MUTATING_TOOLS, git_diff};
 pub use events::{AgentEvent, EventSubscription, EventBus, SequencedEvent};
 pub use permissions::{
     ApprovalDecision, ApprovalRequest, ApprovalToolPolicy, PermissionAction, PermissionConfig,
