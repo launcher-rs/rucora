@@ -85,5 +85,5 @@ pub use permissions::{
     ApprovalDecision, ApprovalRequest, ApprovalToolPolicy, PermissionAction, PermissionConfig,
     ToolPermissionRule,
 };
-pub use runner::{CodingSession, TaskOutcome};
+pub use runner::{CodingSession, TaskOutcome, transcript_to_history};
 pub use session::{FileSessionStore, SessionRecord, SessionStatus, SharedSessionStore, TranscriptEntry};

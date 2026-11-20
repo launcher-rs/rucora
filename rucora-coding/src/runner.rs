@@ -22,7 +22,7 @@ use std::time::Instant;
 use futures_util::{StreamExt, stream::BoxStream};
 use rucora_core::agent::{Agent, AgentError};
 use rucora_core::channel::types::ChannelEvent;
-use rucora_core::provider::types::Role;
+use rucora_core::provider::types::{ChatMessage, Role};
 use rucora_core::tool::types::ToolCall;
 use serde_json::Value;
 use tracing::{debug, info, warn};
@@ -34,6 +34,53 @@ use crate::diff::ChangeTracker;
 use crate::events::{AgentEvent, EventBus, SequencedEvent};
 use crate::permissions::{ApprovalDecision, ApprovalRequest, ApprovalToolPolicy};
 use crate::session::{FileSessionStore, SessionRecord, SessionStatus, TranscriptEntry};
+
+/// 从会话转录重建对话历史（供多轮对话/恢复会话注入模型输入）。
+///
+/// 映射关系：
+/// - `Task` → 用户消息
+/// - `ToolCall` → assistant 工具调用 + 工具结果消息（保持配对）
+/// - `AssistantText` → 助手文本消息
+pub fn transcript_to_history(record: &SessionRecord) -> Vec<ChatMessage> {
+    let mut messages = Vec::new();
+    for entry in &record.transcript {
+        match entry {
+            TranscriptEntry::Task { task } => {
+                messages.push(ChatMessage::user(task.clone()));
+            }
+            TranscriptEntry::ToolCall {
+                name,
+                call_id,
+                input,
+                output,
+                ..
+            } => {
+                messages.push(ChatMessage::assistant_with_tool_calls(
+                    String::new(),
+                    vec![rucora_core::tool::types::ToolCall {
+                        id: call_id.clone(),
+                        name: name.clone(),
+                        input: input.clone(),
+                    }],
+                ));
+                // 工具结果文本：优先取 output.output（执行器包装结构）
+                let result_text = output
+                    .get("output")
+                    .and_then(|v| v.as_str())
+                    .map_or_else(|| output.to_string(), ToString::to_string);
+                messages.push(ChatMessage::tool_result(
+                    name.clone(),
+                    call_id.clone(),
+                    result_text,
+                ));
+            }
+            TranscriptEntry::AssistantText { text } => {
+                messages.push(ChatMessage::assistant(text.clone()));
+            }
+        }
+    }
+    messages
+}
 
 /// 一次任务的执行结果。
 #[derive(Debug, Clone)]
@@ -131,6 +178,54 @@ impl CodingSession {
             cancel_state: Arc::new(CancelState::default()),
             tracker,
         }))
+    }
+
+    /// 从持久化记录恢复会话（多轮对话/重启后继续）。
+    ///
+    /// 恢复后，后续每个任务的模型输入都会带上此前任务的对话历史
+    /// （用户消息、工具调用与结果、助手回复），实现真正的多轮会话。
+    ///
+    /// # Errors
+    ///
+    /// 记录加载失败或写入失败时返回 [`AgentError`]。
+    pub fn resume(
+        agent: Arc<dyn Agent>,
+        workspace: &Path,
+        store: FileSessionStore,
+        bus: Arc<EventBus>,
+        policy: Arc<ApprovalToolPolicy>,
+        tracker: Option<Arc<ChangeTracker>>,
+        record_id: &str,
+    ) -> Result<Arc<Self>, AgentError> {
+        let mut record = store
+            .load(record_id)
+            .map_err(|e| AgentError::Message(format!("会话记录加载失败：{e}")))?;
+        record.status = SessionStatus::Running;
+        record.touch();
+        store
+            .save(&record)
+            .map_err(|e| AgentError::Message(format!("会话记录写入失败：{e}")))?;
+
+        bus.publish(AgentEvent::SessionResumed {
+            session_id: record.id.clone(),
+        });
+
+        info!(session_id = %record.id, tasks = record.tasks.len(), "coding.session.resumed");
+        Ok(Arc::new(Self {
+            agent,
+            bus,
+            policy,
+            store,
+            record: Mutex::new(record),
+            workspace: workspace.to_path_buf(),
+            cancel_state: Arc::new(CancelState::default()),
+            tracker,
+        }))
+    }
+
+    /// 从当前转录重建对话历史。
+    fn history_from_transcript(&self) -> Vec<ChatMessage> {
+        transcript_to_history(&self.record.lock().expect("会话记录锁中毒"))
     }
 
     /// 会话 ID。
@@ -241,6 +336,8 @@ impl CodingSession {
     ) -> Result<TaskOutcome, AgentError> {
         let started_at = Instant::now();
         let task_text = task.to_string();
+        // 历史快照必须在推送当前任务之前（否则当前任务会出现在历史里）
+        let history = self.history_from_transcript();
         self.publish_and_record(
             AgentEvent::TaskStarted { task: task_text.clone() },
             |record| {
@@ -250,7 +347,7 @@ impl CodingSession {
         );
 
         let input_text = context.map_or_else(|| task.to_string(), |a| a.assemble(task));
-        let input = rucora_core::agent::AgentInput::new(input_text)?;
+        let input = rucora_core::agent::AgentInput::new(input_text)?.with_history(history);
         let stream = self.agent.run_stream(input);
         let (text, tool_calls, failure) = self.consume_stream(stream).await;
 

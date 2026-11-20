@@ -129,6 +129,9 @@ impl StreamEngine {
                 messages.push(ChatMessage::system(prompt.clone()));
             }
 
+            // 插入外部会话历史（会话恢复/多轮对话）
+            messages.extend(input.history.iter().cloned());
+
             // 添加用户消息
             messages.push(ChatMessage::user(input.text.clone()));
 

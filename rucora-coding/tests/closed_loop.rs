@@ -647,3 +647,169 @@ async fn rollback_deletes_created_file() {
 
     std::fs::remove_dir_all(&workspace).ok();
 }
+
+/// 多轮对话：第二个任务自动携带第一个任务的历史（用户消息 + 工具 + 回复）。
+#[tokio::test]
+async fn multi_turn_history_reaches_provider() {
+    let workspace = temp_workspace("multi-turn");
+    let bus = EventBus::new();
+    let policy = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig::default(),
+        "multi-turn-session".to_string(),
+        bus.clone(),
+    ));
+
+    let captured: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
+    let provider = ScriptedProvider::new(vec![
+        vec![text_chunk("第一轮回复。")],
+        vec![text_chunk("第二轮回复，我看到了之前的对话。")],
+    ])
+    .with_captured(captured.clone());
+
+    let agent = ToolAgent::builder(provider)
+        .model("scripted-mock")
+        .with_policy(policy.clone())
+        .build();
+
+    let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
+    let session = CodingSession::start(
+        Arc::new(agent),
+        &workspace,
+        store,
+        bus.clone(),
+        policy.clone(),
+        None,
+    )
+    .expect("会话启动");
+
+    session
+        .run_task("任务一：分析问题")
+        .await
+        .expect("任务一应成功");
+    session
+        .run_task("任务二：继续刚才的分析")
+        .await
+        .expect("任务二应成功");
+
+    // 第二次请求应携带第一轮的历史
+    let requests = captured.lock().expect("捕获锁中毒");
+    assert_eq!(requests.len(), 2);
+    let second = &requests[1];
+    let history_text = second
+        .messages
+        .iter()
+        .map(|m| m.content_text())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        history_text.contains("任务一：分析问题"),
+        "第二请求应含任务一用户消息"
+    );
+    assert!(
+        history_text.contains("第一轮回复。"),
+        "第二请求应含任务一助手回复"
+    );
+    // 当前任务在历史之后（用户消息在最后）
+    let last = second.messages.last().expect("应有当前用户消息");
+    assert_eq!(last.content_text(), "任务二：继续刚才的分析");
+
+    std::fs::remove_dir_all(&workspace).ok();
+}
+
+/// 会话恢复：重启后从持久化记录继续，历史仍然生效。
+#[tokio::test]
+async fn resume_restores_history() {
+    let workspace = temp_workspace("resume");
+    let bus = EventBus::new();
+    let policy = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig::default(),
+        "resume-session".to_string(),
+        bus.clone(),
+    ));
+    let store = FileSessionStore::new(workspace.join("sessions")).expect("创建会话存储");
+
+    // 第一段会话：完成任务一
+    let captured1: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
+    let provider1 = ScriptedProvider::new(vec![vec![text_chunk("结论：方案 A 可行。")]])
+        .with_captured(captured1.clone());
+    let agent1 = ToolAgent::builder(provider1)
+        .model("scripted-mock")
+        .with_policy(policy.clone())
+        .build();
+    let session1 = CodingSession::start(
+        Arc::new(agent1),
+        &workspace,
+        store.clone(),
+        bus.clone(),
+        policy.clone(),
+        None,
+    )
+    .expect("会话启动");
+    session1.run_task("评估方案 A").await.expect("任务一应成功");
+    let record_id = session1.id();
+    let resumed_session_id = {
+        let record = session1.record_snapshot();
+        assert_eq!(record.status, SessionStatus::Completed);
+        record.id.clone()
+    };
+
+    // "重启"：全新 Agent + resume 同一记录
+    let captured2: Arc<Mutex<Vec<ChatRequest>>> = Arc::new(Mutex::new(Vec::new()));
+    let policy2 = Arc::new(ApprovalToolPolicy::new(
+        PermissionConfig::default(),
+        "resume-session".to_string(),
+        bus.clone(),
+    ));
+    let provider2 = ScriptedProvider::new(vec![vec![text_chunk(
+        "基于上轮结论，方案 A 继续推进。",
+    )]])
+    .with_captured(captured2.clone());
+    let agent2 = ToolAgent::builder(provider2)
+        .model("scripted-mock")
+        .with_policy(policy2.clone())
+        .build();
+    let session2 = CodingSession::resume(
+        Arc::new(agent2),
+        &workspace,
+        store,
+        bus.clone(),
+        policy2.clone(),
+        None,
+        &record_id,
+    )
+    .expect("恢复会话");
+
+    // 恢复事件已发布
+    let events: Vec<AgentEvent> = session2
+        .event_history()
+        .into_iter()
+        .map(|(_, ev)| ev)
+        .collect();
+    assert!(
+        events
+            .iter()
+            .any(|ev| matches!(ev, AgentEvent::SessionResumed { session_id } if session_id == &resumed_session_id)),
+        "应有 SessionResumed 事件"
+    );
+
+    // 恢复后的任务携带第一段会话的历史
+    session2.run_task("继续推进").await.expect("恢复后任务应成功");
+    let requests = captured2.lock().expect("捕获锁中毒");
+    assert_eq!(requests.len(), 1);
+    let history_text = requests[0]
+        .messages
+        .iter()
+        .map(|m| m.content_text())
+        .collect::<Vec<_>>()
+        .join("\n");
+    assert!(
+        history_text.contains("评估方案 A"),
+        "恢复后应含第一段会话的用户消息"
+    );
+    assert!(
+        history_text.contains("结论：方案 A 可行。"),
+        "恢复后应含第一段会话的助手回复"
+    );
+
+    std::fs::remove_dir_all(&workspace).ok();
+}

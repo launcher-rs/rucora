@@ -33,6 +33,12 @@ pub enum AgentEvent {
         session_id: String,
     },
 
+    /// 会话从持久化记录中恢复（历史将随后续任务注入）。
+    SessionResumed {
+        /// 会话 ID。
+        session_id: String,
+    },
+
     /// 用户提交了一个任务，Agent 开始处理。
     TaskStarted {
         /// 用户任务文本。

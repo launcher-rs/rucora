@@ -86,6 +86,7 @@ fn tool_call(call: ToolCall) -> ChatStreamChunk {
 fn event_label(event: &AgentEvent) -> String {
     match event {
         AgentEvent::SessionStarted { session_id } => format!("会话开始 {session_id}"),
+        AgentEvent::SessionResumed { session_id } => format!("会话恢复 {session_id}"),
         AgentEvent::TaskStarted { task } => format!("任务：{task}"),
         AgentEvent::MessageDelta { delta } => format!("增量 +{delta}"),
         AgentEvent::AssistantMessage { text, has_tool_calls } => format!(

@@ -55,6 +55,15 @@
 - `ToolAgentBuilder` 新增 `with_policy` / `with_observer`：审批策略与事件观测器
   一等公民化，不再需要绕过构建器手动调整执行器
 
+**新增（New Features）— 会话恢复与多轮对话**
+- `AgentInput` 新增 `history` 字段与 `with_history()`：外部会话历史插入
+  系统提示词之后、当前用户消息之前；流式与非流式两条执行路径均已接入
+  （修复流式引擎此前完全忽略会话历史的问题）
+- `CodingSession` 多轮对话：每个任务的模型输入自动携带此前任务的
+  完整转录历史（用户消息、工具调用与结果、助手回复）
+- `CodingSession::resume` + `transcript_to_history`：从持久化记录恢复会话
+  （重启后继续），发布 `AgentEvent::SessionResumed`
+
 **新增（New Features）— 变更追踪与 Diff**
 - `diff::ChangeRecorder`：包装 `file_edit` / `file_write` 工具，调用前后对目标文件
   做内容快照（不依赖 git，对未跟踪文件同样生效）

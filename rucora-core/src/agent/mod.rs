@@ -25,6 +25,7 @@ use serde_json::Value;
 use std::sync::Arc;
 
 use crate::channel::types::ChannelEvent;
+use crate::provider::types::ChatMessage;
 use crate::provider::types::ChatRequest;
 
 /// Agent 决策结果。
@@ -207,6 +208,12 @@ pub struct AgentInput {
     pub text: String,
     /// 额外上下文数据。
     pub context: serde_json::Value,
+    /// 外部提供的会话历史（会话恢复/多轮对话）。
+    ///
+    /// 执行器会将其插入系统提示词之后、当前用户消息之前。
+    /// 注意：为空时完全无影响；启用 `with_conversation` 的 Agent
+    /// 自带历史管理，不建议再重复注入。
+    pub history: Vec<ChatMessage>,
 }
 
 impl AgentInput {
@@ -225,7 +232,16 @@ impl AgentInput {
         Ok(Self {
             text,
             context: serde_json::Value::Object(serde_json::Map::new()),
+            history: Vec::new(),
         })
+    }
+
+    /// 设置会话历史（会话恢复/多轮对话）。
+    ///
+    /// 历史消息将按原顺序插入系统提示词之后、当前用户消息之前。
+    pub fn with_history(mut self, history: Vec<ChatMessage>) -> Self {
+        self.history = history;
+        self
     }
 
     /// 从文本和上下文创建输入。
@@ -243,7 +259,11 @@ impl AgentInput {
                 "AgentInput text must not be empty".to_string(),
             ));
         }
-        Ok(Self { text, context })
+        Ok(Self {
+            text,
+            context,
+            history: Vec::new(),
+        })
     }
 
     /// 创建 builder。
@@ -270,6 +290,7 @@ impl AgentInput {
 pub struct AgentInputBuilder {
     text: String,
     context: serde_json::Value,
+    history: Vec<ChatMessage>,
 }
 
 impl AgentInputBuilder {
@@ -288,7 +309,16 @@ impl AgentInputBuilder {
         Ok(Self {
             text,
             context: serde_json::Value::Object(serde_json::Map::new()),
+            history: Vec::new(),
         })
+    }
+
+    /// 设置会话历史（会话恢复/多轮对话）。
+    ///
+    /// 历史消息将按原顺序插入系统提示词之后、当前用户消息之前。
+    pub fn with_history(mut self, history: Vec<ChatMessage>) -> Self {
+        self.history = history;
+        self
     }
 
     /// 添加上下文键值对。
@@ -314,6 +344,7 @@ impl AgentInputBuilder {
         AgentInput {
             text: self.text,
             context: self.context,
+            history: self.history,
         }
     }
 }
