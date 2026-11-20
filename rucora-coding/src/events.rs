@@ -119,6 +119,28 @@ pub enum AgentEvent {
 
     /// 任务被用户取消。
     Cancelled,
+
+    /// 子 Agent 文本增量（嵌套执行过程；UI 应缩进渲染，不计入主任务文本）。
+    SubAgentDelta {
+        /// 增量文本。
+        delta: String,
+    },
+
+    /// 子 Agent 工具调用开始。
+    SubAgentToolStarted {
+        /// 子 Agent 调用的工具名。
+        name: String,
+        /// 工具输入。
+        input: Value,
+    },
+
+    /// 子 Agent 工具调用完成。
+    SubAgentToolCompleted {
+        /// 工具名。
+        name: String,
+        /// 是否成功。
+        success: bool,
+    },
 }
 
 /// 带序号的事件信封。

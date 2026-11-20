@@ -55,6 +55,14 @@
 - `ToolAgentBuilder` 新增 `with_policy` / `with_observer`：审批策略与事件观测器
   一等公民化，不再需要绕过构建器手动调整执行器
 
+**新增（New Features）— 子 Agent 编排**
+- `subagent::SubAgentTool`：子任务派生工具（与 Claude Code 的 Task 工具同构）——
+  主循环零改动即可派生独立上下文的子 Agent，摘要以结构化结果回传；
+  超时保护（默认 600 秒，可配），超时/失败以 `ok:false` 结构化结果反馈主循环
+- `subagent::SubAgentObserver`：子任务进度实时桥接父会话事件总线
+  （`SubAgentDelta` / `SubAgentToolStarted` / `SubAgentToolCompleted`，UI 缩进渲染）
+- 子任务的文件变更经共享 `ChangeTracker` 并入父会话（可统一回滚）
+
 **新增（New Features）— 多会话管理与 worktree 隔离**
 - `manager::SessionManager`：多会话并发管理——launch/resume/get/detach/cancel_all，
   装配采用蓝图反转（`SessionBlueprint` 交工厂闭包构建 Agent 与审批策略，

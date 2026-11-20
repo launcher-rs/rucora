@@ -79,6 +79,7 @@ pub mod manager;
 pub mod permissions;
 pub mod runner;
 pub mod session;
+pub mod subagent;
 pub mod worktree;
 
 pub use context::{
@@ -91,6 +92,7 @@ pub use permissions::{
     ToolPermissionRule,
 };
 pub use manager::{ApprovalRoute, SessionBlueprint, SessionManager, SessionParts};
+pub use subagent::{SubAgentObserver, SubAgentTool, DEFAULT_SUBAGENT_TIMEOUT_SECS};
 pub use runner::{CodingSession, TaskOutcome, transcript_to_history};
 pub use worktree::{create_worktree, list_worktrees, remove_worktree, Worktree};
 pub use session::{FileSessionStore, SessionRecord, SessionStatus, SharedSessionStore, TranscriptEntry};

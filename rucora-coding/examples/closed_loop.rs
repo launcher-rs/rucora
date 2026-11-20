@@ -112,6 +112,12 @@ fn event_label(event: &AgentEvent) -> String {
         }
         AgentEvent::Failed { message } => format!("❌ 失败 {message}"),
         AgentEvent::Cancelled => "⛔ 已取消".to_string(),
+        AgentEvent::SubAgentDelta { delta } => format!("  ↳ 子任务增量 +{delta}"),
+        AgentEvent::SubAgentToolStarted { name, input } => format!("  ↳ 子任务工具开始 {name} {input}"),
+        AgentEvent::SubAgentToolCompleted { name, success } => format!(
+            "  ↳ 子任务工具完成 {name}（{}）",
+            if *success { "成功" } else { "失败" }
+        ),
     }
 }
 
