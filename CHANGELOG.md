@@ -40,6 +40,29 @@
 
 ---
 
+## [Unreleased] rucora-coding
+
+**新增（New Features）**
+- 新增 `rucora-coding` crate：面向 AI 编程工作台的 Coding Agent 运行时（M0）
+  - `events::AgentEvent` + `EventBus`：统一事件流（单调序号、订阅回放、历史快照），
+    GUI/CLI 只消费事件、不感知 Provider 差异
+  - `permissions::ApprovalToolPolicy`：交互式工具审批——按工具名规则与风险等级决定
+    放行/询问/拒绝；"询问"挂起等待人工裁决（`resolve` / `resolve_approval`），
+    拒绝以结构化 `policy_denied` 结果反馈给模型（不中断任务）；支持 `AllowAlways` 记忆
+  - `session::FileSessionStore`：会话记录 JSON 持久化（任务/转录/状态，原子写入）
+  - `runner::CodingSession`：把 Agent 流式执行、事件翻译、审批与会话持久化粘合成
+    "任务 → 工具 → 审批 → 变更 → 完成"的完整闭环，会话生命周期独立于 UI
+- `ToolAgentBuilder` 新增 `with_policy` / `with_observer`：审批策略与事件观测器
+  一等公民化，不再需要绕过构建器手动调整执行器
+
+**修复（Bug Fixes）**
+- 修复 `ToolResult::success` 恒为默认值的问题：执行器从不设置该字段，
+  成功结果（含缓存命中）现依据工具输出 `ok` 字段正确标记；
+  策略拒绝、熔断开启、执行超时等失败路径显式标记 `success: false`
+- 修复 rucora 聚合 crate 残留的未使用依赖 `futures-executor`
+
+---
+
 ## [0.6.0] - 2026-08-10
 
 **新增（New Features）**

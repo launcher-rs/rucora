@@ -1,0 +1,29 @@
+[package]
+name = "rucora-coding"
+version.workspace = true
+edition = "2024"
+description = "Coding Agent runtime for rucora: events, approvals, sessions"
+documentation = "https://docs.rs/rucora-coding"
+readme = "README.md"
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+rucora = { workspace = true, features = ["providers", "tools"] }
+rucora-core.workspace = true
+async-trait = "0.1"
+futures-util = "0.3"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["sync", "time"] }
+tracing = "0.1"
+uuid = { version = "1", features = ["v4"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+
+[lints]
+workspace = true

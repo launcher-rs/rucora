@@ -276,6 +276,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
                 );
                 return Ok(ToolResult {
                     tool_call_id: call.id.clone(),
+                    success: false,
                     output: out,
                     ..Default::default()
                 });
@@ -309,6 +310,7 @@ pub(crate) async fn execute_tool_call_with_middleware(
                 );
                 return Ok(ToolResult {
                     tool_call_id: call.id.clone(),
+                    success: false,
                     output: out,
                     ..Default::default()
                 });
@@ -422,10 +424,17 @@ pub(crate) async fn execute_tool_call_with_middleware(
     );
 
     // 构建结果
+    // success 依据工具输出的 ok 字段判定（此前恒为默认 false，
+    // 事件消费方无法区分工具调用成败）
+    let success = tool_output
+        .get("ok")
+        .and_then(Value::as_bool)
+        .unwrap_or(false);
     let mut result = ToolResult {
         tool_call_id: call.id.clone(),
         output: tool_output,
         latency_ms: Some(start.elapsed().as_millis() as u64),
+        success,
         ..Default::default()
     };
 
@@ -469,6 +478,7 @@ pub(crate) async fn execute_tool_call_enhanced(
         debug!(tool.name = %tool_name, tool.call_id = %call.id, "tool_call.cache_hit");
         return Ok(ToolResult {
             tool_call_id: call.id.clone(),
+            success: cached.get("ok").and_then(Value::as_bool).unwrap_or(false),
             output: cached,
             ..Default::default()
         });
@@ -510,6 +520,7 @@ pub(crate) async fn execute_tool_call_enhanced(
         );
         return Ok(ToolResult {
             tool_call_id: call.id.clone(),
+            success: false,
             output: out,
             ..Default::default()
         });
@@ -701,6 +712,7 @@ async fn execute_single_with_timeout(
                     );
                     Ok(ToolResult {
                         tool_call_id: call.id.clone(),
+                        success: false,
                         output: out,
                         ..Default::default()
                     })

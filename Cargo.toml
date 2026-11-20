@@ -2,6 +2,7 @@
 resolver = "3"
 members = [
     "rucora",
+    "rucora-coding",
     "rucora-core",
     "rucora-macros",
     "rucora-mcp",

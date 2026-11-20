@@ -270,6 +270,10 @@ pub struct ToolAgentBuilder<P, S = NoModel> {
     middleware_chain: crate::middleware::MiddlewareChain,
     enhanced_config: ToolCallEnhancedConfig,
     llm_params: LlmParams,
+    /// 工具策略（可选，默认 `DefaultToolPolicy`）
+    policy: Option<Arc<dyn crate::agent::policy::ToolPolicy>>,
+    /// 事件观测器（可选，默认 Noop）
+    observer: Option<Arc<dyn rucora_core::channel::ChannelObserver>>,
     _marker: std::marker::PhantomData<S>,
 }
 
@@ -293,6 +297,8 @@ impl<P> ToolAgentBuilder<P, NoModel> {
             middleware_chain: crate::middleware::MiddlewareChain::new(),
             enhanced_config: ToolCallEnhancedConfig::default(),
             llm_params: LlmParams::default(),
+            policy: None,
+            observer: None,
             _marker: std::marker::PhantomData,
         }
     }
@@ -311,6 +317,8 @@ impl<P> ToolAgentBuilder<P, NoModel> {
             middleware_chain: self.middleware_chain,
             enhanced_config: self.enhanced_config,
             llm_params: self.llm_params,
+            policy: self.policy,
+            observer: self.observer,
             _marker: std::marker::PhantomData,
         }
 }
@@ -323,6 +331,24 @@ where
     /// 设置系统提示词
     pub fn system_prompt(mut self, prompt: impl Into<String>) -> Self {
         self.system_prompt = Some(prompt.into());
+        self
+    }
+
+    /// 设置工具策略（审批/拦截）。
+    ///
+    /// 默认使用 [`DefaultToolPolicy`](crate::agent::DefaultToolPolicy)。
+    /// 传入自定义实现可实现交互式审批等高级控制。
+    pub fn with_policy(mut self, policy: Arc<dyn crate::agent::policy::ToolPolicy>) -> Self {
+        self.policy = Some(policy);
+        self
+    }
+
+    /// 设置事件观测器。
+    ///
+    /// 执行过程中的 TokenDelta / ToolCall / ToolResult / Message / Error
+    /// 事件都会推送给观测器，用于构建 UI 或审计日志。
+    pub fn with_observer(mut self, observer: Arc<dyn rucora_core::channel::ChannelObserver>) -> Self {
+        self.observer = Some(observer);
         self
     }
 
@@ -469,7 +495,7 @@ where
 
         // 创建执行能力
         let provider_arc = Arc::new(provider);
-        let execution = build_default_execution(crate::agent::ExecutionBuildConfig {
+        let mut execution = build_default_execution(crate::agent::ExecutionBuildConfig {
             provider: provider_arc.clone(),
             model: self.model.clone(),
             tools: self.tools.clone(),
@@ -481,6 +507,12 @@ where
             enhanced_config: self.enhanced_config,
             llm_params: self.llm_params.clone(),
         });
+        if let Some(policy) = self.policy {
+            execution = execution.with_policy(policy);
+        }
+        if let Some(observer) = self.observer {
+            execution = execution.with_observer(observer);
+        }
 
         ToolAgent {
             provider: provider_arc,

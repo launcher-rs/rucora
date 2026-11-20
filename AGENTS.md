@@ -154,6 +154,7 @@ cargo run --example 12_mcp --all-features
 - **`rucora-mcp/`** - MCP 协议集成
 - **`rucora-a2a/`** - A2A 协议集成
 - **`rucora-skills/`** - 技能系统（YAML 命令模板）
+- **`rucora-coding/`** - Coding Agent 运行时（统一事件流、交互式审批、会话持久化）
 - **`rucora-embed/`** - 嵌入提供者
 - **`rucora-retrieval/`** - 向量存储实现
 - **`rucora-prompt/`** - 提示词管理
